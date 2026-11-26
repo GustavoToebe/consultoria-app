@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 /**
- * Plano agendado (V105), treino e dieta: "Alterar data" e "Liberar agora". Quem publica (a permissão de publicar do tipo) é quem
+ * Plano agendado (V106), treino e dieta: "Alterar data" e "Liberar agora". Quem publica (a permissão de publicar do tipo) é quem
  * mexe na liberação. A mobilidade tem a mesma rota em {@link PlanoMobilidadeLiberacaoController} (a funcionalidade é do plano da
  * consultoria). Plano sem agendamento = 409 {@code PLANO_NAO_AGENDADO}; de outra consultoria ou arquivado = 404.
  */

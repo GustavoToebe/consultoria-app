@@ -80,7 +80,7 @@ public abstract class PlanoBase {
     @Column(name = "publicado_em")
     private Instant publicadoEm;
 
-    /** Versão que o ALUNO vê (0 = nenhuma ainda); nunca passa de {@code versaoPublicada} (CHECK da V105). */
+    /** Versão que o ALUNO vê (0 = nenhuma ainda); nunca passa de {@code versaoPublicada} (CHECK da V106). */
     @Column(name = "versao_liberada", nullable = false)
     private int versaoLiberada;
 

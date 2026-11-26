@@ -17,7 +17,18 @@ public record ResultadoInterpretacao(List<PropostaGrupo> grupos, List<PropostaDu
     public record PropostaGrupo(String identificadorOrigem, String nomeAluno, String email,
                                 String telefone, String objetivo, String observacoes,
                                 List<PropostaPeso> pesos, ConteudoTreino treino,
-                                ConteudoDieta dieta) {
+                                ConteudoDieta dieta, List<String> avisos) {
+        public PropostaGrupo {
+            avisos = avisos == null ? List.of() : List.copyOf(avisos);
+        }
+
+        /** Sem avisos de corte (regras locais e testes). */
+        public PropostaGrupo(String identificadorOrigem, String nomeAluno, String email, String telefone,
+                             String objetivo, String observacoes, List<PropostaPeso> pesos, ConteudoTreino treino,
+                             ConteudoDieta dieta) {
+            this(identificadorOrigem, nomeAluno, email, telefone, objetivo, observacoes, pesos, treino, dieta, List.of());
+        }
+
         @Override
         public String toString() {
             return "PropostaGrupo[origem=" + identificadorOrigem + "]";

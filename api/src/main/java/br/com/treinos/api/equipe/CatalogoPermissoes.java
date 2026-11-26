@@ -56,7 +56,9 @@ public final class CatalogoPermissoes {
         new Permissao("FINANCEIRO_ALTERAR","Consultoria","Financeiro","Criar, editar e registrar pagamento: planos comerciais, contratações, cobranças e lançamentos.",true),
         new Permissao("WHATSAPP_ALTERAR","Consultoria","WhatsApp","Configurar: conexão e modelos de mensagem do WhatsApp da consultoria.",true),
         new Permissao("VITRINE_LER","Consultoria","Vitrine","Consultar: itens da vitrine.",false),
-        new Permissao("VITRINE_ALTERAR","Consultoria","Vitrine","Criar, editar, ordenar e apagar: itens da vitrine e fotos.",false));
+        new Permissao("VITRINE_ALTERAR","Consultoria","Vitrine","Criar, editar, ordenar e apagar: itens da vitrine e fotos.",false),
+        new Permissao("CONTRATO_LER","Consultoria","Contratos","Consultar: modelos de contrato e contratos dos alunos (o texto leva CPF e endereço).",true),
+        new Permissao("CONTRATO_ALTERAR","Consultoria","Contratos","Criar, editar e gerar: modelos de contrato e contratos dos alunos; cancelar e prorrogar o prazo.",true));
     public static final Set<String> CODIGOS=CATALOGO.stream().map(Permissao::codigo).collect(Collectors.toUnmodifiableSet());
     public static final Map<String,Set<String>> DEPENDENCIAS=Map.ofEntries(
         Map.entry("ALUNO_ALTERAR",Set.of("ALUNO_LER")),
@@ -88,6 +90,8 @@ public final class CatalogoPermissoes {
         Map.entry("QUESTIONARIO_ALTERAR",Set.of("QUESTIONARIO_LER")),
         Map.entry("COMUNIDADE_MODERAR",Set.of("TREINO_LER")),
         Map.entry("VITRINE_ALTERAR",Set.of("VITRINE_LER")),
+        Map.entry("CONTRATO_LER",Set.of("ALUNO_LER","ALUNO_SENSIVEL_LER")),
+        Map.entry("CONTRATO_ALTERAR",Set.of("CONTRATO_LER")),
         Map.entry("USUARIO_ALTERAR",Set.of("EQUIPE_LER")),
         Map.entry("PERFIL_ALTERAR",Set.of("EQUIPE_LER")));
     public static Set<String> validar(Set<String> codigos) {

@@ -80,6 +80,8 @@ export interface EuResponse {
   migracaoAssistidaHabilitada?: boolean;
   /** Avisos pelo WhatsApp oficial da Meta ligados na plataforma; falso ou ausente = o app esconde tudo. */
   whatsappHabilitado?: boolean;
+  /** Contrato digital ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta. */
+  contratosHabilitados?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
   /** Só do aluno: links das redes da consultoria que estão preenchidas (a API só manda as preenchidas); ausente = nenhuma. */
@@ -618,12 +620,22 @@ export interface PreviaDeImportacao {
   hash: string; linhas: number; novos: number; atualizados: number; ignorados: number; comErro: number;
   erros: ErroDeImportacao[]; errosAlem: number; amostra: { linha: number; campos: Record<string, string> }[];
 }
-/** Colunas da aba, o total de linhas de dados e até 5 primeiras linhas (texto de cada célula, para a tela). */
+/** Campo sugerido para uma coluna: `PARECIDA` (nome só parecido) a tela marca para conferir. */
+export interface SugestaoDeColuna { campo: string; coluna: number; confianca: 'EXATA' | 'SINONIMO' | 'PARECIDA' }
+/** Colunas da aba, o total de linhas de dados e a amostra (texto de cada célula, para a tela). */
 export interface ColunasDaImportacao {
   abas: string[]; aba: number; colunas: string[]; linhas: number; amostra: string[][];
+  /** A linha do cabeçalho usada (a pedida ou, sem pedido, a detectada pela API). */ linhaDoCabecalho: number;
+  /** Mapeamento sugerido pela API (nome, sinônimo ou semelhança). */ sugestoes: SugestaoDeColuna[];
   /** Número de cada linha da amostra no arquivo. */ numerosDasLinhas: number[];
   /** O teto da amostra (1.000 linhas, 20.000 células) cortou o arquivo. */ amostraCortada: boolean;
   /** Pares [posição na amostra, coluna] cujo texto veio cortado em 120 caracteres: não se editam na tela. */ celulasCortadas: number[][];
+}
+/** Reconhecimento do arquivo (entrada única da importação manual): só tipos, destinos e contagens, nunca valor de célula. */
+export interface ReconhecimentoDoArquivo {
+  trilha: 'COMPLETA' | 'UMA_ABA' | 'DESCONHECIDA';
+  abas: { indice: number; nome: string; destino: string | null; tipoNaPlanilhaCompleta: string | null; linhaDoCabecalho: number; linhas: number }[];
+  /** Na trilha `UMA_ABA`, a aba e o destino sugeridos. */ aba: number | null; destino: string | null;
 }
 export interface DetalheDeImportacao extends ItemDeImportacao {
   configuracao: Record<string, unknown>; erros: ErroDeImportacao[];

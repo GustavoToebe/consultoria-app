@@ -38,7 +38,7 @@ import { Texto } from '../../../ui/Texto';
 import { codigoApi, textoDoErro } from '../../../ui/erros';
 import { useCarregar } from '../../../ui/useCarregar';
 import { TelaDoEditor } from '../../plano/TelaDoEditor';
-import { formulario, type ArquivoEscolhido } from '../formularioDaImportacao';
+import { formulario, pegarArquivoEmEspera, type ArquivoEscolhido } from '../formularioDaImportacao';
 import { ConferirOArquivo } from '../ConferirOArquivo';
 import { Numeros, ZonaDeArquivo } from '../TelaImportacao';
 import { EtapaDaAmostra, useAmostraDaPlanilha } from './EtapaDaAmostra';
@@ -85,7 +85,9 @@ export function AssistenteDaPlanilha() {
   const { confirmar: confirmarSaida } = useSaidaGuardada();
   const [etapa, setEtapa] = useState<EtapaDaPlanilha>(1);
   const [largura, setLargura] = useState<number>(LARGURA_MAXIMA);
-  const [arquivo, setArquivo] = useState<ArquivoEscolhido | null>(null);
+  // Vindo da entrada única (`/nova`), o arquivo já chega escolhido (só em memória; o inicializador o tira de lá).
+  const [arquivo, setArquivo] = useState<ArquivoEscolhido | null>(pegarArquivoEmEspera);
+  const [daEntrada] = useState(arquivo);
   const [analise, setAnalise] = useState<AnaliseDaPlanilha | null>(null);
   const [respostas, setRespostas] = useState<EstadoDasRespostas>(SEM_RESPOSTAS);
   const [previa, setPrevia] = useState<PreviaDaPlanilha | null>(null);
@@ -283,6 +285,7 @@ export function AssistenteDaPlanilha() {
             <Cartao titulo="Carregue a planilha (.xlsx ou .csv)" descricao="Uma planilha com várias abas: alunos, pesos, rotinas e exercícios dos treinos, planos de dieta, refeições, suplementos e a lista de exercícios. O arquivo não fica guardado.">
               <ZonaDeArquivo arquivo={arquivo} aoEscolher={escolherArquivo} />
             </Cartao>
+            {daEntrada && arquivo === daEntrada ? <Texto>O arquivo tem várias abas ligadas (alunos, treinos, dietas): por isso abriu a planilha completa. Continuar lê as abas.</Texto> : null}
             <ConferirOArquivo arquivo={arquivo} />
             <Texto variante="suave">Ao continuar, a planilha é lida e as abas são reconhecidas pelos títulos das colunas, sem gravar nada. Sem inteligência artificial: só regras fixas, e o que não for entendido vira observação ou fica na lista de problemas.</Texto>
           </>

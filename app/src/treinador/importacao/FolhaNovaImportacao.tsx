@@ -21,7 +21,7 @@ const OPCOES: { valor: Opcao; titulo: string; Icone: LucideIcon; topicos: string
   {
     valor: 'manual', titulo: 'Importação manual', Icone: FileSpreadsheet, rota: '/treinador/importacao/nova',
     topicos: [
-      'Uma planilha .xlsx ou .csv no modelo, para o destino que você escolhe.',
+      'Uma planilha .xlsx ou .csv: o app reconhece se é uma aba (alunos, pesos, biblioteca) ou a planilha completa.',
       'Você confere coluna por coluna e pode corrigir uma célula ou tirar uma linha.',
       'Valida antes de gravar: mostra o que é novo, atualizado ou tem erro.',
     ],

@@ -24,7 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Data de liberação do plano para o aluno (V105): agendar, o aluno seguir no plano ou na versão anterior (pacote sem a versão
+ * Data de liberação do plano para o aluno (V106): agendar, o aluno seguir no plano ou na versão anterior (pacote sem a versão
  * futura), a rotina das 00:05 antes e depois da meia-noite de Brasília, "Alterar data" e "Liberar agora", outra consultoria 404,
  * Publicar tudo com data e o aviso gerado uma vez só (aviso no app e push). Dados fictícios. A rotina é chamada por consultoria
  * ({@code rodarNa}), para não liberar o agendamento de outro teste do banco compartilhado.

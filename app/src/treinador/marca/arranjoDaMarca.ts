@@ -10,7 +10,7 @@ export const PREVIA_AO_LADO = LARGURA_DUAS_COLUNAS - 80;
  * menos a largura da prévia da mobilidade na faixa larga (440): 1104 px medidos, o que 1920 dentro de Configurações já dá.
  */
 export const FORMULARIO_E_PREVIA = LARGURA_FORMULARIO + VAO_DA_PREVIA + LARGURA_DA_PREVIA_NA_LARGA;
-/** Teto do desenho da prévia na coluna larga: a largura do app do aluno na web (720), centrado no cartão. */
+/** Teto do desenho da prévia na coluna larga: a largura do app do aluno na web (720); a coluna para nele mais o recuo do cartão. */
 export const LARGURA_DO_APP_DO_ALUNO = 720;
 
 /**

@@ -27,6 +27,8 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   ajudaForaDoCampo?: { id: string; texto: string };
   /** Campo de várias linhas (observações). */
   linhas?: number;
+  /** Altura fixa do campo de várias linhas (o `CampoDaTabela` no celular, medida pelo texto; passou dela, o campo rola). */
+  altura?: number;
   /** Botão dentro do campo, à direita (ex.: calendário). */
   acao?: ReactNode;
   /** Nome para o leitor de tela quando o rótulo visível se repete na tela ("Reps mín." da série e da retomada). */
@@ -54,7 +56,7 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
  * leitor de tela: `aria-invalid` na web, região viva no Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de
  * foco (a cor da marca não contrasta no escuro).
  */
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, rotuloDiscreto, sufixo, erroSemTexto, grande, corDoTexto, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, linhas, altura, numerico, acao, rotuloAcessivel, rotuloOculto, rotuloDiscreto, sufixo, erroSemTexto, grande, corDoTexto, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const cinza = coresDoDesabilitado(cores);
@@ -92,7 +94,9 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, l
           estilos.entrada,
           { borderWidth: 1 + destaque, paddingHorizontal: espaco(1.5) - destaque, paddingVertical: espaco(1) - destaque },
           numerico ? { fontVariant: ['tabular-nums'] } : null,
-          linhas ? { minHeight: linhas * escalar(22, fatorTexto) + 20, textAlignVertical: 'top' } : null,
+          // Com uma linha a conta dá 42: nunca abaixo do alvo de toque (a mesma altura do campo de uma linha).
+          linhas ? { minHeight: Math.max(ALVO_TOQUE, linhas * escalar(22, fatorTexto) + 20), textAlignVertical: 'top' } : null,
+          altura ? { height: altura } : null,
           acao ? { paddingRight: ALVO_TOQUE } : sufixo ? { paddingRight: espaco(1.5) + escalar(16, fatorTexto) * sufixo.length } : null,
           { color: corDoTexto ?? cores.texto, backgroundColor: cores.campo, borderColor: corBorda, fontSize: escalar(16, fatorTexto) },
           grande ? { fontSize: escalar(22, fatorTexto), fontFamily: fontes.semi, minHeight: ALVO_TOQUE + 8 } : null,

@@ -30,7 +30,7 @@ public class Consultoria {
     /** Paletas da marca (V055); o modo escuro ou claro de cada uma é decidido no app (`tema/tokens.PALETAS`). */
     public enum Tema { ESCURO, MEIA_NOITE, AMEIXA, OCEANO, CLARO, AREIA, LAVANDA, CEU, ROSA }
 
-    /** Modelos dos PDFs da consultoria (V096, ampliada na V106; lista fechada igual a `pdf/` no app). A coluna segue {@code tema_pdf}. */
+    /** Modelos dos PDFs da consultoria (V096, ampliada na V107; lista fechada igual a `pdf/` no app). A coluna segue {@code tema_pdf}. */
     public enum ModeloPdf { CLASSICO, MINIMALISTA, MARCANTE, COMPACTO, ELEGANTE, ESPORTIVO }
 
     @Id
@@ -58,7 +58,7 @@ public class Consultoria {
     @Column(name = "tema_pdf", nullable = false)
     private ModeloPdf modeloPdf = ModeloPdf.CLASSICO;
 
-    /** Só as opções sobrescritas do modelo (V106), JSON já validado por {@link OpcoesPdf}; {@code {}} = tudo do modelo. */
+    /** Só as opções sobrescritas do modelo (V107), JSON já validado por {@link OpcoesPdf}; {@code {}} = tudo do modelo. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "opcoes_pdf", nullable = false, columnDefinition = "jsonb")
     private String opcoesPdf = "{}";
@@ -66,6 +66,10 @@ public class Consultoria {
     /** Ciclo de atualização padrão (V009): aluno sem valor próprio usa este; nulo = sem padrão. */
     @Column(name = "dias_atualizacao_padrao")
     private Integer diasAtualizacaoPadrao;
+
+    /** Prazo, em dias, para o aluno assinar o contrato digital (V105, 1 a 60); nulo = não trava, só deixa pendente. */
+    @Column(name = "contrato_prazo_dias")
+    private Short contratoPrazoDias;
 
     /** Meta do peso padrão dos alunos (V052); o aluno pode ter a sua. */
     @Enumerated(EnumType.STRING)
@@ -186,6 +190,10 @@ public class Consultoria {
     public void definirDocumentosPdf(ModeloPdf modelo, String opcoesValidadas) {
         this.modeloPdf = modelo;
         this.opcoesPdf = opcoesValidadas;
+    }
+
+    public Short getContratoPrazoDias() {
+        return contratoPrazoDias;
     }
 
     public Integer getDiasAtualizacaoPadrao() {

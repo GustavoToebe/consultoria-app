@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { AtSign, BookOpen, FileText, IdCard, KeyRound, LogOut, SlidersHorizontal } from 'lucide-react-native';
+import { AtSign, BookOpen, FileSignature, FileText, IdCard, KeyRound, LogOut, SlidersHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
@@ -8,7 +8,7 @@ import { meuPerfilDaComunidade } from '../../api/comunidade';
 import { baixarFotoDePerfil, linkDeIndicacao, meusDados, usoDeImagem } from '../../api/rotas';
 import { MolduraDaFoto } from '../../comunidade/MolduraDaFoto';
 import { linkParaFalarComOTreinador } from '../../dominio/contatoDaConsultoria';
-import { resumoDoPerfil, resumoDosDados, secoesVisiveis, type ChaveDaSecao } from '../../dominio/contaDoAluno';
+import { existeContratosNaConta, resumoDoContratoNaConta, resumoDoPerfil, resumoDosDados, secoesVisiveis, type ChaveDaSecao } from '../../dominio/contaDoAluno';
 import { situacaoDoConvite } from '../../dominio/convidarAmigo';
 import { corDoPerfil, molduraDoPerfil, nomeParaColegas } from '../../dominio/perfilDaComunidade';
 import { redesPreenchidas } from '../../dominio/redesSociais';
@@ -38,6 +38,7 @@ import { CartaoConvidarAmigo } from '../CartaoConvidarAmigo';
 import { CartaoExcluirConta } from '../CartaoExcluirConta';
 import { CartaoUsoDeImagem, usoDeImagemAparece } from '../CartaoUsoDeImagem';
 import { InterruptorDeLembretesDeCompromisso } from '../compromissos/InterruptorDeLembretesDeCompromisso';
+import { useContratosDoAluno, useRecarregarContratosAoFocar } from '../contratos/ContratosDoAlunoProvider';
 import { CartaoMeuPlano } from '../financeiro/CartaoMeuPlano';
 import { useFinanceiroDoAluno } from '../financeiro/FinanceiroDoAlunoProvider';
 import { InterruptorDeWhatsApp } from '../InterruptorDeWhatsApp';
@@ -74,6 +75,8 @@ export function TelaDaConta() {
   const aluno = useAluno();
   const { online } = aluno;
   const financeiro = useFinanceiroDoAluno();
+  const { contratos } = useContratosDoAluno();
+  useRecarregarContratosAoFocar();
   const { variante } = useTema();
   const { avisar } = useAviso();
   const versaoDaFoto = useVersaoDaFotoDePerfil();
@@ -102,6 +105,7 @@ export function TelaDaConta() {
     perfil: (online && !semConexao(perfil.erro)) || !!perfil.dados,
     dados: online && !semConexao(dados.erro),
     convite: convite !== 'oculto',
+    contratos: existeContratosNaConta(sessao.contratosHabilitados, online, contratos),
   };
   const secoes = secoesVisiveis(existe);
   const tem = (chave: ChaveDaSecao) => secoes.some((s) => s.chave === chave);
@@ -136,6 +140,13 @@ export function TelaDaConta() {
           <View style={[estilos.secoes, duasColunas ? estilos.direita : null]}>
             {tem('plano') ? (
               <SecaoDaConta chave="plano" titulo={titulo('plano')}><CartaoMeuPlano /></SecaoDaConta>
+            ) : null}
+            {tem('contratos') ? (
+              <SecaoDaConta chave="contratos" titulo={titulo('contratos')}>
+                {(contratos ?? []).map((c) => (
+                  <LinhaDaConta key={c.id} titulo={c.titulo} resumo={resumoDoContratoNaConta(c)} Icone={FileSignature} href={`/aluno/contrato/${encodeURIComponent(c.id)}`} />
+                ))}
+              </SecaoDaConta>
             ) : null}
             {tem('perfil') ? (
               <SecaoDaConta chave="perfil" titulo={titulo('perfil')}>

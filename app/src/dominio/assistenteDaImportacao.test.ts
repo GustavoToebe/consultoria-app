@@ -4,7 +4,7 @@ import {
   paginaDaPlanilha, rotuloNaLista, SEM_AJUSTES, totalDeAjustes, valorDaCelula,
   LINHA_DO_CABECALHO_MAXIMA, LINHA_DO_CABECALHO_PADRAO, opcoesDaLinhaDoCabecalho, primeiraLinhaDeDados,
   campoDaColuna, camposPermitidos, escolherCampoDaColuna, explicacaoDosExistentes, juntar, motivoParaNaoContinuar,
-  resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, tipoDoArquivo, type EstadoDoAssistente,
+  resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, textoDoReconhecimento, tipoDoArquivo, AVISO_XLS, type EstadoDoAssistente,
 } from './assistenteDaImportacao';
 import { DESTINOS } from './mapeamentoDaImportacao';
 
@@ -12,7 +12,7 @@ const ALUNOS = DESTINOS.find((d) => d.id === 'alunos')!;
 const EXERCICIOS = DESTINOS.find((d) => d.id === 'exercicios')!;
 
 const estado = (mudar: Partial<EstadoDoAssistente> = {}): EstadoDoAssistente => ({
-  destino: EXERCICIOS, arquivo: { nome: 'exercicios.xlsx' }, lendo: false, temColunas: true, chave: 'nome', mapa: { nome: 0 }, ...mudar,
+  destino: EXERCICIOS, arquivo: { nome: 'exercicios.xlsx' }, reconhecendo: false, recusado: null, vaiParaCompleta: false, lendo: false, temColunas: true, chave: 'nome', mapa: { nome: 0 }, ...mudar,
 });
 
 describe('assistente da importação', () => {
@@ -49,9 +49,13 @@ describe('assistente da importação', () => {
   });
 
   it('diz por que não dá para continuar em cada etapa', () => {
+    expect(motivoParaNaoContinuar(1, estado({ arquivo: null, destino: null }))).toBe('Escolha o arquivo da planilha.');
+    expect(motivoParaNaoContinuar(1, estado({ arquivo: { nome: 'velho.xls' } }))).toBe(AVISO_XLS);
+    expect(motivoParaNaoContinuar(1, estado({ arquivo: { nome: 'notas.pdf' } }))).toBe('Envie um arquivo .xlsx ou .csv.');
+    expect(motivoParaNaoContinuar(1, estado({ recusado: AVISO_XLS }))).toBe(AVISO_XLS);
+    expect(motivoParaNaoContinuar(1, estado({ reconhecendo: true }))).toBe('Aguarde o reconhecimento do arquivo.');
     expect(motivoParaNaoContinuar(1, estado({ destino: null }))).toBe('Escolha o que vai importar.');
-    expect(motivoParaNaoContinuar(1, estado({ arquivo: null }))).toBe('Escolha o arquivo da planilha.');
-    expect(motivoParaNaoContinuar(1, estado({ arquivo: { nome: 'velho.xls' } }))).toBe('Envie um arquivo .xlsx ou .csv.');
+    expect(motivoParaNaoContinuar(1, estado({ destino: null, vaiParaCompleta: true }))).toBeNull();
     expect(motivoParaNaoContinuar(1, estado())).toBeNull();
     expect(motivoParaNaoContinuar(2, estado({ lendo: true }))).toBe('Aguarde a leitura da planilha.');
     expect(motivoParaNaoContinuar(2, estado({ temColunas: false }))).toBe('A planilha ainda não foi lida.');
@@ -59,6 +63,19 @@ describe('assistente da importação', () => {
     expect(motivoParaNaoContinuar(3, estado({ destino: ALUNOS, chave: 'email', mapa: { nome: null, email: null } })))
       .toBe('Escolha a coluna de Nome e E-mail.');
     expect(motivoParaNaoContinuar(3, estado())).toBeNull();
+  });
+
+  it('diz o que o reconhecimento achou', () => {
+    const abas = [{ indice: 0, nome: 'Leia-me', destino: null, tipoNaPlanilhaCompleta: null, linhaDoCabecalho: 1, linhas: 2 },
+      { indice: 1, nome: 'Alunos', destino: 'alunos', tipoNaPlanilhaCompleta: 'ALUNOS', linhaDoCabecalho: 3, linhas: 40 }];
+    expect(textoDoReconhecimento({ trilha: 'UMA_ABA', abas, aba: 1, destino: 'alunos' }, true, 'Alunos'))
+      .toBe('Reconhecido: Alunos, na aba “Alunos”. Se não for, escolha outro destino.');
+    expect(textoDoReconhecimento({ trilha: 'UMA_ABA', abas: abas.slice(1), aba: 1, destino: 'alunos' }, true, 'Alunos'))
+      .toBe('Reconhecido: Alunos. Se não for, escolha outro destino.');
+    // Destino que o perfil não importa conta como não reconhecido.
+    expect(textoDoReconhecimento({ trilha: 'UMA_ABA', abas, aba: 1, destino: 'alunos' }, true, null)).toMatch(/^Não reconhecemos/);
+    expect(textoDoReconhecimento({ trilha: 'COMPLETA', abas, aba: null, destino: null }, true, null)).toMatch(/Continuar abre a importação da planilha completa/);
+    expect(textoDoReconhecimento({ trilha: 'COMPLETA', abas, aba: null, destino: null }, false, null)).toMatch(/pede a permissão de alterar alunos/);
   });
 
   it('junta nomes em português', () => {

@@ -118,6 +118,14 @@ export interface GrupoImportavel {
   /** Código fixo de por que o grupo não foi gravado (só em `ERRO`). */
   erroCodigo?: string | null;
   candidatos?: CandidatoAluno[];
+  /** O que a leitura cortou neste grupo (teto de sessões, exercícios, textos...). Só com `TREINO_LER` e `DIETA_LER`. */
+  avisos?: string[];
+}
+
+/** Arquivos lidos até agora enquanto a sessão está em `PROCESSANDO`. */
+export interface LeituraEmAndamento {
+  lidos: number;
+  total: number;
 }
 
 export interface SessaoDetalhe {
@@ -131,6 +139,7 @@ export interface SessaoDetalhe {
   decisoes?: DecisaoImportacao[];
   hashPrevia?: string | null;
   modoProcessamento?: ModoProcessamentoResumo | null;
+  leitura?: LeituraEmAndamento | null;
   criadoEm: string;
   expiraEm: string;
 }
@@ -249,6 +258,14 @@ export async function responderDuvida(
       referenciaId: referenciaId ?? undefined,
       ocorrenciaIds: ocorrenciaIds ?? undefined,
     },
+  });
+}
+
+/** Aceita de uma vez as dúvidas de exercício e alimento que têm uma única sugestão da biblioteca. */
+export async function aceitarSugestoes(sessaoId: string, revisaoEsperada: number): Promise<SessaoDetalhe> {
+  return requisicao<SessaoDetalhe>(`/importacoes/assistidas/sessoes/${sessaoId}/respostas/sugestoes`, {
+    metodo: 'POST',
+    corpo: { revisaoEsperada },
   });
 }
 

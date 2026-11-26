@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * Opções de personalização dos PDFs (V106): só as sobrescritas do modelo escolhido (chave ausente = valor do modelo), em JSON
+ * Opções de personalização dos PDFs (V107): só as sobrescritas do modelo escolhido (chave ausente = valor do modelo), em JSON
  * com chaves conhecidas e valores de lista fechada, nunca HTML nem CSS. Chave ou valor desconhecido é recusado com 422 no
  * campo e mensagem fixa, sem repetir o que veio (nem a chave, que pode ser texto livre: o campo aponta a seção).
  * Opção nova entra só em {@link #ESQUEMA} (e no espelho do app); {@code rodape} e {@code secoes} do N2 pedem um {@link Predicate}

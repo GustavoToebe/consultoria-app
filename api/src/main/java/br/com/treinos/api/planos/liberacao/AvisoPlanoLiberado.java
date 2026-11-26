@@ -12,7 +12,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Aviso dentro do app de que o plano novo do aluno foi liberado (V105), no padrão de {@code AvisoCompromisso}. Não guarda texto,
+ * Aviso dentro do app de que o plano novo do aluno foi liberado (V106), no padrão de {@code AvisoCompromisso}. Não guarda texto,
  * plano nem nome: o app diz a frase fixa. Só {@code visto_em} muda depois de criado (pelo repositório, sem sobrescrever).
  */
 @Entity

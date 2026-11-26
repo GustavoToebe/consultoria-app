@@ -69,6 +69,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.tags.TagsDeAlunoService tags;
     private final br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp;
     private final br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano;
+    private final br.com.treinos.api.contratos.ContratoService contratosDoAluno;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -87,8 +88,10 @@ public class ExportacaoService {
                              br.com.treinos.api.comunidade.ComunidadeService comunidade, AlunoRepository alunosRepositorio,
                              br.com.treinos.api.tags.TagsDeAlunoService tags,
                              br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp,
-                             br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano) {
+                             br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano,
+                             br.com.treinos.api.contratos.ContratoService contratosDoAluno) {
         this.avisosDePlano = avisosDePlano;
+        this.contratosDoAluno = contratosDoAluno;
         this.avisosPeloWhatsApp = avisosPeloWhatsApp;
         this.tags = tags;
         this.alunosRepositorio = alunosRepositorio;
@@ -192,13 +195,15 @@ public class ExportacaoService {
         if (avisosWhatsApp == null) {
             omitidas.add("avisosPeloWhatsApp");
         }
-        // Avisos de "plano liberado" (V105): só as datas de criação e de visto, sem texto; com a permissão da ficha (ALUNO_LER).
+        // Avisos de "plano liberado" (V106): só as datas de criação e de visto, sem texto; com a permissão da ficha (ALUNO_LER).
         var avisosDePlanoLiberado = secao(AcessoAtual.pode("ALUNO_LER"), "avisosDePlanoLiberado", omitidas,
                 () -> avisosDePlano.exportar(alunoId));
+        // Contratos digitais (V105): o texto leva CPF e endereço, então só com a permissão que os mostra à equipe.
+        var contratos = secao(AcessoAtual.pode("CONTRATO_LER"), "contratos", omitidas, () -> contratosDoAluno.exportar(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
                 cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno, indicacao,
-                tagsDoAluno, avisosWhatsApp, avisosDePlanoLiberado);
+                tagsDoAluno, avisosWhatsApp, avisosDePlanoLiberado, contratos);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

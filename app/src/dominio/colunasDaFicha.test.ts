@@ -9,17 +9,17 @@ const VAO = 24;
 
 describe('colunasDaFicha', () => {
   it('as duas e as três colunas na ordem pedida, cada peça num lugar só; as redes logo abaixo do Contato (26/11)', () => {
-    expect(COLUNAS_DA_FICHA.esquerda).toEqual(['identificacao', 'contato', 'redes', 'planoContratado']);
+    expect(COLUNAS_DA_FICHA.esquerda).toEqual(['identificacao', 'contato', 'redes', 'planoContratado', 'contratos']);
     expect(COLUNAS_DA_FICHA.direita).toEqual(['acompanhamento', 'objetivo', 'acessoAoApp', 'anamnese']);
     expect(ABAIXO_DAS_DUAS_COLUNAS).toEqual(['lesoes']);
     // Numa coluna (compacta), a ordem do celular: as redes logo depois do Contato.
     expect(SECOES_DOS_DADOS).toEqual(['identificacao', 'contato', 'redes', 'acompanhamento', 'objetivo']);
     expect(TRES_COLUNAS_DA_FICHA).toEqual([
-      ['identificacao', 'contato', 'redes', 'objetivo'], ['planoContratado', 'lesoes'], ['acompanhamento', 'acessoAoApp', 'anamnese'],
+      ['identificacao', 'contato', 'redes', 'objetivo'], ['planoContratado', 'contratos', 'lesoes'], ['acompanhamento', 'acessoAoApp', 'anamnese'],
     ]);
     for (const todas of [[...COLUNAS_DA_FICHA.esquerda, ...COLUNAS_DA_FICHA.direita, ...ABAIXO_DAS_DUAS_COLUNAS], TRES_COLUNAS_DA_FICHA.flat()]) {
-      expect(new Set(todas).size).toBe(9);
-      expect(todas).toHaveLength(9);
+      expect(new Set(todas).size).toBe(10);
+      expect(todas).toHaveLength(10);
     }
   });
 
@@ -90,6 +90,15 @@ describe('colunasDaFicha', () => {
       { secoes: [], blocos: ['acessoAoApp'], proporcao: 2 },
     ]);
     expect(abaixoDasColunas(colunas, blocos)).toEqual(['lesoes']);
+  });
+
+  it('os contratos vêm logo depois do plano contratado (ou sozinhos, se o plano não aparece) em duas, três e uma coluna (27/11)', () => {
+    const com: BlocoDaFicha[] = ['dadosDoAluno', 'planoContratado', 'contratos', 'lesoes'];
+    expect(colunasDaAbaDados('normal', 928, VAO, com)?.[0].blocos).toEqual(['planoContratado', 'contratos']);
+    expect(colunasDaAbaDados('normal', 928, VAO, ['dadosDoAluno', 'contratos'])?.[0].blocos).toEqual(['contratos']);
+    expect(colunasDaAbaDados('ultralarga', 2272, VAO, com)?.[1].blocos).toEqual(['planoContratado', 'contratos', 'lesoes']);
+    expect(ordemNumaColuna([...TODOS, 'contratos'])).toEqual(['lesoesAtivas', 'planoContratado', 'contratos', 'acessoAoApp', 'anamnese', 'lesoesRecuperadas']);
+    expect(ordemNumaColuna(['contratos'])).toEqual(['contratos']);
   });
 
   it('numa coluna: lesões ativas no topo, plano, acesso, anamnese e as recuperadas no fim', () => {

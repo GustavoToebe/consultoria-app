@@ -9,6 +9,7 @@ import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.Confirmac
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ConfirmarSessaoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.CriarSessaoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ResponderDuvidaRequisicao;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AceitarSugestoesRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.RevogarDecisaoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SessaoDetalhe;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SessaoListaItem;
@@ -139,6 +140,14 @@ public class ImportacaoAssistidaController {
                                          @RequestBody ResponderDuvidaRequisicao req) {
         limites.importacaoAssistida(eu.usuarioId());
         return service.responderDuvida(id, req);
+    }
+
+    @PostMapping("/sessoes/{id}/respostas/sugestoes")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
+    public SessaoDetalhe aceitarSugestoes(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
+                                          @RequestBody AceitarSugestoesRequisicao req) {
+        limites.importacaoAssistida(eu.usuarioId());
+        return service.aceitarSugestoes(id, req.revisaoEsperada());
     }
 
     @PostMapping("/sessoes/{id}/respostas/{decisaoId}/revogar")

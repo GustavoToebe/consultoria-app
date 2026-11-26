@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * O ponto único da liberação do plano para o aluno (V105): a regra da data, "liberar" (o plano vira o vigente e o aluno passa
+ * O ponto único da liberação do plano para o aluno (V106): a regra da data, "liberar" (o plano vira o vigente e o aluno passa
  * a ver a versão publicada) e o aviso. Quem libera é a publicação sem data, o "Liberar agora" e a rotina diária
  * ({@link RotinaDeLiberacaoDePlanos}); todos passam por {@link #liberar}.
  */

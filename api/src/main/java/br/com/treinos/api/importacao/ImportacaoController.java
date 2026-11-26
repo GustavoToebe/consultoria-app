@@ -5,6 +5,7 @@ import br.com.treinos.api.importacao.ImportacaoDtos.Colunas;
 import br.com.treinos.api.importacao.ImportacaoDtos.Detalhe;
 import br.com.treinos.api.importacao.ImportacaoDtos.Pagina;
 import br.com.treinos.api.importacao.ImportacaoDtos.Previa;
+import br.com.treinos.api.importacao.ImportacaoDtos.Reconhecimento;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
@@ -70,11 +71,19 @@ public class ImportacaoController {
                 .body(csv);
     }
 
+    @PostMapping(value = "/reconhecer", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize(PERMISSOES)
+    public Reconhecimento reconhecer(@AuthenticationPrincipal UsuarioAutenticado eu,
+                                     @RequestPart("arquivo") MultipartFile arquivo) throws IOException {
+        limites.previaDeImportacao(eu.usuarioId());
+        return service.reconhecer(arquivo.getOriginalFilename(), arquivo.getBytes());
+    }
+
     @PostMapping(value = "/{destino}/colunas", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize(PERMISSOES)
     public Colunas colunas(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable String destino,
                            @RequestPart("arquivo") MultipartFile arquivo, @RequestParam(defaultValue = "0") int aba,
-                           @RequestParam(defaultValue = "1") int linhaDoCabecalho) throws IOException {
+                           @RequestParam(required = false) Integer linhaDoCabecalho) throws IOException {
         limites.previaDeImportacao(eu.usuarioId());
         return service.colunas(destino, arquivo.getOriginalFilename(), arquivo.getBytes(), aba, linhaDoCabecalho);
     }

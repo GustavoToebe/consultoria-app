@@ -251,7 +251,7 @@ public class PastaService {
     }
 
     /**
-     * Publicar tudo com data de liberação opcional (V105): {@code liberarEm} (de amanhã em diante, Brasília; 422
+     * Publicar tudo com data de liberação opcional (V106): {@code liberarEm} (de amanhã em diante, Brasília; 422
      * {@code LIBERACAO_INVALIDA} antes de qualquer efeito) vale para todos os planos publicados agora e o aluno segue no plano
      * anterior até lá; {@code avisarAluno} (ausente = avisa) manda o aviso quando liberar. Substitui o agendamento anterior de cada
      * plano publicado. O resto é a regra acima.

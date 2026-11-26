@@ -314,4 +314,56 @@ class RoteadorInterpretadorIaTest {
         assertThatThrownBy(() -> DecodificadorDaProposta.decodificar(json, raiz, contexto()))
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    void falhaPassageiraDoProvedorTentaDeNovoUmaVezEVoltaAIa() {
+        when(gemini.interpretar(any())).thenThrow(new FalhaPassageiraDoProvedor("429"))
+                .thenReturn(new ResultadoInterpretacao(List.of(), List.of()));
+        RoteadorInterpretadorIa roteador = new RoteadorInterpretadorIa(config("gemini", true), gemini, claude, regras);
+        roteador.espera = java.time.Duration.ZERO;
+
+        RoteadorInterpretadorIa.ExecucaoInterpretacao exec = roteador.interpretarComModo(contexto());
+
+        verify(gemini, org.mockito.Mockito.times(2)).interpretar(any());
+        assertThat(exec.modoEfetivo()).isEqualTo("IA");
+        assertThat(exec.fallbackParaRegras()).isFalse();
+    }
+
+    @Test
+    void duasFalhasPassageirasVoltamParaRegrasSemTerceiraTentativa() {
+        when(gemini.interpretar(any())).thenThrow(new FalhaPassageiraDoProvedor("503"));
+        RoteadorInterpretadorIa roteador = new RoteadorInterpretadorIa(config("gemini", true), gemini, claude, regras);
+        roteador.espera = java.time.Duration.ZERO;
+
+        RoteadorInterpretadorIa.ExecucaoInterpretacao exec = roteador.interpretarComModo(contexto());
+
+        verify(gemini, org.mockito.Mockito.times(2)).interpretar(any());
+        assertThat(exec.motivoFallback()).isEqualTo("ERRO_PROVEDOR");
+    }
+
+    @Test
+    void respostaCortadaNuncaTentaDeNovo() {
+        when(claude.interpretar(any())).thenThrow(new DecodificadorDaProposta.RespostaCortada("Claude"));
+        RoteadorInterpretadorIa roteador = new RoteadorInterpretadorIa(config("claude", true), gemini, claude, regras);
+        roteador.espera = java.time.Duration.ZERO;
+
+        RoteadorInterpretadorIa.ExecucaoInterpretacao exec = roteador.interpretarComModo(contexto());
+
+        verify(claude).interpretar(any());
+        assertThat(exec.motivoFallback()).isEqualTo("RESPOSTA_CORTADA");
+    }
+
+    @Test
+    void statusPassageiroSoParaLimiteEErroDoServidor() {
+        assertThat(FalhaPassageiraDoProvedor.statusPassageiro(429)).isTrue();
+        assertThat(FalhaPassageiraDoProvedor.statusPassageiro(503)).isTrue();
+        assertThat(FalhaPassageiraDoProvedor.statusPassageiro(400)).isFalse();
+        assertThat(FalhaPassageiraDoProvedor.statusPassageiro(401)).isFalse();
+    }
+
+    @Test
+    void cortePorArquivoCobreUmaChamadaInteiraDoClaude() {
+        assertThat(RoteadorInterpretadorIa.TEMPO_MAXIMO_POR_ARQUIVO)
+                .isGreaterThan(InterpretadorClaude.TIMEOUT_HTTP.multipliedBy(2));
+    }
 }

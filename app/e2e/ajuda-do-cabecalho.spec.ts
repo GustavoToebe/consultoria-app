@@ -157,6 +157,7 @@ const PERMISSOES_DA_VARREDURA = [
   'FINANCEIRO_LER', 'FINANCEIRO_ALTERAR', 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR', 'AGENDA_LER', 'AGENDA_ALTERAR', 'ATUALIZACAO_LER',
   'ATUALIZACAO_RESPONDER', 'WHATSAPP_ALTERAR', 'VITRINE_LER', 'VITRINE_ALTERAR', 'COMUNIDADE_LER', 'COMUNIDADE_ALTERAR', 'REGISTRO_LER',
   'TREINO_LER', 'TREINO_ALTERAR', 'TREINO_PUBLICAR', 'DIETA_LER', 'DIETA_ALTERAR', 'ERGOGENICO_LER', 'IMPORTACAO_LER', 'IMPORTACAO_ALTERAR', 'USUARIO_LER', 'PERFIL_LER',
+  'CONTRATO_LER', 'CONTRATO_ALTERAR',
 ];
 const ALUNO_DA_FICHA = 'a0000000-0000-4000-8000-000000000002';
 const MOBILIDADE_ID = 'p0000000-0000-4000-8000-0000000000m1';
@@ -214,6 +215,7 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/whatsapp', titulo: 'WhatsApp oficial', secao: null },
   { caminho: '/treinador/documentos', titulo: 'Documentos (PDF)', secao: null },
   { caminho: '/treinador/documentos/personalizar', titulo: 'Personalizar documentos', secao: null },
+  { caminho: '/treinador/contratos', titulo: 'Contratos', secao: null },
   { caminho: '/treinador/termos', titulo: 'Termos e privacidade', secao: 'privacidade' },
   { caminho: '/treinador/seguranca', titulo: 'Segurança', secao: null },
   { caminho: '/treinador/minha-conta', titulo: 'Assinatura e faturas', secao: null },
@@ -232,12 +234,15 @@ async function abrirVarredura(page: Page, largura: number, caminho: string, extr
   await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 800 });
   const { errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, {
-      permissoes: PERMISSOES_DA_VARREDURA, pagamentosHabilitados: true, vitrineHabilitada: true, whatsappHabilitado: true,
+      permissoes: PERMISSOES_DA_VARREDURA, pagamentosHabilitados: true, vitrineHabilitada: true, whatsappHabilitado: true, contratosHabilitados: true,
       perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true },
     })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     [`GET /alunos/${ALUNO_DA_FICHA}`]: { corpo: { id: ALUNO_DA_FICHA, nome: 'Aluna Fictícia', email: 'aluna@exemplo.test', ativo: true, temAcesso: true, versao: 1, anonimizado: false } },
+    // Contrato digital ligado: os modelos e os contratos da ficha, vazios.
+    'GET /contratos/modelos': { corpo: [] },
+    'GET /alunos/{id}/contratos': { corpo: [] },
     ...extra,
   });
   await page.goto(caminho);

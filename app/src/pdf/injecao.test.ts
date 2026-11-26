@@ -15,6 +15,7 @@ import { documentoDieta } from './pdfDieta';
 import { ajustarQuantidade, gravarAvulso, itensDoAluno, MARCACOES_VAZIAS } from '../dominio/listaDeComprasDoAluno';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoAvaliacaoFisica } from './pdfAvaliacaoFisica';
+import { documentoContrato } from './pdfContrato';
 import { documentoMobilidade } from './pdfMobilidade';
 import { documentoTreino } from './pdfTreino';
 import { montarCorpo } from './imprimir.web';
@@ -326,6 +327,17 @@ describe('PDF da avaliação física não deixa texto virar HTML', () => {
   conferir('avaliação física', documentoAvaliacaoFisica as never, { ...dadosDaAvaliacao, grafico: undefined });
   // Com o gráfico (um `<img>` com SVG em base64): na variação com os códigos preservados as datas valem e a imagem sai.
   conferir('avaliação física com gráfico', documentoAvaliacaoFisica as never, { ...dadosDaAvaliacao, grafico: graficoDaAvaliacao });
+});
+
+/** Comprovante do contrato: texto, nome digitado, IP, aparelho e quem gerou são dado livre; a versão do aluno não leva os três últimos. */
+const dadosDoContrato = {
+  ...base, titulo: 'Contrato de serviços', texto: '**Cláusula 1**\nO aluno __concorda__ com os termos.', sha256: 'a'.repeat(64),
+  nome: 'Maria da Silva', assinadoEm: '2026-11-26T17:03:09Z',
+};
+describe('PDF do contrato não deixa texto virar HTML', () => {
+  conferir('contrato (equipe)', documentoContrato as never, { ...dadosDoContrato, ip: '203.0.113.7', agente: 'Mozilla/5.0', geradoPorNome: 'Treinador' });
+  conferir('contrato (aluno)', documentoContrato as never, dadosDoContrato);
+  conferir('contrato em PDF (sem texto)', documentoContrato as never, { ...dadosDoContrato, texto: null, ip: '203.0.113.7', agente: 'Mozilla/5.0', geradoPorNome: 'Treinador' });
 });
 
 describe('o gráfico só passa como <img> com SVG em base64 (barreira da web)', () => {

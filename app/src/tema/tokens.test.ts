@@ -579,7 +579,7 @@ describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, variante) => {
 // ---- Cartão de indicador pintado (Gustavo, 23/11; `ui/superficiePintada`) ----
 
 /**
- * Degradê de 135° da cor misturada à base (14% nas escuras, 8% nas claras e na Areia) até a base pura, borda a 50%. O texto
+ * Degradê de 135° da cor misturada à base (14% nas escuras, 11% nas claras e na Areia) até a base pura, borda a 50%. O texto
  * que leva a cor (rótulo e número do `CartaoDeIndicador`, ladrilhos das Séries por tipo, mini-cartões do Início) fica na
  * cor só quando ela passa 4,5:1 no ponto mais forte do degradê; senão cai para `texto`. Nas 9 paletas, com contraste alto
  * e com bordas reforçadas, sobre as bases onde a pintura aparece (cartão solto, poço, faixa e o hover do mini-cartão, `sobre`).

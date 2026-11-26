@@ -64,6 +64,8 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   // O editor dos PDFs (fora da busca: só se chega pela galeria) segue a mesma regra; caminho exato, outra subrota falha fechado.
   if(caminho==='/treinador/documentos/personalizar') return administrador&&tem('MARCA_ALTERAR');
   if(caminho==='/treinador/whatsapp') return tem('WHATSAPP_ALTERAR');
+  // Contratos (modelos): a chave da plataforma esconde o item no hub; a guarda da rota é a permissão de ler.
+  if(caminho==='/treinador/contratos') return tem('CONTRATO_LER');
   if(caminho==='/treinador/equipe') return tem('EQUIPE_LER');
   if(caminho==='/treinador/auditoria') return tem('AUDITORIA_LER');
   // A planilha completa cria alunos (e o resto por parte, conferido na API): a rota pede ALUNO_ALTERAR.

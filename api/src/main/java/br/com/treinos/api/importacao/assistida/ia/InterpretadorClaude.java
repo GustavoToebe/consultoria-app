@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,6 +21,10 @@ import java.util.Map;
  */
 @Component
 public class InterpretadorClaude implements InterpretadorIa {
+
+    /** 32000 tokens de saída sem streaming passam de 2 min no pior caso. */
+    static final String NOME_DA_FERRAMENTA = "propor_importacao";
+    static final Duration TIMEOUT_HTTP = Duration.ofMinutes(5);
 
     private final ConfiguracaoIaImportacao config;
     private final JsonMapper json;
@@ -56,14 +61,16 @@ public class InterpretadorClaude implements InterpretadorIa {
                     .header("x-api-key", apiKey)
                     .header("anthropic-version", "2023-06-01")
                     .header("content-type", "application/json")
-                    .timeout(Duration.ofMinutes(5)) // 32000 tokens de saída sem streaming passam de 2 min no pior caso
+                    .timeout(TIMEOUT_HTTP)
                     .POST(HttpRequest.BodyPublishers.ofString(corpoRequisicao, StandardCharsets.UTF_8))
                     .build();
 
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() != 200) {
                 // Corpo da resposta fora da mensagem: pode ecoar o conteúdo enviado.
-                throw new IllegalStateException("Falha na chamada Claude (HTTP " + response.statusCode() + ").");
+                String falha = "Falha na chamada Claude (HTTP " + response.statusCode() + ").";
+                throw FalhaPassageiraDoProvedor.statusPassageiro(response.statusCode())
+                        ? new FalhaPassageiraDoProvedor(falha) : new IllegalStateException(falha);
             }
 
             return processarResposta(response.body(), contexto);
@@ -72,6 +79,9 @@ public class InterpretadorClaude implements InterpretadorIa {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Consulta ao Claude interrompida.");
+        } catch (IOException e) {
+            // Inclui o tempo esgotado (HttpTimeoutException) e a conexão que caiu.
+            throw new FalhaPassageiraDoProvedor("Erro de rede ao consultar Anthropic Claude (" + e.getClass().getSimpleName() + ").");
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao consultar Anthropic Claude (" + e.getClass().getSimpleName() + ").");
         }
@@ -91,28 +101,25 @@ public class InterpretadorClaude implements InterpretadorIa {
                 + "Apelidos da consultoria: " + DecodificadorDaProposta.formatarApelidos(contexto.apelidosConhecidos()) + ".\n"
                 + DecodificadorDaProposta.FORMATO_DA_RESPOSTA
                 + "Sempre acione a ferramenta 'propor_importacao'.";
-        req.put("system", systemPrompt);
+        // Tudo que vai antes do texto do arquivo (ferramenta + este bloco) é igual em todos os arquivos da sessão:
+        // o cache_control no fim do system guarda esse prefixo (ephemeral, 5 min; mínimo de 512 tokens no Haiku 5.5).
+        req.put("system", List.of(Map.of("type", "text", "text", systemPrompt,
+                "cache_control", Map.of("type", "ephemeral"))));
 
         List<Map<String, Object>> contentList = List.of(
                 Map.of("type", "text", "text", DecodificadorDaProposta.textoParaEnvio(contexto)));
 
         req.put("messages", List.of(Map.of("role", "user", "content", contentList)));
 
-        // Configuração de tool calling
         Map<String, Object> tool = Map.of(
-                "name", "propor_importacao",
+                "name", NOME_DA_FERRAMENTA,
                 "description", "Retorna a proposta de importação: um grupo por aluno",
-                "input_schema", Map.of(
-                        "type", "object",
-                        "properties", Map.of(
-                                "grupos", Map.of("type", "array", "items", Map.of("type", "object"))
-                        ),
-                        "required", List.of("grupos")
-                )
-        );
+                "input_schema", EsquemaDaProposta.paraClaude());
         req.put("tools", List.of(tool));
-        // "auto": forçar a ferramenta não combina com o raciocínio ligado; o prompt pede a ferramenta e, sem ela, cai nas regras.
-        req.put("tool_choice", Map.of("type", "auto"));
+        // O Haiku 5.5 aceita forçar a ferramenta (e então não raciocina antes de chamá-la: menos tempo e custo). Outros
+        // modelos configurados podem recusar tool_choice forçado (400), então ficam em "auto" e o prompt pede a ferramenta.
+        req.put("tool_choice", modelo.contains("haiku") ? Map.of("type", "tool", "name", NOME_DA_FERRAMENTA)
+                : Map.of("type", "auto"));
 
         return json.writeValueAsString(req);
     }
@@ -132,7 +139,7 @@ public class InterpretadorClaude implements InterpretadorIa {
             JsonNode toolUse = null;
             if (content.isArray()) {
                 for (JsonNode c : content) {
-                    if ("tool_use".equals(c.path("type").asText()) && "propor_importacao".equals(c.path("name").asText())) {
+                    if ("tool_use".equals(c.path("type").asText()) && NOME_DA_FERRAMENTA.equals(c.path("name").asText())) {
                         toolUse = c.path("input");
                         break;
                     }

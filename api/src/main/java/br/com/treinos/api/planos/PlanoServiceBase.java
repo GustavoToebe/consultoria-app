@@ -357,7 +357,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
      * Versão vigente do aluno (plano ativo já liberado), para as rotas {@code /aluno/**} e o PDF. É a versão LIBERADA, nunca a
      * agendada: o que o aluno vê vem de {@code versaoLiberada}, o ponto único que todos os leitores do aluno usam
      * ({@link #versaoLiberadaDaPasta}, {@link #publicadosEmPastas}, {@link #conteudosPublicados}, {@code PastaVigente} e as
-     * junções por {@code ativo} só enxergam plano já liberado). O CHECK da V105 impede o banco de ter agendada como liberada.
+     * junções por {@code ativo} só enxergam plano já liberado). O CHECK da V106 impede o banco de ter agendada como liberada.
      */
     @Transactional(readOnly = true)
     public Optional<VersaoAtiva<P, V, C>> versaoAtiva(UUID alunoId) {

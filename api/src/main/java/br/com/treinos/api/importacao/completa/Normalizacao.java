@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
  * Formas comparáveis de texto da planilha, as mesmas dos scripts de importação ({@code alunos-lib.mjs}): sem acento, em
  * minúsculas e com os espaços arrumados. Nada aqui guarda nem registra o texto.
  */
-final class Normalizacao {
+public final class Normalizacao {
 
     private static final Pattern MARCAS = Pattern.compile("\\p{M}+");
     private static final Pattern ESPACOS = Pattern.compile("\\s+");
@@ -20,7 +20,7 @@ final class Normalizacao {
     }
 
     /** "Exercício" = "Exercicio". */
-    static String semAcento(String texto) {
+    public static String semAcento(String texto) {
         if (texto == null) {
             return "";
         }
@@ -33,7 +33,7 @@ final class Normalizacao {
     }
 
     /** Palavras só com letras e números, sem acento e em minúsculas: "Peso (kg)" = [peso, kg]. */
-    static List<String> palavras(String texto) {
+    public static List<String> palavras(String texto) {
         String limpo = NAO_ALFANUMERICO.matcher(semAcento(texto).toLowerCase(Locale.ROOT)).replaceAll(" ").strip();
         List<String> saida = new ArrayList<>();
         if (limpo.isEmpty()) {

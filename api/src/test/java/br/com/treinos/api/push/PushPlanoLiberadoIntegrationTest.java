@@ -20,7 +20,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Push de "plano liberado" (V105, tipo {@code PLANO_LIBERADO} da fila): sai com o texto fixo do tipo, sem nome nem dado do plano,
+ * Push de "plano liberado" (V106, tipo {@code PLANO_LIBERADO} da fila): sai com o texto fixo do tipo, sem nome nem dado do plano,
  * convive na fila com o aviso de compromisso do mesmo usuário e não duplica o PENDENTE. Expo de mentira; só o que o teste criou.
  */
 @AutoConfigureMockMvc

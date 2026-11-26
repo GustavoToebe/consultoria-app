@@ -141,6 +141,8 @@ async function preparar(page: Page, largura: number, opcoes: { desatualizadaUmaV
     'GET /importacoes': { corpo: { itens: [ITEM], total: 1, pagina: 0 } },
     [`GET /importacoes/${ID}`]: { corpo: opcoes.detalhe ?? DETALHE },
     'GET /exercicios': { corpo: [{ id: 'e1', nome: 'Supino reto com halteres', grupoMuscular: 'Peito' }, { id: 'e2', nome: 'Remada curvada fictícia', grupoMuscular: 'Costas' }] },
+    // Entrada única (26/11): o arquivo com várias abas ligadas é reconhecido como planilha completa.
+    'POST /importacoes/reconhecer': (_p, route) => json(route, { trilha: 'COMPLETA', aba: null, destino: null, abas: [{ indice: 0, nome: 'Alunos', destino: 'alunos', tipoNaPlanilhaCompleta: 'ALUNOS', linhaDoCabecalho: 1, linhas: 3 }, { indice: 1, nome: 'Rotinas', destino: null, tipoNaPlanilhaCompleta: 'ROTINAS', linhaDoCabecalho: 1, linhas: 2 }] }),
     'POST /importacoes/planilha-completa/analisar': (_p, route) => {
       pedidos.analisar += 1;
       return json(route, opcoes.analise ?? ANALISE);
@@ -178,15 +180,21 @@ async function escolher(page: Page, botao: RegExp, opcao: RegExp) {
 
 async function abrirELer(page: Page) {
   await page.goto('/treinador/importacao');
-  // Modal da importação (18/11): a planilha completa fica no assistente da Importação manual.
+  // Entrada única (26/11): Importação manual, o arquivo primeiro; reconhecido como planilha completa, Continuar leva a ela
+  // já com o arquivo (sem "Sair sem salvar?" e sem a /nova sobrando no histórico).
   await page.getByRole('button', { name: 'Nova importação' }).click();
   await page.getByRole('dialog', { name: 'Nova importação' }).getByRole('radio', { name: /^Importação manual/ }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(page).toHaveURL(/\/treinador\/importacao\/nova$/);
-  await page.getByRole('link', { name: /Planilha completa \(alunos, pesos, treinos e dietas\)/ }).click();
-  await expect(page).toHaveURL(/\/treinador\/importacao\/planilha-completa$/);
-  await expect(page.getByRole('heading', { name: 'Planilha completa', level: 1 })).toBeVisible();
   await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'planilha.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('PK ficticio') });
+  await expect(page.getByText(/O arquivo tem várias abas ligadas .*Continuar abre a importação da planilha completa/)).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Alunos' })).toHaveAttribute('aria-checked', 'false');
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page).toHaveURL(/\/treinador\/importacao\/planilha-completa$/);
+  await expect(page.getByText('Sair sem salvar?')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Planilha completa', level: 1 })).toBeVisible();
+  await expect(page.getByText('planilha.xlsx')).toBeVisible();
+  await expect(page.getByText(/por isso abriu a planilha completa/)).toBeVisible();
   await page.getByRole('button', { name: 'Continuar' }).click();
 }
 

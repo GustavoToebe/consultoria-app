@@ -1,4 +1,5 @@
 import type { AvisoDeCompromisso, TipoAvisoCompromisso } from '../api/agendaTipos';
+import type { ContratoDoAlunoResumo } from '../api/contratos';
 import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { Atualizacao } from '../api/tipos';
 import type { TipoSelo } from '../ui/Selo';
@@ -172,3 +173,34 @@ export function avisosDoInicio(avisos: readonly AvisoDeCompromisso[] | null | un
 /** Há aviso de compromisso não visto (o ponto na aba Início). */
 export const temAvisoDeCompromisso = (avisos: readonly AvisoDeCompromisso[] | null | undefined): boolean =>
   !!avisos?.some((a) => !Number.isNaN(Date.parse(a.inicio)));
+
+// ---- Contrato para assinar ----
+
+/** Contrato pendente em "Suas pendências": a ação é abrir a tela do contrato (`href`). */
+export interface ItemDoContrato extends ItemParaFazer {
+  href: string;
+}
+
+/**
+ * Contratos pendentes do aluno como UM item, o primeiro de "Suas pendências" (é a única pendência que pode travar, D3). Título
+ * "Assinar contrato" ("Assinar 2 contratos"); o detalhe é o título do mais urgente (+ " e mais N") e o selo e o `href` também
+ * são os dele. Mais urgente: prazo terminado (a API diz `vencido`), depois o menor prazo e, por fim, o mais antigo. Só conta
+ * `PENDENTE`; sem nenhum, `null`.
+ */
+export function itemDoContrato(lista: readonly ContratoDoAlunoResumo[] | null | undefined): ItemDoContrato | null {
+  const pendentes = (lista ?? []).filter((c) => c.situacao === 'PENDENTE');
+  if (pendentes.length === 0) return null;
+  const maisUrgente = [...pendentes].sort((a, b) =>
+    Number(b.vencido) - Number(a.vencido)
+    || (a.prazoAte ?? '￿').localeCompare(b.prazoAte ?? '￿')
+    || a.geradoEm.localeCompare(b.geradoEm))[0];
+  const outros = pendentes.length - 1;
+  const prazo = maisUrgente.prazoAte ? dataCurta(dataEmBrasilia(maisUrgente.prazoAte)) : null;
+  return {
+    titulo: outros === 0 ? 'Assinar contrato' : `Assinar ${pendentes.length} contratos`,
+    detalhe: outros === 0 ? maisUrgente.titulo : `${maisUrgente.titulo} e mais ${outros}`,
+    selo: maisUrgente.vencido ? { texto: 'Prazo terminou', tipo: 'perigo' } : { texto: prazo ? `Até ${prazo}` : 'Para assinar', tipo: 'atencao' },
+    responder: false,
+    href: `/aluno/contrato/${encodeURIComponent(maisUrgente.id)}`,
+  };
+}

@@ -148,7 +148,7 @@ public class PainelService {
 
         List<PlanoTerminando> terminando = new ArrayList<>();
         List<PlanoTreino> vigentesQueTerminam = planos.findByAtivoTrueAndFimBetweenOrderByFimAsc(hoje, hoje.plusDays(7));
-        // Sucessor agendado (V105): o vigente sai da lista se há plano de treino agendado do mesmo aluno liberado até o dia seguinte
+        // Sucessor agendado (V106): o vigente sai da lista se há plano de treino agendado do mesmo aluno liberado até o dia seguinte
         // ao fim dele (dias de Brasília). Liberado depois disso, o vigente continua listado (haverá intervalo sem plano).
         Map<UUID, List<LocalDate>> agendados = new HashMap<>();
         if (!vigentesQueTerminam.isEmpty()) {

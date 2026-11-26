@@ -16,6 +16,8 @@ jest.mock('./Texto', () => ({
 
 const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
 const React = require('react') as typeof import('react');
+const RN = require('react-native') as typeof import('react-native');
+const { ALVO_TOQUE } = require('../tema/tokens') as typeof import('../tema/tokens');
 
 function montar(ref?: React.Ref<TextInput>) {
   let raiz!: import('react-test-renderer').ReactTestRenderer;
@@ -40,5 +42,25 @@ describe('Campo', () => {
     const funcao = jest.fn();
     montar(funcao);
     expect(funcao).toHaveBeenCalledWith(expect.anything());
+  });
+});
+
+function alturaMinima(linhas: number): number {
+  let raiz!: import('react-test-renderer').ReactTestRenderer;
+  Renderer.act(() => {
+    raiz = Renderer.create(<Campo rotulo="Nome" valor="" aoMudar={() => undefined} linhas={linhas} />);
+  });
+  const estilo = RN.StyleSheet.flatten(raiz.root.findByType(RN.TextInput).props.style) as { minHeight: number };
+  return estilo.minHeight;
+}
+
+describe('Campo de várias linhas', () => {
+  it('com uma linha não fica abaixo do alvo de toque (a conta dava 42)', () => {
+    expect(alturaMinima(1)).toBe(ALVO_TOQUE);
+  });
+
+  it('com mais linhas segue a conta das linhas', () => {
+    expect(alturaMinima(2)).toBe(64);
+    expect(alturaMinima(5)).toBe(130);
   });
 });

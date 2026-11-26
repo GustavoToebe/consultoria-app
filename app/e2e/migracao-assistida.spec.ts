@@ -111,6 +111,7 @@ test.describe('Conferir o arquivo antes de importar', () => {
 
   test('a importação de uma aba não tem o botão', async ({ page }) => {
     const { errosDaPagina } = await preparar(page, { habilitada: true });
+    await page.route('**/importacoes/reconhecer', (route) => json(route, { trilha: 'DESCONHECIDA', aba: null, destino: null, abas: [] }));
     await page.goto('/treinador/importacao/nova');
     await page.getByLabel('Arquivo da planilha').setInputFiles(ARQUIVO);
     await expect(page.getByRole('button', { name: BOTAO })).toHaveCount(0);

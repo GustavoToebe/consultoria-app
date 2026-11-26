@@ -74,6 +74,27 @@ final class SessaoJson {
     }
 
     static void marcarFlagProgresso(JsonMapper json, ImportacaoSessao sessao, String chave, boolean valor) {
+        alterarProgresso(json, sessao, root -> {
+            if (valor) {
+                root.put(chave, true);
+            } else {
+                root.remove(chave);
+            }
+        });
+    }
+
+    /** Grava {@code chave} como número no progresso (ex.: arquivos lidos até agora, para a tela). */
+    static void numeroNoProgresso(JsonMapper json, ImportacaoSessao sessao, String chave, int valor) {
+        alterarProgresso(json, sessao, root -> root.put(chave, valor));
+    }
+
+    /** Soma 1 ao número {@code chave} do progresso. */
+    static void somarNoProgresso(JsonMapper json, ImportacaoSessao sessao, String chave) {
+        alterarProgresso(json, sessao, root -> root.put(chave, root.path(chave).asInt(0) + 1));
+    }
+
+    private static void alterarProgresso(JsonMapper json, ImportacaoSessao sessao,
+                                         java.util.function.Consumer<ObjectNode> alteracao) {
         ObjectNode root;
         try {
             JsonNode n = sessao.getProgressoJson() == null || sessao.getProgressoJson().isBlank()
@@ -83,11 +104,7 @@ final class SessaoJson {
         } catch (RuntimeException e) {
             root = json.createObjectNode();
         }
-        if (valor) {
-            root.put(chave, true);
-        } else {
-            root.remove(chave);
-        }
+        alteracao.accept(root);
         sessao.atualizarResultados(null, null, json.writeValueAsString(root));
     }
 }

@@ -34,7 +34,7 @@ public class AlunoAvisosDeCompromissoController {
     }
 
     /**
-     * Avisos de "plano liberado" do aluno da sessão (V105): moram aqui, ao lado dos de compromisso, por serem o mesmo gênero de
+     * Avisos de "plano liberado" do aluno da sessão (V106): moram aqui, ao lado dos de compromisso, por serem o mesmo gênero de
      * aviso do app e para não abrir uma exceção nova no {@code ArquiteturaTest}. O app monta o texto; vai só o id e a data.
      */
     @PreAuthorize("hasRole('ALUNO')")

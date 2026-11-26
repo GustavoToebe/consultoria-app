@@ -70,6 +70,17 @@ describe('abas da ficha', () => {
     expect(abasVisiveis(contexto([]))).toEqual(['resumo', 'planos', 'ficha']);
   });
 
+  it('contratos pedem a chave ligada e CONTRATO_LER, na aba Ficha logo depois do plano contratado', () => {
+    expect(blocoVisivel('contratos', contexto(['CONTRATO_LER']))).toBe(false);
+    expect(blocoVisivel('contratos', contexto([], { contratosHabilitados: true }))).toBe(false);
+    expect(blocoVisivel('contratos', contexto(['CONTRATO_LER'], { contratosHabilitados: true }))).toBe(true);
+    expect(blocoVisivel('contratos', contexto(['CONTRATO_LER'], { contratosHabilitados: false }))).toBe(false);
+    const c = contexto([...TUDO, 'CONTRATO_LER'], { pagamentosHabilitados: true, contratosHabilitados: true });
+    expect(blocosDaAba('ficha', c)).toEqual(['dadosDoAluno', 'acessoAoApp', 'planoContratado', 'contratos', 'anamnese', 'lesoes']);
+    // Não depende do financeiro: o contrato do aluno existe sem plano contratado.
+    expect(blocosDaAba('ficha', contexto(['CONTRATO_LER'], { contratosHabilitados: true }))).toEqual(['dadosDoAluno', 'acessoAoApp', 'contratos']);
+  });
+
   it('com tudo liberado as cinco abas aparecem e cada bloco cai na aba da decisão 1', () => {
     const c = contexto(TUDO, { pagamentosHabilitados: true, retornoHabilitado: true });
     expect(abasVisiveis(c)).toEqual(['resumo', 'planos', 'acompanhamento', 'evolucao', 'ficha']);

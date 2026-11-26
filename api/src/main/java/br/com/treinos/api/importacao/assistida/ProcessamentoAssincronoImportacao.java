@@ -6,6 +6,7 @@ import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.equipe.PermissoesDoUsuario;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SessaoDetalhe;
+import br.com.treinos.api.importacao.assistida.ia.RoteadorInterpretadorIa;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.NaoEncontradoException;
 import jakarta.annotation.PreDestroy;
@@ -20,10 +21,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Processamento assíncrono leve das sessões de importação assistida:
@@ -36,7 +39,8 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class ProcessamentoAssincronoImportacao {
 
-    private static final long TIMEOUT_SEGUNDOS = 120;
+    /** Folga do corte da sessão, além das rodadas de arquivos (gravar o resultado depois da leitura). */
+    private static final long FOLGA_DA_SESSAO_SEGUNDOS = 60;
 
     private final ImportacaoSessaoRepository sessoes;
     private final ImportacaoArquivoRepository arquivos;
@@ -85,7 +89,7 @@ public class ProcessamentoAssincronoImportacao {
                 throw new ConflictException("A importação expirou.", "SESSAO_EXPIRADA");
             }
             if ("PROCESSANDO".equals(estadoAtual)) {
-                return new InicioResultado(service.detalheDaSessao(sessao), false);
+                return new InicioResultado(service.detalheDaSessao(sessao), false, 0);
             }
             List<ImportacaoArquivo> todos = arquivos.findBySessaoIdOrderByCriadoEmAsc(sessaoId);
             if (todos.isEmpty()) {
@@ -93,42 +97,64 @@ public class ProcessamentoAssincronoImportacao {
             }
             boolean temPendentes = todos.stream().anyMatch(a -> "RECEBIDO".equals(a.getEstado()));
             if (!temPendentes) {
-                return new InicioResultado(service.detalheDaSessao(sessao), false);
+                return new InicioResultado(service.detalheDaSessao(sessao), false, 0);
             }
+            long pendentes = todos.stream().filter(a -> "RECEBIDO".equals(a.getEstado())).count();
             SessaoJson.marcarFlagProgresso(json, sessao, "erroProcessamento", false);
+            SessaoJson.numeroNoProgresso(json, sessao, "aLer", (int) pendentes);
+            SessaoJson.numeroNoProgresso(json, sessao, "lidos", 0);
             sessao.atualizarEstado("PROCESSANDO");
-            return new InicioResultado(service.detalheDaSessao(sessao), true);
+            return new InicioResultado(service.detalheDaSessao(sessao), true, (int) pendentes);
         });
 
         if (inicio != null && inicio.disparar()) {
-            dispararAposCommit(consultoriaId, sessaoId, usuarioId);
+            dispararAposCommit(consultoriaId, sessaoId, usuarioId, inicio.pendentes());
         }
         return inicio != null ? inicio.detalhe() : null;
     }
 
-    private record InicioResultado(SessaoDetalhe detalhe, boolean disparar) {
+    private record InicioResultado(SessaoDetalhe detalhe, boolean disparar, int pendentes) {
     }
 
-    private void dispararAposCommit(UUID consultoriaId, UUID sessaoId, UUID usuarioId) {
+    private void dispararAposCommit(UUID consultoriaId, UUID sessaoId, UUID usuarioId, int pendentes) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    agendar(consultoriaId, sessaoId, usuarioId);
+                    agendar(consultoriaId, sessaoId, usuarioId, pendentes);
                 }
             });
         } else {
-            agendar(consultoriaId, sessaoId, usuarioId);
+            agendar(consultoriaId, sessaoId, usuarioId, pendentes);
         }
     }
 
-    private void agendar(UUID consultoriaId, UUID sessaoId, UUID usuarioId) {
-        CompletableFuture.runAsync(() -> executarEmSegundoPlano(consultoriaId, sessaoId, usuarioId), executor)
-                .orTimeout(TIMEOUT_SEGUNDOS, TimeUnit.SECONDS)
-                .exceptionally(ex -> {
-                    tratarFalhaAssincrona(consultoriaId, sessaoId);
-                    return null;
-                });
+    /** Corte da sessão: rodadas de {@code ARQUIVOS_EM_PARALELO} arquivos, cada uma até o teto de um arquivo, mais a folga. */
+    static long limiteDaSessaoEmSegundos(int pendentes) {
+        long rodadas = Math.max(1, (pendentes + ImportacaoAssistidaService.ARQUIVOS_EM_PARALELO - 1)
+                / ImportacaoAssistidaService.ARQUIVOS_EM_PARALELO);
+        return rodadas * RoteadorInterpretadorIa.TEMPO_MAXIMO_POR_ARQUIVO.toSeconds() + FOLGA_DA_SESSAO_SEGUNDOS;
+    }
+
+    /**
+     * Roda a sessão e a vigia numa thread virtual: passou do limite, a tarefa é cancelada (interrompe as leituras em
+     * curso, sem chamada órfã ao provedor) e a sessão volta com erro. O relógio corre desde o agendamento.
+     */
+    private void agendar(UUID consultoriaId, UUID sessaoId, UUID usuarioId, int pendentes) {
+        Future<?> tarefa = executor.submit(() -> executarEmSegundoPlano(consultoriaId, sessaoId, usuarioId));
+        long limite = limiteDaSessaoEmSegundos(pendentes);
+        Thread.startVirtualThread(() -> {
+            try {
+                tarefa.get(limite, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                tarefa.cancel(true);
+                tratarFalhaAssincrona(consultoriaId, sessaoId);
+            } catch (ExecutionException e) {
+                tratarFalhaAssincrona(consultoriaId, sessaoId);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
     }
 
     void executarEmSegundoPlano(UUID consultoriaId, UUID sessaoId, UUID usuarioId) {
@@ -144,7 +170,8 @@ public class ProcessamentoAssincronoImportacao {
                 if (preparo == null) {
                     return null;
                 }
-                ImportacaoAssistidaService.ResultadoProcessamentoLote resultado = service.executarProcessamentoSemTransacao(preparo);
+                ImportacaoAssistidaService.ResultadoProcessamentoLote resultado = service.executarProcessamentoSemTransacao(preparo,
+                        () -> contarArquivoLido(consultoriaId, sessaoId));
                 transacao.executeWithoutResult(status -> service.concluirProcessamentoEmTransacao(sessaoId, resultado));
                 return null;
             });
@@ -153,6 +180,19 @@ public class ProcessamentoAssincronoImportacao {
         } finally {
             SecurityContextHolder.clearContext();
             TenantContext.clear();
+        }
+    }
+
+    /** Soma um arquivo lido ao progresso da tela; falha aqui nunca derruba a leitura. */
+    private void contarArquivoLido(UUID consultoriaId, UUID sessaoId) {
+        try {
+            transacao.executeWithoutResult(status -> sessoes.buscarParaAlterar(sessaoId, consultoriaId).ifPresent(s -> {
+                if ("PROCESSANDO".equals(s.getEstado())) {
+                    SessaoJson.somarNoProgresso(json, s, "lidos");
+                }
+            }));
+        } catch (RuntimeException ignored) {
+            // só o contador da tela
         }
     }
 

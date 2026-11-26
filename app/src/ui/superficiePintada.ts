@@ -19,8 +19,8 @@ import { contraste, misturar, type Cores, type VarianteDoTema } from '../tema/to
  * Neutro (sem significado) não passa por aqui: fundo `base` e borda `divisor`, como sempre.
  */
 
-/** Quanto da cor entra no canto mais forte: 14% nas escuras; 8% nas claras e na Areia (a base branca pede menos tinta). */
-export const TINTA_DA_PINTURA: Record<VarianteDoTema, number> = { escuro: 0.14, claro: 0.08, areia: 0.08 };
+/** Quanto da cor entra no canto mais forte: 14% nas escuras; 11% nas claras (Claro, Areia, Céu, Lavanda, Rosa). 26/11: 8% ficava apagado e 12% ou mais derruba o `textoSuave` abaixo de 4,5:1 no Claro e no Céu. */
+export const TINTA_DA_PINTURA: Record<VarianteDoTema, number> = { escuro: 0.14, claro: 0.11, areia: 0.11 };
 /** Onde o degradê chega à base pura (em % da diagonal): o terço de baixo do cartão fica neutro. */
 export const FIM_DO_DEGRADE = 70;
 /** Quanto da cor entra na borda (o resto é a base). */

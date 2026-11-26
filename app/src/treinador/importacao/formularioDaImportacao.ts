@@ -20,3 +20,17 @@ export async function formulario(arquivo: ArquivoEscolhido, configuracao?: unkno
   }
   return dados;
 }
+
+/**
+ * Arquivo levado da entrada única (`/nova`) à planilha completa. Fica só na memória (nunca no aparelho, LGPD) e é lido uma
+ * vez: a próxima tela o tira daqui ao montar.
+ */
+let emEspera: ArquivoEscolhido | null = null;
+export function deixarArquivoEmEspera(arquivo: ArquivoEscolhido) {
+  emEspera = arquivo;
+}
+export function pegarArquivoEmEspera(): ArquivoEscolhido | null {
+  const arquivo = emEspera;
+  emEspera = null;
+  return arquivo;
+}

@@ -192,7 +192,7 @@ export interface Opcoes {
   limiteMs?: number;
   /** Ignora o cache HTTP do navegador (a configuração pública vem com `max-age`; a conferência depois de um 400 precisa da atual). */
   semCache?: boolean;
-  /** Tipo aceito na resposta, quando não é JSON (CSV de exportação). Erros continuam vindo em JSON. */
+  /** Tipo aceito na resposta, quando não é JSON (CSV de exportação; com `binario`, troca o padrão de imagem e ZIP). Erros continuam vindo em JSON. */
   aceita?: string;
 }
 
@@ -307,7 +307,7 @@ async function enviar(caminho: string, opcoes: Opcoes): Promise<Response> {
   const daApi = caminhoDaApi(url, API_URL, base()) !== null;
   const headers: Record<string, string> = {
     // Imagem: o erro continua vindo em JSON, então o servidor precisa aceitar os dois tipos.
-    Accept: opcoes.binario ? 'image/jpeg, application/zip, application/json' : opcoes.aceita ? `${opcoes.aceita}, application/json` : 'application/json',
+    Accept: opcoes.binario ? `${opcoes.aceita ?? 'image/jpeg, application/zip'}, application/json` : opcoes.aceita ? `${opcoes.aceita}, application/json` : 'application/json',
     'X-Treinos-Cliente': WEB ? 'web' : 'nativo',
   };
   let body: BodyInit | undefined;

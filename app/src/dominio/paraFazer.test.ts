@@ -1,7 +1,8 @@
 import type { Atualizacao } from '../api/tipos';
 import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { AvisoDeCompromisso } from '../api/agendaTipos';
-import { AVISOS_VISIVEIS, avisosDoInicio, ITEM_ANAMNESE, itemDaAtualizacao, itemDoAviso, itemDoPagamento, itemDosNovos, temAvisoDeCompromisso, textoDoAviso } from './paraFazer';
+import type { ContratoDoAlunoResumo } from '../api/contratos';
+import { AVISOS_VISIVEIS, avisosDoInicio, ITEM_ANAMNESE, itemDaAtualizacao, itemDoAviso, itemDoContrato, itemDoPagamento, itemDosNovos, temAvisoDeCompromisso, textoDoAviso } from './paraFazer';
 
 const base = { id: 'a', pastaId: 'p', alunoId: 'x', nomeAluno: null, dataAtualizacao: '2026-10-20', fase: 'AVISO', diasParaData: 3, diasDeAtraso: 0,
   atrasoAte: null, atrasoMotivo: null, questionarioVersaoNumero: 1, questionarioVersaoId: 'v', questionarioNome: null, modelo: null, respostas: null,
@@ -177,5 +178,46 @@ describe('aviso de compromisso nas pendências (D12)', () => {
     expect(temAvisoDeCompromisso([])).toBe(false);
     expect(temAvisoDeCompromisso([aviso({ inicio: 'x' })])).toBe(false);
     expect(temAvisoDeCompromisso([aviso()])).toBe(true);
+  });
+});
+
+describe('contrato para assinar nas pendências', () => {
+  const contrato = (parcial: Partial<ContratoDoAlunoResumo>): ContratoDoAlunoResumo => ({
+    id: 'c1', titulo: 'Contrato de prestação de serviços', origem: 'MODELO', signatario: 'ALUNO', situacao: 'PENDENTE', prazoAte: null, vencido: false,
+    geradoEm: '2026-11-20T12:00:00Z', assinadoEm: null, ...parcial,
+  });
+
+  it('sem pendente (nada, só assinado ou lista ausente): sem item', () => {
+    expect(itemDoContrato([])).toBeNull();
+    expect(itemDoContrato(null)).toBeNull();
+    expect(itemDoContrato([contrato({ situacao: 'ASSINADO', assinadoEm: '2026-11-21T12:00:00Z' })])).toBeNull();
+  });
+
+  it('um sem prazo: "Para assinar" e o link da tela', () => {
+    expect(itemDoContrato([contrato({})])).toEqual({
+      titulo: 'Assinar contrato', detalhe: 'Contrato de prestação de serviços', selo: { texto: 'Para assinar', tipo: 'atencao' },
+      responder: false, href: '/aluno/contrato/c1',
+    });
+  });
+
+  it('com prazo: "Até dd/mm" (dia de Brasília); vencido: "Prazo terminou"', () => {
+    expect(itemDoContrato([contrato({ prazoAte: '2026-11-30T02:59:59Z' })])?.selo).toEqual({ texto: 'Até 29/11', tipo: 'atencao' });
+    expect(itemDoContrato([contrato({ prazoAte: '2026-11-10T02:59:59Z', vencido: true })])?.selo).toEqual({ texto: 'Prazo terminou', tipo: 'perigo' });
+  });
+
+  it('dois ou mais viram um item, do mais urgente: vencido, depois menor prazo, depois o mais antigo', () => {
+    const lista = [
+      contrato({ id: 'antigo', titulo: 'Antigo', geradoEm: '2026-11-01T12:00:00Z' }),
+      contrato({ id: 'longe', titulo: 'Longe', prazoAte: '2026-12-20T02:59:59Z' }),
+      contrato({ id: 'perto', titulo: 'Perto', prazoAte: '2026-12-01T02:59:59Z' }),
+    ];
+    const item = itemDoContrato(lista);
+    expect(item).toMatchObject({ titulo: 'Assinar 3 contratos', detalhe: 'Perto e mais 2', href: '/aluno/contrato/perto' });
+    expect(itemDoContrato([...lista, contrato({ id: 'venc', titulo: 'Vencido', prazoAte: '2026-12-30T02:59:59Z', vencido: true })])?.href).toBe('/aluno/contrato/venc');
+    expect(itemDoContrato(lista.filter((c) => !c.prazoAte).concat(contrato({ id: 'novo', geradoEm: '2026-11-25T12:00:00Z' })))?.href).toBe('/aluno/contrato/antigo');
+  });
+
+  it('o id vai codificado no endereço', () => {
+    expect(itemDoContrato([contrato({ id: 'a/b?c' })])?.href).toBe('/aluno/contrato/a%2Fb%3Fc');
   });
 });

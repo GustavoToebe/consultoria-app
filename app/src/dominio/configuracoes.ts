@@ -14,7 +14,7 @@ export type GrupoDeConfiguracao = (typeof GRUPOS_DE_CONFIGURACAO)[number];
  * usa `recebimentoOnlineHabilitado`, e isso é da tela, não do cartão do hub. Nenhum cartão usa chave hoje.
  * `pagamentosHabilitados` não entra: já vive dentro de `podeAcessarTela`.
  */
-export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado' | 'whatsappHabilitado';
+export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado' | 'whatsappHabilitado' | 'contratosHabilitados';
 
 export interface CartaoDeConfiguracao {
   id: string;
@@ -66,6 +66,8 @@ export const CARTOES_DE_CONFIGURACAO: readonly CartaoDeConfiguracao[] = [
   { id: 'metodologias', grupo: 'Alunos e atendimento', titulo: 'Metodologias', descricao: 'Regras de séries e preparação usadas nos treinos.', href: '/treinador/planejamento?tipo=metodologia', palavras: ['metodologia', 'series', 'preparacao', 'receitas', 'treino'], permissao: 'MODELO_LER' },
   // Tela própria em /treinador/alunos/tags: a guarda da lista de alunos (ALUNO_LER); gerir pede ALUNO_ALTERAR, conferido na tela.
   { id: 'tags-dos-alunos', grupo: 'Alunos e atendimento', titulo: 'Tags dos alunos', descricao: 'Rótulos da equipe para achar e filtrar os alunos.', href: '/treinador/alunos/tags', palavras: ['tags', 'etiquetas', 'rotulos', 'marcadores', 'categorias de alunos', 'filtrar alunos'] },
+  // CONTRATO_LER vem da guarda da rota (`podeAcessarTela`); a chave da plataforma esconde o cartão com o contrato digital desligado.
+  { id: 'contratos', grupo: 'Alunos e atendimento', titulo: 'Contratos', descricao: 'Modelos de contrato que o aluno assina no app.', href: '/treinador/contratos', palavras: ['contrato', 'assinatura', 'assinar', 'aceite', 'modelo de contrato', 'prestacao de servico', 'termo'], chave: 'contratosHabilitados' },
   { id: 'financeiro-planos', grupo: 'Financeiro', titulo: 'Planos comerciais', descricao: 'Os planos que você cobra dos alunos.', href: '/treinador/financeiro?aba=planos', palavras: ['pagamentos', 'mensalidade', 'valores', 'cobranca', 'planos'] },
   { id: 'financeiro-lembretes', grupo: 'Financeiro', titulo: 'Lembretes de cobrança', descricao: 'Quando avisar o aluno por e-mail sobre uma cobrança.', href: '/treinador/financeiro?aba=lembretes', palavras: ['lembrete', 'avisos', 'email', 'vencimento', 'atraso', 'inadimplencia'] },
   { id: 'financeiro-recebimento', grupo: 'Financeiro', titulo: 'Recebimento online', descricao: 'Como o aluno paga: Pix, link próprio, InfinitePay e manual.', href: '/treinador/financeiro?aba=recebimento', palavras: ['formas de recebimento', 'infinitepay', 'pix', 'copia e cola', 'chave pix', 'cartao', 'link de pagamento', 'link proprio', 'manual', 'parcelamento', 'juros'] },

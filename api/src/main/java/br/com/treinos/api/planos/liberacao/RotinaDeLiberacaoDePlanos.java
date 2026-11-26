@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A rotina diária (00:05 de Brasília) que libera para o aluno os planos agendados cuja data chegou (V105): o plano vira o vigente,
+ * A rotina diária (00:05 de Brasília) que libera para o aluno os planos agendados cuja data chegou (V106): o plano vira o vigente,
  * o aluno passa a ver a versão publicada e, se o treinador marcou "Avisar o aluno", sai o aviso (aviso no app e push). Entra em cada
  * consultoria com o {@link TenantContext} e roda um plano por transação, relendo-o sob trava de linha
  * ({@link PlanoRepositorio#travarParaLiberar}): idempotente (quem já foi liberado tem {@code liberar_em} nulo, então repetir no dia, ou

@@ -741,6 +741,46 @@ test('PC minimizado (1280): o ícone do grupo abre o submenu pelo teclado, setas
   expect(errosDaPagina).toEqual([]);
 });
 
+test('PC minimizado (1280): redimensionar para trilho (900) e celular (390) com submenu aberto fecha sem painel fantasma ao voltar', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 720);
+  await menu(page).getByRole('button', { name: 'Recolher barra lateral' }).click();
+  const grupo = (nome: string) => menu(page).getByRole('button', { name: new RegExp(`^${nome}(,|$)`) });
+  const submenu = (nome: string) => menu(page).getByRole('menu', { name: nome });
+
+  // Submenu fixo aberto em 1280: redimensionar para o trilho do tablet (900) fecha o painel e preserva o trilho.
+  await grupo('Negócio').click();
+  await expect(submenu('Negócio')).toBeVisible();
+  // O mouse sai do trilho: parado sobre o ícone, ele reabriria o submenu por passagem quando o trilho remontasse.
+  await page.mouse.move(640, 360);
+  await page.setViewportSize({ width: 900, height: 720 });
+  await expect(menu(page).getByRole('menu')).toHaveCount(0);
+  await expect(menu(page).getByRole('link', { name: 'Financeiro', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /(Recolher|Expandir) barra lateral/ })).toHaveCount(0);
+
+  // Voltar para 1280 não reabre nenhum painel fantasma.
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(menu(page).getByRole('menu')).toHaveCount(0);
+  await expect(grupo('Negócio')).toHaveAttribute('aria-expanded', 'false');
+
+  // Repete com outro grupo indo para o celular (390): fecha o submenu e preserva a barra inferior.
+  await grupo('Configurações').click();
+  await expect(submenu('Configurações')).toBeVisible();
+  await page.mouse.move(640, 360);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(menu(page).getByRole('menu')).toHaveCount(0);
+  await expect(menu(page).getByRole('link', { name: 'Perfil', exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('group')).toHaveCount(0);
+
+  // Ao voltar para 1280, nenhum submenu fantasma aparece e expandir restaura o menu aberto normalmente.
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(menu(page).getByRole('menu')).toHaveCount(0);
+  await expect(grupo('Configurações')).toHaveAttribute('aria-expanded', 'false');
+  await menu(page).getByRole('button', { name: 'Expandir barra lateral' }).click();
+  await expect(menu(page).getByText('Negócio', { exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('link', { name: 'Financeiro', exact: true })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('celular (390): a barra inferior é a de antes, sem grupos', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 390, 844);
   const nomes = await menu(page).getByRole('link').evaluateAll((ls) => ls.map((l) => l.getAttribute('aria-label')));

@@ -19,7 +19,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * "Planos terminando" do painel com plano agendado (V105): o vigente sai da lista quando há sucessor agendado do mesmo aluno
+ * "Planos terminando" do painel com plano agendado (V106): o vigente sai da lista quando há sucessor agendado do mesmo aluno
  * liberado até o dia seguinte ao fim dele (dias de Brasília); liberado depois disso, continua listado (haverá intervalo sem
  * plano). Dados fictícios; cada caso tem o próprio aluno e a afirmação é só sobre ele.
  */

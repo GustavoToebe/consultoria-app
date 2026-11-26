@@ -1,4 +1,5 @@
-/** Destinos da tela de importação e a sugestão de coluna, sem acento e sem caixa. */
+/** Destinos da tela de importação e o mapeamento sugerido pela API (`sugestoes` de `/colunas`). */
+import type { SugestaoDeColuna } from '../api/tipos';
 
 export type DestinoDaImportacao = 'alunos' | 'pesos' | 'exercicios' | 'alimentos' | 'suplementos' | 'outros';
 
@@ -7,7 +8,6 @@ export interface CampoDaImportacao {
   rotulo: string;
   obrigatorio: boolean;
   sensivel?: boolean;
-  sinonimos: string[];
   /** Grupo do campo na lista do mapeamento ("Endereço > CEP"); sem grupo, só o rótulo. */
   grupo?: string;
 }
@@ -27,8 +27,8 @@ const ATUALIZAR = { valor: 'ATUALIZAR', rotulo: 'Atualizar' };
 const SUBSTITUIR = { valor: 'SUBSTITUIR', rotulo: 'Substituir' };
 const REGRAS = [IGNORAR, COMPLETAR, ATUALIZAR];
 
-const campo = (id: string, rotulo: string, obrigatorio: boolean, sinonimos: string[], sensivel = false): CampoDaImportacao =>
-  ({ id, rotulo, obrigatorio, sensivel, sinonimos });
+const campo = (id: string, rotulo: string, obrigatorio: boolean, sensivel = false): CampoDaImportacao =>
+  ({ id, rotulo, obrigatorio, sensivel });
 const noGrupo = (grupo: string, campos: CampoDaImportacao[]) => campos.map((c) => ({ ...c, grupo }));
 
 export const DESTINOS: readonly Destino[] = [
@@ -38,28 +38,28 @@ export const DESTINOS: readonly Destino[] = [
     existentes: REGRAS,
     campos: [
       ...noGrupo('Cadastro', [
-        campo('nome', 'Nome', true, ['nome do aluno', 'aluno']),
-        campo('email', 'E-mail', false, ['email', 'e mail']),
-        campo('telefone', 'Telefone', false, ['telefone 1 (com ddd)', 'telefone 1', 'celular', 'fone']),
-        campo('cpf', 'CPF', false, ['documento'], true),
+        campo('nome', 'Nome', true),
+        campo('email', 'E-mail', false),
+        campo('telefone', 'Telefone', false),
+        campo('cpf', 'CPF', false, true),
       ]),
       ...noGrupo('Acompanhamento', [
-        campo('objetivo', 'Objetivo', false, [], true),
-        campo('observacoes', 'Observações', false, ['observacao', 'obs'], true),
+        campo('objetivo', 'Objetivo', false, true),
+        campo('observacoes', 'Observações', false, true),
       ]),
       ...noGrupo('Endereço', [
-        campo('cep', 'CEP', false, [], true),
-        campo('logradouro', 'Logradouro', false, ['rua', 'endereco'], true),
-        campo('numero', 'Número', false, ['numero'], true),
-        campo('complemento', 'Complemento', false, [], true),
-        campo('bairro', 'Bairro', false, [], true),
-        campo('cidade', 'Cidade', false, [], true),
-        campo('uf', 'UF', false, ['estado'], true),
+        campo('cep', 'CEP', false, true),
+        campo('logradouro', 'Logradouro', false, true),
+        campo('numero', 'Número', false, true),
+        campo('complemento', 'Complemento', false, true),
+        campo('bairro', 'Bairro', false, true),
+        campo('cidade', 'Cidade', false, true),
+        campo('uf', 'UF', false, true),
       ]),
       ...noGrupo('Acompanhamento', [
-        campo('responsavel', 'Responsável', false, ['responsavel', 'e-mail do responsavel']),
-        campo('dias', 'Dias', false, ['dias de atualizacao', 'ciclo']),
-        campo('situacao', 'Situação', false, ['status', 'ativo']),
+        campo('responsavel', 'Responsável', false),
+        campo('dias', 'Dias', false),
+        campo('situacao', 'Situação', false),
       ]),
     ],
   },
@@ -68,10 +68,10 @@ export const DESTINOS: readonly Destino[] = [
     chaves: [{ valor: 'email', rotulo: 'E-mail' }, { valor: 'cpf', rotulo: 'CPF' }, { valor: 'nome', rotulo: 'Nome' }],
     existentes: [IGNORAR, SUBSTITUIR],
     campos: [
-      campo('aluno', 'Aluno', true, ['nome do aluno', 'e-mail', 'email', 'cpf']),
-      campo('data', 'Data', true, ['data da pesagem']),
-      campo('peso', 'Peso', true, ['peso (kg)', 'peso kg']),
-      campo('observacao', 'Observação', false, ['observacoes', 'obs']),
+      campo('aluno', 'Aluno', true),
+      campo('data', 'Data', true),
+      campo('peso', 'Peso', true),
+      campo('observacao', 'Observação', false),
     ],
   },
   {
@@ -79,12 +79,12 @@ export const DESTINOS: readonly Destino[] = [
     chaves: [{ valor: 'nome', rotulo: 'Nome' }],
     existentes: REGRAS,
     campos: [
-      campo('nome', 'Nome', true, ['exercicio']),
-      campo('grupo', 'Grupo', false, ['grupo muscular']),
-      campo('equipamento', 'Equipamento', false, []),
-      campo('modalidade', 'Modalidade', false, []),
-      campo('video', 'Vídeo', false, ['link do video', 'url']),
-      campo('observacoes', 'Observações', false, ['observacao']),
+      campo('nome', 'Nome', true),
+      campo('grupo', 'Grupo', false),
+      campo('equipamento', 'Equipamento', false),
+      campo('modalidade', 'Modalidade', false),
+      campo('video', 'Vídeo', false),
+      campo('observacoes', 'Observações', false),
     ],
   },
   {
@@ -92,19 +92,19 @@ export const DESTINOS: readonly Destino[] = [
     chaves: [{ valor: 'nome', rotulo: 'Nome' }],
     existentes: REGRAS,
     campos: [
-      campo('nome', 'Nome', true, ['alimento']),
-      campo('quantidade', 'Quantidade', true, ['quantidade base', 'base']),
-      campo('unidade', 'Unidade', true, []),
-      campo('kcal', 'Kcal', true, ['calorias', 'energia']),
-      campo('proteina', 'Proteína', true, ['proteinas', 'ptn']),
-      campo('carboidrato', 'Carboidrato', true, ['carboidratos', 'cho']),
-      campo('gordura', 'Gordura', true, ['gorduras', 'lipidio']),
-      campo('fibra', 'Fibra', false, ['fibras', 'fibra (g)']),
-      campo('gramas', 'Gramas', false, ['gramas por unidade']),
-      campo('fonte', 'Fonte', false, []),
-      campo('fc', 'FC', false, ['fator de correcao', 'fator correcao']),
-      campo('fcc', 'FCc', false, ['fator de coccao', 'fator coccao']),
-      campo('grupo', 'Grupo', false, ['grupo do alimento', 'categoria']),
+      campo('nome', 'Nome', true),
+      campo('quantidade', 'Quantidade', true),
+      campo('unidade', 'Unidade', true),
+      campo('kcal', 'Kcal', true),
+      campo('proteina', 'Proteína', true),
+      campo('carboidrato', 'Carboidrato', true),
+      campo('gordura', 'Gordura', true),
+      campo('fibra', 'Fibra', false),
+      campo('gramas', 'Gramas', false),
+      campo('fonte', 'Fonte', false),
+      campo('fc', 'FC', false),
+      campo('fcc', 'FCc', false),
+      campo('grupo', 'Grupo', false),
     ],
   },
   {
@@ -112,14 +112,14 @@ export const DESTINOS: readonly Destino[] = [
     chaves: [{ valor: 'nome_marca', rotulo: 'Nome e marca' }],
     existentes: REGRAS,
     campos: [
-      campo('nome', 'Nome', true, ['suplemento']),
-      campo('marca', 'Marca', true, []),
-      campo('categoria', 'Categoria', false, []),
-      campo('porcao', 'Porção', false, ['porcao']),
-      campo('porcoes', 'Porções', false, ['porcoes por embalagem']),
-      campo('sabores', 'Sabores', false, ['sabor']),
-      campo('link', 'Link', false, ['url']),
-      campo('cupom', 'Cupom', false, ['cupom de desconto']),
+      campo('nome', 'Nome', true),
+      campo('marca', 'Marca', true),
+      campo('categoria', 'Categoria', false),
+      campo('porcao', 'Porção', false),
+      campo('porcoes', 'Porções', false),
+      campo('sabores', 'Sabores', false),
+      campo('link', 'Link', false),
+      campo('cupom', 'Cupom', false),
     ],
   },
   {
@@ -127,12 +127,12 @@ export const DESTINOS: readonly Destino[] = [
     chaves: [{ valor: 'nome', rotulo: 'Nome' }],
     existentes: REGRAS,
     campos: [
-      campo('nome', 'Nome', true, ['item']),
-      campo('categoria', 'Categoria', false, []),
-      campo('principio', 'Princípio', false, ['principio ativo']),
-      campo('concentracao', 'Concentração', false, ['concentracao']),
-      campo('apresentacao', 'Apresentação', false, ['apresentacao']),
-      campo('observacao', 'Observação', false, ['observacoes']),
+      campo('nome', 'Nome', true),
+      campo('categoria', 'Categoria', false),
+      campo('principio', 'Princípio', false),
+      campo('concentracao', 'Concentração', false),
+      campo('apresentacao', 'Apresentação', false),
+      campo('observacao', 'Observação', false),
     ],
   },
 ];
@@ -141,25 +141,24 @@ export function destinosPermitidos(pode: (codigo: string) => boolean): Destino[]
   return DESTINOS.filter((d) => pode(d.permissao));
 }
 
-export function semAcento(texto: string): string {
-  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-}
-
-/** Coluna cujo cabeçalho casa com o campo, o rótulo ou um sinônimo. Cada coluna entra no máximo uma vez. */
-export function sugerirMapeamento(colunas: readonly string[], campos: readonly CampoDaImportacao[]): Record<string, number | null> {
-  const usados = new Set<number>();
-  const mapa: Record<string, number | null> = {};
-  for (const campoAtual of campos) {
-    const alvos = new Set([campoAtual.id, campoAtual.rotulo, ...campoAtual.sinonimos].map(semAcento));
-    const indice = colunas.findIndex((coluna, i) => !usados.has(i) && alvos.has(semAcento(coluna)));
-    if (indice >= 0) {
-      mapa[campoAtual.id] = indice;
-      usados.add(indice);
-    } else {
-      mapa[campoAtual.id] = null;
-    }
+/**
+ * Mapa campo → coluna a partir das sugestões da API: todo campo começa em "Não importar"; fica de fora o campo que o
+ * destino não tem, o sensível sem a permissão e a segunda sugestão para a mesma coluna. `PARECIDA` vai para `paraConferir`.
+ */
+export function mapaDasSugestoes(sugestoes: readonly SugestaoDeColuna[], destino: Destino, podeSensivel: boolean): {
+  mapa: Record<string, number | null>; paraConferir: Set<string>;
+} {
+  const mapa: Record<string, number | null> = Object.fromEntries(destino.campos.map((c) => [c.id, null]));
+  const paraConferir = new Set<string>();
+  const usadas = new Set<number>();
+  for (const s of sugestoes) {
+    const campoAtual = destino.campos.find((c) => c.id === s.campo);
+    if (!campoAtual || (campoAtual.sensivel && !podeSensivel) || mapa[s.campo] !== null || usadas.has(s.coluna)) continue;
+    mapa[s.campo] = s.coluna;
+    usadas.add(s.coluna);
+    if (s.confianca === 'PARECIDA') paraConferir.add(s.campo);
   }
-  return mapa;
+  return { mapa, paraConferir };
 }
 
 /** Campo obrigatório do destino, mais a chave quando ela é uma coluna (e-mail ou CPF do aluno). */

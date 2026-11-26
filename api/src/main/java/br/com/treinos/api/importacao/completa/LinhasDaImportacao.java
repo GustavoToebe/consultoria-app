@@ -100,6 +100,7 @@ public interface LinhasDaImportacao extends Repository<Importacao, UUID> {
                     or exists (select 1 from ContratacaoAluno x where x.alunoId = :aluno)
                     or exists (select 1 from CobrancaAluno x where x.alunoId = :aluno)
                     or exists (select 1 from AcordoDeCobranca x where x.alunoId = :aluno)
+                    or exists (select 1 from ContratoAluno x where x.alunoId = :aluno)
                     or exists (select 1 from Inscricao i where i.alunoId = :aluno or i.indicadoPorAlunoId = :aluno)
                 ) then true else false end
             from Aluno a where a.id = :aluno""")

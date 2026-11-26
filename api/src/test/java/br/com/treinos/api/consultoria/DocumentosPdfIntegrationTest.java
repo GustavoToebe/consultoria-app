@@ -20,7 +20,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** {@code PUT /consultoria/documentos-pdf} (V106): modelo escolhido + opções sobrescritas, com versão. */
+/** {@code PUT /consultoria/documentos-pdf} (V107): modelo escolhido + opções sobrescritas, com versão. */
 @AutoConfigureMockMvc
 class DocumentosPdfIntegrationTest extends AbstractIntegrationTest {
 

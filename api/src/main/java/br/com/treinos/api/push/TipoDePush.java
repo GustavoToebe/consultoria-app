@@ -1,7 +1,7 @@
 package br.com.treinos.api.push;
 
 /**
- * O tipo de um envio da fila {@code push_envio} (V105). O texto de cada um é fixo aqui, sem dado pessoal, e o {@code data} leva só
+ * O tipo de um envio da fila {@code push_envio} (V106). O texto de cada um é fixo aqui, sem dado pessoal, e o {@code data} leva só
  * o código para o app saber para onde ir.
  */
 public enum TipoDePush {

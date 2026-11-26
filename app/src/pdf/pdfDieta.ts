@@ -1,7 +1,7 @@
 import type { ConteudoDieta, ItemDieta, Marca, Refeicao, RegistroPeso, Suplemento } from '../api/tipos';
 import { NOMES_DOS_DIAS } from '../dominio/calendario';
 import { secoesDaDieta, soAVariacao } from '../dominio/variacoesDaDieta';
-import { modoDePreparoParaMostrar, nomeDaOpcao, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
+import { modoDePreparoParaMostrar, nomeDaOpcao, opcaoDoTotalDoDia, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
 import { DIAS_DO_PERIODO, NOTA_DA_LISTA, NOTA_DA_PREVIA, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { cabecalhoDaTabela, corpoDaTabela } from './pdfListaDeCompras';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
@@ -53,6 +53,12 @@ export function textoTotaisPdf(t: TotaisComFibra): string {
 }
 
 /** "seg, qua, sex" para os dias da variação (1 = segunda ... 7 = domingo), em ordem; sem dia válido, "—". */
+/** A nota sob o total do dia ("Total do dia considerando a opção A de cada refeição." ou "Total do dia · Principal de cada refeição."); já escapada. */
+function fraseDoTotal(refeicoes: Refeicao[], inicio: string): string {
+  const { padrao, nome } = opcaoDoTotalDoDia(refeicoes);
+  return esc(padrao ? `${inicio} considerando a ${nome} de cada refeição.` : `${inicio} · ${nome} de cada refeição.`);
+}
+
 export function textoDosDias(dias: number[]): string {
   const validos = [...new Set(dias)].filter((d) => Number.isInteger(d) && d >= 1 && d <= 7).sort((a, b) => a - b);
   return validos.length ? validos.map((d) => NOMES_DOS_DIAS[d % 7]).join(', ') : '—';
@@ -210,13 +216,13 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
         sec('Sugestão de plano alimentar'),
         ...secoesDaDieta(c).map((s) => `<div class="bloco">${sec(`Variação · ${s.rotulo ?? ''}`)}<div class="escolha">Dias: ${esc(textoDosDias(s.dias))}</div>
 ${tabelaDoTotal(totalDoDia(s.refeicoes))}
-<div class="pequeno">Total do dia desta variação considerando a opção A de cada refeição.</div></div>
+<div class="pequeno">${fraseDoTotal(s.refeicoes, 'Total do dia desta variação')}</div></div>
 ${htmlDasRefeicoes(s.refeicoes) || '<div class="suave">—</div>'}`),
       ]
     : [
         `<div class="bloco">${sec('Distribuição diária de macronutrientes')}
 ${tabelaDoTotal(totalDoDia(c.refeicoes))}
-<div class="pequeno">Total do dia considerando a opção A de cada refeição.</div></div>`,
+<div class="pequeno">${fraseDoTotal(c.refeicoes, 'Total do dia')}</div></div>`,
         barra,
         sec('Sugestão de plano alimentar'),
         htmlDasRefeicoes(c.refeicoes) || '<div class="suave">—</div>',
