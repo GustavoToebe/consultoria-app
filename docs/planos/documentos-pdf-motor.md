@@ -83,6 +83,34 @@ Pedido do Gustavo, a partir da tela "Layouts de cobrança" da Icondev (editor li
 - Fontes serifada e condensada no PDF dependem das fontes do aparelho; conferir no Android e no iPhone antes de oferecer.
 - Quais modelos além dos três de hoje, e a miniatura de cada um (gerada da prévia ou imagem fixa).
 
+### Plano de tela (`plano-front`, 26/11/2026; decisões de tela a confirmar pelo Gustavo)
+**Descobertas que mudam o desenho:**
+- Duas prévias na mesma página brigam pelo CSS: `cssDaPrevia` (`pdf/html.ts`) prende tudo a `.previa-pdf .doc` e cada `PreviaDoDocumento.web.tsx` põe um `<style>`; com várias miniaturas vence a última. Precisa de chave por instância (`.previa-pdf[data-previa="k"] .doc`), sem tocar o sanitizador. **Vem antes da galeria.**
+- `avaliarMarca` mede contra os fundos do tema do app, não contra o papel branco: a paleta de destaque fica fixa no código, travada por teste contra `#FFFFFF`.
+- A coluna da direita de Configurações tem ~700 px em 1280; folha A4 (794) + painel (~360) não cabem.
+
+**Decisões de tela (D-F):**
+- D-F1 Galeria continua em Configurações (`documentos-pdf`) e em `/treinador/documentos`; o **editor** é rota nova em tela inteira, `/treinador/documentos/personalizar`, sobre `TelaDoEditor`.
+- D-F2 Toda escolha navega para o editor (`?modelo=ID`, consumido na chegada). O editor decide pela própria faixa: `normal` ou maior = editor; `compacta` (celular, janela estreita, 1024 com menu aberto) = só confirmar o modelo com `PainelConfirmacao` (o que o celular já faz hoje) ou "Personalize numa tela maior".
+- D-F3 Nada grava antes do "Salvar"; trocar modelo e "Restaurar o modelo" mexem no rascunho com `BarraDesfazer`, sem pergunta; guarda de saída ligada.
+- D-F4 Miniaturas na web pelo gerador real (cabeçalho e uma tabela, com a marca da consultoria, `aria-hidden`); no nativo, sem miniatura.
+- D-F5 Painel em duas partes: "Estilo de todos os documentos" (Cores, Texto, Cabeçalho, Tabelas; Rodapé no N2) e "Seções do <tipo>" (N2). Nada de "em breve" na tela.
+- D-F6 Só peças existentes (`LinhaDeConfiguracao`, `Escolha`, `Interruptor`, `OpcaoCartao`+`GradeDeOpcoes` para a cor, `Cartao recolhivel` com `resumo`, `Abas`, `ui/Grade`, `Folha`, `BarraDesfazer`, `RodapeDeAcoes`); nenhum componente novo em `ui/`.
+- D-F7 Prévia ao vivo sem atraso (só o texto do rodapé, no N2, com 300 ms).
+- D-F8 Cor principal só leitura no editor, com "Alterar na Marca".
+
+**Ordem (N1):** (0) contrato na sessão principal, depois de a outra sessão sair de `api/rotas.ts`/`tipos.ts`: rota, `versao` ou não, migration que amplia o CHECK de `tema_pdf` para os modelos e grava o JSON de opções, `MarcaPublica`/`Marca`, revisão; (1) `executor`: `dominio/configuracaoPdf.ts` (modelos, normalizar, resolver, personalizado, restaurar, trocar, contagem, resumo, paleta, colunas da galeria) com teste, inclusive contraste com `#FFEB3B`; (2) `executor`: chave por instância na prévia e `cssDasOpcoes(valores)`; Clássico sem diferenças idêntico ao de hoje; injeção por modelo; jsdom com duas prévias; (3) `executor-front`: CSS de cada opção (Minimalista e Marcante reproduzem a saída de hoje); (4) `executor`: `api/`, `mesmaMarca`, rota em `dominio/telas.ts` e `permissoes.ts` (fora da busca); (5) e (6) `executor-front`: galeria e editor, com os e2e `documentos-pdf.spec.ts` (atualizado) e `documentos-pdf-editor.spec.ts` (novo) em 390, 1024, 1280 e 1920, claro, areia e escuro; (7) textos do hub e do cabeçalho.
+
+**Riscos:** serifada/condensada dependem das fontes do aparelho; peso de 6 a 8 miniaturas (usar exemplo curto); paridade de Minimalista e Marcante para quem já os escolheu; sem `versao`, vale o último; celular sem a prova 0.1; janela de 1024 com o menu aberto cai em "tela pequena".
+
+**Respostas do Gustavo (26/11/2026):**
+- D21 Modelos: **6**, Clássico, Minimalista, Marcante, Compacto, Elegante e Esportivo.
+- D22 Fontes: sem serifa, serifada **e condensada já no N1**, com o risco aceito de o PDF do celular sair diferente da prévia até a prova 0.1 (conferir no APK no N4).
+- D23 Paleta de destaque: **8 cores**, Cor da marca, Grafite e 6 da `PALETAS` (Azul, Índigo, Verde, Turquesa, Magenta, Bronze).
+- D24 Celular: **escolhe e grava o modelo** (como hoje); personalizar só no PC.
+- "Fundo do cabeçalho" = topo do documento (recomendação do `plano-front`, não perguntada; as tabelas seguem o estilo de tabela).
+- Continua em aberto: rota própria ou junto com a Marca, e `versao` (409) ou não.
+
 ## Passos
 Os passos 1.2, 2.1, 2.2 e 3.2 abaixo são do desenho de 15/11 e foram **substituídos pela "Nova direção"** (N1 a N4); ficam como histórico do que já foi feito.
 
