@@ -64,6 +64,8 @@ export function erroDoCampo(texto: string, tentou: boolean, hoje: string = hojeE
  * igual à publicação de antes do bloco E. Agendar exige uma data válida; senão devolve o erro do campo.
  */
 export function corpoDaLiberacao(e: EscolhaDaLiberacao, hoje: string = hojeEmBrasilia()): { corpo: CorpoDaLiberacao } | { erro: string } {
+  // Caixa marcada = campo NÃO enviado (decisão do Gustavo, 26/11): o contrato da API trata `avisarAluno` ausente como true
+  // (`PublicarRequest`/`PublicarPastaRequest`); só a caixa desmarcada manda `avisarAluno: false`.
   const aviso: CorpoDaLiberacao = e.avisar ? {} : { avisarAluno: false };
   if (e.modo === 'agora') return { corpo: aviso };
   const { iso, erro } = validarDataDeLiberacao(e.dataTexto, hoje);

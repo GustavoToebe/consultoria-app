@@ -14,6 +14,8 @@ interface Arranjo {
   valor: number;
   /** Respiro da linha em cima e embaixo, até o fio; sem ele, os 8 de sempre. */
   respiro?: number;
+  /** Vão entre o rótulo e o valor empilhados; sem ele, os 2 de sempre. */
+  entre?: number;
 }
 
 /** "Sem grupo", uma data ou um nome curto cabem inteiros; abaixo disso o texto quebraria letra por letra. */
@@ -51,9 +53,10 @@ const ehSubtitulo = (filho: ReactNode): filho is ReactElement => isValidElement(
  * do formulário de mesmo rótulo.
  *
  * `arranjo` (opcional; sem ele, tudo como acima): limite próprio para empilhar, rótulo em fração da largura com teto e
- * respiro até o fio. Hoje só a leitura das respostas o usa (760 de cartão, 40% até 320, 12; orientações de 26/11, 2.1).
+ * respiro até o fio e vão entre rótulo e valor empilhados. Hoje só a leitura das respostas o usa (760 de cartão, 40% até
+ * 320, 12 até o fio e 4 entre pergunta e resposta; orientações de 26/11, 2.1).
  */
-export function ListaDeDados({ children, arranjo: ajuste }: { children: ReactNode; arranjo?: AjusteDoArranjo & { respiro?: number } }) {
+export function ListaDeDados({ children, arranjo: ajuste }: { children: ReactNode; arranjo?: AjusteDoArranjo & { respiro?: number; entre?: number } }) {
   const { fatorTexto } = useTema();
   const { width } = useWindowDimensions();
   const [largura, setLargura] = useState(0);
@@ -67,6 +70,7 @@ export function ListaDeDados({ children, arranjo: ajuste }: { children: ReactNod
     rotulo: medido.rotulo,
     valor: larguraMinimaDoValor(fatorTexto),
     respiro: ajuste?.respiro,
+    entre: ajuste?.entre,
   };
   // Linhas que de fato aparecem (posição na lista inteira), anunciadas por elas mesmas ao montar e ao sumir.
   const [presentes, setPresentes] = useState<ReadonlySet<number>>(() => new Set());
@@ -139,7 +143,7 @@ interface PropsDaLinha {
 
 export function LinhaDeDado({ rotulo, valor, vazio = '—', numerico, conteudo, nota, dica, acoes }: PropsDaLinha) {
   const { cores } = useTema();
-  const { empilhado, rotulo: larguraRotulo, valor: larguraValor, respiro } = useContext(ArranjoDaLista);
+  const { empilhado, rotulo: larguraRotulo, valor: larguraValor, respiro, entre } = useContext(ArranjoDaLista);
   const { posicao, comFio } = useContext(LugarDaLinha);
   const anunciar = useContext(AnunciarLinha);
   // Antes da pintura, para a última linha nunca aparecer com o fio sobrando.
@@ -158,7 +162,7 @@ export function LinhaDeDado({ rotulo, valor, vazio = '—', numerico, conteudo, 
   const pisoDoPar = (empilhado ? 0 : larguraRotulo + VAO_DA_LINHA) + larguraValor;
   return (
     <View role="listitem" style={[estilos.linha, respiro != null ? { paddingVertical: respiro } : null, comFio ? { borderBottomWidth: 1, borderBottomColor: cores.divisor } : null]}>
-      <View style={[estilos.par, { flexBasis: pisoDoPar, minWidth: pisoDoPar }, empilhado ? null : estilos.parEmLinha]} accessibilityLabel={`${rotulo}: ${texto}${dica ? ` (${dica})` : ''}`}>
+      <View style={[estilos.par, { flexBasis: pisoDoPar, minWidth: pisoDoPar }, empilhado ? (entre != null ? { gap: entre } : null) : estilos.parEmLinha]} accessibilityLabel={`${rotulo}: ${texto}${dica ? ` (${dica})` : ''}`}>
         <Texto variante="rotulo" role="term" style={empilhado ? null : { width: larguraRotulo, flexShrink: 0 }}>{rotulo}</Texto>
         <View ref={comDica} role="definition" style={[estilos.valor, { minWidth: larguraValor }, empilhado ? null : estilos.valorEmLinha]}>
           {conteudo && !semValor ? conteudo : semValor ? <Texto variante="suave">{texto}</Texto> : <ValorEmTexto texto={texto} numerico={numerico} />}

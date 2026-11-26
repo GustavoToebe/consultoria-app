@@ -226,6 +226,10 @@ Linhas, não pilhas. A regra em `dominio/arranjoDoInicio.ts` recebe a lista dos 
 
 - No apoio, o Feedback **não rola junto** com o Prescrito: o Feedback fica no topo e o Prescrito rola por dentro. Se o
   Feedback crescer (texto longo), ele mesmo tem altura máxima e rolagem.
+- **Decisão do Gustavo (26/11, noite):** o cartão chama-se **"Prescrição atual"** (não "O que está prescrito") porque mostra a
+  versão de **hoje** (`versaoLiberada`), não a que valia quando o aluno respondeu. Mostrar a prescrição da época da resposta
+  fica para o próximo lote. As **três colunas** da tela ultralarga também ficam para o próximo lote; por enquanto o apoio
+  fica em 440.
 - Abas do Prescrito (Treino | Dieta | Suplementos | Outros): compactas, como as `Abas` pequenas, com aba sem permissão
   **removida** (não desabilitada). Uma aba só sobrando vira título, sem barra de abas.
 - Linhas do prescrito em modo compacto: 13 a 14 px, uma linha por item ("Supino reto · 3×6 a 8 · WS"), números
@@ -274,6 +278,9 @@ Linhas, não pilhas. A regra em `dominio/arranjoDoInicio.ts` recebe a lista dos 
 - 6 modelos: por linha, **6, 3, 2 ou 1** (0.4). Célula mínima 220 e máxima 320. Em 1280 com o menu aberto cabem 3.
 - Miniatura: recorte do **topo** da página (cabeçalho + uma tabela) em proporção **4:3**, não a A4 inteira (a A4 em 220
   px de largura fica ilegível). Gerada pelo gerador real, `aria-hidden`.
+- **Desvio aceito pelo Gustavo (26/11, noite):** a miniatura **não** usa `MESA_DA_PREVIA`; o fundo é `cores.superficie2`. O
+  papel cobre todo o recorte 4:3 (zoom = largura ÷ 794), então a mesa nunca apareceria e só piscaria cinza ao montar; o
+  contraste não muda. A mesa continua só no editor.
 - Embaixo: nome (15 semibold) e uma linha de descrição. Selo "Em uso" no modelo gravado. O cartão inteiro é o botão
   "Usar este modelo".
 - **Nativo:** sem miniatura (D-F4). Lista de `OpcaoCartao` radio com nome, descrição e "Em uso".

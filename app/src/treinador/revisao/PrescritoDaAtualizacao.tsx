@@ -50,7 +50,7 @@ export function PrescritoDaAtualizacao({ alunoId, pastaId }: { alunoId: string; 
     return { versao: await versaoPlano(tipo!, escolha.planoId, escolha.numero), agendada: escolha.agendada };
   });
   if (!aba || !tipo) return null;
-  const titulo = 'O que está prescrito';
+  const titulo = 'Prescrição atual';
   const dados = carga.dados && !carga.erro ? carga.dados : null;
   return (
     <Cartao titulo={abas.length === 1 ? `${titulo}: ${ROTULO_DA_ABA_DO_PRESCRITO[aba]}` : titulo}>

@@ -178,7 +178,6 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       await expect(chipDoProgresso).toBeVisible();
       // O chip cabe numa linha só (texto 12/13 px + 6 de respiro + 2 de borda): a altura não passa de 34 px em nenhuma largura.
       expect((await chipDoProgresso.boundingBox())?.height ?? 999).toBeLessThanOrEqual(34);
-      await expect(page.getByLabel(/^Período: Desde o primeiro registro/).first()).toBeVisible();
 
       // Por divisão: A azul, B magenta, na barra; o nome lido não repete "Treino A".
       await expect(page.getByRole('button', { name: /^Treino A - Peito, 1 exercício · último em 13\/10\/2026, aberta$/ })).toBeVisible();
@@ -239,6 +238,9 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       // Últimos 30 dias: o rótulo diz o período (as datas dependem de hoje).
       await periodo('Últimos 30 dias');
       await expect(page.getByLabel('Período: Últimos 30 dias: 16/09 a 15/10', { exact: true })).toBeVisible();
+      // Os cartões do corpo (peso, avaliação, fotos) têm o selo de período próprio; com o menu lateral moram na aba Corpo.
+      if (largura >= 768) await page.getByRole('tab', { name: 'Corpo' }).click();
+      await expect(page.getByLabel(/^Período: Desde o primeiro registro/).first()).toBeVisible();
       expect(errosDaPagina).toEqual([]);
     });
 

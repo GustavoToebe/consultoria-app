@@ -5,7 +5,7 @@ import type {
   Atualizacao, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, SecaoAtualizacao,
 } from '../../api/tipos';
 import {
-  arranjoDaLeitura, fraseDaMediaDeTreino, NAO_RESPONDEU, NAO_SE_APLICA, notasPorDiaEmTabela, RESPIRO_DA_LEITURA, respostaLida,
+  arranjoDaLeitura, linhaDaMediaDeTreino, NAO_RESPONDEU, NAO_SE_APLICA, notasPorDiaEmTabela, RESPIRO_DA_LEITURA, respostaLida,
   textoDasPerguntas, type RespostaLida,
 } from '../../dominio/atualizacaoQuestionario';
 import { avaliarRespostas } from '../../dominio/respostasAtualizacao';
@@ -14,7 +14,6 @@ import { espaco, fontes, LARGURA_MENU_LATERAL, LARGURA_TEXTO_CORRIDO, RAIO } fro
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
 import { LinhaDeDado, ListaDeDados } from '../../ui/ListaDeDados';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { TextoFormatado } from '../../ui/TextoFormatado';
 import { CampoFotos } from './fotos/CampoFotos';
@@ -39,7 +38,9 @@ interface Props {
  */
 export function LeituraDasRespostas({ modelo, respostas, dataAtualizacao, resumo, carregarFotoDaEquipe }: Props) {
   const { escondidas, secoesEscondidas } = avaliarRespostas(modelo, respostas, true);
+  const media = linhaDaMediaDeTreino(resumo);
   return <>
+    {media ? <Texto variante="suave" numerico>{media}</Texto> : null}
     {modelo.secoes.map((secao, si) => {
       const escondida = secoesEscondidas.has(si);
       // Seção escondida: o motivo fica só no corpo (dizer "Não se aplica" também na faixa repetia a mensagem).
@@ -49,7 +50,7 @@ export function LeituraDasRespostas({ modelo, respostas, dataAtualizacao, resumo
         {escondida ? <Texto variante="suave">Seção que não se aplica, pelas respostas anteriores.</Texto> : <>
           <TextoFormatado texto={secao.descricao} />
           <PerguntasDaSecao secao={secao} respostas={respostas} escondidas={escondidas} dataAtualizacao={dataAtualizacao}
-            resumo={resumo} carregarFotoDaEquipe={carregarFotoDaEquipe} />
+            carregarFotoDaEquipe={carregarFotoDaEquipe} />
         </>}
       </Cartao>;
     })}
@@ -59,9 +60,9 @@ export function LeituraDasRespostas({ modelo, respostas, dataAtualizacao, resumo
 type Trecho = { tipo: 'linhas'; perguntas: { p: PerguntaAtualizacao; lida: RespostaLida | null }[] } | { tipo: 'bloco'; p: PerguntaAtualizacao; lida: RespostaLida };
 
 /** As linhas seguidas vão numa lista só (uma decisão de arranjo para todas); fotos e informativo abrem um bloco entre listas. */
-function PerguntasDaSecao({ secao, respostas, escondidas, dataAtualizacao, resumo, carregarFotoDaEquipe }: {
+function PerguntasDaSecao({ secao, respostas, escondidas, dataAtualizacao, carregarFotoDaEquipe }: {
   secao: SecaoAtualizacao; respostas: RespostasAtualizacao; escondidas: ReadonlySet<string>; dataAtualizacao?: string | null;
-  resumo?: Atualizacao['resumo']; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>;
+  carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>;
 }) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
@@ -78,7 +79,7 @@ function PerguntasDaSecao({ secao, respostas, escondidas, dataAtualizacao, resum
     {trechos.map((t, i) => {
       if (t.tipo === 'linhas') {
         return <ListaDeDados key={t.perguntas[0].p.id} arranjo={arranjo}>
-          {t.perguntas.map(({ p, lida }) => <LinhaLida key={p.id} p={p} valor={respostas[p.id] ?? null} lida={lida} resumo={resumo} />)}
+          {t.perguntas.map(({ p, lida }) => <LinhaLida key={p.id} p={p} valor={respostas[p.id] ?? null} lida={lida} />)}
         </ListaDeDados>;
       }
       // A última linha de uma lista fica sem fio: o bloco põe o dele em cima e, antes de outra lista, embaixo.
@@ -100,10 +101,8 @@ function PerguntasDaSecao({ secao, respostas, escondidas, dataAtualizacao, resum
  * Uma pergunta numa `LinhaDeDado`. `lida` nula = escondida pela condição. O `valor` é também o nome do par para o leitor de
  * tela ("Pergunta: resposta"); sem valor, a peça mostra o `vazio` em texto suave.
  */
-function LinhaLida({ p, valor, lida, resumo }: { p: PerguntaAtualizacao; valor: RespostaAtualizacao; lida: RespostaLida | null; resumo?: Atualizacao['resumo'] }) {
-  const media = p.ajudaAutomatica === 'MEDIA_DIAS_TREINO' && resumo?.mediaDiasPorSemana != null ? fraseDaMediaDeTreino(resumo.mediaDiasPorSemana, true) : null;
-  const termo = p.tipo === 'ACEITE' && p.texto?.trim() ? <TextoFormatado texto={p.texto} variante="suave" /> : null;
-  const nota: ReactNode = media ?? termo;
+function LinhaLida({ p, valor, lida }: { p: PerguntaAtualizacao; valor: RespostaAtualizacao; lida: RespostaLida | null }) {
+  const nota: ReactNode = p.tipo === 'ACEITE' && p.texto?.trim() ? <TextoFormatado texto={p.texto} variante="suave" /> : null;
   if (!lida) return <LinhaDeDado rotulo={p.rotulo} valor={null} vazio={NAO_SE_APLICA} />;
   switch (lida.forma) {
     case 'vazia': return <LinhaDeDado rotulo={p.rotulo} valor={null} vazio={NAO_RESPONDEU} nota={nota} />;
@@ -113,7 +112,8 @@ function LinhaLida({ p, valor, lida, resumo }: { p: PerguntaAtualizacao; valor: 
       conteudo={<Texto numerico={lida.numerico} style={estilos.textoCorrido}>{lida.texto}</Texto>} />;
     case 'nota': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={lida.escala ?? undefined}
       conteudo={<Texto style={estilos.nota}>{lida.nota}</Texto>} />;
-    case 'simNao': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} conteudo={<Selo texto={lida.texto} />} />;
+    // Sim/Não no texto normal da resposta: nunca mais fraco que a pergunta.
+    case 'simNao': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} />;
     case 'notasPorDia': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} conteudo={<NotasPorDia dias={lida.dias} />} />;
     case 'grade': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} conteudo={<GradeLida linhas={lida.linhas} />} />;
     case 'opcoesComImagem': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} conteudo={<OpcoesComImagem p={p} valor={valor} />} />;

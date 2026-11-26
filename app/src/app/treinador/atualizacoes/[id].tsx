@@ -115,7 +115,7 @@ function Corpo({atualizacao:a,definir,recarregar,fila,largura,faixa,aba}: {
       <Texto>{a.atrasoMotivo??'Sem motivo informado.'}</Texto>
     </Cartao>:null}
   </>;
-  const respostas=<QuestionarioAtualizacao modelo={modelo} dataAtualizacao={a.dataAtualizacao} resumo={a.resumo} respostas={a.respostas??{}}
+  const respostas=<QuestionarioAtualizacao modelo={modelo} dataAtualizacao={a.dataAtualizacao} respostas={a.respostas??{}}
     carregarFotoDaEquipe={a.id?(foto)=>baixarFotoDoTreinador(a.id??'',foto):undefined} />;
   const prescrito=<PrescritoDaAtualizacao alunoId={a.alunoId} pastaId={a.pastaId} />;
   const abas=aba.abas.length>1?<Abas abas={aba.abas.map(valor=>({valor,rotulo:valor==='evolucao'?'Evolução':'Respostas'}))} ativa={aba.ativa}
@@ -143,7 +143,7 @@ function Corpo({atualizacao:a,definir,recarregar,fila,largura,faixa,aba}: {
       <View style={[estilos.feedback,web&&!escrevendo?rolagem({maxHeight:Math.round(alturaDoApoio*0.45)}):null]}>{feedback}</View>
       <View style={estilos.feedback}>{navegacao}</View>
       {/* O prescrito rola por dentro do apoio (o apoio tem a altura da janela): o feedback não sai da vista. */}
-      <View style={[estilos.prescrito,web?rolagem({}):null]} role="region" focusable={web} aria-label="O que está prescrito">{prescrito}</View>
+      <View style={[estilos.prescrito,web?rolagem({}):null]} role="region" focusable={web} aria-label="Prescrição atual">{prescrito}</View>
     </>} />;
 }
 

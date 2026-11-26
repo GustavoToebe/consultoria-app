@@ -64,7 +64,8 @@ const escritas = (pedidos: { metodo: string; caminho: string }[]) => pedidos.fil
 /** Cartões por linha, pela posição na tela (a grade não diz quantas colunas usou). */
 async function colunas(page: Page) {
   const topos = await Promise.all(MODELOS.map(async (m) => Math.round((await cartao(page, m).boundingBox())?.y ?? -1)));
-  return topos.filter((y) => y === topos[0]).length;
+  // Tolerância de 2 px: o cartão "Em uso" (borda de 2 px, margem 0) fica 1 px acima dos outros (borda de 1 px, margem 1).
+  return topos.filter((y) => Math.abs(y - topos[0]) <= 2).length;
 }
 
 async function semRolagemLateral(page: Page) {
@@ -188,8 +189,8 @@ test('"Baixar PDF de exemplo" imprime o treino de exemplo no modelo gravado', as
   await expect.poll(() => page.evaluate(() => (window as unknown as { impressoes: number }).impressoes)).toBe(1);
   const bloco = page.locator('#treinos-impressao .doc');
   await expect(bloco).toContainText('Supino reto');
-  // O fundo leve do cabeçalho de tabela do Minimalista, não a cor da marca do Clássico.
-  expect(await bloco.locator('th').first().evaluate((th) => getComputedStyle(th).backgroundColor)).toBe('rgb(243, 244, 246)');
+  // O cabeçalho de tabela do Minimalista é só uma linha, sem fundo (motor N1: `.doc th { background: transparent }`), não a cor da marca do Clássico.
+  expect(await bloco.locator('th').first().evaluate((th) => getComputedStyle(th).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
   expect(await page.title()).toMatch(/^Treino - Aluno de Exemplo/);
   expect(errosDaPagina).toEqual([]);
 });

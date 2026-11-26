@@ -8,7 +8,7 @@ import { ALUNO, simularApi } from './api-falsa';
  * Dieta do aluno (25/11, T-218): "Fibra —" quando falta (itens, total da opção e Total do dia, com "■ Fibra" na legenda);
  * Medicação e ergogênicos e Suplementação agrupadas pelo horário que o treinador escreveu (ordem do dia, "Sem horário
  * definido" por último, relógio no subtítulo), dose na pílula da quantidade com o espaço entre número e unidade, os dois
- * cartões lado a lado na tela larga e empilhados no celular, cartão vazio some; e o título do plano (nome de trabalho do
+ * cartões um sob o outro no apoio da tela larga (26/11) e empilhados no celular, cartão vazio some; e o título do plano (nome de trabalho do
  * treinador) fora da Dieta e do Treino. Só dados fictícios. Com `CAPTURAS=<pasta>`, guarda as telas.
  */
 const item = (uid: string, nome: string, fibra: number | null): ItemDieta => ({
@@ -95,10 +95,15 @@ for (const largura of [390, 1280, 1920]) {
       await expect(suplementacao.getByRole('button', { name: 'Copiar cupom de Creatina fictícia', exact: true })).toBeVisible();
       await expect(suplementacao.getByRole('button', { name: 'Ver produto', exact: true })).toBeVisible();
 
-      // Lado a lado na tela larga (medido), empilhados no celular.
+      // Empilhados no celular (Medicação, depois Suplementação). Na tela larga (26/11) moram no apoio ao lado das refeições,
+      // um sob o outro, na mesma borda e com a largura dele, Suplementação antes de Medicação (a ordem do apoio).
       const a = (await medicacao.boundingBox())!;
       const b = (await suplementacao.boundingBox())!;
-      if (largura === 1920) expect(Math.abs(a.y - b.y)).toBeLessThan(2);
+      if (largura >= 1280) {
+        expect(Math.abs(a.x - b.x)).toBeLessThan(2);
+        expect(a.y).toBeGreaterThanOrEqual(b.y + b.height);
+        expect(a.width).toBeLessThanOrEqual((largura === 1920 ? 400 : 360) + 1);
+      }
       if (largura === 390) expect(b.y).toBeGreaterThanOrEqual(a.y + a.height);
 
       // O nome técnico do plano não aparece.

@@ -90,15 +90,18 @@ describe('ListaDeDados: arranjo opcional (leitura das respostas)', () => {
     medir(r, 1000);
     expect(estiloPlano(item(r)).paddingVertical).toBe(8);
     expect(estiloPlano(termo(r)).width).toBe(200);
+    medir(r, 300);
+    expect(estiloPlano(termo(r).parent!).gap).toBe(2);
   });
 
   it('com arranjo: empilha abaixo do limite; acima, rótulo em fração da largura até o teto e respiro próprio', () => {
     let r!: ReactTestRenderer;
-    const arranjo = { empilharAbaixoDe: 720, rotulo: { fracao: 0.4, maximo: 320 }, respiro: 12 };
+    const arranjo = { empilharAbaixoDe: 720, rotulo: { fracao: 0.4, maximo: 320 }, respiro: 12, entre: 4 };
     act(() => { r = create(<ListaDeDados arranjo={arranjo}><LinhaDeDado rotulo="Pergunta" valor="Resposta" /></ListaDeDados>); });
     medir(r, 600);
     expect(estiloPlano(item(r)).paddingVertical).toBe(12);
     expect(estiloPlano(termo(r)).width).toBeUndefined();
+    expect(estiloPlano(termo(r).parent!).gap).toBe(4);
     medir(r, 1000);
     expect(estiloPlano(termo(r)).width).toBe(320);
   });

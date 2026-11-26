@@ -25,7 +25,7 @@ const MODELO: ConteudoQuestionario = {
     {
       uid: 's1', titulo: 'Treino e rotina', perguntas: [
         { id: 'data', tipo: 'DATA_AUTOMATICA', rotulo: 'Data da atualização', obrigatoria: false },
-        { id: 'dias', tipo: 'NUMERO', rotulo: 'Quantos dias por semana você conseguiu treinar?', obrigatoria: true, min: 0, max: 7, casas: 0, ajudaAutomatica: 'MEDIA_DIAS_TREINO' },
+        { id: 'dias', tipo: 'NUMERO', rotulo: 'Quantos dias por semana você conseguiu treinar?', obrigatoria: true, min: 0, max: 7, casas: 0 },
         { id: 'energia', tipo: 'NOTA', rotulo: 'Como está sua energia?', obrigatoria: true },
         { id: 'sono', tipo: 'NOTA', rotulo: 'Qualidade do sono', obrigatoria: false, min: 1, max: 5 },
         { id: 'dores', tipo: 'SIM_NAO', rotulo: 'Sentiu dores nos treinos?', obrigatoria: true },
@@ -102,8 +102,13 @@ async function conferirLeitura(page: Page, largura: number) {
   await expect(page.getByText(/de 0 a 10/)).toHaveCount(0);
   // Notas por dia (6 dias): chips "Dia 1 · 8", sem "Dia 1: 8 de 0 a 10" repetido.
   for (const dia of [1, 2, 3, 4, 5, 6]) await expect(linha('Cansaço em cada dia de treino').getByText(`Dia ${dia} ·`, { exact: true })).toBeVisible();
-  // Sim/Não em selo; condição não atendida = "Não se aplica"; seção diz quantas perguntas tem.
-  await expect(linha('Sentiu dores nos treinos?').getByText('Sim', { exact: true })).toBeVisible();
+  // Sim/Não no texto normal da resposta (nunca mais fraco que a pergunta); condição não atendida = "Não se aplica".
+  const sim = linha('Sentiu dores nos treinos?').getByText('Sim', { exact: true });
+  await expect(sim).toBeVisible();
+  const estilo = (l: typeof sim) => l.evaluate((e) => { const s = getComputedStyle(e); return { tamanho: parseFloat(s.fontSize), cor: s.color }; });
+  const [resposta, pergunta] = [await estilo(sim), await estilo(linha('Sentiu dores nos treinos?').getByText('Sentiu dores nos treinos?', { exact: true }))];
+  expect(resposta.tamanho).toBeGreaterThanOrEqual(pergunta.tamanho);
+  expect(resposta.cor).not.toBe(pergunta.cor);
   await expect(linha('Algum alimento que gostaria de substituir?').getByText('Não', { exact: true })).toBeVisible();
   await expect(linha('Qual alimento?').getByText('Não se aplica', { exact: true })).toBeVisible();
   // Seção escondida pela condição: o motivo aparece uma vez, no corpo (a faixa não repete "Não se aplica").
@@ -119,9 +124,6 @@ async function conferirLeitura(page: Page, largura: number) {
   await expect(linha('Disposição em cada dia da semana').getByText('Dia 7', { exact: true })).toBeAttached();
   await expect(page.getByText('Aceito: “Li e concordo.”', { exact: true })).toBeVisible();
   await expect(linha('Pergunta de uma versão nova').getByText('Atualize o app para ver esta resposta.', { exact: true })).toBeVisible();
-  // Plural da média do app.
-  await expect(page.getByText(/0 dias de treino por semana/)).toBeVisible();
-  await expect(page.getByText(/\b0 dia\b/)).toHaveCount(0);
   // Cartão a partir de 760 px: pergunta à esquerda (até 320) e resposta à direita, pelo topo; abaixo, resposta embaixo.
   const cartao = await page.getByTestId('cartao').filter({ has: page.getByText('Como está sua energia?', { exact: true }) }).boundingBox();
   const rotulo = await linha('Como está sua energia?').getByText('Como está sua energia?', { exact: true }).boundingBox();
@@ -168,6 +170,9 @@ for (const largura of [390, 1280, 1920]) {
       await capturar(page, `aluno-${largura}-${nomeDoTema}`);
       // O arranjo segue a largura do cartão (o teto da tela do aluno decide); `conferirLeitura` confere os dois.
       await conferirLeitura(page, largura);
+      // Média do app pelo resumo, com o plural certo. No treinador o cartão "Resumo do período" já a mostra: a linha não vai lá.
+      await expect(page.getByText(/0 dias de treino por semana/)).toBeVisible();
+      await expect(page.getByText(/\b0 dia\b/)).toHaveCount(0);
       expect(errosDaPagina).toEqual([]);
     });
   }

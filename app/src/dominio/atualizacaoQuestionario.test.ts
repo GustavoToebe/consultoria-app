@@ -2,7 +2,7 @@ import type { ConteudoQuestionario, PerguntaAtualizacao } from '../api/tipos';
 import {
   ajudaDoNumero, alternarMarcado, escolhaParaSimNao, perguntaPeso, perguntasDestaque, rascunhoVigente, respostasCompativeis,
   progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso, textoDaNota, notaEmDuasPartes, respostasDaGrade,
-  colunasDasOpcoes, arranjoDaLeitura, diasNaSemana, notasPorDiaEmTabela, fraseDaMediaDeTreino, respostaLida, temImagemNasOpcoes, textoDasPerguntas,
+  colunasDasOpcoes, arranjoDaLeitura, diasNaSemana, notasPorDiaEmTabela, fraseDaMediaDeTreino, linhaDaMediaDeTreino, respostaLida, temImagemNasOpcoes, textoDasPerguntas,
 } from './atualizacaoQuestionario';
 import { errosRespostasAtualizacao, respondida, respostaDeItens } from './respostasAtualizacao';
 
@@ -278,7 +278,7 @@ describe('leitura das respostas (bloco B)', () => {
     expect(respostaLida(P('z', 'TIPO_DO_FUTURO' as PerguntaAtualizacao['tipo']), 'x')).toEqual({ forma: 'desconhecida' });
   });
   it('arranjo da lista na leitura: limite de 760 de cartão menos os recuos, pergunta em 40% até 320, 12 até o fio', () => {
-    expect(arranjoDaLeitura(20)).toEqual({ empilharAbaixoDe: 720, rotulo: { fracao: 0.4, maximo: 320 }, respiro: 12 });
+    expect(arranjoDaLeitura(20)).toEqual({ empilharAbaixoDe: 720, rotulo: { fracao: 0.4, maximo: 320 }, respiro: 12, entre: 4 });
     expect(arranjoDaLeitura(16).empilharAbaixoDe).toBe(728);
     expect(notasPorDiaEmTabela(6)).toBe(false);
     expect(notasPorDiaEmTabela(7)).toBe(true);
@@ -296,6 +296,14 @@ describe('leitura das respostas (bloco B)', () => {
     expect(diasNaSemana(4)).toBe('4 dias');
     expect(fraseDaMediaDeTreino(0, false)).toBe('Pelo app, você treinou em média 0 dias por semana neste período.');
     expect(fraseDaMediaDeTreino(2.5, true)).toBe('Pelo app: média de 2,5 dias de treino por semana no período.');
+  });
+
+  it('linha da média de treinos vem do resumo, sem depender de pergunta marcada', () => {
+    expect(linhaDaMediaDeTreino(null)).toBeNull();
+    expect(linhaDaMediaDeTreino(undefined)).toBeNull();
+    expect(linhaDaMediaDeTreino({ mediaDiasPorSemana: null })).toBeNull();
+    expect(linhaDaMediaDeTreino({ mediaDiasPorSemana: 0 })).toBe('Pelo app: média de 0 dias de treino por semana no período.');
+    expect(linhaDaMediaDeTreino({ mediaDiasPorSemana: 1.5 })).toBe('Pelo app: média de 1,5 dia de treino por semana no período.');
   });
 });
 

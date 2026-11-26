@@ -169,11 +169,13 @@ export const RESPIRO_DA_LEITURA = 12;
  * Arranjo da `ui/ListaDeDados` na leitura: a lista mede a largura útil do cartão (o cartão menos o recuo dos dois lados),
  * então o limite de 760 de cartão vira 760 menos os recuos; a pergunta fica em 40% da lista, até 320; 12 até o fio.
  */
-export function arranjoDaLeitura(recuo: number): AjusteDoArranjo & { respiro: number } {
+export function arranjoDaLeitura(recuo: number): AjusteDoArranjo & { respiro: number; entre: number } {
   return {
     empilharAbaixoDe: CARTAO_LARGO_DA_LEITURA - 2 * recuo,
     rotulo: { fracao: 0.4, maximo: ROTULO_MAXIMO_DA_LEITURA },
     respiro: RESPIRO_DA_LEITURA,
+    // 4 px entre a pergunta e a resposta empilhadas (2.1).
+    entre: 4,
   };
 }
 
@@ -197,6 +199,14 @@ export function fraseDaMediaDeTreino(media: number, leitura: boolean): string {
   return leitura
     ? `Pelo app: média de ${diasNaSemana(media)} de treino por semana no período.`
     : `Pelo app, você treinou em média ${diasNaSemana(media)} por semana neste período.`;
+}
+
+/**
+ * Linha da média de treinos no topo da leitura da atualização, a partir do `resumo` que a leitura já recebe (não depende
+ * mais de uma pergunta marcada com a ajuda automática). Sem resumo (anamnese, inscrição) ou sem média, nada.
+ */
+export function linhaDaMediaDeTreino(resumo: { mediaDiasPorSemana: number | null } | null | undefined): string | null {
+  return resumo?.mediaDiasPorSemana != null ? fraseDaMediaDeTreino(resumo.mediaDiasPorSemana, true) : null;
 }
 
 const cortar = (texto: string) => (texto.length > ROTULO_MAXIMO ? `${texto.slice(0, ROTULO_MAXIMO - 1)}…` : texto);

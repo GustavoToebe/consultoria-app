@@ -6,7 +6,7 @@ import { ALUNO, erroApi, simularApi, type RespostasApi } from './api-falsa';
 
 /**
  * Dieta do aluno na web (26/11, `docs/planos/aluno-web-layout.md` seção 5 e `orientacoes-de-design-26-11.md` 1.5): com
- * espaço na área (952 px), as refeições numa coluna só, na ordem do dia, com "07:00 · Café da manhã" no cabeçalho, e a coluna
+ * espaço na área (952 px), as refeições numa coluna só, na ordem do dia, com o nome no título e "Horário: 07:00" embaixo (A12), e a coluna
  * de apoio fixa ao rolar com Total do dia, Água de hoje, Suplementação, Medicação e ergogênicos, Lista de compras, Baixar PDF
  * e Observações; a composição fica no teto de 1312 (880 + 32 + 400), no meio, com o título na mesma borda. O total da
  * refeição ganha respiro (kcal em destaque, P · C · G · Fibra numa linha menor embaixo) com os mesmos textos. No celular nada
@@ -74,8 +74,8 @@ const caixa = async (l: Locator) => {
   return b!;
 };
 const titulo = (page: Page, nome: string) => page.getByRole('heading', { name: nome, exact: true });
-/** O nome da refeição no cabeçalho: "Café da manhã" (celular) ou "07:00 · Café da manhã" (com o apoio ao lado). */
-const nomeDaRefeicao = (page: Page, nome: string) => page.getByText(new RegExp(`^(\\d\\d:\\d\\d · )?${nome}$`));
+/** O nome da refeição é o título do cabeçalho em qualquer largura (A12); o horário vem embaixo. */
+const nomeDaRefeicao = (page: Page, nome: string) => page.getByText(nome, { exact: true });
 const refeicoes = (page: Page) => NOMES.map((n) => nomeDaRefeicao(page, n));
 const apoio = (page: Page) => page.getByRole('complementary', { name: 'Resumo da dieta' });
 const semRolagemDeLado = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
@@ -139,7 +139,9 @@ for (const janela of MATRIZ) {
         const ys = ordem.map((c) => c!.y);
         expect(ys).toEqual([...ys].sort((a, b) => a - b));
         for (const c of ordem) expect(Math.abs(c!.x - ordem[0]!.x)).toBeLessThan(30);
-        await expect(page.getByText('07:00 · Café da manhã', { exact: true })).toBeVisible();
+        // A12 também com o apoio ao lado: o nome é o título e o horário vem embaixo.
+        await expect(page.getByText('Horário: 07:00', { exact: true })).toBeVisible();
+        await expect(page.getByText('07:00 · Café da manhã', { exact: true })).toHaveCount(0);
         // O Total do dia é o primeiro do apoio e aparece sem rolar, também com 720 de altura.
         await expect(titulo(page, 'Total do dia')).toBeInViewport();
         // Composição no teto de 1312 (refeições até 880), no meio, com o título "Dieta" na borda das refeições.

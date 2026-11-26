@@ -131,7 +131,7 @@ async function capturar(page: Page, nome: string) {
 }
 
 const apoio = (page: Page) => page.getByTestId('apoio-da-revisao');
-const prescrito = (page: Page) => page.getByTestId('cartao').filter({ has: page.getByText(/^O que está prescrito/) });
+const prescrito = (page: Page) => page.getByTestId('cartao').filter({ has: page.getByText(/^Prescrição atual/) });
 
 /** Largura do apoio pela faixa da área (360, 400, 440); `null` = empilhado (390). */
 const APOIO: Record<number, number | null> = { 390: null, 1280: 360, 1920: 400, 3440: 440 };
@@ -223,7 +223,7 @@ for (const largura of [390, 1280]) {
     const soTreino = TODAS.filter((c) => c !== 'DIETA_LER' && c !== 'ERGOGENICO_LER');
     await abrir(page, largura, 900, { permissoes: soTreino });
     const p = prescrito(page);
-    await expect(p.getByText('O que está prescrito: Treino', { exact: true })).toBeVisible();
+    await expect(p.getByText('Prescrição atual: Treino', { exact: true })).toBeVisible();
     await expect(p.getByRole('tablist')).toHaveCount(0);
     await expect(p.getByText(/^Agachamento livre/)).toBeVisible();
   });

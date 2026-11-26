@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Droplet, FileDown, ShoppingCart } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta, Refeicao, VariacaoDaDieta, VersaoDetalhe } from '../api/tipos';
 import { corDaRefeicao } from '../dominio/corDaSerie';
@@ -53,9 +53,9 @@ const MOTIVO_NA_PREVIA = 'Só o aluno abre isto no app dele.';
  * aluno troca à mão; total e refeições são os da variação mostrada. Sem variação, nada muda.
  *
  * `largo` (só a aba Dieta passa, a folha da prévia não muda; 26/11, `docs/planos/aluno-web-layout.md` seção 5): mede a
- * própria área e, quando ela comporta (`arranjoDaDieta`), as refeições numa coluna só, na ordem do dia, com o horário no
- * cabeçalho e o total com respiro, e ao lado a coluna de apoio fixa ao rolar (`ui/PrincipalComApoio`): Total do dia, `lado`
- * (a água do dia), Suplementação, Medicação e ergogênicos, Lista de compras, PDF, o plano, Orientações e Observações. Sem
+ * própria área e, quando ela comporta (`arranjoDaDieta`, só na web: no nativo empilha sempre, orientação 0.2), as refeições
+ * numa coluna só, na ordem do dia, com o total com respiro, e ao lado a coluna de apoio fixa ao rolar
+ * (`ui/PrincipalComApoio`): Total do dia, `lado` (a água do dia), Suplementação, Medicação e ergogênicos, Lista de compras, PDF, o plano, Orientações e Observações. Sem
  * espaço, a ordem do celular de sempre, com `lado` no topo e as refeições também numa coluna.
  *
  * O título do plano não aparece (25/11): é o nome de trabalho do treinador ("Dieta de <aluno>", o da importação) e a tela
@@ -169,7 +169,8 @@ export function DietaDoAluno({
     </>
   );
   if (largo) {
-    const arranjo = arranjoDaDieta(area);
+    // No nativo a dieta empilha sempre (sem coluna fixa ao rolar): só a web mede a área para o lado a lado.
+    const arranjo = arranjoDaDieta(Platform.OS === 'web' ? area : null);
     return (
       // O vão é o da `Tela` (24), o mesmo de quando os blocos ficam soltos nela; a folha do PDF fica fora dos dois ramos.
       <View onLayout={(e) => setArea(e.nativeEvent.layout.width)} style={estilos.pilha}>
@@ -214,11 +215,8 @@ function CartaoRefeicaoAluno({ refeicao, indice, respiro }: { refeicao: Refeicao
     <Cartao
       style={{ borderLeftWidth: BARRA_DA_REFEICAO, borderLeftColor: cor.cor }}
       cabecalho={
-        // A12: o nome da refeição é o título; o horário vem embaixo, com o nome dele (antes "07:30 · Café" numa linha só).
-        // Com o apoio ao lado (`respiro`), o horário vai na frente do nome, "12:00 · Almoço" (orientações de 26/11, 1.5).
-        respiro
-          ? <CabecalhoDeGrupo titulo={refeicao.horario ? `${refeicao.horario} · ${refeicao.nome || 'Refeição'}` : refeicao.nome || 'Refeição'} />
-          : <CabecalhoDeGrupo titulo={refeicao.nome || 'Refeição'} resumo={refeicao.horario ? `Horário: ${refeicao.horario}` : undefined} />
+        // A12 (também na web larga, Gustavo 26/11): o nome da refeição é o título; o horário vem embaixo, com o nome dele.
+        <CabecalhoDeGrupo titulo={refeicao.nome || 'Refeição'} resumo={refeicao.horario ? `Horário: ${refeicao.horario}` : undefined} />
       }>
       {refeicao.observacao ? <Texto numerico variante="suave">{refeicao.observacao}</Texto> : null}
       {/* Opções são alternativas: o aluno escolhe uma, e os itens de opções diferentes não se somam. */}

@@ -25,13 +25,25 @@ invalida o item correspondente.
 | Leitura das respostas (aluno e treinador) | "N perguntas" (por seção); "Não respondeu"; "Não se aplica"; "Escala de 1 a 5" (só se não for 0 a 10); chips "Dia 1 · 8"; "Pelo app: média de 0 dias de treino por semana no período." (plural certo); o texto de ajuda da pergunta saiu da leitura | Atualização enviada, anamnese, inscrição |
 | Comunidade (aluno, web) | "Publicações" passa a ser rótulo visível; linha de controles com "Nova publicação" (primária) à direita | Mural |
 
-## 2. Pendentes de relatório (completar quando entregarem)
-- Início, Dieta, Histórico (aluno web): textos novos, se houver.
-- Galeria de modelos do PDF (P5): títulos, descrições dos 6 modelos e os rótulos dos cartões.
-- Revisão da atualização pelo treinador (D): todos os textos novos.
-- E-app (liberação agendada, treinador): "Liberar agora", "Agendar para uma data", "Avisar o aluno", "Agendado para dd/mm", "Alterar data", "Liberar agora" (painel de confirmação) e mensagens de erro.
-- Aviso ao aluno (texto do app): "Seu novo plano está disponível. Abra o app para ver." (aviso no app) e push "Plano liberado" / "Seu novo plano está disponível. Abra o app para ver."
-- Editor de questionários (G), folha da pasta (F), espelho do `ITENS_DO_PLANO` no app (C-app): ainda não começaram.
+## 2. Textos novos dos agentes que entregaram depois (D, E-app, P5, Dieta, Histórico)
+
+Fonte: relatórios finais dos agentes e literais do código do worktree em 26/11 (noite). Valem para o código desta data.
+
+| Tela | Texto | Onde aparece |
+| --- | --- | --- |
+| Revisão da atualização (D), cartão | Título **"Prescrição atual"** (a versão de hoje, não a que valia na resposta); abas Treino, Dieta, Suplementos, Outros; link "Abrir no editor"; "Carregando o que está prescrito…"; "Esta atualização não tem pasta."; "A pasta desta atualização não tem treino publicado." / "…dieta publicada."; "Versão agendada: o aluno ainda não a vê."; "Nenhum suplemento na dieta publicada."; "Nenhuma medicação ou ergogênico na dieta publicada."; "Mais N opção(ões) para o aluno escolher."; "Total do dia (opção A)"; "Água: X L por dia"; "O treino publicado não tem divisões."; "Sem exercícios."; "Sem refeições."; "Sem itens." | Apoio fixo à direita (a partir de 952 de área) ou empilhado |
+| Revisão (D), "O que mudou" | "O que mudou" com "desde a atualização de DD/MM"; "Primeira atualização deste aluno."; "Nenhuma resposta comparável mudou desde a atualização anterior."; "Comparando com a atualização anterior…"; "Dias com treino registrado"; rótulo "Variação (kg)" no resumo; fotos vazias = "Não respondeu"; abas Respostas \| Evolução | Resumo e principal |
+| Liberação agendada (E-app), publicar | Escolha "Quando o aluno vê": "Liberar agora" / "Agendar para uma data"; campo "Liberar em"; faixa "A partir de amanhã (dd/mm/aaaa) até dd/mm/aaaa. Até lá, o aluno continua com o que já via."; caixa "Avisar o aluno" (agora) ou "Avisar o aluno quando liberar" (agendado), ajuda "O aviso só diz que há um plano novo."; botões "Publicar agora" / "Publicar e agendar"; "Agendado para dd/mm. Publicar de novo substitui esse agendamento." | Folha de publicar (plano e "Publicar tudo") |
+| Liberação agendada (E-app), depois | Selo "Agendado para dd/mm"; painel "Alterar data de liberação" (campo "Liberar em", "Salvar data", "Até a nova data, o aluno continua com o que já via."); painel "Liberar agora?" (botão "Liberar agora", "A liberação marcada para dd/mm é antecipada e o aluno passa a ver esta versão já." e a caixa "Avisar o aluno"); avisos "Publicado vN. O aluno já vê esta versão." e "Publicado vN, agendado para dd/mm. Até lá, o aluno continua com o que já via." | Cartão do plano, pasta e aviso de sucesso |
+| Liberação agendada (E-app), erros | "Informe o dia em que o aluno passa a ver o plano."; "Data inválida."; "Escolha um dia a partir de amanhã (…) até …"; "Este plano não está mais agendado: já foi liberado ao aluno." | Campo de data e aviso |
+| Aviso ao aluno (API) | Aviso no app e push "Plano liberado" / "Seu novo plano está disponível. Abra o app para ver." A tela do aluno que mostra o aviso **não entrou** neste lote (próximo lote) | Push e aviso interno |
+| Galeria de modelos (P5) | Nomes e descrições dos 6 modelos vêm de `MODELOS_PDF` (Clássico, Minimalista, Marcante, Compacto, Elegante, Esportivo); cartão "Usar o modelo <Nome>[, em uso]. <descrição>" com selo "Em uso"; acima da grade "Em uso: <Nome> · personalizado (N alterações: …)", link "Personalizar este modelo" e o botão existente "Baixar PDF de exemplo"; faixa compacta "Para personalizar cores, texto, cabeçalho e tabelas, abra esta tela no computador, numa janela larga."; painel "Usar o modelo <Nome>?" com "Os PDFs de treino, dieta e demais documentos passam a sair neste modelo." (e "As personalizações do <atual> (…) deixam de valer." se houver) e botão "Usar este modelo"; avisos "Modelo <Nome> em uso nos PDFs." e "Recarregue a tela: outra pessoa alterou os documentos."; descrição "Escolha o modelo dos PDFs de treino, dieta e demais documentos da consultoria. As miniaturas usam a sua marca e dados de exemplo."; hub "Modelo dos PDFs de treino, dieta e demais documentos, com miniaturas de exemplo." | Documentos (PDF) |
+| Dieta do aluno | **Nenhum texto novo.** O cabeçalho voltou à A12: nome da refeição como título e "Horário: 07:00" embaixo, em todas as larguras (a variante "07:00 · Café da manhã" foi retirada) | Cartão da refeição |
+| Início do aluno | **Nenhum texto visível novo.** Só o nome da região de apoio lido pelo leitor de tela: "Pendências e água de hoje" | Região de apoio (web larga) |
+| Histórico do aluno | Abas "Treinos", "Corpo", "Atualizações" (`?aba=`), sem texto novo além dos rótulos das abas | Topo do Histórico |
+| Leitura das respostas | A média de dias de treino aparece uma vez, no topo da leitura ("Pelo app: média de N dias de treino por semana no período."), e só na tela do aluno; nas do treinador ela já está no cartão "Resumo do período" | Leitura da atualização |
+
+Todos os relatórios de frente já chegaram. Editor de questionários (G), folha da pasta (F) e a UI do `ITENS_DO_PLANO` não começaram (escopo congelado).
 
 ## 3. Perguntas do questionário de atualização do Saraiva (lista do plano, sem gravar)
 

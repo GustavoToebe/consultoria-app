@@ -154,7 +154,7 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
           'GET /aluno/fotos/linha-do-tempo': { corpo: [] },
           'GET /aluno/avaliacoes-fisicas': { corpo: [] },
         });
-        await page.goto('/aluno/historico');
+        await page.goto('/aluno/historico?aba=corpo');
         await expect(page.getByLabel('Registros de peso').getByText('80,5 kg', { exact: true })).toBeVisible();
         expect(await corDe(page, '▼ −0,7 kg')).toBe(rgb(cores.perigo));
         expect(await corDe(page, '▲ +1,2 kg')).toBe(rgb(cores.sucesso));
