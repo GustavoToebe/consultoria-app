@@ -79,7 +79,7 @@ Pedido do Gustavo, a partir da tela "Layouts de cobrança" da Icondev (editor li
 - [ ] N4 Fechamento: prova no celular (passo 0.1), Ajuda e guias, `AGENTS.md`, `docs/design-e-front.md`, revisão independente (validação do JSON, injeção, permissão) — commit: —
 
 ### Em aberto
-- Gravar pela rota própria (como o `PUT /consultoria/tema-pdf`) ou junto com a Marca (D5 original).
+- ~~Gravar pela rota própria ou junto com a Marca~~ · decidido na D25: rota própria, com versão.
 - Fontes serifada e condensada no PDF dependem das fontes do aparelho; conferir no Android e no iPhone antes de oferecer.
 - Quais modelos além dos três de hoje, e a miniatura de cada um (gerada da prévia ou imagem fixa).
 
@@ -109,7 +109,7 @@ Pedido do Gustavo, a partir da tela "Layouts de cobrança" da Icondev (editor li
 - D23 Paleta de destaque: **8 cores**, Cor da marca, Grafite e 6 da `PALETAS` (Azul, Índigo, Verde, Turquesa, Magenta, Bronze).
 - D24 Celular: **escolhe e grava o modelo** (como hoje); personalizar só no PC.
 - "Fundo do cabeçalho" = topo do documento (recomendação do `plano-front`, não perguntada; as tabelas seguem o estilo de tabela).
-- Continua em aberto: rota própria ou junto com a Marca, e `versao` (409) ou não.
+- D25 Contrato: **rota própria, com `versao`** (a evolução do `PUT /consultoria/tema-pdf` da V096, gravando modelo + opções; versão diferente = 409 `CONFLITO_EDICAO`, e o editor mostra "Recarregar"). A `MarcaPublica` continua levando o resultado ao aluno (D19).
 
 ## Passos
 Os passos 1.2, 2.1, 2.2 e 3.2 abaixo são do desenho de 15/11 e foram **substituídos pela "Nova direção"** (N1 a N4); ficam como histórico do que já foi feito.
