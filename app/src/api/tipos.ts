@@ -1479,6 +1479,12 @@ export interface VersaoDetalhe<C> {
   conteudo: C;
 }
 
+/** `GET /atualizacoes/{id}/prescricao/{treino|dieta}`: a versão que o aluno via em `referencia` (o envio; sem envio, agora). `versao` nula = nada publicado na pasta até lá. */
+export interface PrescricaoDaAtualizacao<C> {
+  referencia: string;
+  versao: VersaoDetalhe<C> | null;
+}
+
 /**
  * Etapa de uma série registrada (bloco do Cluster, etapa inicial ou retomada do Rest-pause), pela posição na versão (1 a
  * N). Etapa ausente = ainda não feita; `NAO_REALIZADA` é explícita e sem números; repetições vazias = não informadas.

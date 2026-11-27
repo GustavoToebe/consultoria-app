@@ -39,7 +39,7 @@ Aprovação de textos e perguntas: [lote-26-11-textos-e-perguntas.md](lote-26-11
 - Comandos focais da documentação (`mvn -Dtest='A,B' test`, `npm test -- --include`): verificação em andamento; registrar o resultado.
 - Chromium: o caminho `chromium-1248` das instruções do e2e não existe nesta máquina; usar `chromium-1243`. Registrar nas instruções do e2e.
 - Não conferidos nas telas do aluno e do PDF: tema Areia, app nativo, tablet e larguras 1536, 2560 e 3440 em parte das telas.
-- `ItensDoPlanoService` deve usar a versão liberada (`versaoLiberadaDaPasta`), não a última publicada (autorizado ao agente do C-API).
+- ~~`ItensDoPlanoService` deve usar a versão liberada (`versaoLiberadaDaPasta`), não a última publicada (autorizado ao agente do C-API).~~ Conferido e testado com plano agendado em `727957c0` (R5a, `ItensDoPlanoIntegrationTest`).
 
 ## Specs e2e que o lote quebra e precisam de atualização (relatórios dos agentes, 26/11)
 Nenhum foi editado ainda; conferir cada um sobre a `main` sem o lote antes de atribuir (ver "O que falta para commitar").
@@ -53,8 +53,8 @@ Nenhum foi editado ainda; conferir cada um sobre a `main` sem o lote antes de at
 - Nativo: a orientação 0.2 manda empilhar sempre, mas `PrincipalComApoio` decide pela área (tablet paisagem ≥ 952 abre lado a lado, sem fixar ao rolar). Pendente.
 - Apoio da peça: agora 360 abaixo de 1312 e 400 a partir de 1312 (`larguraDoApoioPorArea`); a regra local da dieta saiu.
 - P5: miniatura da galeria usa `superficie2`; avaliar `MESA_DA_PREVIA` (`#7A7F87`).
-- Histórico: gráficos de Peso/Avaliação (280 a 320) e Fotos (grade 200 px 3:4) ficam dentro de cartões compartilhados, não editados; "Ainda não enviados" sem e2e.
-- `ui/Abas`: painel sem `role="tabpanel"`/`aria-controls` (lacuna compartilhada).
+- Histórico: gráficos de Peso/Avaliação (280 a 320) e Fotos (grade 200 px 3:4) ficam dentro de cartões compartilhados, não editados; ~~"Ainda não enviados" sem e2e~~ (coberto em 27/11 por `e2e/historico-nao-enviados.spec.ts`, sem commit).
+- ~~`ui/Abas`: painel sem `role="tabpanel"`/`aria-controls` (lacuna compartilhada).~~ Feito em `727957c0` (local).
 - Treino (relatório da rodada 2): `tela-larga-app-do-aluno` :88, :97, :112, :125; `treino-do-aluno-lacunas:139` (orientações agora nascem abertas da faixa normal, orientação 1.2; conferir sobre a main antes de atribuir); `concluir-treino` "data futura" passou por corrida (pode ficar instável em 1280). As 3 falhas "lista ≤ 880" (1920/2560/3440) dependem do apoio de 400 da peça (ajustado, ainda sem e2e).
 - Trava: a fila do `lock-pesado` atrasou e2e de vários agentes por mais de 1 h; as rodadas finais por frente ainda não rodaram. Servidor antigo na porta 8131 (PID 17852, `dist-antes`) contamina quem a reaproveita.
 - B (rodada 2, entregue): `ui/ListaDeDados` ganhou a prop opcional `arranjo` (`dominio/listaDeDados.ts` `arranjoDaLista`; sem a prop, idêntico ao de antes, provado em teste) e a leitura voltou a usá-la. Peça compartilhada alterada: a e2e COMPLETA é obrigatória (regra do AGENTS.md). Rodada de 40 specs do B: 926 testes, 68 falhas, NÃO atribuídas (tela-larga-ficha 24, tela-larga-equipe-ajuda-ajustes 11, tags-de-aluno 16, redes-sociais 7, documentos-pdf 8, cor-da-variacao-do-peso 3, comparacao-de-fotos 2; parte por processo morto por memória, 3221225794); reexecutar isoladas e sobre a main. Jest: 19 falhas só em `paridadeQuestionario` (espelho do ITENS_DO_PLANO, C-app).
@@ -84,6 +84,42 @@ Acrescentados em 26/11 (noite, respostas do Gustavo): três colunas da revisão 
 - Miniatura do P5 sem `MESA_DA_PREVIA`: aceito; registrado na 3.1 de `orientacoes-de-design-26-11.md`.
 - Revisão (D): cartão "Prescrição atual" (versão de hoje), registrado na 2.2 da orientação; três colunas e prescrição da época ficam para o próximo lote.
 - Migrations: V106 (liberação de plano) e V107 (documentos PDF), confirmadas no merge depois do `git fetch`; o Overtraining Pay fica com a V108.
+
+## Rodada de 28/11: o que saiu do "Próximo lote" (estado em 27/11, worktree `consultoria-app-rodada-28-11`)
+
+Branch `rodada-28-11` a partir de `origin/main` `fb57efa9`. Onda 1 = commit **local** `727957c0` (sem push, sem PR); onda 2
+aplicada na árvore, **sem commit**. Contagens copiadas dos relatórios de cada onda. Plano detalhado:
+[atualizacao-pasta-e-questionarios.md](atualizacao-pasta-e-questionarios.md) (seção "Passos" e "Pendências soltas da rodada 28/11").
+
+Feitos na onda 1 (`727957c0`):
+- R1. Campo `ITENS_DO_PLANO` do aluno (`aluno/atualizacao/CampoItensDoPlano.tsx`, `dominio/campoItensDoPlano.ts`), com o 422
+  de `DIAS_TREINADOS` no campo; o tipo saiu de `OCULTOS_NO_MENU`.
+- R2. Controles do `ITENS_DO_PLANO` no editor de questionários e na prévia.
+- R3b. Leitura dos itens na revisão da atualização (Sim/Não, motivo e fotos).
+- R4a. Galeria de PDF: "Personalizar este modelo" abre a configuração gravada; uma regra de colunas só (ver
+  [documentos-pdf-motor.md](documentos-pdf-motor.md)).
+- R4b. Folha da pasta redesenhada ("Ordem sugerida" no ⓘ), **selo único da linha do plano** (`dominio/linhaDoPlano.ts`) e
+  **`ui/Abas` com `role="tabpanel"` e `aria-controls`** (`e2e/abas-painel.spec.ts`).
+- R5a. `ItensDoPlanoService` contra a versão liberada da pasta (`ItensDoPlanoIntegrationTest`, plano agendado).
+- Verificação relatada da onda 1: `typecheck` limpo, `lint` 0 erros, jest 486 suítes, e2e 1225 passaram, 1 falhou
+  (`filtros-laterais` B3), 238 pulados.
+
+Onda 2 (sem commit): item 9 (prescrição da época na revisão + "Quer trocar" no "O que mudou"), item 10 parcial (bloco G) e
+item 11 (vão de 4 px, já valia). Verificação relatada: jest 1358 testes, e2e 117 + 26, `ArquiteturaTest` 20,
+`ItensDoPlanoIntegrationTest` 11, `PrescricaoDaEpocaIntegrationTest` 4.
+
+Item 7 (cobertura e2e de "Ainda não enviados" no Histórico): spec `e2e/historico-nao-enviados.spec.ts` (390 e 1280, escuro e
+claro; sem internet e recusado pelo servidor com "Tentar enviar de novo"); 5 testes, verdes em 27/11 (porta 8320), sem commit.
+
+Ainda **não** feito desta lista:
+- `FOLGA_DO_BOTAO` duplicada no Exercício: importar a constante de `ui/RolagemComTopo` em `aluno/exercicio/colunasDoExercicio.ts`
+  quebra o jest puro `colunasDoExercicio.test.ts` (`SyntaxError: Unexpected token 'export'` no ESM do `lucide-react-native`,
+  que o `RolagemComTopo` carrega). Proposta: a constante num arquivo puro `ui/folgaDoBotao.ts` (como `ui/ancoraDoRodape.ts`),
+  importado pelos dois; sem mudar o valor (68 px). Atenção: o comentário de `FOLGA_NO_FIM_DA_ROLAGEM` fala em "16 da `Tela` +
+  16 + 44 + 8", mas o valor é só o do botão (68); não mexer no número sem conferir a coluna do exercício.
+- Teclado (bloco A): falta conferir num aparelho; biblioteca não trocada.
+- Conferência visual Areia/1536/2560/3440 (item 12), cartões compartilhados do Histórico, Início a 1688, três colunas da
+  revisão, "Cancelar agendamento" e PDFs N2 a N4 (os quatro últimos fora da rodada).
 
 ## Estado de entrega (26/11, fim da noite) — branch `lote-tres-frentes-26-11`, local, sem push
 

@@ -1,4 +1,4 @@
-import type { ConteudoDieta, PlanoResumo, Refeicao } from '../api/tipos';
+import type { ConteudoDieta, Refeicao } from '../api/tipos';
 import { descreverSeries } from './agrupamento';
 import { normalizarDieta } from './dieta';
 import { normalizarTreino } from './editorTreino';
@@ -9,7 +9,7 @@ import { secoesDaDieta, textoDosDiasCurtos } from './variacoesDaDieta';
 /**
  * "O que está prescrito" na revisão da atualização (bloco D de `docs/planos/atualizacao-pasta-e-questionarios.md`, 2.2 de
  * `orientacoes-de-design-26-11.md`): o treino e a dieta da pasta desta atualização em linhas curtas, só leitura, para o
- * treinador comparar com as respostas sem sair da tela. Pura: escolhe o plano da pasta, decide as abas pela permissão e
+ * treinador comparar com as respostas sem sair da tela. Pura: decide as abas pela permissão e o título e
  * monta o texto com os mesmos formatadores do editor, do PDF e do aluno (`descreverSeries`, `quantidadeParaTela`).
  */
 
@@ -31,25 +31,9 @@ export function abasDoPrescrito(pode: (codigo: string) => boolean): AbaDoPrescri
   return abas;
 }
 
-/** A versão a ler: `null` = a pasta não tem plano publicado deste tipo. `agendada` = publicada, mas o aluno ainda não a vê (bloco E). */
-export interface VersaoDoPrescrito { planoId: string; numero: number; agendada: boolean }
-
-/**
- * O plano publicado da pasta: entre os do tipo com `pastaId` igual e alguma versão publicada, o em uso pelo aluno (`ativo`) e,
- * sem ele, o de publicação mais recente (a pasta pode ter rascunhos repetidos). A versão é a que o aluno vê (`versaoLiberada`);
- * sem nenhuma liberada ainda (só agendada), a última publicada, marcada como agendada.
- * shortcut: é a versão de HOJE, não a que valia quando o aluno respondeu; trocar se a API passar a guardar a versão na atualização.
- */
-export function versaoDoPrescrito(planos: readonly PlanoResumo[], pastaId: string | null): VersaoDoPrescrito | null {
-  if (!pastaId) return null;
-  const publicados = planos.filter((p) => p.pastaId === pastaId && p.versaoPublicada > 0);
-  const plano = publicados.find((p) => p.ativo)
-    ?? publicados.reduce<PlanoResumo | null>((m, p) => (!m || (p.publicadoEm ?? '') > (m.publicadoEm ?? '') ? p : m), null);
-  if (!plano) return null;
-  const liberada = plano.versaoLiberada ?? plano.versaoPublicada;
-  return liberada > 0
-    ? { planoId: plano.id, numero: liberada, agendada: false }
-    : { planoId: plano.id, numero: plano.versaoPublicada, agendada: true };
+/** Título do cartão: com envio, a versão que o aluno via ao enviar; sem envio (aguardando), a de agora. */
+export function tituloDoPrescrito(enviadaEm: string | null): string {
+  return enviadaEm ? 'Prescrição no envio' : 'Prescrição atual';
 }
 
 export interface LinhaDoPrescrito { chave: string; nome: string; detalhe: string | null }

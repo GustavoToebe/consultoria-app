@@ -1,12 +1,11 @@
 import { Fragment, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { listarPlanos, versaoPlano } from '../../api/rotas';
-import type { TipoPlano, VersaoDetalhe } from '../../api/tipos';
+import type { Atualizacao, VersaoDetalhe } from '../../api/tipos';
 import { textoDaAgua, totalDoDia } from '../../dominio/dieta';
 import {
-  abasDoPrescrito, dietaDoPrescrito, dietaLida, outrosDoPrescrito, ROTULO_DA_ABA_DO_PRESCRITO, suplementosDoPrescrito, treinoDoPrescrito,
-  versaoDoPrescrito, type AbaDoPrescrito, type LinhaDoPrescrito,
+  abasDoPrescrito, dietaDoPrescrito, dietaLida, outrosDoPrescrito, ROTULO_DA_ABA_DO_PRESCRITO, suplementosDoPrescrito, tituloDoPrescrito,
+  treinoDoPrescrito, type AbaDoPrescrito, type LinhaDoPrescrito,
 } from '../../dominio/prescritoDaAtualizacao';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -17,41 +16,33 @@ import { textoDoErro } from '../../ui/erros';
 import { MensagemErro } from '../../ui/Estados';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Texto } from '../../ui/Texto';
-import { useCarregar } from '../../ui/useCarregar';
 import { ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { rotaDoEditor } from '../CartaoPlanos';
+import { usePrescricaoDaEpoca } from './usePrescricaoDaEpoca';
 
 /** As abas da dieta leem o mesmo plano: trocar entre Dieta, Suplementos e Outros não busca de novo. */
-const TIPO_DA_ABA: Record<AbaDoPrescrito, TipoPlano> = { treino: 'treino', dieta: 'dieta', suplementos: 'dieta', outros: 'dieta' };
+const TIPO_DA_ABA: Record<AbaDoPrescrito, 'treino' | 'dieta'> = { treino: 'treino', dieta: 'dieta', suplementos: 'dieta', outros: 'dieta' };
 
-const SEM_PLANO: Record<TipoPlano, string> = {
-  treino: 'A pasta desta atualização não tem treino publicado.',
-  dieta: 'A pasta desta atualização não tem dieta publicada.',
-  mobilidade: 'A pasta desta atualização não tem mobilidade publicada.',
-};
-
-type Carga = { versao: VersaoDetalhe<unknown> | null; agendada: boolean };
+const SEM_PLANO: Record<'treino' | 'dieta', string> = { treino: 'treino publicado', dieta: 'dieta publicada' };
 
 /**
- * "O que está prescrito" na revisão da atualização (bloco D, 2.2): o treino e a dieta publicados da pasta desta atualização em
- * linhas curtas, só leitura, ao lado das respostas. Abas compactas Treino | Dieta | Suplementos | Outros; aba sem permissão
- * some e uma só vira título. Busca só o tipo da aba aberta (lista de planos e a versão que o aluno vê); erro fica dentro do
- * cartão, com "Tentar de novo", e nunca derruba a tela.
+ * "O que está prescrito" na revisão da atualização (bloco D, 2.2): o treino e a dieta da pasta desta atualização que o aluno
+ * via no envio (sem envio, os de agora), em linhas curtas, só leitura, ao lado das respostas. Abas compactas Treino | Dieta |
+ * Suplementos | Outros; aba sem permissão some e uma só vira título. Busca só o tipo da aba aberta (`usePrescricaoDaEpoca`);
+ * erro fica dentro do cartão, com "Tentar de novo", e nunca derruba a tela.
  */
-export function PrescritoDaAtualizacao({ alunoId, pastaId }: { alunoId: string; pastaId: string | null }) {
+export function PrescritoDaAtualizacao({ atualizacao }: { atualizacao: Pick<Atualizacao, 'id' | 'pastaId' | 'enviadaEm'> }) {
+  const { pastaId } = atualizacao;
   const { pode } = useSessao();
   const abas = abasDoPrescrito(pode);
   const [escolhida, setEscolhida] = useState<AbaDoPrescrito | null>(null);
   const aba = escolhida && abas.includes(escolhida) ? escolhida : abas[0] ?? null;
   const tipo = aba ? TIPO_DA_ABA[aba] : null;
-  const carga = useCarregar<Carga>(tipo && pastaId ? `prescrito:${tipo}:${alunoId}:${pastaId}` : null, async () => {
-    const escolha = versaoDoPrescrito(await listarPlanos(tipo!, alunoId), pastaId);
-    if (!escolha) return { versao: null, agendada: false };
-    return { versao: await versaoPlano(tipo!, escolha.planoId, escolha.numero), agendada: escolha.agendada };
-  });
+  const carga = usePrescricaoDaEpoca(atualizacao, tipo);
   if (!aba || !tipo) return null;
-  const titulo = 'Prescrição atual';
-  const dados = carga.dados && !carga.erro ? carga.dados : null;
+  const titulo = tituloDoPrescrito(atualizacao.enviadaEm);
+  // undefined = buscando (ou ainda com a versão do outro tipo); null = nada publicado na pasta até o envio
+  const versao = carga.erro || carga.dadosDeOutraChave ? undefined : carga.dados;
   return (
     <Cartao titulo={abas.length === 1 ? `${titulo}: ${ROTULO_DA_ABA_DO_PRESCRITO[aba]}` : titulo}>
       {abas.length > 1 ? (
@@ -59,21 +50,21 @@ export function PrescritoDaAtualizacao({ alunoId, pastaId }: { alunoId: string; 
       ) : null}
       {!pastaId ? <Texto variante="suave">Esta atualização não tem pasta.</Texto> : null}
       {carga.erro ? <MensagemErro texto={textoDoErro(carga.erro)} erro={carga.erro} tentarDeNovo={carga.recarregar} /> : null}
-      {pastaId && !carga.erro && !dados ? <Texto variante="suave">Carregando o que está prescrito…</Texto> : null}
-      {dados && !dados.versao ? <Texto variante="suave">{SEM_PLANO[tipo]}</Texto> : null}
-      {dados?.versao ? <ConteudoDaAba aba={aba} tipo={tipo} versao={dados.versao} agendada={dados.agendada} /> : null}
+      {pastaId && !carga.erro && versao === undefined ? <Texto variante="suave">Carregando o que está prescrito…</Texto> : null}
+      {versao === null ? <Texto variante="suave">{atualizacao.enviadaEm
+        ? `A pasta desta atualização não tinha ${SEM_PLANO[tipo]} no envio.` : `A pasta desta atualização não tem ${SEM_PLANO[tipo]}.`}</Texto> : null}
+      {versao ? <ConteudoDaAba aba={aba} tipo={tipo} versao={versao} /> : null}
     </Cartao>
   );
 }
 
-function ConteudoDaAba({ aba, tipo, versao, agendada }: { aba: AbaDoPrescrito; tipo: TipoPlano; versao: VersaoDetalhe<unknown>; agendada: boolean }) {
+function ConteudoDaAba({ aba, tipo, versao }: { aba: AbaDoPrescrito; tipo: 'treino' | 'dieta'; versao: VersaoDetalhe<unknown> }) {
   return (
     <View style={estilos.conteudo}>
       <View style={estilos.topo}>
         <Texto variante="pequeno">{`${versao.titulo} · versão ${versao.numero}`}</Texto>
         <LinkTexto texto="Abrir no editor" href={rotaDoEditor(tipo, versao.planoId)} />
       </View>
-      {agendada ? <Texto variante="pequeno">Versão agendada: o aluno ainda não a vê.</Texto> : null}
       {aba === 'treino' ? <Treino conteudo={versao.conteudo} /> : null}
       {aba === 'dieta' ? <Dieta conteudo={versao.conteudo} /> : null}
       {aba === 'suplementos' ? <Linhas linhas={suplementosDoPrescrito(dietaLida(versao.conteudo))} vazio="Nenhum suplemento na dieta publicada." /> : null}

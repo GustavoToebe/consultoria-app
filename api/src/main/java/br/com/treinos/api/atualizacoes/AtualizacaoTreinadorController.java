@@ -1,6 +1,8 @@
 package br.com.treinos.api.atualizacoes;
 
+import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.security.UsuarioAutenticado;
+import br.com.treinos.api.treino.ConteudoTreino;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,8 +17,9 @@ import java.util.UUID;
 public class AtualizacaoTreinadorController {
     private final AtualizacaoService atualizacoes;
     private final EvolucaoRespostasService evolucao;
-    public AtualizacaoTreinadorController(AtualizacaoService atualizacoes, EvolucaoRespostasService evolucao) {
-        this.atualizacoes = atualizacoes; this.evolucao = evolucao;
+    private final PrescricaoDaEpocaService prescricoes;
+    public AtualizacaoTreinadorController(AtualizacaoService atualizacoes, EvolucaoRespostasService evolucao, PrescricaoDaEpocaService prescricoes) {
+        this.atualizacoes = atualizacoes; this.evolucao = evolucao; this.prescricoes = prescricoes;
     }
 
     /**
@@ -68,6 +71,14 @@ public class AtualizacaoTreinadorController {
 
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/atualizacoes/{id}")
     public AtualizacaoService.Detalhe detalhe(@PathVariable UUID id) { return atualizacoes.detalheTreinador(id); }
+
+    /** O treino da pasta que o aluno via quando enviou esta atualização (sem envio, o de agora); {@code versao} nula = nenhum publicado até lá. */
+    @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER') and hasAuthority('PERM_TREINO_LER')") @GetMapping("/atualizacoes/{id}/prescricao/treino")
+    public PrescricaoDaEpocaService.Prescricao<ConteudoTreino> prescricaoDoTreino(@PathVariable UUID id) { return prescricoes.treino(id); }
+
+    /** A dieta da pasta que o aluno via quando enviou esta atualização; ergogênicos só com {@code ERGOGENICO_LER}, como na versão do plano. */
+    @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER') and hasAuthority('PERM_DIETA_LER')") @GetMapping("/atualizacoes/{id}/prescricao/dieta")
+    public PrescricaoDaEpocaService.Prescricao<ConteudoDieta> prescricaoDaDieta(@PathVariable UUID id) { return prescricoes.dieta(id); }
 
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER') and hasAuthority('PERM_ATUALIZACAO_RESPONDER')") @PutMapping("/atualizacoes/{id}/feedback")
     public AtualizacaoService.Detalhe responder(@PathVariable UUID id,

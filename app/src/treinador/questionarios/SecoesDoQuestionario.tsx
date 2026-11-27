@@ -1,16 +1,16 @@
 import { ArrowDown, ArrowUp, ChevronsDownUp, ChevronsUpDown, Copy, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoQuestionario, FinalidadeQuestionario, PerguntaAtualizacao, TipoPergunta } from '../../api/tipos';
 import {
-  aceitaObrigatoria, adicionarPergunta, adicionarSecao, alterarCondicaoDaSecao, alterarDescricaoDaSecao, alterarPergunta, alterarSecao, duplicarPerguntaNaSecao, moverParaSecao, moverPergunta, moverSecao,
-  gruposParaAdicionar, novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, resumoDosItens, ROTULO_DO_TIPO, textoDaCondicao,
+  aceitaObrigatoria, adicionarPergunta, adicionarPrimeiraPergunta, adicionarSecao, alterarCondicaoDaSecao, alterarDescricaoDaSecao, alterarPergunta, alterarSecao, duplicarPerguntaNaSecao, moverParaSecao, moverPergunta, moverSecao,
+  editorVazio, novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, resumoDosItens, ROTULO_DO_TIPO, textoDaCondicao,
   type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
 import { escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos } from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_FOLHA_LARGA, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
@@ -19,10 +19,10 @@ import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
-import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { chaveDaSecao, idDoBloco, quantasPerguntas } from '../../dominio/indiceDoQuestionario';
+import { GaleriaDeTipos } from './GaleriaDeTipos';
 import { EditorDeCondicao, PropriedadesDaPergunta } from './PropriedadesDaPergunta';
 
 type Alvo = { secao: number; pergunta: number };
@@ -65,6 +65,17 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, estaAberta, todasAb
   };
 
   const totalDePerguntas = c.secoes.reduce((n, sec) => n + sec.perguntas.length, 0);
+  // Editor vazio (bloco G): o convite com a galeria no lugar do formulário da seção com que o questionário nasce.
+  if (!somenteLeitura && editorVazio(c)) {
+    return <Cartao titulo="Adicione a primeira pergunta" descricao="Escolha o tipo; depois você escreve o texto e ajusta as opções. Seções você cria quando precisar dividir o assunto.">
+      <GaleriaDeTipos finalidade={finalidade} permissao={(tipo) => podeAdicionar(c, 0, tipo)} aoEscolher={(tipo) => {
+        const nova = novaPergunta(tipo);
+        aoEditarSecao?.(0);
+        aoMudar((atual) => adicionarPrimeiraPergunta(atual, nova));
+        aoAbrir(nova.id);
+      }} />
+    </Cartao>;
+  }
   return <>
     <View style={estilos.cabecalhoLista}>
       <Texto variante="bloco" nivel={2}>Seções e perguntas ({totalDePerguntas})</Texto>
@@ -110,18 +121,8 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, estaAberta, todasAb
         aoTocar={() => aoMudar((x) => adicionarSecao(x))} />
     </LinhaDeAcoes>}
 
-    {adicionarEm !== null ? <Folha visivel titulo="Adicionar pergunta" aoFechar={() => setAdicionarEm(null)}>
-      {gruposParaAdicionar(finalidade).map((g) => <View key={g.rotulo} style={estilos.grupoDeTipos}>
-        <Texto variante="secao">{g.rotulo}</Texto>
-        <View style={estilos.opcoesDeTipo}>
-          {g.itens.map(({ tipo, descricao }) => {
-            const permissao = podeAdicionar(c, adicionarEm, tipo);
-            // O motivo aparece uma vez só, no lugar da descrição (antes vinha embaixo do botão e de novo no texto).
-            return <OpcaoDeTipo key={tipo} titulo={ROTULO_DO_TIPO[tipo]} descricao={permissao.pode ? descricao : permissao.motivo ?? descricao}
-              desabilitado={!permissao.pode} aoEscolher={() => adicionar(adicionarEm, tipo)} />;
-          })}
-        </View>
-      </View>)}
+    {adicionarEm !== null ? <Folha visivel titulo="Adicionar pergunta" largura={LARGURA_FOLHA_LARGA} aoFechar={() => setAdicionarEm(null)}>
+      <GaleriaDeTipos finalidade={finalidade} permissao={(tipo) => podeAdicionar(c, adicionarEm, tipo)} aoEscolher={(tipo) => adicionar(adicionarEm, tipo)} />
     </Folha> : null}
 
     <PainelConfirmacao visivel={perguntaARemover !== undefined} titulo={`Remover a pergunta “${perguntaARemover?.rotulo || 'sem texto'}”?`}
@@ -175,23 +176,9 @@ function resumoDoTipo(p: PerguntaAtualizacao): string {
   return ROTULO_DO_TIPO[p.tipo] ?? p.tipo;
 }
 
-/** Opção da folha "Adicionar pergunta": título e o que faz (ou por que não dá), como as opções da folha "Modelos". */
-function OpcaoDeTipo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado: boolean; aoEscolher: () => void }) {
-  const { cores } = useTema();
-  return <Pressable accessibilityRole="button" accessibilityLabel={titulo} accessibilityHint={descricao} accessibilityState={{ disabled: desabilitado }} disabled={desabilitado} onPress={aoEscolher}
-    style={({ pressed }) => [estilos.opcao, { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.sobre : cores.superficie2, borderColor: cores.borda }]}>
-    <Texto style={estilos.tituloOpcao} cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
-    <Texto variante="pequeno">{descricao}</Texto>
-  </Pressable>;
-}
-
 const estilos = StyleSheet.create({
   setas: { flexDirection: 'row', alignItems: 'center' },
   cabecalhoLista: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   pergunta: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
   corpoPergunta: { gap: espaco(1.5), paddingVertical: espaco(1) },
-  grupoDeTipos: { gap: espaco(0.75) },
-  opcoesDeTipo: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  opcao: { flexGrow: 1, flexBasis: 220, borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: 2, minHeight: 56 },
-  tituloOpcao: { fontFamily: fontes.semi },
 });

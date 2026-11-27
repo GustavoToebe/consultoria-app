@@ -1,6 +1,7 @@
-import type { Atualizacao, PerguntaAtualizacao } from '../api/tipos';
+import type { Atualizacao, PerguntaAtualizacao, RespostaAtualizacao } from '../api/tipos';
 import { todasAsPerguntas } from './atualizacaoQuestionario';
 import { numeroParaTela } from './formatos';
+import { itensDaResposta, nomeNormalizadoDeItem } from './respostasAtualizacao';
 import { pesoComCasas } from './variacaoDoPeso';
 
 /**
@@ -9,18 +10,23 @@ import { pesoComCasas } from './variacaoDoPeso';
  * mesmo tipo), e só quando são diferentes. Sem limiar, sem "fora do padrão", sem cor de bom ou ruim: o app não opina sobre
  * saúde. Pura (sem rede nem relógio).
  *
- * Entra: peso (pergunta PESO), notas (NOTA), números (NUMERO), Sim/Não (SIM_NAO) e os dias com treino registrado no período
- * (do resumo da API). Fica de fora o resto (texto, escolhas, fotos) e tipo que esta versão do app não conhece (ex.: o
- * `ITENS_DO_PLANO` do bloco C, que ainda não chegou ao app): não quebra, só não aparece.
+ * Entra: peso (pergunta PESO), notas (NOTA), números (NUMERO), Sim/Não (SIM_NAO), os itens marcados no `ITENS_DO_PLANO`
+ * ("Quer trocar: Batata-doce") e os dias com treino registrado no período (do resumo da API). Fica de fora o resto (texto,
+ * escolhas, fotos) e tipo que esta versão do app não conhece: não quebra, só não aparece.
  */
 
-/** Uma linha do bloco: "Sono: 7 → 4". `anterior` e `atual` já vêm em texto de tela. */
+/**
+ * Uma linha do bloco: "Sono: 7 → 4". `anterior` e `atual` já vêm em texto de tela. `anterior` nulo = não há com o que
+ * comparar (pergunta de itens que a atualização anterior não tinha): a linha mostra só o fato de agora.
+ */
 export interface MudancaDaAtualizacao {
   chave: string;
   rotulo: string;
-  anterior: string;
+  anterior: string | null;
   atual: string;
 }
+
+export const TEXTO_SEM_ITENS = 'Nenhum';
 
 export type MudancasDaAtualizacao =
   /** Nenhuma atualização enviada antes desta. */
@@ -70,6 +76,31 @@ function valorComparavel(p: PerguntaAtualizacao, v: unknown): string | null {
   }
 }
 
+/** Nomes dos itens gravados pelo servidor, sem repetir (item sem nome não entra: o rascunho do aluno só tem o id). */
+function nomesDosItens(v: unknown): string[] {
+  const nomes = new Map<string, string>();
+  for (const i of itensDaResposta(v as RespostaAtualizacao | undefined)) {
+    const nome = typeof i.nome === 'string' ? i.nome.trim() : '';
+    if (nome && !nomes.has(nomeNormalizadoDeItem(nome))) nomes.set(nomeNormalizadoDeItem(nome), nome);
+  }
+  return [...nomes.values()];
+}
+
+/**
+ * ITENS_DO_PLANO: os itens marcados agora contra os da mesma pergunta na anterior (sem ordem, sem acento nem caixa). Pergunta
+ * que a anterior não tinha e fonte DIAS_TREINADOS (a data muda a cada período, nunca seria "igual"): só os de agora, se
+ * houver. Pergunta sem resposta conta como nenhum item.
+ */
+function mudancaDosItens(p: PerguntaAtualizacao, agoraV: unknown, antesV: unknown, tinhaAntes: boolean): MudancaDaAtualizacao | null {
+  const agora = nomesDosItens(agoraV);
+  const texto = (nomes: string[]) => (nomes.length ? nomes.join(', ') : TEXTO_SEM_ITENS);
+  if (!tinhaAntes) return agora.length ? { chave: p.id, rotulo: rotuloDe(p), anterior: null, atual: texto(agora) } : null;
+  const antes = nomesDosItens(antesV);
+  const chaves = (nomes: string[]) => nomes.map(nomeNormalizadoDeItem).sort().join('\n');
+  if (chaves(agora) === chaves(antes)) return null;
+  return { chave: p.id, rotulo: rotuloDe(p), anterior: texto(antes), atual: texto(agora) };
+}
+
 /**
  * Compara a atual com a anterior (`atualizacaoAnterior`). As perguntas e os rótulos são os do questionário da atual; a pergunta
  * da anterior só vale com o mesmo id E o mesmo tipo (outra versão pode ter reaproveitado o id). Ordem: a do questionário, e os
@@ -80,6 +111,12 @@ export function mudancasDaAtualizacao(atual: Comparavel, anterior: Comparavel | 
   const mudancas: MudancaDaAtualizacao[] = [];
   const tiposAntes = new Map((anterior.modelo ? todasAsPerguntas(anterior.modelo) : []).map((p) => [p.id, p.tipo]));
   for (const p of atual.modelo ? todasAsPerguntas(atual.modelo) : []) {
+    if (p.tipo === 'ITENS_DO_PLANO') {
+      const comparavel = tiposAntes.get(p.id) === p.tipo && p.fonte !== 'DIAS_TREINADOS';
+      const m = mudancaDosItens(p, atual.respostas?.[p.id], anterior.respostas?.[p.id], comparavel);
+      if (m) mudancas.push(m);
+      continue;
+    }
     if (tiposAntes.get(p.id) !== p.tipo) continue;
     const agora = valorComparavel(p, atual.respostas?.[p.id]);
     const antes = valorComparavel(p, anterior.respostas?.[p.id]);

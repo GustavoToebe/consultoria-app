@@ -67,25 +67,52 @@ export const tiposParaAdicionar = (finalidade: FinalidadeQuestionario) =>
 /** A página pública de inscrição não mostra imagem (D6); atualização e anamnese aceitam na pergunta e na opção. */
 export const aceitaImagem = (finalidade: FinalidadeQuestionario) => finalidade !== 'INSCRICAO';
 
+/** Exemplo de uma linha de cada tipo, na galeria "Adicionar pergunta" (a descrição longa fica para o leitor de tela). */
+export const EXEMPLO_DO_TIPO: Record<TipoPergunta, string> = {
+  TEXTO: 'Como prefere ser chamado?',
+  TEXTO_LONGO: 'Conte como foi a semana.',
+  SIM_NAO: 'Sentiu dores? Sim ou Não',
+  ESCOLHA_UNICA: 'Manhã, tarde ou noite',
+  MULTIPLA_ESCOLHA: 'Marque os dias de descanso',
+  GRADE: 'Frequência de cada item',
+  NOTA: 'Sono de 0 a 10',
+  NOTAS_POR_DIA: 'Uma nota por dia de treino',
+  NUMERO: 'Passos por dia',
+  PESO: 'Peso em kg',
+  DATA: 'Data de nascimento',
+  DATA_AUTOMATICA: 'Mostra a data do envio',
+  TELEFONE: '(45) 99999-8888',
+  EMAIL: 'nome@exemplo.com',
+  ENDERECO: 'CEP, rua, cidade e UF',
+  FOTOS: 'Frente, lado e costas',
+  ITENS_DO_PLANO: 'Quais alimentos quer trocar?',
+  INFORMATIVO: 'Orientação sem resposta',
+  ACEITE: 'Li e concordo com as regras',
+};
+
 /**
- * Grupos da folha "Adicionar pergunta" (revisão de telas de 19/10: eram 17 botões soltos). Todo tipo do menu está em
- * exatamente um grupo; tipo novo sem grupo cai em "Especiais" (`gruposParaAdicionar`).
+ * Grupos da galeria "Adicionar pergunta" (bloco G de `atualizacao-pasta-e-questionarios.md`). Todo tipo do menu está em
+ * exatamente um grupo; tipo novo sem grupo cai no último (`gruposParaAdicionar`).
  */
 const GRUPOS_DE_TIPOS: readonly { rotulo: string; tipos: readonly TipoPergunta[] }[] = [
-  { rotulo: 'Escolha', tipos: ['SIM_NAO', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'GRADE'] },
-  { rotulo: 'Texto', tipos: ['TEXTO', 'TEXTO_LONGO', 'TELEFONE', 'EMAIL', 'ENDERECO'] },
-  { rotulo: 'Número e data', tipos: ['NOTA', 'NOTAS_POR_DIA', 'NUMERO', 'PESO', 'DATA', 'DATA_AUTOMATICA'] },
-  { rotulo: 'Especiais', tipos: ['FOTOS', 'ITENS_DO_PLANO', 'ACEITE', 'INFORMATIVO'] },
+  { rotulo: 'Escrever', tipos: ['TEXTO', 'TEXTO_LONGO'] },
+  { rotulo: 'Escolher', tipos: ['SIM_NAO', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'GRADE'] },
+  { rotulo: 'Números e notas', tipos: ['NOTA', 'NOTAS_POR_DIA', 'NUMERO', 'PESO'] },
+  { rotulo: 'Datas e contato', tipos: ['DATA', 'DATA_AUTOMATICA', 'TELEFONE', 'EMAIL', 'ENDERECO'] },
+  { rotulo: 'Fotos', tipos: ['FOTOS'] },
+  { rotulo: 'Do plano do aluno', tipos: ['ITENS_DO_PLANO'] },
+  { rotulo: 'Texto e aceite', tipos: ['INFORMATIVO', 'ACEITE'] },
 ];
 
 /** Tipos da finalidade em grupos, na ordem dos grupos; grupo vazio some. */
 export function gruposParaAdicionar(finalidade: FinalidadeQuestionario): { rotulo: string; itens: { tipo: TipoPergunta; descricao: string }[] }[] {
   const disponiveis = tiposParaAdicionar(finalidade);
   const agrupados = new Set(GRUPOS_DE_TIPOS.flatMap((g) => g.tipos));
+  const ultimo = GRUPOS_DE_TIPOS[GRUPOS_DE_TIPOS.length - 1].rotulo;
   return GRUPOS_DE_TIPOS.map((g) => ({
     rotulo: g.rotulo,
     itens: [...g.tipos.flatMap((t) => disponiveis.filter((d) => d.tipo === t)),
-      ...(g.rotulo === 'Especiais' ? disponiveis.filter((d) => !agrupados.has(d.tipo)) : [])].map(({ tipo, descricao }) => ({ tipo, descricao })),
+      ...(g.rotulo === ultimo ? disponiveis.filter((d) => !agrupados.has(d.tipo)) : [])].map(({ tipo, descricao }) => ({ tipo, descricao })),
   })).filter((g) => g.itens.length > 0);
 }
 
@@ -233,6 +260,16 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
 }
 
 export const totalDePerguntas = (c: ConteudoQuestionario) => c.secoes.reduce((n, s) => n + s.perguntas.length, 0);
+
+/**
+ * Editor vazio (nenhuma pergunta e no máximo a seção com que o questionário nasce): no lugar do formulário da seção, o
+ * convite "Adicione a primeira pergunta" com a galeria. Com duas seções ou mais, quem montou a estrutura vê as seções.
+ */
+export const editorVazio = (c: ConteudoQuestionario) => totalDePerguntas(c) === 0 && c.secoes.length <= 1;
+
+/** A primeira pergunta entra na seção que existe; sem nenhuma, cria a seção junto. */
+export const adicionarPrimeiraPergunta = (c: ConteudoQuestionario, p: PerguntaAtualizacao): ConteudoQuestionario =>
+  adicionarPergunta(c.secoes.length ? c : { ...c, secoes: [novaSecao('Perguntas')] }, 0, p);
 const todas = (c: ConteudoQuestionario) => c.secoes.flatMap((s) => s.perguntas);
 
 export interface Permissao { pode: boolean; motivo?: string }

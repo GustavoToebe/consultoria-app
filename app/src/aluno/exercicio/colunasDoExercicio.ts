@@ -1,5 +1,6 @@
 import { arranjoPrincipalComApoio, VAO_DA_PRINCIPAL } from '../../dominio/arranjoPrincipalComApoio';
-import { ALVO_TOQUE, espaco } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
+import { FOLGA_DO_BOTAO } from '../../ui/folgaDoBotao';
 
 /**
  * Medidas do exercício do aluno na web larga (`docs/planos/orientacoes-de-design-26-11.md`, 1.4). A coluna do exercício
@@ -14,11 +15,11 @@ export const LARGURA_DAS_SERIES = 720;
  */
 export const TOPO_DA_COLUNA_DO_EXERCICIO = espaco(2);
 /**
- * O que fica abaixo da coluna no fim da rolagem: a folga de baixo da `Tela` (16) e a do botão "voltar ao topo" da
- * `RolagemComTopo` (`FOLGA_DO_BOTAO`, 16 + 44 + 8, não exportada; trocar pelo valor exportado quando existir). Entra na
- * altura máxima da coluna para o nome e o Descanso continuarem à vista também no fim das séries.
+ * O que fica abaixo da coluna no fim da rolagem: a folga do botão "voltar ao topo" da `RolagemComTopo`
+ * (`FOLGA_DO_BOTAO`, 16 + 44 + 8, a mesma constante de `ui/folgaDoBotao`). Entra na altura máxima da coluna para o nome
+ * e o Descanso continuarem à vista também no fim das séries.
  */
-export const FOLGA_NO_FIM_DA_ROLAGEM = espaco(2) + ALVO_TOQUE + espaco(1);
+export const FOLGA_NO_FIM_DA_ROLAGEM = FOLGA_DO_BOTAO;
 
 /** Onde fica a coluna das séries dentro do bloco do conteúdo (`esquerda` a partir da borda do bloco): a barra fixa se alinha a ela. */
 export const colunaDasSeriesNoBloco = (larguraDoBloco: number) => {

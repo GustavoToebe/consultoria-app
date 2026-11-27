@@ -16,7 +16,8 @@ import { useCarregar } from '../../ui/useCarregar';
 
 /**
  * "O que mudou desde a última atualização" (bloco D, D5): no topo do Resumo do período, só fatos, "anterior → atual" com a
- * seta suave, sem verde nem vermelho. Carga e erro próprios: nunca seguram o resto do resumo.
+ * seta suave, sem verde nem vermelho; itens de pergunta que a anterior não tinha aparecem sem seta ("Quer trocar: Batata-doce").
+ * Carga e erro próprios: nunca seguram o resto do resumo.
  * shortcut: busca o histórico inteiro do aluno (`GET /alunos/{id}/atualizacoes`, com respostas) para achar a anterior; trocar
  * por uma rota da anterior se o histórico ficar pesado.
  */
@@ -40,12 +41,14 @@ export function MudancasDaAtualizacao({ atualizacao: a }: { atualizacao: Atualiz
       {r.mudancas.map((m) => (
         <View key={m.chave} role="listitem" style={estilos.linha}>
           <Texto variante="pequeno" style={estilos.rotulo}>{m.rotulo}</Texto>
-          <Texto cor={cores.texto} numerico>
-            {m.anterior}
-            <Texto variante="suave" aria-hidden>{'  →  '}</Texto>
-            <Texto style={estilos.soParaLeitor}>{' para '}</Texto>
-            {m.atual}
-          </Texto>
+          {m.anterior === null ? <Texto cor={cores.texto}>{m.atual}</Texto> : (
+            <Texto cor={cores.texto} numerico>
+              {m.anterior}
+              <Texto variante="suave" aria-hidden>{'  →  '}</Texto>
+              <Texto style={estilos.soParaLeitor}>{' para '}</Texto>
+              {m.atual}
+            </Texto>
+          )}
         </View>
       ))}
     </View>,
