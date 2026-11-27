@@ -44,6 +44,8 @@ treinos:
     loja-ip: 100000
     loja-foto-ip: 100000
     marketplace-ip: 100000
+    contrato-publico-ip: 100000
+    contrato-cpf-ip: 100000
   # Fotos ligadas em toda a suíte (o bucket é um MinIO de teste, registrado por MinioDeTeste); o modo desligado tem a sua
   # classe (FotosDesligadasIntegrationTest), que sobrescreve esta chave.
   fotos:
@@ -57,6 +59,8 @@ treinos:
   # Contrato digital ligado na suíte; o modo desligado tem a sua classe (ContratosDesligadosIntegrationTest).
   contratos:
     habilitado: true
+    # A rotina de guarda do assinado (D16) fica sem agenda: os testes chamam GuardaDoContratoAssinado.rodar à mão.
+    guarda-agendada: false
   # Vitrine ligada na suíte; o modo desligado tem a sua classe (VitrineDesligadaIntegrationTest).
   vitrine:
     habilitada: true

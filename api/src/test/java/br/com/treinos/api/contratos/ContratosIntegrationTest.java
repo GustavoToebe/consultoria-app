@@ -225,7 +225,9 @@ class ContratosIntegrationTest extends AbstractIntegrationTest {
                 .containsExactly("pedidoId");
         Map<String, Object> responsavel = pedido(modelo, UUID.randomUUID());
         responsavel.put("signatario", "RESPONSAVEL");
-        assertThat(campos(api.post("/alunos/" + aluno + "/contratos", admin, responsavel, 422))).containsExactly("signatario");
+        JsonNode semResponsavel = api.post("/alunos/" + aluno + "/contratos", admin, responsavel, 422);
+        assertThat(semResponsavel.get("codigo").asString()).isEqualTo("CONTRATO_INCOMPLETO");
+        assertThat(campos(semResponsavel)).containsExactlyInAnyOrder("responsavel_nome", "responsavel_cpf");
     }
 
     @Test

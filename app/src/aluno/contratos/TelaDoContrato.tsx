@@ -45,7 +45,7 @@ const ehIndisponivel = (e: unknown) => {
  */
 export function TelaDoContrato({ id }: { id: string }) {
   const { online, tentarDeNovo } = useAluno();
-  const { contratosHabilitados, usuario, marca } = useSessao();
+  const { contratosHabilitados, usuario, marca, recarregarPerfil } = useSessao();
   const contratos = useContratosDoAluno();
   const { avisar } = useAviso();
   const { width } = useWindowDimensions();
@@ -88,6 +88,8 @@ export function TelaDoContrato({ id }: { id: string }) {
         setAssinando(false);
         carga.definir(assinado);
         contratos.recarregar();
+        // Assinar libera na hora (D5): o /eu novo tira a trava do contrato, se era ela.
+        void recarregarPerfil().catch(() => undefined);
         avisar('Contrato assinado.', 'sucesso');
         focar(seloRef);
       },

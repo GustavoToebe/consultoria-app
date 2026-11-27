@@ -49,6 +49,15 @@ class PreenchimentoDoContrato {
     }
 
     /**
+     * O responsável financeiro de quem assina por ele (S2): exige {@code FINANCEIRO_LER} (403), como o resto do que vem do financeiro.
+     * Vazio sem responsável ou com o financeiro desligado.
+     */
+    Optional<PagamentosDoAluno.ResponsavelParaContrato> responsavelDoAluno(Aluno aluno) {
+        AcessoAtual.exigir("FINANCEIRO_LER");
+        return pagamentos.responsavelParaContrato(aluno.getId());
+    }
+
+    /**
      * {@code contratacaoId} nulo = contrato sem plano. Informado, exige {@code FINANCEIRO_LER} (403), o financeiro ligado (503) e que a
      * contratação seja do aluno (404), mesmo que nenhum campo financeiro seja usado: o vínculo também é dado do financeiro.
      */

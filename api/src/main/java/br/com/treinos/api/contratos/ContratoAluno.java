@@ -82,6 +82,15 @@ public class ContratoAluno {
     private String assinanteIp;
     @Column(name = "assinante_agente", length = 300)
     private String assinanteAgente;
+    /** Só no responsável assinado pelo link (D28): quem assinou declarou ser o responsável legal. */
+    @Column(name = "assinante_declarou_responsavel")
+    private Boolean assinanteDeclarouResponsavel;
+    /** Par aluno + responsável (16 a 17 anos): os dois contratos do mesmo texto levam o mesmo grupo. Nulo no contrato avulso. */
+    @Column(name = "grupo_id", updatable = false)
+    private UUID grupoId;
+    /** Guarda do assinado (D16): preenchido pela rotina que apaga texto e evidências; nunca por esta classe. */
+    @Column(name = "apagado_em")
+    private Instant apagadoEm;
     @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "link_hash", length = 64)
     private String linkHash;
@@ -99,7 +108,8 @@ public class ContratoAluno {
 
     /** Contrato novo, pendente. {@code texto} e {@code modeloId} só no MODELO; {@code agora} é o início do prazo (D23). */
     ContratoAluno(UUID alunoId, UUID contratacaoId, Origem origem, UUID modeloId, String titulo, String texto, String sha256,
-                  Signatario signatario, Instant prazoAte, UUID geradoPor, UUID pedidoId, Instant agora) {
+                  Signatario signatario, Instant prazoAte, UUID geradoPor, UUID pedidoId, UUID grupoId, String linkHash, Instant linkExpiraEm,
+                  Instant agora) {
         this.alunoId = alunoId;
         this.contratacaoId = contratacaoId;
         this.origem = origem;
@@ -111,6 +121,9 @@ public class ContratoAluno {
         this.prazoAte = prazoAte;
         this.geradoPor = geradoPor;
         this.pedidoId = pedidoId;
+        this.grupoId = grupoId;
+        this.linkHash = linkHash;
+        this.linkExpiraEm = linkExpiraEm;
         this.geradoEm = agora;
         this.criadoEm = agora;
         this.atualizadoEm = agora;
@@ -125,6 +138,44 @@ public class ContratoAluno {
         this.assinanteIp = ip;
         this.assinanteAgente = agente;
         this.atualizadoEm = agora;
+    }
+
+    /**
+     * O responsável assina pelo link (D11, D28): o servidor já conferiu código, CPF, hash, aceite e a declaração. O CPF gravado é o do
+     * cadastro, formatado; o link é de uso único e sai do contrato (hash e validade juntos, como o CHECK pede).
+     */
+    void assinarComoResponsavel(String nome, String cpf, String ip, String agente, Instant agora) {
+        this.situacao = Situacao.ASSINADO;
+        this.assinadoEm = agora;
+        this.assinadoPorUsuarioId = null;
+        this.assinanteNome = nome;
+        this.assinanteCpf = cpf;
+        this.assinanteIp = ip;
+        this.assinanteAgente = agente;
+        this.assinanteDeclarouResponsavel = true;
+        this.linkHash = null;
+        this.linkExpiraEm = null;
+        this.atualizadoEm = agora;
+    }
+
+    /** Troca o código do link (renovar): o anterior deixa de valer na hora. Só no responsável pendente. */
+    void trocarLink(String hash, Instant expiraEm, Instant agora) {
+        this.linkHash = hash;
+        this.linkExpiraEm = expiraEm;
+        this.atualizadoEm = agora;
+    }
+
+    /** Prorrogar move a validade do link junto com o prazo, sem encurtá-la. Sem link, não faz nada. */
+    void estenderLink(Instant ate, Instant agora) {
+        if (linkHash != null && (linkExpiraEm == null || ate.isAfter(linkExpiraEm))) {
+            this.linkExpiraEm = ate;
+            this.atualizadoEm = agora;
+        }
+    }
+
+    /** O link vale: o contrato é pendente, tem link e ele ainda não venceu. */
+    public boolean linkValido(Instant agora) {
+        return situacao == Situacao.PENDENTE && linkHash != null && linkExpiraEm != null && linkExpiraEm.isAfter(agora);
     }
 
     void cancelar(String motivo, Instant agora) {
@@ -165,6 +216,12 @@ public class ContratoAluno {
     public String getAssinanteCpf() { return assinanteCpf; }
     public String getAssinanteIp() { return assinanteIp; }
     public String getAssinanteAgente() { return assinanteAgente; }
+    public Boolean getAssinanteDeclarouResponsavel() { return assinanteDeclarouResponsavel; }
+    public UUID getGrupoId() { return grupoId; }
+    public Instant getApagadoEm() { return apagadoEm; }
+    public Instant getLinkExpiraEm() { return linkExpiraEm; }
+    /** Só para saber se há link; o hash em si não sai da entidade. */
+    public boolean temLink() { return linkHash != null; }
     public Long getVersao() { return versao; }
 
     @Override

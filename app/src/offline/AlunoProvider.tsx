@@ -37,6 +37,7 @@ import { fundirComServidor, registrosDoServidor, trocarPeriodo } from './execuco
 import { limparDadosDoAluno } from './limparDadosDoAluno';
 import { aplicarRascunho, chaveDoRascunhoDaSerie, type MudancaDoRascunho, type ReferenciaDaSerie, type RascunhosDeSerie } from '../dominio/rascunhoDaSerie';
 import { chaveDoInicioDoTreino, type DadosAgua, type DadosMobilidade, type DadosRegistro, type PacoteSalvo, type RegistroAguaLocal, type RegistroLocal, type RegistroMobilidadeLocal, type RegistroSessaoConcluidaLocal, type RepositorioLocal } from './repositorioLocal';
+import { ehContratoPendente } from '../dominio/travaDoContrato';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
 
 /** Plano que o aluno escolheu só para consultar (não é o vigente). */
@@ -220,7 +221,7 @@ const INTERVALO_COM_PENDENCIA_MS = 60_000;
  */
 export function AlunoProvider({ usuarioId, children }: { usuarioId: string; children: ReactNode }) {
   const sessao = useSessao();
-  const { atualizarMarca, offline: sessaoOffline, retornoHabilitado } = sessao;
+  const { atualizarMarca, offline: sessaoOffline, retornoHabilitado, recarregarPerfil, contratoPendenteVencido } = sessao;
   const repositorio = useMemo(() => abrirRepositorio(usuarioId, novoUid), [usuarioId]);
   const [atualizacao,setAtualizacao]=useState<Atualizacao|null>(null);
   useEffect(()=>{iniciarLembretesAtualizacao(usuarioId);},[usuarioId]);
@@ -454,13 +455,15 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       await baixarAgua();
       await carregarSemanaDoServidor(hojeIso(), true, desdeDoPlano(novo.treino?.inicio ?? null));
     } catch (erro) {
+      // A trava do contrato chegou antes do perfil: busca o /eu para a tela de assinar aparecer (sem esperar o `cliente`).
+      if (ehContratoPendente(erro)) void recarregarPerfil().catch(() => undefined);
       // Sem conexão: segue com o pacote salvo. Sem pacote salvo, a tela explica.
       if (!(erro instanceof ErroApi && erro.semConexao)) setErroPacote(erro);
       else setErroPacote((atual: unknown) => atual ?? erro);
       await carregarSemanaDoServidor(hojeIso(), true);
     }
     await conclusoes;
-  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, baixarDemonstracoes, baixarMarcasDeMobilidade, baixarAgua, baixarSessoesConcluidas, carregarSemanaDoServidor]);
+  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, baixarDemonstracoes, baixarMarcasDeMobilidade, baixarAgua, baixarSessoesConcluidas, carregarSemanaDoServidor, recarregarPerfil]);
 
   const sincronizar = useCallback(async () => {
     if (espera.current) {
@@ -512,6 +515,15 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     }
     montou.current = true;
   }, [retornoHabilitado, baixarSessoesConcluidas, descartarConclusoesForaDaJanela, sincronizar]);
+
+  // Saiu da trava do contrato (assinou, ou a equipe cancelou ou prorrogou): o pacote baixado durante ela deu 403; baixa de
+  // novo na hora, para o plano voltar junto com o menu (assinar libera na hora, D5).
+  const estavaTravado = useRef(contratoPendenteVencido);
+  useEffect(() => {
+    const saiu = estavaTravado.current && !contratoPendenteVencido;
+    estavaTravado.current = contratoPendenteVencido;
+    if (saiu) void baixarPacote();
+  }, [contratoPendenteVencido, baixarPacote]);
 
   // Abertura: confere a fila que uma sessão recusada deixou (vencida = apagada; dentro do prazo = volta a ser a fila
   // normal deste usuário), lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.

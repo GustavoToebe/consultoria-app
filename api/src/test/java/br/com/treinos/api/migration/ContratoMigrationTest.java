@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * V105 sobre dados da V104: o prazo da consultoria (1 a 60), o nome único do modelo entre os ativos, a FK composta do contrato com o
+ * V105 sobre dados da V104 (e, no segundo teste, a V109 sobre o esquema da V105): o prazo da consultoria (1 a 60), o nome único do modelo entre os ativos, a FK composta do contrato com o
  * aluno, o pedido único por consultoria, o CHECK das evidências da assinatura, o cancelamento com motivo, o texto só no modelo, o
  * limite do arquivo e a FK sem cascata do aluno. Usa outro banco na mesma instância, migrado até a V104. Só dados fictícios.
  */
@@ -26,6 +26,8 @@ class ContratoMigrationTest extends AbstractIntegrationTest {
     private static final UUID CONSULTORIA = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeee1051");
     private static final UUID OUTRA = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeee1052");
     private static final UUID ALUNO = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa1051");
+    private static final UUID CONSULTORIA_109 = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeee1091");
+    private static final UUID ALUNO_109 = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa1091");
     private static final String HASH = "a".repeat(64);
 
     @Value("${spring.datasource.url}") String urlPadrao;
@@ -102,6 +104,69 @@ class ContratoMigrationTest extends AbstractIntegrationTest {
                         .hasMessageContaining("fk_contrato_aluno");
                 st.execute("delete from contrato_aluno where id = '" + pdf + "'");
                 assertThat(contar(c, "select count(*) from contrato_arquivo where contrato_id = '" + pdf + "'")).isZero();
+            }
+        } finally {
+            admin("postgres", "DROP DATABASE IF EXISTS " + banco + " WITH (FORCE)");
+        }
+    }
+
+    /**
+     * V109 sobre o esquema da V105: o responsável só assina com a declaração de responsável legal e o aluno nunca a leva; {@code apagado_em}
+     * só existe no assinado e, nele, sem nenhuma evidência (a guarda do D16); o texto do modelo só pode sumir com {@code apagado_em}; o
+     * grupo do par aluno + responsável é uma coluna livre.
+     */
+    @Test
+    void v109ExigeADeclaracaoDoResponsavelEApagadoEmSoNoAssinado() throws Exception {
+        String banco = "v109_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try {
+            admin("postgres", "CREATE DATABASE " + banco);
+            flyway(banco).target("105").load().migrate();
+            try (Connection c = DriverManager.getConnection(urlDe(banco), usuarioAdmin, senhaAdmin); Statement st = c.createStatement()) {
+                st.execute("insert into consultoria(id, nome, slug) values ('" + CONSULTORIA_109 + "', 'Consultoria fictícia V109', 'v109-"
+                        + CONSULTORIA_109 + "')");
+                st.execute("insert into aluno(id, consultoria_id, nome) values ('" + ALUNO_109 + "', '" + CONSULTORIA_109
+                        + "', 'Aluno fictício')");
+                flyway(banco).load().migrate();
+
+                // Responsável pendente com link e grupo; o aluno do par é outra linha do mesmo grupo.
+                UUID grupo = UUID.randomUUID();
+                UUID responsavel = UUID.randomUUID();
+                st.execute("insert into contrato_aluno(id, consultoria_id, aluno_id, origem, titulo, texto, sha256, signatario, pedido_id,"
+                        + " grupo_id, link_hash, link_expira_em) values ('" + responsavel + "', '" + CONSULTORIA_109 + "', '" + ALUNO_109
+                        + "', 'MODELO', 'Contrato fictício', 'Texto fictício.', '" + HASH + "', 'RESPONSAVEL', gen_random_uuid(), '"
+                        + grupo + "', '" + "b".repeat(64) + "', now() + interval '1 day')");
+                UUID doAluno = UUID.randomUUID();
+                st.execute(contrato(CONSULTORIA_109, doAluno, ALUNO_109, UUID.randomUUID()));
+                st.execute("update contrato_aluno set grupo_id = '" + grupo + "' where id = '" + doAluno + "'");
+                assertThat(contar(c, "select count(*) from contrato_aluno where grupo_id = '" + grupo + "'")).isEqualTo(2);
+
+                // Responsável assinado exige o CPF e a declaração: sem ela (nula ou falsa) o CHECK recusa.
+                String evidencias = "situacao = 'ASSINADO', assinado_em = now(), assinante_nome = 'Responsável Fictício', "
+                        + "assinante_cpf = '123.456.789-09', assinante_ip = '127.0.0.1', assinante_agente = 'teste'";
+                String assinar = "update contrato_aluno set " + evidencias + " where id = '" + responsavel + "'";
+                assertThatThrownBy(() -> st.execute(assinar)).hasMessageContaining("ck_contrato_assinado");
+                assertThatThrownBy(() -> st.execute("update contrato_aluno set " + evidencias
+                        + ", assinante_declarou_responsavel = false where id = '" + responsavel + "'"))
+                        .hasMessageContaining("ck_contrato_assinado");
+                st.execute("update contrato_aluno set " + evidencias + ", assinante_declarou_responsavel = true where id = '"
+                        + responsavel + "'");
+                // O aluno nunca leva a declaração, e a declaração sem assinatura também é recusada.
+                assertThatThrownBy(() -> st.execute("update contrato_aluno set assinante_declarou_responsavel = true where id = '"
+                        + doAluno + "'")).hasMessageContaining("ck_contrato_assinado");
+
+                // apagado_em só no assinado (o pendente recusa) e, nele, sem nenhuma evidência.
+                assertThatThrownBy(() -> st.execute("update contrato_aluno set apagado_em = now() where id = '" + doAluno + "'"))
+                        .hasMessageContaining("ck_contrato_apagado");
+                assertThatThrownBy(() -> st.execute("update contrato_aluno set apagado_em = now() where id = '" + responsavel + "'"))
+                        .hasMessageContaining("ck_contrato_assinado");
+                // O texto do modelo só sai com apagado_em (a guarda), nunca de um contrato vivo.
+                assertThatThrownBy(() -> st.execute("update contrato_aluno set texto = null where id = '" + doAluno + "'"))
+                        .hasMessageContaining("ck_contrato_texto_so_no_modelo");
+                st.execute("update contrato_aluno set apagado_em = now(), texto = null, assinado_em = null, assinante_nome = null, "
+                        + "assinante_cpf = null, assinante_ip = null, assinante_agente = null, assinante_declarou_responsavel = null, "
+                        + "link_hash = null, link_expira_em = null where id = '" + responsavel + "'");
+                assertThat(contar(c, "select count(*) from contrato_aluno where id = '" + responsavel
+                        + "' and situacao = 'ASSINADO' and apagado_em is not null")).isEqualTo(1);
             }
         } finally {
             admin("postgres", "DROP DATABASE IF EXISTS " + banco + " WITH (FORCE)");

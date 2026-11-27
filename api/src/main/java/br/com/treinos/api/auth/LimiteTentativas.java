@@ -13,7 +13,7 @@ import java.util.HexFormat;
 /**
  * Limita as tentativas das rotas públicas que não são o login (o login é do módulo de autenticação da plataforma:
  * {@code LimiteLogin}): cadastro de treinador e convite público por IP (10 e 30), refresh por IP (120), logo pública por IP (300),
- * inscrição pelo link por IP (20 envios e 300 consultas da página), busca de CEP por IP (120), página pública da loja por IP (600), fotos dela por IP (3000) e falhas da
+ * inscrição pelo link por IP (20 envios e 300 consultas da página), página pública do contrato do responsável por IP (30) e erros de CPF dela por IP (10) e por código (5), busca de CEP por IP (120), página pública da loja por IP (600), fotos dela por IP (3000) e falhas da
  * verificação humana por IP (20), com janela fixa
  * de 600 s e contador no banco. A chave é um SHA-256 com o sal {@code plataforma.auth.login.sal}; cada ação tem prefixo
  * próprio, então uma não consome o limite da outra.
@@ -40,12 +40,16 @@ public class LimiteTentativas {
                      @Value("${treinos.limites.loja-ip:600}") int lojaIp,
                      @Value("${treinos.limites.loja-foto-ip:3000}") int lojaFotoIp,
                      @Value("${treinos.limites.marketplace-ip:600}") int marketplaceIp,
+                     @Value("${treinos.limites.contrato-publico-ip:30}") int contratoPublicoIp,
+                     @Value("${treinos.limites.contrato-cpf-ip:10}") int contratoCpfIp,
+                     @Value("${treinos.limites.contrato-cpf-codigo:5}") int contratoCpfCodigo,
                      @Value("${treinos.limites.janela-segundos:600}") long janelaSegundos,
                      @Value("${plataforma.auth.login.sal:}") String sal) {
         this.limites = new Limites(cadastroIp, conviteIp, refreshIp, verificacaoIp, logoIp, inscricaoIp, inscricaoConsultaIp,
-                conviteEquipeConsultaIp, cepIp, lojaIp, lojaFotoIp, marketplaceIp);
+                conviteEquipeConsultaIp, cepIp, lojaIp, lojaFotoIp, marketplaceIp, contratoPublicoIp, contratoCpfIp, contratoCpfCodigo);
         if (cadastroIp < 1 || conviteIp < 1 || refreshIp < 1 || verificacaoIp < 1 || logoIp < 1 || inscricaoIp < 1
                 || inscricaoConsultaIp < 1 || conviteEquipeConsultaIp < 1 || cepIp < 1 || lojaIp < 1 || lojaFotoIp < 1 || marketplaceIp < 1
+                || contratoPublicoIp < 1 || contratoCpfIp < 1 || contratoCpfCodigo < 1
                 || janelaSegundos < 1 || janelaSegundos > 86400) {
             throw new IllegalArgumentException("Limites de tentativas inválidos.");
         }
@@ -106,6 +110,44 @@ public class LimiteTentativas {
     /** Lista pública de lojas (marketplace, sem login): balde próprio por IP; a consulta cruza consultorias, então tem teto. */
     public void marketplace(String ip) {
         porIp("marketplace-ip", ip, limites.marketplaceIp());
+    }
+
+    /** Página pública do contrato do responsável (consultar, abrir, arquivo e assinar): um balde por IP para as quatro rotas. */
+    public void contratoPublico(String ip) {
+        porIp("contrato-publico-ip", ip, limites.contratoPublicoIp());
+    }
+
+    /**
+     * Antes de conferir o CPF do responsável: recusa (429) o IP ou o código que já gastou os erros da janela. Não conta nada; quem
+     * já esgotou os erros não pode mais tentar, nem com o CPF certo (senão o limite não fecharia o chute de CPF). {@code codigoHash}
+     * é o hash do código do link, nunca o código.
+     */
+    public void contratoCpfBloqueado(String ip, String codigoHash) {
+        long agora = clock.millis();
+        var porIp = contador.ler(chave("contrato-cpf-ip", ip), agora);
+        var porCodigo = contador.ler(chave("contrato-cpf-codigo", codigoHash), agora);
+        if (porIp.tentativas() >= limites.contratoCpfIp()) {
+            throw new MuitasRequisicoesException(segundosAte(porIp.ateMs(), agora));
+        }
+        if (porCodigo.tentativas() >= limites.contratoCpfCodigo()) {
+            throw new MuitasRequisicoesException(segundosAte(porCodigo.ateMs(), agora));
+        }
+    }
+
+    /**
+     * Conta um CPF que não conferiu, por IP e por código (os dois sempre, para um não escapar do outro); chamado fora da transação,
+     * então a contagem fica mesmo com o 422. A tentativa que cruza o limite já recebe o 429.
+     */
+    public void contratoCpfErrou(String ip, String codigoHash) {
+        long agora = clock.millis();
+        var porIp = contador.tentar(chave("contrato-cpf-ip", ip), agora, janelaMs);
+        var porCodigo = contador.tentar(chave("contrato-cpf-codigo", codigoHash), agora, janelaMs);
+        if (porIp.tentativas() > limites.contratoCpfIp()) {
+            throw new MuitasRequisicoesException(segundosAte(porIp.ateMs(), agora));
+        }
+        if (porCodigo.tentativas() > limites.contratoCpfCodigo()) {
+            throw new MuitasRequisicoesException(segundosAte(porCodigo.ateMs(), agora));
+        }
     }
 
     public void refresh(String ip) {
@@ -275,6 +317,6 @@ public class LimiteTentativas {
 
     private record Limites(int cadastroIp, int conviteIp, int refreshIp, int verificacaoIp, int logoIp, int inscricaoIp,
                            int inscricaoConsultaIp, int conviteEquipeConsultaIp, int cepIp, int lojaIp,
-                           int lojaFotoIp, int marketplaceIp) {
+                           int lojaFotoIp, int marketplaceIp, int contratoPublicoIp, int contratoCpfIp, int contratoCpfCodigo) {
     }
 }

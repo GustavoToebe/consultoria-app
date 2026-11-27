@@ -296,6 +296,23 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect((await repo.listar())[0].situacao).toBe('LOCAL');
   });
 
+  it('trava do contrato (403 CONTRATO_PENDENTE) mantém LOCAL e tenta de novo, sem virar erro do lote (D19)', async () => {
+    const repo = aparelho('u1');
+    await repo.registrar(serie('x'));
+    let travado = true;
+    const sync = sincronizadorDe(repo, async (registros) => {
+      if (travado) throw new ErroApi(403, 'CONTRATO_PENDENTE', 'Assine o contrato para continuar.');
+      return aceitaTudo(registros);
+    });
+    expect(await sync.sincronizar()).toEqual({ tipo: 'semConexao' });
+    const [r] = await repo.listar();
+    expect(r.situacao).toBe('LOCAL');
+    expect(r.motivo ?? null).toBeNull();
+    travado = false;
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect((await repo.listar())[0].situacao).toBe('ENVIADO');
+  });
+
   it('dois alunos no mesmo aparelho não se misturam, e sair apaga só o de quem saiu', async () => {
     const ana = aparelho('ana');
     const bia = aparelho('bia');

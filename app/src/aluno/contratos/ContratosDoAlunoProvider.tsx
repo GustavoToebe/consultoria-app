@@ -11,6 +11,8 @@ import { useCarregar } from '../../ui/useCarregar';
 interface Valor {
   /** Os contratos do aluno (pendentes e assinados); `undefined` sem a chave, sem conexão, ainda carregando ou com erro. */
   contratos: ContratoDoAlunoResumo[] | undefined;
+  /** Erro da última busca (sem lista); `undefined` sem erro ou sem buscar. A tela de bloqueio do contrato o mostra. */
+  erro: unknown;
   recarregar: () => void;
 }
 
@@ -46,7 +48,7 @@ export function ContratosDoAlunoProvider({ children }: { children: ReactNode }) 
   }, [buscando, recarregar]);
 
   const contratos = chave === null ? undefined : carga.dados;
-  const valor: Valor = { contratos, recarregar };
+  const valor: Valor = { contratos, erro: chave === null ? undefined : carga.erro, recarregar };
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

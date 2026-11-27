@@ -71,20 +71,20 @@ export function TelaAjuda({ publico, videos = VIDEOS_DA_AJUDA }: { publico: Publ
 /** Dentro da `Tela`: só aqui o `useRolagem` enxerga a rolagem da tela. */
 function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaAjuda }) {
   const guia = GUIAS[publico];
-  const { cicloHabilitado, retornoHabilitado, vitrineHabilitada, lojaHabilitada, pode, perfilEquipe } = useSessao();
+  const { cicloHabilitado, retornoHabilitado, vitrineHabilitada, lojaHabilitada, contratosHabilitados, pode, perfilEquipe } = useSessao();
   const { rever } = usePasseio();
   const { rolarAte } = useRolagem();
   const [tutorial, setTutorial] = useState(false);
   const [busca, setBusca] = useState('');
   // "Saiba mais" do ⓘ do cabeçalho (`?secao=`, `dominio/ajudaDaTela`): a seção abre e a tela rola até ela, se existe nesta área.
   const { secao } = useLocalSearchParams<{ secao?: string }>();
-  const secaoPedida = typeof secao === 'string' && secoesDoGuia(guia, retornoHabilitado, vitrineHabilitada, lojaHabilitada).some((s) => s.id === secao) ? secao : null;
+  const secaoPedida = typeof secao === 'string' && secoesDoGuia(guia, retornoHabilitado, vitrineHabilitada, lojaHabilitada, contratosHabilitados).some((s) => s.id === secao) ? secao : null;
   const [atual, setAtual] = useState(secaoPedida ?? COMECAR);
   const { largura, aoMedir } = useFaixaDeLargura();
   const campo = useRef<TextInput>(null);
 
   // Textos como a tela mostra (sem a frase do ciclo, sem as seções do retorno e da vitrine desligados): a busca procura no que se vê.
-  const secoes: SecaoGuia[] = secoesDoGuia(guia, retornoHabilitado, vitrineHabilitada, lojaHabilitada).map((s) => ({ ...s, itens: s.itens.map((i) => ({ ...i, texto: textoDoItem(i.texto, cicloHabilitado) })) }));
+  const secoes: SecaoGuia[] = secoesDoGuia(guia, retornoHabilitado, vitrineHabilitada, lojaHabilitada, contratosHabilitados).map((s) => ({ ...s, itens: s.itens.map((i) => ({ ...i, texto: textoDoItem(i.texto, cicloHabilitado) })) }));
   const buscando = palavrasDaBusca(busca).length > 0;
   const achado = buscarNaAjuda(secoes, guia.perguntas, busca);
   // Lista completa (não a filtrada pela busca): as seções nascem fechadas e a busca abre as que casaram.

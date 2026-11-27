@@ -151,6 +151,27 @@ public class PagamentosDoAluno {
     }
 
     /**
+     * O fim da contratação para a guarda do contrato assinado (D16: 5 anos depois do fim da contratação ligada). Encerrada = a data
+     * (Brasília) do encerramento; senão, só quando a vigência tem fim (parcela única e contrato fechado) o último dia dela, inclusive.
+     * Vazio = a contratação não terminou (recorrente em andamento, pausada ou não) ou não existe: a guarda mantém o contrato.
+     * Leitura de dado já gravado: roda com o financeiro ligado ou não. Quem chama já está dentro da consultoria.
+     */
+    @Transactional(readOnly = true)
+    public Optional<LocalDate> fimDaContratacaoParaGuarda(UUID contratacaoId) {
+        return contratacoes.findById(contratacaoId).flatMap(c -> {
+            if (c.getEncerradaEm() != null) {
+                return Optional.of(c.getEncerradaEm().atZone(Fuso.BRASILIA).toLocalDate());
+            }
+            if (c.recorrente()) {
+                return Optional.empty();
+            }
+            LocalDate termino = VigenciaDoPlano.de(c, LocalDate.now(Fuso.BRASILIA)).termino();
+            // O término é exclusivo (o primeiro dia depois do ciclo): o fim do contrato é o dia anterior.
+            return termino == null ? Optional.empty() : Optional.of(termino.minusDays(1));
+        });
+    }
+
+    /**
      * Inativar pelo treinador (rota e lote) recusa o aluno com contrato fechado vigente: contratação ATIVA e {@code fechado()}, sem
      * olhar a data do fim (o contrato fechado só sai de ATIVA ao encerrar). Com o financeiro desligado não há como encerrar o
      * contrato, então não bloqueia (senão não haveria saída). Só leitura: quem chama já travou o aluno (a ordem consultoria, aluno,

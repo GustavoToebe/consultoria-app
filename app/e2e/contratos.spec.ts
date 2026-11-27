@@ -44,13 +44,13 @@ const MODELO = modelo(1, 'Prestação de serviço');
 const resumo = (n: number, p: Partial<ContratoResumo> = {}): ContratoResumo => ({
   id: `k0000000-0000-4000-8000-00000000000${n}`, alunoId: ID, titulo: 'Prestação de serviço', origem: 'MODELO', signatario: 'ALUNO',
   situacao: 'PENDENTE', prazoAte: null, vencido: false, contratacaoId: CONTRATACAO.id, geradoEm: '2026-11-20T15:00:00Z',
-  assinadoEm: null, canceladoEm: null, versao: 0, ...p,
+  assinadoEm: null, canceladoEm: null, versao: 0, grupoId: null, linkExpiraEm: null, ...p,
 });
 const PENDENTE = resumo(1);
 const ASSINADO = resumo(2, { titulo: 'Contrato anual', situacao: 'ASSINADO', assinadoEm: '2026-11-21T17:03:09Z' });
 const detalheDe = (r: ContratoResumo): ContratoDetalhe => ({
   ...r, motivoCancelamento: null, texto: r.origem === 'PDF' ? null : 'Contratante: **Aluno Teste**, CPF 529.982.247-25.\n\nPlano Trimestral, valor R$ 997,00.', sha256: HASH,
-  geradoPorNome: TREINADOR.nome,
+  geradoPorNome: TREINADOR.nome, link: null,
   assinatura: r.situacao === 'ASSINADO' ? { assinadoEm: r.assinadoEm!, nome: 'Aluno Teste da Silva', cpf: null, ip: '203.0.113.7', agente: 'Navegador de teste' } : null,
 });
 const PREVIA_OK: PreviaDoContrato = { titulo: 'Prestação de serviço', texto: 'Contratante: **Aluno Teste**.', faltas: [], podeGerar: true };
@@ -71,6 +71,7 @@ async function abrirModelos(page: Page, o: Opcoes, caminho = '/treinador/contrat
     ...(await sessao(page, TREINADOR, { permissoes: o.permissoes ?? PERMISSOES, contratosHabilitados: o.chave ?? true })),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /consultoria/contratos': { corpo: { prazoDias: null } },
     'GET /contratos/modelos': (_p, r) => json(r, modelos),
     'POST /contratos/modelos': (p, r) => {
       const c = p.corpo as { nome: string; texto: string };
@@ -105,8 +106,13 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Nenhum modelo de contrato')).toBeVisible();
       await page.getByRole('button', { name: 'Novo modelo' }).click();
       const folha = page.getByRole('dialog', { name: 'Novo modelo de contrato' });
+      // Sem mexer em nada, o rodapé só orienta; a dica sai assim que o nome entra (aí vira "Alterações não salvas").
+      await expect(folha.getByText('Dê um nome ao modelo e ajuste o texto de exemplo.')).toBeVisible();
       await folha.getByLabel('Nome do modelo').fill('Prestação de serviço');
+      await expect(folha.getByText('Alterações não salvas')).toBeVisible();
       const texto = folha.getByLabel('Texto do contrato');
+      // D27: o modelo novo nasce com o texto de exemplo e a cláusula de aceite eletrônico; sem mexer, nada a salvar.
+      await expect(texto).toHaveValue(/Medida Provisória nº 2\.200-2\/2001 e da Lei nº 14\.063\/2020\./);
       await texto.fill('Contratante: ');
       await folha.getByRole('button', { name: 'Inserir campo Nome do aluno' }).click();
       await expect(texto).toHaveValue('Contratante: {aluno_nome}');
@@ -163,6 +169,8 @@ test('1280 e 1920: Configurações › Contratos dentro das Configurações', as
 interface OpcoesDaFicha {
   largura: number; permissoes?: string[]; contratos?: ContratoResumo[]; previa?: () => PreviaDoContrato; gerar?: (p: PedidoFalso) => { status: number; corpo: unknown };
   modelos?: ModeloDeContrato[]; rotas?: RespostasApi; pagamentos?: boolean;
+  /** O que entra na lista depois de gerar (padrão: o pendente do aluno). */
+  depoisDeGerar?: ContratoResumo[];
 }
 
 async function abrirFicha(page: Page, o: OpcoesDaFicha) {
@@ -182,7 +190,7 @@ async function abrirFicha(page: Page, o: OpcoesDaFicha) {
     [`POST /alunos/${ID}/contratos/previa`]: (_p, r) => json(r, (o.previa ?? (() => PREVIA_OK))()),
     [`POST /alunos/${ID}/contratos`]: (p, r) => {
       const resposta = o.gerar?.(p) ?? { status: 201, corpo: detalheDe(PENDENTE) };
-      if (resposta.status < 300) contratos = [PENDENTE, ...contratos];
+      if (resposta.status < 300) contratos = [...(o.depoisDeGerar ?? [PENDENTE]), ...contratos];
       return json(r, resposta.corpo, resposta.status);
     },
     'GET /contratos/{id}': (p, r) => json(r, detalheDe([...contratos, PENDENTE, ASSINADO].find((c) => c.id === p.caminho.split('/').at(-1))!)),
@@ -243,6 +251,8 @@ for (const largura of [390, 1280]) {
       const folha = folhaGerar(page);
       await expect(folha.getByText('Plano, valor, parcelas, vigência e responsável precisam do Financeiro, que não está disponível para o seu perfil.')).toBeVisible();
       await expect(folha.getByText('Contratação', { exact: true })).toHaveCount(0);
+      // O responsável mora no Financeiro (D12): sem FINANCEIRO_LER não há "Quem assina".
+      await expect(folha.getByText('Quem assina', { exact: true })).toHaveCount(0);
     });
 
     test('cancelar: sem motivo trava; 409 CONTRATO_ASSINADO avisa e recarrega', async ({ page }) => {
@@ -313,6 +323,124 @@ for (const largura of [390, 1280]) {
         await capturar(page, 'comprovante');
         await page.emulateMedia({ media: 'screen' });
       }
+      expect(api.errosDaPagina).toEqual([]);
+    });
+  });
+}
+
+// ---------------------------------------------------------------- passo 4: responsável por link
+
+const CODIGO_DO_LINK = 'Tq3vX9_kLm2Pw8Zr-Ab4Cd7Ef';
+const CODIGO_NOVO = 'Nv8wQ2_pRs5Tu1Xy-Gh6Jk3Lm';
+const EXPIRA = '2026-12-27T02:59:59Z';
+const DO_RESPONSAVEL = resumo(5, { titulo: 'Contrato do responsável', signatario: 'RESPONSAVEL', linkExpiraEm: EXPIRA });
+const GRUPO = 'g0000000-0000-4000-8000-000000000001';
+const PAR_ALUNO = resumo(6, { titulo: 'Contrato em par', grupoId: GRUPO });
+const PAR_RESPONSAVEL = resumo(7, { titulo: 'Contrato em par', signatario: 'RESPONSAVEL', grupoId: GRUPO, linkExpiraEm: EXPIRA });
+
+/** O WhatsApp abre fora do app: a página de teste responde no lugar do wa.me (nada sai da máquina). */
+async function whatsappFalso(page: Page) {
+  await page.context().route('https://wa.me/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<title>WhatsApp</title>' }));
+}
+
+for (const largura of [390, 1280]) {
+  test.describe(`ficha › Contratos, responsável, em ${largura} px`, () => {
+    test('"Quem assina: Responsável" vai na prévia e no gerar; o link aparece uma vez, com copiar e WhatsApp', async ({ page }) => {
+      await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+      await whatsappFalso(page);
+      const api = await abrirFicha(page, {
+        largura, depoisDeGerar: [DO_RESPONSAVEL],
+        gerar: () => ({ status: 201, corpo: { ...detalheDe(DO_RESPONSAVEL), link: { contratoId: DO_RESPONSAVEL.id, codigo: CODIGO_DO_LINK, expiraEm: EXPIRA } } }),
+      });
+      await page.getByRole('button', { name: 'Gerar contrato' }).click();
+      const folha = folhaGerar(page);
+      // Sem a data de nascimento à mão, só a regra geral dos menores.
+      await expect(folha.getByText('Para menores de idade o app pede também a assinatura do responsável.')).toBeVisible();
+      await folha.getByRole('radio', { name: 'Responsável' }).click();
+      await expect(folha.getByText('O responsável financeiro assina por um link, sem conta no app.')).toBeVisible();
+      await expect(folha.getByText('O responsável assina pelo link que aparece quando você gerar.')).toBeVisible();
+      await expect.poll(() => api.pedidos.filter((p) => p.caminho.endsWith('/contratos/previa')).at(-1)?.corpo).toMatchObject({ signatario: 'RESPONSAVEL' });
+      await capturar(page, `gerar-responsavel-${largura}`);
+      await folha.getByRole('button', { name: 'Gerar contrato' }).click();
+
+      const link = page.getByRole('dialog', { name: 'Link do responsável' });
+      await expect(link.getByText(`/contrato#codigo=${CODIGO_DO_LINK}`, { exact: false })).toBeVisible();
+      expect(api.pedidos.find((p) => p.metodo === 'POST' && p.caminho === `/alunos/${ID}/contratos`)?.corpo).toMatchObject({ signatario: 'RESPONSAVEL' });
+      await expect(link.getByText('Válido até 26/12/2026.')).toBeVisible();
+      await expect(link.getByText('Este link aparece só agora. Para outro, use “Gerar novo link” na ficha.')).toBeVisible();
+      await capturar(page, `link-do-responsavel-${largura}`);
+      await link.getByRole('button', { name: 'Copiar link' }).click();
+      await expect(page.getByText('Link copiado.')).toBeVisible();
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(new RegExp(`/contrato#codigo=${CODIGO_DO_LINK}$`));
+
+      const [popup] = await Promise.all([page.waitForEvent('popup'), link.getByRole('button', { name: /^Enviar pelo WhatsApp/ }).click()]);
+      await popup.waitForLoadState();
+      const url = new URL(popup.url());
+      expect(url.origin + url.pathname).toBe('https://wa.me/');
+      expect(url.searchParams.get('text')).toMatch(new RegExp(`^Olá! Segue o link para assinar o contrato: .*/contrato#codigo=${CODIGO_DO_LINK}$`));
+      await popup.close();
+
+      await link.getByRole('button', { name: 'Concluir' }).click();
+      await expect(page.getByRole('dialog', { name: 'Link do responsável' })).toHaveCount(0);
+      await expect(page.getByText('Assina: responsável', { exact: false })).toBeVisible();
+      await expect(page.getByText('Link válido até 26/12/2026', { exact: false })).toBeVisible();
+      // O código nunca vai a caminho nem busca de pedido algum.
+      for (const p of api.pedidos) expect(`${p.caminho}?${p.busca.toString()}`).not.toContain(CODIGO_DO_LINK);
+      expect(api.naoTratadas.filter((r) => r.includes('contrat'))).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('reenvio do mesmo pedido sem código: avisa e oferece um link novo', async ({ page }) => {
+      const api = await abrirFicha(page, {
+        largura, depoisDeGerar: [DO_RESPONSAVEL],
+        gerar: () => ({ status: 200, corpo: { ...detalheDe(DO_RESPONSAVEL), link: { contratoId: DO_RESPONSAVEL.id, codigo: null, expiraEm: EXPIRA } } }),
+        rotas: { 'POST /contratos/{id}/link': { corpo: { contratoId: DO_RESPONSAVEL.id, codigo: CODIGO_NOVO, expiraEm: EXPIRA } } },
+      });
+      await page.getByRole('button', { name: 'Gerar contrato' }).click();
+      await folhaGerar(page).getByRole('radio', { name: 'Responsável' }).click();
+      await folhaGerar(page).getByRole('button', { name: 'Gerar contrato' }).click();
+      const link = page.getByRole('dialog', { name: 'Link do responsável' });
+      await expect(link.getByText('O link do responsável aparece só uma vez', { exact: false })).toBeVisible();
+      await link.getByRole('button', { name: 'Gerar novo link do responsável' }).click();
+      await expect(page.getByRole('dialog', { name: 'Link do responsável' }).getByText(`/contrato#codigo=${CODIGO_NOVO}`, { exact: false })).toBeVisible();
+      expect(api.pedidos.some((p) => p.metodo === 'POST' && p.caminho === `/contratos/${DO_RESPONSAVEL.id}/link`)).toBe(true);
+    });
+
+    test('⋯ "Gerar novo link do responsável" e o par de 16 a 17 anos em duas linhas', async ({ page }) => {
+      const api = await abrirFicha(page, {
+        largura, contratos: [PAR_ALUNO, PAR_RESPONSAVEL],
+        rotas: {
+          'POST /contratos/{id}/link': { corpo: { contratoId: PAR_RESPONSAVEL.id, codigo: CODIGO_NOVO, expiraEm: EXPIRA } },
+          'GET /contratos/{id}': (p, r) => {
+            const c = [PAR_ALUNO, PAR_RESPONSAVEL].find((x) => x.id === p.caminho.split('/').at(-1))!;
+            return json(r, { ...detalheDe(c), link: c.signatario === 'RESPONSAVEL' ? { contratoId: c.id, codigo: null, expiraEm: EXPIRA } : null });
+          },
+        },
+      });
+      await expect(page.getByText('Assina: aluno', { exact: false })).toBeVisible();
+      await expect(page.getByText('Assina: responsável', { exact: false })).toBeVisible();
+      await capturar(page, `ficha-par-${largura}`);
+      // Só o contrato do responsável tem link (o do aluno vem primeiro).
+      const botoesDeMais = page.getByRole('button', { name: 'Mais ações do contrato Contrato em par' });
+      await expect(botoesDeMais).toHaveCount(2);
+      await botoesDeMais.first().click();
+      await expect(page.getByRole('dialog').getByRole('button', { name: 'Gerar novo link do responsável' })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Fechar' }).click();
+      await botoesDeMais.last().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Gerar novo link do responsável' }).click();
+      const link = page.getByRole('dialog', { name: 'Link do responsável' });
+      await expect(link.getByText(`/contrato#codigo=${CODIGO_NOVO}`, { exact: false })).toBeVisible();
+      await link.getByRole('button', { name: 'Concluir' }).click();
+      expect(api.pedidos.filter((p) => p.caminho === `/contratos/${PAR_RESPONSAVEL.id}/link`)).toHaveLength(1);
+
+      // Na folha do contrato: quem assina, a validade do link e o mesmo "Gerar novo link".
+      await page.getByRole('button', { name: 'Ver contrato Contrato em par' }).last().click();
+      const ver = page.getByRole('dialog', { name: 'Contrato em par' });
+      await expect(ver.getByText('Responsável, pelo link')).toBeVisible();
+      await expect(ver.getByText('Válido até 26/12/2026')).toBeVisible();
+      await ver.getByRole('button', { name: 'Gerar novo link do responsável' }).click();
+      await expect(page.getByRole('dialog', { name: 'Link do responsável' })).toBeVisible();
+      await expect.poll(() => api.pedidos.filter((p) => p.caminho === `/contratos/${PAR_RESPONSAVEL.id}/link`).length).toBe(2);
       expect(api.errosDaPagina).toEqual([]);
     });
   });

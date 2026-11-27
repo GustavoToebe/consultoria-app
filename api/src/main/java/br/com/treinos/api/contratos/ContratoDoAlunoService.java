@@ -128,14 +128,14 @@ public class ContratoDoAlunoService {
     }
 
     private static ContratoDoAlunoDetalhe detalhe(ContratoAluno c) {
-        AssinaturaDoAluno assinatura = c.getSituacao() == Situacao.ASSINADO
+        AssinaturaDoAluno assinatura = c.getSituacao() == Situacao.ASSINADO && c.getApagadoEm() == null
                 ? new AssinaturaDoAluno(c.getAssinadoEm(), c.getAssinanteNome()) : null;
         return new ContratoDoAlunoDetalhe(c.getId(), c.getTitulo(), c.getOrigem(), c.getSignatario(), c.getSituacao(), c.getPrazoAte(),
                 c.vencido(Instant.now()), c.getGeradoEm(), c.getTexto(), c.getSha256(), assinatura);
     }
 
     /** Sem caracteres de controle e no tamanho da coluna; ausente vira vazio (a evidência exige a coluna preenchida). */
-    private static String limpar(String texto, int maximo) {
+    static String limpar(String texto, int maximo) {
         if (texto == null) {
             return "";
         }

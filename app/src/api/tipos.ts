@@ -88,8 +88,11 @@ export interface EuResponse {
   redesSociaisDaConsultoria?: Partial<Record<RedeDaConsultoria, string>>;
   usuario: UsuarioResumo;
   marca: Marca;
-  /** `acessoDesativadoMotivo` (só `ATRASO` chega aqui: o MANUAL nem entra): pausado pelo treinador por atraso, o app mostra só a tela das cobranças. */
-  aluno?: { id: string; nome: string; sexo?: string | null; acessoDesativadoMotivo?: 'ATRASO' | null };
+  /**
+   * `acessoDesativadoMotivo` (só `ATRASO` chega aqui: o MANUAL nem entra): pausado pelo treinador por atraso, o app mostra só a tela das cobranças.
+   * `contratoPendenteVencido`: há contrato pendente com o prazo vencido (D5; as outras rotas dão 403 `CONTRATO_PENDENTE`); com a chave desligada, `false`.
+   */
+  aluno?: { id: string; nome: string; sexo?: string | null; acessoDesativadoMotivo?: 'ATRASO' | null; contratoPendenteVencido?: boolean };
   termosPendentes: boolean;
   termosVersao: string;
 }

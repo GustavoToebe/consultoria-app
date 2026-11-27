@@ -97,8 +97,8 @@ describe('frase do ciclo no guia', () => {
 describe('seções do retorno imediato', () => {
   it('só aparecem com a chave ligada, nos dois guias', () => {
     for (const guia of [GUIAS.treinador, GUIAS.aluno]) {
-      const ligada = secoesDoGuia(guia, true, true, true).map((s) => s.titulo);
-      const desligada = secoesDoGuia(guia, false, true, true).map((s) => s.titulo);
+      const ligada = secoesDoGuia(guia, true, true, true, true).map((s) => s.titulo);
+      const desligada = secoesDoGuia(guia, false, true, true, true).map((s) => s.titulo);
       const doRetorno = guia.secoes.filter((s) => s.soComRetorno).map((s) => s.titulo);
       expect(doRetorno).toHaveLength(1);
       expect(ligada).toEqual(guia.secoes.map((s) => s.titulo));
@@ -113,7 +113,7 @@ describe('seção da página pública da vitrine', () => {
     const daLoja = GUIAS.treinador.secoes.filter((s) => s.soComLoja).map((s) => s.titulo);
     expect(daLoja).toHaveLength(1);
     expect(GUIAS.aluno.secoes.filter((s) => s.soComLoja)).toHaveLength(0);
-    expect(secoesDoGuia(GUIAS.treinador, true, true, true).map((s) => s.titulo)).toContain(daLoja[0]);
+    expect(secoesDoGuia(GUIAS.treinador, true, true, true, true).map((s) => s.titulo)).toContain(daLoja[0]);
     expect(secoesDoGuia(GUIAS.treinador, true, true).map((s) => s.titulo)).not.toContain(daLoja[0]);
   });
 });
@@ -121,12 +121,26 @@ describe('seção da página pública da vitrine', () => {
 describe('seções da vitrine', () => {
   it('só aparecem com a chave ligada, nos dois guias', () => {
     for (const guia of [GUIAS.treinador, GUIAS.aluno]) {
-      const ligada = secoesDoGuia(guia, true, true, true).map((s) => s.titulo);
-      const desligada = secoesDoGuia(guia, true, false, true).map((s) => s.titulo);
+      const ligada = secoesDoGuia(guia, true, true, true, true).map((s) => s.titulo);
+      const desligada = secoesDoGuia(guia, true, false, true, true).map((s) => s.titulo);
       const daVitrine = guia.secoes.filter((s) => s.soComVitrine).map((s) => s.titulo);
       expect(daVitrine).toHaveLength(1);
       expect(ligada).toEqual(guia.secoes.map((s) => s.titulo));
       expect(desligada).not.toContain(daVitrine[0]);
+      expect(desligada).toHaveLength(guia.secoes.length - 1);
+    }
+  });
+});
+
+describe('seções dos contratos', () => {
+  it('só aparecem com a chave ligada, uma em cada guia', () => {
+    for (const guia of [GUIAS.treinador, GUIAS.aluno]) {
+      const ligada = secoesDoGuia(guia, true, true, true, true).map((s) => s.titulo);
+      const desligada = secoesDoGuia(guia, true, true, true, false).map((s) => s.titulo);
+      const dosContratos = guia.secoes.filter((s) => s.soComContratos).map((s) => s.titulo);
+      expect(dosContratos).toHaveLength(1);
+      expect(ligada).toEqual(guia.secoes.map((s) => s.titulo));
+      expect(desligada).not.toContain(dosContratos[0]);
       expect(desligada).toHaveLength(guia.secoes.length - 1);
     }
   });

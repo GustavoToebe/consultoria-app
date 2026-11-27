@@ -1,5 +1,6 @@
 package br.com.treinos.api.contratos;
 
+import br.com.treinos.api.consultoria.MarcaPublica;
 import br.com.treinos.api.contratos.ContratoAluno.Origem;
 import br.com.treinos.api.contratos.ContratoAluno.Signatario;
 import br.com.treinos.api.contratos.ContratoAluno.Situacao;
@@ -44,7 +45,7 @@ public final class ContratoDtos {
 
     // ---- gerar ----
 
-    /** {@code signatario}: {@code ALUNO} (padrão); {@code RESPONSAVEL} só no passo do link. */
+    /** {@code signatario}: {@code ALUNO} (padrão) ou {@code RESPONSAVEL} (pelo link); menor de idade segue a regra do servidor (S2). */
     public record GerarContratoRequest(UUID pedidoId, UUID modeloId, UUID contratacaoId, String titulo, String signatario) {
         @Override
         public String toString() {
@@ -81,22 +82,35 @@ public final class ContratoDtos {
 
     public record ProrrogarRequest(Integer dias, Long versao) { }
 
-    public record ContratoResumo(UUID id, UUID alunoId, String titulo, Origem origem, Signatario signatario, Situacao situacao,
-                                 Instant prazoAte, boolean vencido, UUID contratacaoId, Instant geradoEm, Instant assinadoEm,
-                                 Instant canceladoEm, Long versao) { }
+    /** {@code grupoId} liga o par aluno + responsável (16 a 17 anos); {@code linkExpiraEm} só no responsável pendente com link. */
+    public record ContratoResumo(UUID id, UUID alunoId, UUID grupoId, String titulo, Origem origem, Signatario signatario,
+                                 Situacao situacao, Instant prazoAte, boolean vencido, UUID contratacaoId, Instant geradoEm,
+                                 Instant assinadoEm, Instant canceladoEm, Instant linkExpiraEm, Long versao) { }
+
+    /**
+     * O link do responsável (D11). {@code codigo} (144 bits) só vem na resposta que o criou: o gerar (201) e o renovar; nas leituras e no
+     * reenvio do mesmo {@code pedidoId} vem nulo e o treinador renova. No par, o corpo é o contrato do aluno e {@code contratoId} é o do
+     * responsável. O código é segredo: o {@code toString} o esconde.
+     */
+    public record LinkDoContrato(UUID contratoId, String codigo, Instant expiraEm) {
+        @Override
+        public String toString() {
+            return "LinkDoContrato[" + contratoId + "]";
+        }
+    }
 
     /** As evidências do aceite (D2); a equipe com {@code CONTRATO_LER} as lê. O CPF só existe no responsável. */
-    public record Assinatura(Instant assinadoEm, String nome, String cpf, String ip, String agente) {
+    public record Assinatura(Instant assinadoEm, String nome, String cpf, String ip, String agente, Boolean declarouResponsavel) {
         @Override
         public String toString() {
             return "Assinatura[...]";
         }
     }
 
-    public record ContratoDetalhe(UUID id, UUID alunoId, String titulo, Origem origem, Signatario signatario, Situacao situacao,
+    public record ContratoDetalhe(UUID id, UUID alunoId, UUID grupoId, String titulo, Origem origem, Signatario signatario, Situacao situacao,
                                   Instant prazoAte, boolean vencido, UUID contratacaoId, Instant geradoEm, Instant canceladoEm,
                                   String motivoCancelamento, String texto, String sha256, String geradoPorNome,
-                                  Assinatura assinatura, Long versao) {
+                                  Assinatura assinatura, LinkDoContrato link, Long versao) {
         @Override
         public String toString() {
             return "ContratoDetalhe[" + id + "]";
@@ -129,6 +143,54 @@ public final class ContratoDtos {
         @Override
         public String toString() {
             return "ContratoDoAlunoDetalhe[" + id + "]";
+        }
+    }
+
+    // ---- página pública do responsável (código no corpo, nunca no caminho) ----
+
+    public record ConsultarContratoPublicoRequest(String codigo) {
+        @Override
+        public String toString() {
+            return "ConsultarContratoPublicoRequest[...]";
+        }
+    }
+
+    /** Abrir e baixar o arquivo só respondem com o CPF do responsável conferido. */
+    public record AbrirContratoPublicoRequest(String codigo, String cpf) {
+        @Override
+        public String toString() {
+            return "AbrirContratoPublicoRequest[...]";
+        }
+    }
+
+    public record AssinarContratoPublicoRequest(String codigo, String cpf, String sha256, String nome, Boolean aceite,
+                                                Boolean declaroResponsavelLegal) {
+        @Override
+        public String toString() {
+            return "AssinarContratoPublicoRequest[...]";
+        }
+    }
+
+    /** Só a marca e o título: o link sozinho não mostra texto nem dado do aluno (S3). */
+    public record ContratoPublicoConsulta(MarcaPublica consultoria, String titulo) {
+        @Override
+        public String toString() {
+            return "ContratoPublicoConsulta[...]";
+        }
+    }
+
+    /** O contrato depois do CPF conferido: {@code texto} no modelo, nulo no PDF ({@code temArquivo}). */
+    public record ContratoPublicoAberto(String titulo, Origem origem, String texto, boolean temArquivo, String sha256) {
+        @Override
+        public String toString() {
+            return "ContratoPublicoAberto[...]";
+        }
+    }
+
+    public record ContratoPublicoAssinado(String titulo, String texto, String sha256, Instant assinadoEm, String assinanteNome) {
+        @Override
+        public String toString() {
+            return "ContratoPublicoAssinado[...]";
         }
     }
 

@@ -235,7 +235,9 @@ class ContratosPdfIntegrationTest extends AbstractIntegrationTest {
         assertThat(campos(api.ler(enviar(admin, aluno, pdf("a"), "{isto nao e json", 422)))).containsExactly("dados");
         Map<String, Object> responsavel = dados(UUID.randomUUID(), tituloBom);
         responsavel.put("signatario", "RESPONSAVEL");
-        assertThat(campos(api.ler(enviar(admin, aluno, pdf("a"), responsavel, 422)))).containsExactly("signatario");
+        JsonNode semResponsavel = api.ler(enviar(admin, aluno, pdf("a"), responsavel, 422));
+        assertThat(semResponsavel.get("codigo").asString()).isEqualTo("CONTRATO_INCOMPLETO");
+        assertThat(campos(semResponsavel)).containsExactlyInAnyOrder("responsavel_nome", "responsavel_cpf");
 
         // Só o PDF de 900 KB exato foi gravado.
         assertThat(contar("select count(*) from contrato_aluno where aluno_id = ?::uuid", aluno.toString())).isEqualTo(1);

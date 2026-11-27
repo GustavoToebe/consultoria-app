@@ -66,6 +66,7 @@ public class AuthService {
     private final br.com.treinos.api.vitrine.VitrineProperties vitrine;
     private final br.com.treinos.api.whatsapp.WhatsAppProperties whatsapp;
     private final br.com.treinos.api.contratos.ContratosProperties contratos;
+    private final br.com.treinos.api.contratos.TravaPorContrato travaPorContrato;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -85,7 +86,9 @@ public class AuthService {
                        br.com.treinos.api.vitrine.VitrineProperties vitrine,
                        br.com.treinos.api.pagamentos.KiwifyProperties kiwify,
                        br.com.treinos.api.whatsapp.WhatsAppProperties whatsapp,
-                       br.com.treinos.api.contratos.ContratosProperties contratos) {
+                       br.com.treinos.api.contratos.ContratosProperties contratos,
+                       br.com.treinos.api.contratos.TravaPorContrato travaPorContrato) {
+        this.travaPorContrato = travaPorContrato;
         this.contratos = contratos;
         this.whatsapp = whatsapp;
         this.kiwify = kiwify;
@@ -196,7 +199,8 @@ public class AuthService {
             aluno = alunos.findById(usuario.getAlunoId())
                     .map(a -> new EuResponse.AlunoResumo(a.getId(), a.getNome(),
                             a.getSexo() == null ? null : a.getSexo().name(),
-                            a.getAcessoDesativadoMotivo() == null ? null : a.getAcessoDesativadoMotivo().name()))
+                            a.getAcessoDesativadoMotivo() == null ? null : a.getAcessoDesativadoMotivo().name(),
+                            travaPorContrato.contratoPendenteVencido(usuario.getConsultoriaId(), a.getId())))
                     .orElse(null);
         }
         var perfil = usuario.getPerfilId() == null ? null : perfis.buscar(usuario.getPerfilId(), usuario.getConsultoriaId())

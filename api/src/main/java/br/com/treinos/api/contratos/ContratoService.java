@@ -19,9 +19,14 @@ import br.com.treinos.api.contratos.ContratoDtos.ContratoDetalhe;
 import br.com.treinos.api.contratos.ContratoDtos.ContratoExportado;
 import br.com.treinos.api.contratos.ContratoDtos.ContratoResumo;
 import br.com.treinos.api.contratos.ContratoDtos.GerarContratoPdfRequest;
+import br.com.treinos.api.contratos.ContratoDtos.Falta;
 import br.com.treinos.api.contratos.ContratoDtos.GerarContratoRequest;
+import br.com.treinos.api.contratos.ContratoDtos.LinkDoContrato;
 import br.com.treinos.api.contratos.ContratoDtos.PreviaDoContrato;
 import br.com.treinos.api.contratos.ContratoDtos.ProrrogarRequest;
+import br.com.treinos.api.inscricoes.CodigoDeInscricao;
+import br.com.treinos.api.pagamentos.PagamentosProperties;
+import br.com.treinos.api.security.OpaqueTokenGenerator;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Fuso;
@@ -36,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,10 +72,11 @@ public class ContratoService {
     private final ConsultoriaRepository consultorias;
     private final UsuarioRepository usuarios;
     private final Auditoria auditoria;
+    private final PagamentosProperties pagamentos;
 
     public ContratoService(ContratoAlunoRepository contratos, ContratoArquivoRepository arquivos, ContratoModeloService modelos,
                            PreenchimentoDoContrato preenchimento, AlunoRepository alunos, ConsultoriaRepository consultorias,
-                           UsuarioRepository usuarios, Auditoria auditoria) {
+                           UsuarioRepository usuarios, Auditoria auditoria, PagamentosProperties pagamentos) {
         this.contratos = contratos;
         this.arquivos = arquivos;
         this.modelos = modelos;
@@ -78,6 +85,7 @@ public class ContratoService {
         this.consultorias = consultorias;
         this.usuarios = usuarios;
         this.auditoria = auditoria;
+        this.pagamentos = pagamentos;
     }
 
     /** O que {@link #gerar} fez: {@code criado} é 201; repetido pelo mesmo {@code pedidoId} é 200 com o mesmo contrato. */
@@ -92,26 +100,24 @@ public class ContratoService {
     @Transactional(readOnly = true)
     public PreviaDoContrato previa(UUID alunoId, GerarContratoRequest r) {
         Aluno aluno = alunos.findById(alunoId).orElseThrow(ContratoService::alunoNaoEncontrado);
+        Quem quem = quem(aluno, r.signatario());
         Preenchido p = preencher(aluno, r);
-        return new PreviaDoContrato(p.titulo(), p.texto(), p.resultado().faltas(), p.resultado().faltas().isEmpty());
+        List<Falta> faltas = juntar(p.resultado().faltas(), faltasDoResponsavel(aluno, quem));
+        return new PreviaDoContrato(p.titulo(), p.texto(), faltas, faltas.isEmpty());
     }
 
     @Transactional
     public Gerado gerar(UsuarioAutenticado eu, UUID alunoId, GerarContratoRequest r) {
-        return gerarDe(alunoId, r.pedidoId(), aluno -> {
-            Signatario signatario = signatario(r.signatario());
+        return gerarDe(eu, alunoId, r.pedidoId(), aluno -> {
+            Quem quem = quem(aluno, r.signatario());
             Preenchido p = preencher(aluno, r);
-            if (!p.resultado().faltas().isEmpty()) {
-                throw new ValidacaoException("Faltam dados para preencher o contrato.", "CONTRATO_INCOMPLETO",
-                        p.resultado().faltas().stream().map(f -> new ApiError.FieldError(f.campo(), f.mensagem())).toList());
-            }
+            exigirSemFaltas(juntar(p.resultado().faltas(), faltasDoResponsavel(aluno, quem)));
             String texto = TextoDoContrato.normalizar(p.texto());
             if (texto.length() > TEXTO_PREENCHIDO_MAXIMO) {
                 throw invalido("texto", "O contrato preenchido passa de 100.000 caracteres. Encurte o modelo.");
             }
-            Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
-            return new ContratoAluno(alunoId, r.contratacaoId(), Origem.MODELO, p.modeloId(), p.titulo(), texto,
-                    TextoDoContrato.sha256(texto), signatario, prazoAte(p.prazoDias()), eu.usuarioId(), r.pedidoId(), agora);
+            return new Montado(r.contratacaoId(), Origem.MODELO, p.modeloId(), p.titulo(), texto, TextoDoContrato.sha256(texto),
+                    prazoAte(p.prazoDias()), quem);
         }, null);
     }
 
@@ -125,8 +131,8 @@ public class ContratoService {
         if (r == null) {
             throw invalido("dados", "Envie os dados do contrato.");
         }
-        return gerarDe(alunoId, r.pedidoId(), aluno -> {
-            Signatario signatario = signatario(r.signatario());
+        return gerarDe(eu, alunoId, r.pedidoId(), aluno -> {
+            Quem quem = quem(aluno, r.signatario());
             String titulo = r.titulo() == null ? "" : r.titulo().strip();
             List<ApiError.FieldError> problemas = new ArrayList<>();
             if (pdf == null || pdf.length == 0 || !comecaComPdf(pdf)) {
@@ -145,12 +151,12 @@ public class ContratoService {
             if (r.contratacaoId() != null) {
                 preenchimento.exigirContratacao(aluno, r.contratacaoId());
             }
+            exigirSemFaltas(faltasDoResponsavel(aluno, quem));
             Consultoria consultoria = consultorias.findById(TenantContext.get())
                     .orElseThrow(() -> new NaoEncontradoException("Consultoria não encontrada."));
             Short dias = consultoria.getContratoPrazoDias();
-            Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
-            return new ContratoAluno(alunoId, r.contratacaoId(), Origem.PDF, null, titulo, null, TextoDoContrato.sha256(pdf), signatario,
-                    prazoAte(dias == null ? null : dias.intValue()), eu.usuarioId(), r.pedidoId(), agora);
+            return new Montado(r.contratacaoId(), Origem.PDF, null, titulo, null, TextoDoContrato.sha256(pdf),
+                    prazoAte(dias == null ? null : dias.intValue()), quem);
         }, pdf);
     }
 
@@ -173,7 +179,7 @@ public class ContratoService {
      * O que os dois caminhos têm em comum: pedido obrigatório, trava consultoria → aluno, idempotência pelo {@code pedidoId} (depois
      * da trava), aluno ativo e não anonimizado, gravar, o PDF quando houver e a auditoria de resumo fixo.
      */
-    private Gerado gerarDe(UUID alunoId, UUID pedidoId, Function<Aluno, ContratoAluno> montar, byte[] pdf) {
+    private Gerado gerarDe(UsuarioAutenticado eu, UUID alunoId, UUID pedidoId, Function<Aluno, Montado> montar, byte[] pdf) {
         if (pedidoId == null) {
             throw invalido("pedidoId", "Informe o identificador do pedido.");
         }
@@ -197,7 +203,39 @@ public class ContratoService {
         if (!aluno.isAtivo()) {
             throw new ConflictException("Aluno inativo. Reative para gerar um contrato.", "ALUNO_INATIVO");
         }
-        ContratoAluno novo = montar.apply(aluno);
+        Montado m = montar.apply(aluno);
+        Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        // O responsável assina por link (S5): o código só existe aqui e na resposta; no banco fica o hash.
+        boolean comLink = m.quem() != Quem.ALUNO;
+        String codigo = comLink ? CodigoDeInscricao.novo() : null;
+        String hash = comLink ? OpaqueTokenGenerator.hash(codigo) : null;
+        Instant linkExpiraEm = comLink ? validadeDoLink(m.prazoAte(), agora) : null;
+        UUID grupo = m.quem() == Quem.PAR ? UUID.randomUUID() : null;
+        ContratoAluno principal = switch (m.quem()) {
+            case ALUNO -> novo(m, alunoId, Signatario.ALUNO, eu, pedidoId, null, null, null, agora);
+            case RESPONSAVEL -> novo(m, alunoId, Signatario.RESPONSAVEL, eu, pedidoId, null, hash, linkExpiraEm, agora);
+            case PAR -> novo(m, alunoId, Signatario.ALUNO, eu, pedidoId, grupo, null, null, agora);
+        };
+        ContratoAluno responsavel = m.quem() == Quem.PAR
+                ? novo(m, alunoId, Signatario.RESPONSAVEL, eu, pedidoDoResponsavel(pedidoId), grupo, hash, linkExpiraEm, agora)
+                : null;
+        principal = gravar(principal, pdf);
+        if (responsavel != null) {
+            responsavel = gravar(responsavel, pdf);
+        }
+        ContratoAluno dono = responsavel != null ? responsavel : principal.getSignatario() == Signatario.RESPONSAVEL ? principal : null;
+        LinkDoContrato link = dono == null ? null : new LinkDoContrato(dono.getId(), codigo, linkExpiraEm);
+        return new Gerado(detalhe(principal, link), true);
+    }
+
+    private static ContratoAluno novo(Montado m, UUID alunoId, Signatario signatario, UsuarioAutenticado eu, UUID pedidoId, UUID grupo,
+                                      String linkHash, Instant linkExpiraEm, Instant agora) {
+        return new ContratoAluno(alunoId, m.contratacaoId(), m.origem(), m.modeloId(), m.titulo(), m.texto(), m.sha256(), signatario,
+                m.prazoAte(), eu.usuarioId(), pedidoId, grupo, linkHash, linkExpiraEm, agora);
+    }
+
+    /** Grava o contrato (e o PDF, quando houver) e audita; o resumo é fixo, um evento por contrato criado. */
+    private ContratoAluno gravar(ContratoAluno novo, byte[] pdf) {
         try {
             novo = contratos.saveAndFlush(novo);
         } catch (DataIntegrityViolationException e) {
@@ -210,7 +248,88 @@ public class ContratoService {
             arquivos.saveAndFlush(new ContratoArquivo(novo.getId(), pdf));
         }
         auditoria.registrarEvento("CONTRATO_GERADO", "CONTRATO", novo.getId(), "Gerou um contrato para o aluno.");
-        return new Gerado(detalhe(novo), true);
+        return novo;
+    }
+
+    /** O pedido do contrato do responsável no par: derivado do pedido do aluno, então reenviar o mesmo pedido cai nos dois. */
+    static UUID pedidoDoResponsavel(UUID pedidoId) {
+        return UUID.nameUUIDFromBytes((pedidoId + ":responsavel").getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** O que o link do responsável vale (S5): até o prazo, se ele ainda está no futuro; senão 30 dias a partir de agora. */
+    static Instant validadeDoLink(Instant prazoAte, Instant agora) {
+        return prazoAte != null && prazoAte.isAfter(agora) ? prazoAte : agora.plus(30, ChronoUnit.DAYS);
+    }
+
+    /** Quem assina (S2): só o aluno, só o responsável (menor de 16, ou pedido) ou os dois (16 e 17 anos). */
+    private enum Quem { ALUNO, RESPONSAVEL, PAR }
+
+    /** O contrato já montado, antes de saber os signatários: o que os dois contratos do par repartem. */
+    private record Montado(UUID contratacaoId, Origem origem, UUID modeloId, String titulo, String texto, String sha256,
+                           Instant prazoAte, Quem quem) {
+        @Override
+        public String toString() {
+            return "Montado[...]";
+        }
+    }
+
+    /**
+     * S2, decidido no servidor: com o financeiro ligado e a data de nascimento do aluno preenchida, menor de 16 só o responsável assina,
+     * de 16 a 17 os dois; 18 ou mais, ou sem data, vale o pedido (padrão aluno). Com o financeiro desligado (o responsável mora lá, D12)
+     * só o aluno assina e pedir o responsável é 409 {@code CONTRATO_RESPONSAVEL_INDISPONIVEL}.
+     */
+    private Quem quem(Aluno aluno, String pedido) {
+        Signatario pedidoSig = signatario(pedido);
+        if (!pagamentos.habilitado()) {
+            if (pedidoSig == Signatario.RESPONSAVEL) {
+                throw new ConflictException("O responsável só assina com o financeiro ligado.", "CONTRATO_RESPONSAVEL_INDISPONIVEL");
+            }
+            return Quem.ALUNO;
+        }
+        if (aluno.getDataNascimento() != null) {
+            int idade = Period.between(aluno.getDataNascimento(), LocalDate.now(Fuso.BRASILIA)).getYears();
+            if (idade < 16) {
+                return Quem.RESPONSAVEL;
+            }
+            if (idade < 18) {
+                return Quem.PAR;
+            }
+        }
+        return pedidoSig == Signatario.RESPONSAVEL ? Quem.RESPONSAVEL : Quem.ALUNO;
+    }
+
+    /** Todo caminho com o responsável exige nome e CPF dele no cadastro (D11): sem eles não há como conferir quem assina. */
+    private List<Falta> faltasDoResponsavel(Aluno aluno, Quem quem) {
+        if (quem == Quem.ALUNO) {
+            return List.of();
+        }
+        var responsavel = preenchimento.responsavelDoAluno(aluno);
+        List<Falta> faltas = new ArrayList<>();
+        if (responsavel.map(r -> r.nome()).filter(n -> n != null && !n.isBlank()).isEmpty()) {
+            faltas.add(new Falta(CamposDoContrato.Campo.RESPONSAVEL_NOME.codigo(), "Falta o nome do responsável."));
+        }
+        if (responsavel.map(r -> r.cpf()).filter(c -> c != null && !c.isBlank()).isEmpty()) {
+            faltas.add(new Falta(CamposDoContrato.Campo.RESPONSAVEL_CPF.codigo(), "Falta o CPF do responsável."));
+        }
+        return faltas;
+    }
+
+    /** As faltas do modelo e as do responsável, sem repetir o mesmo campo. */
+    private static List<Falta> juntar(List<Falta> doModelo, List<Falta> doResponsavel) {
+        List<Falta> todas = new ArrayList<>(doModelo);
+        for (Falta f : doResponsavel) {
+            if (todas.stream().noneMatch(x -> x.campo().equals(f.campo()))) {
+                todas.add(f);
+            }
+        }
+        return todas;
+    }
+
+    private static void exigirSemFaltas(List<Falta> faltas) {
+        if (!faltas.isEmpty()) {
+            throw new ValidacaoException("Faltam dados para preencher o contrato.", "CONTRATO_INCOMPLETO",
+                    faltas.stream().map(f -> new ApiError.FieldError(f.campo(), f.mensagem())).toList());
+        }
     }
 
     private record Preenchido(String titulo, String texto, UUID modeloId, Integer prazoDias, PreenchimentoDoContrato.Resultado resultado) {
@@ -238,13 +357,15 @@ public class ContratoService {
                 dias == null ? null : dias.intValue(), resultado);
     }
 
-    /** Por ora só o aluno assina: o responsável por link é o passo 4 do plano. */
+    /** O signatário pedido (D1): ausente é o aluno; qualquer valor que não seja um dos dois nomes é 422. */
     private static Signatario signatario(String signatario) {
         if (signatario == null || signatario.isBlank() || "ALUNO".equals(signatario)) {
             return Signatario.ALUNO;
         }
-        // shortcut: só o aluno assina até o passo 4 (link do responsável)
-        throw invalido("signatario", "Por enquanto só o aluno assina o contrato.");
+        if ("RESPONSAVEL".equals(signatario)) {
+            return Signatario.RESPONSAVEL;
+        }
+        throw invalido("signatario", "Escolha quem assina: o aluno ou o responsável.");
     }
 
     // ---- ler ----
@@ -269,7 +390,8 @@ public class ContratoService {
      */
     @Transactional
     public ContratoDetalhe cancelar(UUID id, CancelarRequest r) {
-        ContratoAluno c = contratos.buscarParaAlterar(id).orElseThrow(ContratoService::contratoNaoEncontrado);
+        List<ContratoAluno> grupo = travar(id);
+        ContratoAluno c = grupo.stream().filter(x -> x.getId().equals(id)).findFirst().orElseThrow(ContratoService::contratoNaoEncontrado);
         if (c.getSituacao() == Situacao.CANCELADO) {
             return detalhe(c);
         }
@@ -284,10 +406,25 @@ public class ContratoService {
             throw invalido("motivo", "O motivo pode ter até " + MOTIVO_MAXIMO + " caracteres.");
         }
         exigirVersao(c, r.versao());
-        c.cancelar(motivo, Instant.now().truncatedTo(ChronoUnit.MICROS));
-        c = salvar(c);
-        auditoria.registrarEvento("CONTRATO_CANCELADO", "CONTRATO", id, "Cancelou um contrato pendente.");
+        Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        // Par aluno + responsável (S1): cancelar vale para os pendentes do grupo; o assinado nunca muda (D15).
+        for (ContratoAluno x : grupo) {
+            if (x.getSituacao() == Situacao.PENDENTE) {
+                x.cancelar(motivo, agora);
+                salvar(x);
+                auditoria.registrarEvento("CONTRATO_CANCELADO", "CONTRATO", x.getId(), "Cancelou um contrato pendente.");
+            }
+        }
         return detalhe(c);
+    }
+
+    /** O contrato e, se ele tem grupo, os irmãos, todos travados de uma vez em ordem de id (sem trava em cruz entre duas chamadas). */
+    private List<ContratoAluno> travar(UUID id) {
+        UUID grupo = contratos.grupoDe(id).orElse(null);
+        if (grupo == null) {
+            return List.of(contratos.buscarParaAlterar(id).orElseThrow(ContratoService::contratoNaoEncontrado));
+        }
+        return contratos.buscarGrupoParaAlterar(grupo);
     }
 
     /**
@@ -296,7 +433,8 @@ public class ContratoService {
      */
     @Transactional
     public ContratoDetalhe prorrogar(UUID id, ProrrogarRequest r) {
-        ContratoAluno c = contratos.buscarParaAlterar(id).orElseThrow(ContratoService::contratoNaoEncontrado);
+        List<ContratoAluno> grupo = travar(id);
+        ContratoAluno c = grupo.stream().filter(x -> x.getId().equals(id)).findFirst().orElseThrow(ContratoService::contratoNaoEncontrado);
         if (r.dias() == null || r.dias() < 1 || r.dias() > PRORROGAR_MAXIMO_DIAS) {
             throw invalido("dias", "Informe de 1 a " + PRORROGAR_MAXIMO_DIAS + " dias.");
         }
@@ -311,10 +449,42 @@ public class ContratoService {
         LocalDate atual = c.getPrazoAte().atZone(Fuso.BRASILIA).toLocalDate();
         LocalDate base = atual.isAfter(hoje) ? atual : hoje;
         Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
-        c.prorrogar(fimDoDia(base.plusDays(r.dias())), agora);
-        c = salvar(c);
-        auditoria.registrarEvento("CONTRATO_PRAZO_PRORROGADO", "CONTRATO", id, "Prorrogou o prazo de um contrato.");
+        Instant novoPrazo = fimDoDia(base.plusDays(r.dias()));
+        // Par (S1): o prazo vale para os pendentes do grupo e o link do responsável acompanha (S5); o assinado nunca muda.
+        for (ContratoAluno x : grupo) {
+            if (x.getSituacao() == Situacao.PENDENTE) {
+                x.prorrogar(novoPrazo, agora);
+                x.estenderLink(novoPrazo, agora);
+                salvar(x);
+                auditoria.registrarEvento("CONTRATO_PRAZO_PRORROGADO", "CONTRATO", x.getId(), "Prorrogou o prazo de um contrato.");
+            }
+        }
         return detalhe(c);
+    }
+
+    // ---- link do responsável ----
+
+    /**
+     * Gera um código novo para o link do responsável (S5): o anterior deixa de valer na hora e o novo só aparece nesta resposta. Só o
+     * contrato {@code RESPONSAVEL} pendente tem link: de aluno 409 {@code CONTRATO_SEM_LINK}, assinado ou cancelado 409
+     * {@code CONTRATO_NAO_PENDENTE}. A validade segue a regra do gerar (prazo no futuro, senão 30 dias).
+     */
+    @Transactional
+    public LinkDoContrato renovarLink(UUID id) {
+        ContratoAluno c = contratos.buscarParaAlterar(id).orElseThrow(ContratoService::contratoNaoEncontrado);
+        if (c.getSignatario() != Signatario.RESPONSAVEL) {
+            throw new ConflictException("Só o contrato do responsável tem link.", "CONTRATO_SEM_LINK");
+        }
+        if (c.getSituacao() != Situacao.PENDENTE) {
+            throw new ConflictException("Só o contrato pendente tem link.", "CONTRATO_NAO_PENDENTE");
+        }
+        Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        String codigo = CodigoDeInscricao.novo();
+        Instant expiraEm = validadeDoLink(c.getPrazoAte(), agora);
+        c.trocarLink(OpaqueTokenGenerator.hash(codigo), expiraEm, agora);
+        salvar(c);
+        auditoria.registrarEvento("CONTRATO_LINK_GERADO", "CONTRATO", id, "Gerou o link de assinatura de um contrato.");
+        return new LinkDoContrato(id, codigo, expiraEm);
     }
 
     // ---- privacidade (LGPD) ----
@@ -341,21 +511,42 @@ public class ContratoService {
     // ---- montagem das respostas ----
 
     ContratoDetalhe detalhe(ContratoAluno c) {
+        return detalhe(c, linkDe(c));
+    }
+
+    /** {@code link} já pronto: o gerar passa o que tem o código; as leituras passam o link sem código. */
+    private ContratoDetalhe detalhe(ContratoAluno c, LinkDoContrato link) {
         String geradoPor = c.getGeradoPor() == null ? null : usuarios.findById(c.getGeradoPor()).map(Usuario::getNome).orElse(null);
-        return new ContratoDetalhe(c.getId(), c.getAlunoId(), c.getTitulo(), c.getOrigem(), c.getSignatario(), c.getSituacao(),
-                c.getPrazoAte(), c.vencido(Instant.now()), c.getContratacaoId(), c.getGeradoEm(), c.getCanceladoEm(),
-                c.getMotivoCancelamento(), c.getTexto(), c.getSha256(), geradoPor, assinatura(c), c.getVersao());
+        return new ContratoDetalhe(c.getId(), c.getAlunoId(), c.getGrupoId(), c.getTitulo(), c.getOrigem(), c.getSignatario(),
+                c.getSituacao(), c.getPrazoAte(), c.vencido(Instant.now()), c.getContratacaoId(), c.getGeradoEm(), c.getCanceladoEm(),
+                c.getMotivoCancelamento(), c.getTexto(), c.getSha256(), geradoPor, assinatura(c), link, c.getVersao());
+    }
+
+    /**
+     * O link do responsável, sem código (ele só vem na resposta que o criou): o do próprio contrato do responsável pendente ou, no
+     * contrato do aluno de um par, o do irmão. Nulo se não há link a mostrar.
+     */
+    private LinkDoContrato linkDe(ContratoAluno c) {
+        ContratoAluno dono = c;
+        if (c.getSignatario() == Signatario.ALUNO && c.getGrupoId() != null) {
+            dono = contratos.findByGrupoId(c.getGrupoId()).stream().filter(x -> x.getSignatario() == Signatario.RESPONSAVEL)
+                    .findFirst().orElse(null);
+        }
+        return dono != null && dono.getSituacao() == Situacao.PENDENTE && dono.temLink()
+                ? new LinkDoContrato(dono.getId(), null, dono.getLinkExpiraEm()) : null;
     }
 
     private static ContratoResumo resumo(ContratoAluno c, Instant agora) {
-        return new ContratoResumo(c.getId(), c.getAlunoId(), c.getTitulo(), c.getOrigem(), c.getSignatario(), c.getSituacao(),
-                c.getPrazoAte(), c.vencido(agora), c.getContratacaoId(), c.getGeradoEm(), c.getAssinadoEm(), c.getCanceladoEm(),
-                c.getVersao());
+        return new ContratoResumo(c.getId(), c.getAlunoId(), c.getGrupoId(), c.getTitulo(), c.getOrigem(), c.getSignatario(),
+                c.getSituacao(), c.getPrazoAte(), c.vencido(agora), c.getContratacaoId(), c.getGeradoEm(), c.getAssinadoEm(),
+                c.getCanceladoEm(), c.getSituacao() == Situacao.PENDENTE && c.temLink() ? c.getLinkExpiraEm() : null, c.getVersao());
     }
 
     private static Assinatura assinatura(ContratoAluno c) {
-        return c.getSituacao() == Situacao.ASSINADO
-                ? new Assinatura(c.getAssinadoEm(), c.getAssinanteNome(), c.getAssinanteCpf(), c.getAssinanteIp(), c.getAssinanteAgente())
+        // Assinado e já apagado pela guarda (D16): as evidências saíram, não há o que mostrar.
+        return c.getSituacao() == Situacao.ASSINADO && c.getApagadoEm() == null
+                ? new Assinatura(c.getAssinadoEm(), c.getAssinanteNome(), c.getAssinanteCpf(), c.getAssinanteIp(), c.getAssinanteAgente(),
+                        c.getAssinanteDeclarouResponsavel())
                 : null;
     }
 

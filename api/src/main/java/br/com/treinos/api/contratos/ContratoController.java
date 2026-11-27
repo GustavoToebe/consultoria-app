@@ -6,6 +6,7 @@ import br.com.treinos.api.contratos.ContratoDtos.ContratoDetalhe;
 import br.com.treinos.api.contratos.ContratoDtos.ContratoResumo;
 import br.com.treinos.api.contratos.ContratoDtos.GerarContratoPdfRequest;
 import br.com.treinos.api.contratos.ContratoDtos.GerarContratoRequest;
+import br.com.treinos.api.contratos.ContratoDtos.LinkDoContrato;
 import br.com.treinos.api.contratos.ContratoDtos.PreviaDoContrato;
 import br.com.treinos.api.contratos.ContratoDtos.ProrrogarRequest;
 import br.com.treinos.api.security.UsuarioAutenticado;
@@ -131,5 +132,15 @@ public class ContratoController {
     @PostMapping("/contratos/{id}/prorrogar")
     public ContratoDetalhe prorrogar(@PathVariable UUID id, @RequestBody ProrrogarRequest r) {
         return contratos.prorrogar(id, r);
+    }
+
+    /**
+     * Gera ou renova o link do responsável: o código novo só vem nesta resposta e o anterior deixa de valer. Só contrato do
+     * responsável pendente (409 {@code CONTRATO_SEM_LINK} ou {@code CONTRATO_NAO_PENDENTE}).
+     */
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/contratos/{id}/link")
+    public LinkDoContrato link(@PathVariable UUID id) {
+        return contratos.renovarLink(id);
     }
 }

@@ -4,9 +4,9 @@ import { anexarArquivoDoAparelho } from './anexarArquivoDoAparelho';
 import { requisicao } from './cliente';
 
 /**
- * Contrato digital (`docs/planos/contrato-digital.md`, passo 2): espelho à mão de `ContratoDtos.java` e uma função por rota
- * dos três controllers (`ContratoModeloController`, `ContratoController` e `ContratoAlunoController`). Só o signatário ALUNO é
- * usado pelas telas; a origem PDF (passo 3) tem `texto` nulo e o arquivo à parte. Instantes são ISO (`Instant`). Texto, CPF, IP, aparelho e nome do assinante são
+ * Contrato digital (`docs/planos/contrato-digital.md`, passos 2 a 4): espelho à mão de `ContratoDtos.java` e uma função por rota
+ * dos três controllers (`ContratoModeloController`, `ContratoController` e `ContratoAlunoController`); as rotas públicas do
+ * responsável ficam em `contratosPublicos.ts`. A origem PDF (passo 3) tem `texto` nulo e o arquivo à parte. Instantes são ISO (`Instant`). Texto, CPF, IP, aparelho e nome do assinante são
  * dado pessoal: nunca em log nem em nome de arquivo. O app NUNCA calcula o código de verificação (`sha256`): usa o que a API
  * devolve. Erros: 503 `CONTRATOS_INDISPONIVEL` (chave desligada), 422 `CONTRATO_MODELO_INVALIDO`, `CONTRATO_INCOMPLETO`,
  * `CONTRATO_INVALIDO` e `ASSINATURA_INVALIDA` (com `fieldErrors`), 409 `CONTRATO_MODELO_NOME_EM_USO`, `CONTRATO_MODELO_ARQUIVADO`,
@@ -96,6 +96,10 @@ export interface ContratoResumo {
   assinadoEm: string | null;
   canceladoEm: string | null;
   versao: number;
+  /** O par de 16 a 17 anos (D28/S1): os dois contratos, ALUNO e RESPONSAVEL, têm o mesmo grupo; nulo = contrato sozinho. */
+  grupoId: string | null;
+  /** Validade do link do responsável (só no RESPONSAVEL); nulo nos outros. */
+  linkExpiraEm: string | null;
 }
 
 /**
@@ -108,6 +112,8 @@ export interface AssinaturaDoContrato {
   cpf: string | null;
   ip: string;
   agente: string;
+  /** Quem assinou pelo link declarou ser o responsável legal do aluno (D28); nulo/falso no aluno. */
+  declarouResponsavel?: boolean | null;
 }
 
 export interface ContratoDetalhe {
@@ -129,6 +135,19 @@ export interface ContratoDetalhe {
   geradoPorNome: string | null;
   assinatura: AssinaturaDoContrato | null;
   versao: number;
+  grupoId: string | null;
+  /**
+   * O link do responsável. `codigo` só vem na resposta 201 do gerar e na de `POST /contratos/{id}/link` (nas leituras e no
+   * reenvio do mesmo `pedidoId`, nulo). No par, o corpo é o contrato do ALUNO e `contratoId` é o do RESPONSAVEL.
+   */
+  link: LinkDoResponsavel | null;
+}
+
+/** O código (144 bits) vale como posse do link: aparece uma vez, nunca vai a log nem fica guardado no aparelho. */
+export interface LinkDoResponsavel {
+  contratoId: string;
+  codigo: string | null;
+  expiraEm: string;
 }
 
 export interface CancelarContratoRequest {
@@ -246,6 +265,9 @@ export const cancelarContrato = (id: string, corpo: CancelarContratoRequest) =>
   requisicao<ContratoDetalhe>(`/contratos/${seg(id)}/cancelar`, { metodo: 'POST', corpo });
 export const prorrogarContrato = (id: string, corpo: ProrrogarContratoRequest) =>
   requisicao<ContratoDetalhe>(`/contratos/${seg(id)}/prorrogar`, { metodo: 'POST', corpo });
+/** Troca o código do link do responsável (o anterior deixa de valer). Só RESPONSAVEL PENDENTE; 409 `CONTRATO_SEM_LINK`/`CONTRATO_NAO_PENDENTE`. */
+export const renovarLinkDoContrato = (id: string) =>
+  requisicao<LinkDoResponsavel & { codigo: string }>(`/contratos/${seg(id)}/link`, { metodo: 'POST' });
 
 // ---- rotas: o próprio aluno (sempre o da sessão) ----
 

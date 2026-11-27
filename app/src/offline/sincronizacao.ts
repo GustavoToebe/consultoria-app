@@ -1,5 +1,6 @@
 import { ErroApi } from '../api/cliente';
 import { ehRetornoDesligado } from '../dominio/retornoDesligado';
+import { ehContratoPendente } from '../dominio/travaDoContrato';
 import type { LoteResponse, RegistroAguaEnvio, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio } from '../api/tipos';
 import { paraEnvio, paraEnvioAgua, paraEnvioMobilidade, paraEnvioSessaoConcluida, type RepositorioLocal } from './repositorioLocal';
 
@@ -132,7 +133,9 @@ export class Sincronizador {
         resposta = await enviar(lote);
       } catch (erro) {
         if (tratarRecusa && erro instanceof ErroApi && (await tratarRecusa(erro))) break;
-        if (erro instanceof ErroApi && (erro.semConexao || erro.status >= 500 || erro.status === 401)) {
+        // A trava do contrato (403 `CONTRATO_PENDENTE`) não é recusa do registro: passa ao assinar. Fica LOCAL e tenta de novo
+        // com a mesma espera da falta de rede (D19; as quatro rotas da fila já ficam livres nela, isto é só a rede de segurança).
+        if (erro instanceof ErroApi && (erro.semConexao || erro.status >= 500 || erro.status === 401 || ehContratoPendente(erro))) {
           return { tipo: 'semConexao' };
         }
         return { tipo: 'erro', mensagem: erro instanceof Error ? erro.message : 'Não foi possível enviar.' };

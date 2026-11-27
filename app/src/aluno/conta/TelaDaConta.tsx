@@ -13,7 +13,6 @@ import { situacaoDoConvite } from '../../dominio/convidarAmigo';
 import { corDoPerfil, molduraDoPerfil, nomeParaColegas } from '../../dominio/perfilDaComunidade';
 import { redesPreenchidas } from '../../dominio/redesSociais';
 import { TETO_DA_TELA_DO_ALUNO } from '../../dominio/telaLargaDoAluno';
-import { avisoAoSairComPendencias, diasDeAguaNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -44,6 +43,7 @@ import { useFinanceiroDoAluno } from '../financeiro/FinanceiroDoAlunoProvider';
 import { InterruptorDeWhatsApp } from '../InterruptorDeWhatsApp';
 import { InterruptorDeAvisoNoCelular } from '../push/InterruptorDeAvisoNoCelular';
 import { useVersaoDaFotoDePerfil } from '../versaoDaFotoDePerfil';
+import { useAvisoAoSair } from '../useAvisoAoSair';
 import { CabecalhoDoPerfil } from './CabecalhoDoPerfil';
 import { DetalheMeuPerfil } from './DetalheMeuPerfil';
 import { DetalheMeusDados } from './DetalheMeusDados';
@@ -72,8 +72,7 @@ const semConexao = (erro: unknown) => erro instanceof ErroApi && erro.semConexao
  */
 export function TelaDaConta() {
   const sessao = useSessao();
-  const aluno = useAluno();
-  const { online } = aluno;
+  const { online } = useAluno();
   const financeiro = useFinanceiroDoAluno();
   const { contratos } = useContratosDoAluno();
   useRecarregarContratosAoFocar();
@@ -85,6 +84,7 @@ export function TelaDaConta() {
   const duasColunas = faixa !== 'compacta';
   const [aberto, setAberto] = useState<Detalhe | null>(null);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  const avisoAoSair = useAvisoAoSair();
 
   const dados = useCarregar(online ? 'aluno-meus-dados' : null, () => meusDados());
   const perfil = useCarregar(online ? 'aluno-perfil-comunidade' : null, () => meuPerfilDaComunidade());
@@ -202,7 +202,7 @@ export function TelaDaConta() {
         </View>
       </Tela>
       <ConfirmarSaida visivel={confirmandoSaida} aoFechar={() => setConfirmandoSaida(false)}
-        aviso={avisoAoSairComPendencias(treinosNaoEnviados(aluno.registros, aluno.sessoesConcluidasNoAparelho), diasDeMobilidadeNaoEnviados(aluno.mobilidadeNoAparelho), diasDeAguaNaoEnviados(aluno.aguaNoAparelho))} />
+        aviso={avisoAoSair} />
       {detalhe === 'perfil' ? <DetalheMeuPerfil perfil={perfil} dados={dados} online={online} focarReservar={pedidoDoAtalho} aoFechar={fechar} /> : null}
       {detalhe === 'dados' ? <DetalheMeusDados dados={dados} aoFechar={fechar} /> : null}
       {detalhe === 'senha' ? <FolhaTrocarSenha aoFechar={fechar} /> : null}

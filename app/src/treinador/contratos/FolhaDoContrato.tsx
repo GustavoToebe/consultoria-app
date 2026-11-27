@@ -47,9 +47,14 @@ export function useComprovanteDaEquipe(alunoNome: string) {
 /**
  * O contrato gerado, visto pela equipe (ficha › Contratos › "Ver"): situação, quem gerou e quando, prazo, cancelamento e,
  * assinado, as evidências do aceite (nome digitado, data e hora de Brasília, IP, aparelho e o código de verificação) com
- * "Baixar comprovante"; depois o texto exato que o aluno vê (no PDF próprio, "Abrir o PDF"). Só leitura.
+ * "Baixar comprovante"; depois o texto exato que o aluno vê (no PDF próprio, "Abrir o PDF"). Só leitura, menos o
+ * "Gerar novo link do responsável" (contrato do responsável pendente, com `CONTRATO_ALTERAR`), que quem abriu executa.
  */
-export function FolhaDoContrato({ contratoId, alunoNome, aoFechar }: { contratoId: string; alunoNome: string; aoFechar: () => void }) {
+export function FolhaDoContrato({ contratoId, alunoNome, aoFechar, aoGerarNovoLink }: {
+  contratoId: string; alunoNome: string; aoFechar: () => void;
+  /** Só no RESPONSAVEL pendente e com permissão: fecha esta folha e mostra o link novo. */
+  aoGerarNovoLink?: () => void;
+}) {
   const { cores } = useTema();
   const carga = useCarregar(`contrato-da-equipe:${contratoId}`, () => obterContrato(contratoId));
   const comprovante = useComprovanteDaEquipe(alunoNome);
@@ -67,6 +72,12 @@ export function FolhaDoContrato({ contratoId, alunoNome, aoFechar }: { contratoI
           <>
             <ListaDeDados>
               <LinhaDeDado rotulo="Situação" valor={selo.texto} conteudo={<Selo texto={selo.texto} tipo={selo.tipo} />} />
+              <LinhaDeDado rotulo="Quem assina" valor={d.signatario === 'RESPONSAVEL' ? 'Responsável, pelo link' : 'Aluno, no app'}
+                nota={d.grupoId ? 'O aluno e o responsável assinam (de 16 a 17 anos): cada um tem o seu contrato.' : undefined} />
+              {d.situacao === 'PENDENTE' && d.link ? (
+                <LinhaDeDado rotulo="Link do responsável" valor={`Válido até ${dataParaTela(dataEmBrasilia(d.link.expiraEm))}`} numerico
+                  acoes={aoGerarNovoLink ? <Botao rotulo="Gerar novo link" rotuloAcessivel="Gerar novo link do responsável" tipo="secundario" tamanho="pequeno" aoTocar={aoGerarNovoLink} /> : undefined} />
+              ) : null}
               <LinhaDeDado rotulo="Gerado em" valor={instante(d.geradoEm)} numerico nota={d.geradoPorNome ? `por ${d.geradoPorNome}` : undefined} />
               {d.prazoAte ? <LinhaDeDado rotulo="Prazo para assinar" valor={dataParaTela(dataEmBrasilia(d.prazoAte))} numerico /> : null}
               {d.canceladoEm ? <LinhaDeDado rotulo="Cancelado em" valor={instante(d.canceladoEm)} numerico /> : null}
@@ -76,7 +87,7 @@ export function FolhaDoContrato({ contratoId, alunoNome, aoFechar }: { contratoI
               <View style={estilos.bloco}>
                 <Texto variante="bloco" nivel={3}>Evidências da assinatura</Texto>
                 <ListaDeDados>
-                  {linhasDeEvidencia({ nome: a.nome, assinadoEm: a.assinadoEm, sha256: d.sha256, ip: a.ip, agente: a.agente }).map((l) => (
+                  {linhasDeEvidencia({ nome: a.nome, assinadoEm: a.assinadoEm, sha256: d.sha256, ip: a.ip, agente: a.agente, responsavelLegal: a.declarouResponsavel === true }).map((l) => (
                     <LinhaDeDado key={l.rotulo} rotulo={l.rotulo} valor={l.valor}
                       conteudo={l.rotulo.startsWith('Código') ? <Texto selectable style={[NUMERICO, estilos.codigo]}>{l.valor}</Texto> : undefined} />
                   ))}

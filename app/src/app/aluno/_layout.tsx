@@ -25,6 +25,8 @@ import { TelaAcessoPausado } from '../../aluno/financeiro/TelaAcessoPausado';
 import { CompromissosDoAlunoProvider, useCompromissosDoAluno } from '../../aluno/compromissos/CompromissosDoAlunoProvider';
 import { itemDoContrato, temAvisoDeCompromisso } from '../../dominio/paraFazer';
 import { ContratosDoAlunoProvider, useContratosDoAluno } from '../../aluno/contratos/ContratosDoAlunoProvider';
+import { TelaDeContratoPendente } from '../../aluno/contratos/TelaDeContratoPendente';
+import { situacaoDaTrava } from '../../dominio/travaDoContrato';
 import { SincronizarPush } from '../../aluno/push/SincronizarPush';
 
 /** Aluno: barra inferior no celular (< 768 px) e menu lateral no tablet/web (>= 768 px). */
@@ -40,18 +42,22 @@ const ITENS: ItemMenu[] = [
 ];
 
 export default function LayoutAluno() {
-  const { usuario, acessoPausado } = useSessao();
+  const { usuario, acessoPausado, contratoPendenteVencido } = useSessao();
+  // A trava do contrato vem antes da pausa por atraso (D21) e fica DENTRO do AlunoProvider, para a fila continuar enviando (D19).
+  const tela = situacaoDaTrava({ contratoPendenteVencido, acessoPausado }).tela;
+  const travado = tela === 'contrato';
   return (
     <GuardaDePapel papel="ALUNO">
       {usuario ? (
-        acessoPausado ? (
+        tela === 'pausa' ? (
           // Acesso pausado por atraso: bloqueio total antes do AlunoProvider (não lê SQLite/localStorage nem sincroniza).
           <TelaAcessoPausado />
         ) : (
           // Um provedor por usuário: trocar de conta nunca mistura registros.
           <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
             {/* Passeio pelo menu no primeiro acesso, logo depois do aceite dos termos; o lembrete da atualização espera. */}
-            <ProvedorDoPasseio usuarioId={usuario.id} passos={GUIAS.aluno.passeio}>
+            {/* A chave remonta o que está abaixo ao entrar e sair da trava: o que deu 403 durante ela é buscado de novo. */}
+            <ProvedorDoPasseio key={travado ? 'travado' : 'livre'} usuarioId={usuario.id} passos={GUIAS.aluno.passeio}>
               {/* As imagens das perguntas, no aluno, vêm pela rota dele (só as do que ele responde). */}
               <ContextoDeImagens.Provider value={baixarImagemDoAluno}>
                 {/* O financeiro do aluno fica só em memória (nada no aparelho) e só é buscado com o módulo ligado e online. */}
@@ -63,7 +69,7 @@ export default function LayoutAluno() {
                       <SincronizarPush usuarioId={usuario.id} />
                       {/* A carga é kg em todo lugar; só a tela do aluno a mostra e a recebe em lb, se ele escolheu (Preferências). */}
                       <ProvedorDaUnidadeDeCarga>
-                        <MenuAluno />
+                        {travado ? <AreaTravada /> : <MenuAluno />}
                       </ProvedorDaUnidadeDeCarga>
                     </ContratosDoAlunoProvider>
                   </CompromissosDoAlunoProvider>
@@ -75,6 +81,12 @@ export default function LayoutAluno() {
       ) : null}
     </GuardaDePapel>
   );
+}
+
+/** Na trava do contrato: só a tela de assinar abre (sem o menu); qualquer outra rota mostra a tela de bloqueio. */
+function AreaTravada() {
+  const caminho = usePathname();
+  return caminho.startsWith('/aluno/contrato/') ? <Slot /> : <TelaDeContratoPendente />;
 }
 
 function MenuAluno() {

@@ -5,6 +5,7 @@ import { AppState, Platform } from 'react-native';
 
 import {
   aoAcessoPausado,
+  aoContratoPendente,
   aoCicloDesligado,
   aoRetornoDesligado,
   aoVitrineDesligada,
@@ -95,6 +96,8 @@ interface ValorSessao {
   redesSociaisDaConsultoria: EuResponse['redesSociaisDaConsultoria'] | null;
   /** Só do aluno: acesso pausado manualmente por atraso; verdadeiro = mostra apenas a tela de regularização. */
   acessoPausado: boolean;
+  /** Só do aluno: contrato pendente com o prazo vencido (D3/D5) e a chave dos contratos ligada; verdadeiro = só a tela de assinar. */
+  contratoPendenteVencido: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -443,6 +446,19 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     });
     return () => aoAcessoPausado(null);
   }, []);
+  // 403 `CONTRATO_PENDENTE`: o prazo do contrato venceu depois do último `/eu`; marca o perfil salvo e a tela de assinar entra na hora.
+  useEffect(() => {
+    aoContratoPendente(() => {
+      setPerfil((atual) => {
+        if (!atual || atual.contratoPendenteVencido === true) return atual;
+        const novo = { ...atual, contratoPendenteVencido: true };
+        perfilAtual.current = novo;
+        AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+        return novo;
+      });
+    });
+    return () => aoContratoPendente(null);
+  }, []);
   const valor = useMemo<ValorSessao>(
     () => ({
       termosPendentes: perfil?.termosPendentes ?? false,
@@ -470,6 +486,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
       redesSociaisDaConsultoria:perfil?.redesSociaisDaConsultoria??null,
       acessoPausado:perfil?.acessoPausado===true,
+      contratoPendenteVencido:perfil?.contratosHabilitados===true&&perfil?.contratoPendenteVencido===true,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,
