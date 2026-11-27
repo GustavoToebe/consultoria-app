@@ -70,6 +70,10 @@ public class Usuario {
     @Column(name = "trocar_senha", nullable = false)
     private boolean trocarSenha;
 
+    /** Aviso no celular quando a atualização de um aluno tem pontos de atenção (V112); o Hibernate insere a coluna: nasce ligado aqui. */
+    @Column(name = "push_atencao", nullable = false)
+    private boolean pushAtencao = true;
+
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 
@@ -164,6 +168,14 @@ public class Usuario {
 
     public boolean isTrocarSenha() {
         return trocarSenha;
+    }
+
+    public boolean isPushAtencao() {
+        return pushAtencao;
+    }
+
+    public void alterarPushAtencao(boolean ligado) {
+        this.pushAtencao = ligado;
     }
 
     /** Toda troca de senha (a própria, pelo link do e-mail ou no primeiro acesso) desliga a senha provisória. */

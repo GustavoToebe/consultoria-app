@@ -21,6 +21,8 @@ const com = (codigos: string[], resto: Partial<ContextoDeConfiguracoes> = {}): C
   pode: (c) => pode(codigos, c), administrador: false, pagamentosHabilitados: false, chaves: {}, ...resto,
 });
 const ids = (cartoes: readonly { id: string }[]) => cartoes.map((c) => c.id);
+/** O catálogo sem o cartão de chave própria que TUDO não liga (Regras de atenção): as listas completas não o trazem. */
+const SEM_REGRAS = CARTOES_DE_CONFIGURACAO.filter((c) => c.id !== 'regras-de-atencao');
 const PESSOAIS = ['meus-dados', 'seguranca', 'ajustes', 'ajuda', 'termos'];
 
 describe('catálogo das configurações', () => {
@@ -53,7 +55,7 @@ describe('catálogo das configurações', () => {
 
 describe('cartoesVisiveis', () => {
   it('perfil com tudo vê tudo, e a lista segue a ordem do catálogo', () => {
-    expect(ids(cartoesVisiveis(TUDO))).toEqual(ids(CARTOES_DE_CONFIGURACAO));
+    expect(ids(cartoesVisiveis(TUDO))).toEqual(ids(SEM_REGRAS));
   });
 
   it('sem nenhuma permissão ficam só os cartões pessoais, e os grupos vazios somem', () => {
@@ -159,6 +161,17 @@ describe('cartoesVisiveis', () => {
     expect(podeAcessarTela('/treinador/contratos', () => false)).toBe(false);
   });
 
+  it('Regras de atenção: ATUALIZACAO_LER + ALUNO_SENSIVEL_LER e a chave regrasAtencaoHabilitada', () => {
+    const duas = com(['ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER'], { chaves: { regrasAtencaoHabilitada: true } });
+    expect(ids(cartoesVisiveis(duas))).toContain('regras-de-atencao');
+    expect(ids(cartoesVisiveis({ ...duas, chaves: { regrasAtencaoHabilitada: false } }))).not.toContain('regras-de-atencao');
+    expect(ids(cartoesVisiveis({ ...duas, chaves: {} }))).not.toContain('regras-de-atencao');
+    expect(ids(cartoesVisiveis(com(['ATUALIZACAO_LER'], { chaves: { regrasAtencaoHabilitada: true } })))).not.toContain('regras-de-atencao');
+    // Só a sensível também não: o destino (`podeAcessarTela`) pede ATUALIZACAO_LER, então o cartão nunca leva ao 403 do GET.
+    expect(ids(cartoesVisiveis(com(['ALUNO_SENSIVEL_LER'], { chaves: { regrasAtencaoHabilitada: true } })))).not.toContain('regras-de-atencao');
+    expect(ids(buscarCartoes('me avise', CARTOES_DE_CONFIGURACAO))).toContain('regras-de-atencao');
+  });
+
   it('funcionalidade fora do plano esconde o cartão; sem a lista (pacote antigo, offline), vale tudo', () => {
     const teste: CartaoDeConfiguracao[] = [
       { id: 'a', grupo: 'Equipe', titulo: 'A', descricao: 'a', href: '/treinador/ajuda', palavras: [], funcionalidade: 'EQUIPE' },
@@ -175,7 +188,7 @@ describe('gruposDeCartoes', () => {
   it('agrupa na ordem dos grupos, mantém a ordem dos cartões e descarta grupo vazio', () => {
     const grupos = gruposDeCartoes(cartoesVisiveis(TUDO));
     expect(grupos.map((g) => g.grupo)).toEqual([...GRUPOS_DE_CONFIGURACAO]);
-    expect(ids(grupos.flatMap((g) => g.cartoes))).toEqual(ids(CARTOES_DE_CONFIGURACAO));
+    expect(ids(grupos.flatMap((g) => g.cartoes))).toEqual(ids(SEM_REGRAS));
     expect(gruposDeCartoes([])).toEqual([]);
     const soAjuda = CARTOES_DE_CONFIGURACAO.filter((c) => c.grupo === 'Ajuda' || c.grupo === 'Equipe');
     expect(gruposDeCartoes(soAjuda).map((g) => g.grupo)).toEqual(['Equipe', 'Ajuda']);

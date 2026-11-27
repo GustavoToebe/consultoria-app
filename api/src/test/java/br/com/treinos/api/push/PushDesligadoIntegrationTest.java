@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -37,6 +39,8 @@ class PushDesligadoIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PushDoExpo job;
+    @Autowired private PushService push;
+    @Autowired private PlatformTransactionManager transacoes;
 
     @Test
     void registrarDa503ApagarNaoEOJobNaoFazNada() throws Exception {
@@ -70,6 +74,18 @@ class PushDesligadoIntegrationTest extends AbstractIntegrationTest {
                 + "select ?, consultoria_id, id, ?, 'IOS' from usuario where id = ?::uuid", UUID.randomUUID(), token, usuarioId);
         api.delete("/aluno/push-token", login, 204);
         assertThat(tokensDe(usuarioId)).isZero();
+
+        // O mesmo para o token do treinador (/eu/push-token, regras de atenção); e o envio com ponto de atenção não enfileira.
+        String doTreinador = treinador.path("usuario").path("id").asString();
+        assertThat(api.put("/eu/push-token", treinador, Map.of("token", token, "plataforma", "ANDROID"), 503).path("codigo").asString())
+                .isEqualTo("PUSH_INDISPONIVEL");
+        jdbc.update("insert into push_token (id, consultoria_id, usuario_id, token, plataforma) "
+                + "select ?, consultoria_id, id, ?, 'ANDROID' from usuario where id = ?::uuid", UUID.randomUUID(), token, doTreinador);
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class, doTreinador);
+        new TransactionTemplate(transacoes).executeWithoutResult(s -> push.enfileirarAtencaoAoResponsavel(consultoria, aluno));
+        assertThat(jdbc.queryForObject("select count(*) from push_envio where usuario_id = ?::uuid", Integer.class, doTreinador)).isZero();
+        api.delete("/eu/push-token", treinador, 204);
+        assertThat(tokensDe(doTreinador)).isZero();
     }
 
     private int tokensDe(String usuarioId) {

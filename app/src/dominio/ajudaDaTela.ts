@@ -27,6 +27,7 @@ const SECAO_DA_TELA: Readonly<Record<string, string | null>> = {
   '/treinador/planejamento': 'planos',
   // O editor de questionário serve à atualização, à anamnese e à inscrição: nenhuma seção é a dele.
   '/treinador/planejamento/questionario': null,
+  '/treinador/regras-de-atencao': 'regras-de-atencao',
   '/treinador/termos': 'privacidade',
   '/treinador/treinos': 'planos',
   '/treinador/vitrine': 'vitrine',

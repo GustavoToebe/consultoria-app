@@ -76,7 +76,7 @@ class CardioIntegrationTest extends AbstractIntegrationTest {
         assertThat(lista.valueStream().filter(e -> id.equals(e.get("id").asString())).findFirst().orElseThrow()
                 .get("tipoDeCardio").asString()).isEqualTo("BIKE");
 
-        // Trocar a modalidade zera o tipo, mesmo com o app mandando o tipo velho (o CHECK da V199 recusaria).
+        // Trocar a modalidade zera o tipo, mesmo com o app mandando o tipo velho (o CHECK da V113 recusaria).
         JsonNode livre = api.put("/exercicios/" + id, treinador,
                 exercicio("Esteira fictícia", "LIVRE", "ESTEIRA", List.of("DISTANCIA")), 200);
         assertThat(livre.get("tipoDeCardio").isNull()).isTrue();

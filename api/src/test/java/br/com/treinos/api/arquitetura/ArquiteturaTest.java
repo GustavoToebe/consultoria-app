@@ -282,6 +282,16 @@ class ArquiteturaTest {
     }
 
     @Test
+    void controllerDasRegrasDeAtencaoExigeRegrasAtencaoHabilitadas() {
+        classes().that().areAnnotatedWith(RestController.class)
+                .and().resideInAPackage("br.com.treinos.api.atencao..")
+                .should().beAnnotatedWith(br.com.treinos.api.atencao.ExigeRegrasAtencao.class)
+                .because("com TREINOS_REGRAS_ATENCAO_HABILITADO=false toda rota das regras de atenção responde 503 "
+                        + "(RegrasAtencaoConfiguracao); controller novo sem a anotação ficaria aberto com o módulo desligado")
+                .check(codigo);
+    }
+
+    @Test
     void controllerDaVitrineExigeVitrineLojaOuMarketplaceHabilitado() {
         classes().that().areAnnotatedWith(RestController.class)
                 .and().resideInAPackage("br.com.treinos.api.vitrine..")

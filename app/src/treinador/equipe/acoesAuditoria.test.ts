@@ -85,3 +85,7 @@ test('a verificação em duas etapas tem rótulo no filtro da auditoria (a API g
 test('ações do contrato digital têm rótulo no filtro da auditoria', () => {
   for (const acao of ['CONTRATO_MODELO_CRIADO', 'CONTRATO_MODELO_ALTERADO', 'CONTRATO_MODELO_ARQUIVADO', 'CONTRATO_GERADO', 'CONTRATO_LINK_GERADO', 'CONTRATO_ASSINADO', 'CONTRATO_CANCELADO', 'CONTRATO_PRAZO_PRORROGADO', 'CONTRATO_PRAZO_CONFIGURADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
+
+test('ações das regras de atenção têm rótulo no filtro da auditoria', () => {
+  for (const acao of ['REGRA_ATENCAO_CRIADA', 'REGRA_ATENCAO_ALTERADA', 'REGRA_ATENCAO_REMOVIDA', 'REGRA_ATENCAO_EXCECAO_DEFINIDA', 'REGRA_ATENCAO_EXCECAO_REMOVIDA', 'PUSH_ATENCAO_ALTERADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});

@@ -69,6 +69,7 @@ public class AnonimizacaoService {
     private final br.com.treinos.api.whatsapp.FilaDeAvisos avisosPeloWhatsApp;
     private final br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano;
     private final br.com.treinos.api.contratos.ContratoService contratos;
+    private final br.com.treinos.api.atencao.AtencaoDaAtualizacao atencao;
 
     public AnonimizacaoService(AlunoRepository alunos, ConsultoriaRepository consultorias, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
@@ -84,7 +85,9 @@ public class AnonimizacaoService {
                                br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDoAluno importacoesAssistidas,
                                br.com.treinos.api.whatsapp.FilaDeAvisos avisosPeloWhatsApp,
                                br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano,
-                               br.com.treinos.api.contratos.ContratoService contratos) {
+                               br.com.treinos.api.contratos.ContratoService contratos,
+                               br.com.treinos.api.atencao.AtencaoDaAtualizacao atencao) {
+        this.atencao = atencao;
         this.avisosDePlano = avisosDePlano;
         this.contratos = contratos;
         this.avisosPeloWhatsApp = avisosPeloWhatsApp;
@@ -170,6 +173,8 @@ public class AnonimizacaoService {
         // Água marcada pelo aluno (dado de dieta): sai inteira, como a dieta.
         agua.apagarDoAluno(consultoriaId, alunoId);
         atualizacoes.findByAlunoIdOrderByDataAtualizacaoDesc(alunoId).forEach(a -> a.limparDadosPessoais());
+        // Pontos de atenção (V112): dado derivado de saúde; a atualização fica, então o cascade não roda. Com a chave desligada também.
+        atencao.apagarDoAluno(consultoriaId, alunoId);
         anamneses.anonimizarDoAluno(alunoId);
         for (var plano : dietas.findByAlunoIdOrderByCriadoEmDesc(alunoId)) {
             versoesDeDieta.deleteAll(versoesDeDieta.findByPlanoIdOrderByNumeroAsc(plano.getId()));

@@ -66,6 +66,8 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   if(caminho==='/treinador/whatsapp') return tem('WHATSAPP_ALTERAR');
   // Contratos (modelos): a chave da plataforma esconde o item no hub; a guarda da rota é a permissão de ler.
   if(caminho==='/treinador/contratos') return tem('CONTRATO_LER');
+  // Regras de atenção: ler pede as atualizações e os dados sensíveis (a API também); editar (REGRA_ATENCAO_ALTERAR) a tela confere. A chave esconde o item no hub.
+  if(caminho==='/treinador/regras-de-atencao') return tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER');
   if(caminho==='/treinador/equipe') return tem('EQUIPE_LER');
   if(caminho==='/treinador/auditoria') return tem('AUDITORIA_LER');
   // A planilha completa cria alunos (e o resto por parte, conferido na API): a rota pede ALUNO_ALTERAR.

@@ -352,6 +352,25 @@ const TREINADOR: Guia = {
       ],
     },
     {
+      id: 'regras-de-atencao',
+      titulo: 'Regras de atenção',
+      itens: [
+        { titulo: 'O que são', texto: 'Regras de atenção são avisos que você escolhe, do tipo "me avise quando…". Quando o aluno envia a atualização, o servidor confere as respostas e os dados do período com as suas regras ligadas, e o que bate aparece como pontos de atenção. O app não sugere número nem diz se um resultado é bom ou ruim: o número é sempre seu.' },
+        { titulo: 'Nota até um número', texto: 'Uma nota da pergunta que você escolher ficou no número que você definir, ou abaixo dele.' },
+        { titulo: 'Nota que caiu', texto: 'Qualquer nota caiu esse número de pontos, ou mais, desde a atualização anterior. Vale na escala de cada nota.' },
+        { titulo: 'Resposta Sim', texto: 'O aluno respondeu Sim numa pergunta de Sim ou Não que você escolher.' },
+        { titulo: 'Peso mudou', texto: 'O peso subiu ou desceu esse número de kg, ou mais, desde a atualização anterior.' },
+        { titulo: 'Poucos dias com treino', texto: 'Os dias com treino registrado no app, no período da atualização, ficaram nesse número ou abaixo. A conta é feita no envio.' },
+        { titulo: 'Item marcado', texto: 'O aluno marcou um item numa pergunta de itens do plano (alimento, exercício ou dia) que você escolher.' },
+        { titulo: 'Onde configurar', texto: 'Em Configurações › Regras de atenção (grupo Alunos e atendimento). Mudar as regras pede a permissão Regras de atenção, que quem administra a consultoria dá em Equipe; sem ela, a tela só mostra. As perguntas vêm dos questionários de atualização publicados, e cada pergunta vale para quem responde o questionário dela.' },
+        { titulo: 'Começa desligada', texto: 'Cada regra começa desligada e sem número. Ligue a que quiser, escolha a pergunta quando o tipo pede uma, digite o número (o app não sugere nenhum) e salve. Desligar uma regra não apaga o que já foi avaliado. Há um limite de regras por consultoria, que a tela mostra.' },
+        { titulo: 'Envios antigos não mudam', texto: 'O resultado é gravado quando o aluno envia a atualização: a pergunta, o número e o valor que bateu. Se você mudar ou desligar uma regra depois, os envios antigos continuam como foram. A regra nova vale a partir do próximo envio.' },
+        { titulo: 'Onde aparece', texto: 'Na lista de Atualizações, cada envio com pontos de atenção mostra o selo "N pontos de atenção", e o filtro "Só com pontos de atenção" deixa só esses. Na revisão, o bloco "Pontos de atenção", no topo do "O que mudou", mostra o que bateu, com a sua regra e o número gravado naquele envio.' },
+        { titulo: 'Aviso no celular', texto: 'Quando um envio tem pontos de atenção, o celular do responsável pelo aluno recebe um aviso com o texto fixo "Atualização com pontos de atenção" e "Abra o app para ver.". O aviso não traz o nome do aluno nem o que bateu. Só o responsável recebe, e só quem pode ver as atualizações e os dados sensíveis do aluno; se o aluno não tem responsável, ninguém recebe, e a lista com o filtro mostra o envio. Cada membro liga ou desliga o aviso em Aparência e preferências (no menu da sua conta; no celular, em Perfil), no item "Avisar quando a atualização de um aluno tiver pontos de atenção". A preferência vale para a sua conta, em todos os aparelhos.' },
+        { titulo: 'Plataforma sem regras', texto: 'Enquanto as regras de atenção estiverem desligadas na plataforma, o cartão, o selo, o filtro e o bloco somem da tela, e nenhum envio é avaliado.' },
+      ],
+    },
+    {
       id: 'anamnese',
       titulo: 'Anamnese',
       itens: [

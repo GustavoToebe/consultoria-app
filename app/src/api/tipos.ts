@@ -84,6 +84,8 @@ export interface EuResponse {
   whatsappHabilitado?: boolean;
   /** Contrato digital ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta. */
   contratosHabilitados?: boolean;
+  /** Regras de atenção do treinador ligadas na plataforma (`TREINOS_REGRAS_ATENCAO_HABILITADO`); falso ou ausente = o app esconde tudo e não consulta. */
+  regrasAtencaoHabilitada?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
   /** Só do aluno: links das redes da consultoria que estão preenchidas (a API só manda as preenchidas); ausente = nenhuma. */
@@ -1805,6 +1807,8 @@ export interface Atualizacao {
   feedback: { texto: string; em: string; editadoEm: string | null; naoLido: boolean; nomeAutor?: string | null } | null;
   versao: number | null;
   resumo: { diasComTreino: number; mediaDiasPorSemana: number | null; pesoAnterior: number | null } | null;
+  /** Só no detalhe do treinador (`GET /atualizacoes/{id}`): os fatos que bateram nas regras de atenção no envio. Nulo ou ausente para o aluno, sem regra ou com a chave desligada. */
+  atencao?: FatoDeAtencao[] | null;
 }
 /**
  * `GET /alunos/{id}/atualizacoes/evolucao`: respostas NOTA e NUMERO das últimas `limite` atualizações enviadas ou
@@ -1838,9 +1842,86 @@ export interface AtividadeRecente { itens: ItemDeAtividade[] }
 /** `GET /aluno/fotos/configuracao`: o que o servidor aceita (os limites também valem lá). */
 export interface ConfiguracaoDeFotos { habilitado: boolean; maximoPorPergunta: number; bytesMaximo: number; porDia: number }
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */
-export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' | 'nomeAluno' | 'dataAtualizacao' | 'fase' | 'diasParaData' | 'diasDeAtraso' | 'atrasoAte'>;
+export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' | 'nomeAluno' | 'dataAtualizacao' | 'fase' | 'diasParaData' | 'diasDeAtraso' | 'atrasoAte'> & {
+  /** Quantos pontos de atenção a atualização teve no envio; nulo sem permissão ou com a chave desligada (nunca 0 inventado). */
+  pontosDeAtencao?: number | null;
+};
 /** Uma página de `GET /atualizacoes/pagina`; `total` é o da situação com os mesmos filtros. */
 export interface PaginaDeAtualizacoes { itens: AtualizacaoDaLista[]; total: number }
+
+/**
+ * Regras de atenção do treinador (`docs/planos/regras-de-atencao.md`, R1 a R9 e C1 a C8). O servidor avalia no envio e
+ * congela o resultado; o app só mostra (nunca reavalia nem sugere número). Regras puras em `dominio/regrasDeAtencao` e
+ * `dominio/pontosDeAtencao`.
+ */
+export type TipoDeRegraDeAtencao = 'NOTA_ABAIXO' | 'NOTA_CAIU' | 'SIM' | 'PESO_MUDOU' | 'POUCOS_TREINOS' | 'ITEM_MARCADO';
+/** Tipo da pergunta que uma regra pode usar (NOTA_ABAIXO = NOTA, SIM = SIM_NAO, ITEM_MARCADO = ITENS_DO_PLANO). */
+export type TipoDePerguntaDaRegra = 'NOTA' | 'SIM_NAO' | 'ITENS_DO_PLANO';
+/** Uma regra gravada. `perguntaId` só nos tipos com pergunta e `limite` só nos tipos com número; desligada = `ativa:false`. */
+export interface RegraDeAtencao {
+  id: string;
+  tipo: TipoDeRegraDeAtencao;
+  perguntaId: string | null;
+  limite: number | null;
+  ativa: boolean;
+  /** Etapa 2: quantos alunos têm exceção nesta regra (só a contagem). */
+  alunosComExcecao?: number | null;
+}
+/** Pergunta que a tela oferece (C2): NOTA, SIM_NAO e ITENS_DO_PLANO dos questionários de atualização publicados e ativos. */
+export interface PerguntaDaRegra {
+  perguntaId: string;
+  tipo: TipoDePerguntaDaRegra;
+  rotulo: string;
+  /** Escala da NOTA; nula nos outros tipos. */
+  escala: { min: number; max: number } | null;
+  questionarios: { id: string; nome: string }[];
+}
+/** `GET /regras-de-atencao` (`ATUALIZACAO_LER`); o `PUT` responde igual. */
+export interface RegrasDeAtencaoResposta {
+  versao: number;
+  /** Máximo de regras por consultoria (50). */
+  teto: number;
+  regras: RegraDeAtencao[];
+  perguntas: PerguntaDaRegra[];
+}
+/** Uma regra no corpo do lote: sem `id` = nova; regra gravada que sai do corpo é apagada (com as exceções). */
+export interface RegraDeAtencaoEnvio {
+  id?: string;
+  tipo: TipoDeRegraDeAtencao;
+  perguntaId: string | null;
+  limite: number | null;
+  ativa: boolean;
+}
+/** `PUT /regras-de-atencao` (`REGRA_ATENCAO_ALTERAR`): lote atômico; 409 `CONFLITO_EDICAO` pela versão, 422 `REGRA_INVALIDA` em `regras[i].perguntaId|limite`. */
+export interface SalvarRegrasDeAtencao { versao: number; regras: RegraDeAtencaoEnvio[] }
+/**
+ * Um fato gravado no envio (R3, R4, C6). `perguntaId`: a pergunta da regra; no PESO_MUDOU, a pergunta PESO quando o peso veio
+ * dela, senão nulo; no POUCOS_TREINOS, nulo. `valorObservado` com sinal, nulo no SIM e no ITEM_MARCADO.
+ */
+export interface FatoDeAtencao {
+  tipo: TipoDeRegraDeAtencao;
+  perguntaId: string | null;
+  limiteVigente: number | null;
+  valorObservado: number | null;
+  /** Nomes dos itens marcados (ITEM_MARCADO), se a API os mandar; senão o app lê da resposta. */
+  itensMarcados?: string[] | null;
+}
+/** `GET|PUT /eu/preferencias-de-push`: preferência da conta (C7). */
+export interface PreferenciasDePush { atencao: boolean }
+/** Etapa 2 (C8): a exceção do aluno numa regra; nula = vale a regra geral. */
+export interface ExcecaoDaRegra { ativa: boolean; limite: number | null; versao?: number | null }
+/** Etapa 2: `GET /alunos/{id}/regras-de-atencao` (`ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER`): as regras ligadas e a exceção do aluno. */
+export interface RegraDoAluno {
+  regraId: string;
+  tipo: TipoDeRegraDeAtencao;
+  perguntaId: string | null;
+  /** O número da regra geral. */
+  limite: number | null;
+  excecao: ExcecaoDaRegra | null;
+}
+export interface RegrasDoAlunoResposta { regras: RegraDoAluno[] }
+/** Etapa 2: `PUT /alunos/{id}/regras-de-atencao/{regraId}` (`REGRA_ATENCAO_ALTERAR` + `ALUNO_ALTERAR`). */
+export interface SalvarRegraDoAluno { ativa: boolean; limite: number | null; versao?: number | null }
 
 /** Gestão dos questionários (`questionarios/dto/QuestionarioDtos`). */
 export type OrigemQuestionario = 'VAZIO' | 'FABRICA';

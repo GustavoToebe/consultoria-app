@@ -23,7 +23,8 @@ public class AtualizacaoTreinadorController {
      * {@code de}/{@code ate} (dias de Brasília, os dois ou nenhum, até 366 dias) recortam por período; {@code responsavel}
      * (repetível: ids de membros desta consultoria, senão 404, e/ou {@code nenhum}) filtra pelo responsável do aluno como o
      * "Meus" ({@code meus=true} equivale ao próprio usuário; os dois juntos = 400 {@code FILTRO_INVALIDO}); {@code busca}
-     * procura no nome do aluno, sem acento.
+     * procura no nome do aluno, sem acento; {@code comAtencao=true} deixa só as enviadas com pontos de atenção (o mesmo filtro em
+     * {@code /pagina} e {@code /contagens}; ignorado com as regras de atenção desligadas). Cada item traz {@code pontosDeAtencao}.
      */
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/atualizacoes")
     public List<AtualizacaoService.ItemDaLista> listar(@RequestParam(defaultValue = "PARA_REVISAR") String situacao,
@@ -31,8 +32,9 @@ public class AtualizacaoTreinadorController {
             @RequestParam(required = false) String busca,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
+            @RequestParam(defaultValue = "false") boolean comAtencao,
             @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return atualizacoes.listar(situacao, atualizacoes.lerFiltro(meus, eu.usuarioId(), responsavel, busca, de, ate));
+        return atualizacoes.listar(situacao, atualizacoes.lerFiltro(meus, eu.usuarioId(), responsavel, busca, de, ate, comAtencao));
     }
 
     /** Uma página de {@code /atualizacoes} (30 por padrão, até 100): mesmos filtros, na ordem da tela, com o total da situação. */
@@ -43,8 +45,8 @@ public class AtualizacaoTreinadorController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
             @RequestParam(required = false) Integer pagina, @RequestParam(required = false) Integer tamanho,
-            @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return atualizacoes.pagina(situacao, atualizacoes.lerFiltro(meus, eu.usuarioId(), responsavel, busca, de, ate), pagina, tamanho);
+            @RequestParam(defaultValue = "false") boolean comAtencao, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return atualizacoes.pagina(situacao, atualizacoes.lerFiltro(meus, eu.usuarioId(), responsavel, busca, de, ate, comAtencao), pagina, tamanho);
     }
 
     /** Quantas há em cada situação (o número das abas) com os mesmos filtros da lista, sem a situação. */
@@ -53,8 +55,9 @@ public class AtualizacaoTreinadorController {
             @RequestParam(required = false) List<String> responsavel, @RequestParam(required = false) String busca,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
+            @RequestParam(defaultValue = "false") boolean comAtencao,
             @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return atualizacoes.contar(atualizacoes.lerFiltro(meus, eu.usuarioId(), responsavel, busca, de, ate));
+        return atualizacoes.contar(atualizacoes.lerFiltro(meus, eu.usuarioId(), responsavel, busca, de, ate, comAtencao));
     }
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/alunos/{alunoId}/atualizacoes")
     public List<AtualizacaoService.Detalhe> doAluno(@PathVariable UUID alunoId) { return atualizacoes.doAluno(alunoId); }

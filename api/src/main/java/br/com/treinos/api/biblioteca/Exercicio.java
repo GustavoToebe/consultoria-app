@@ -27,7 +27,7 @@ public class Exercicio {
     public enum Origem { MANUAL, CATALOGO, IMPORTACAO }
 
     /**
-     * Tipo do exercício de cardio (V199; só com modalidade {@code CARDIO}, CHECK no banco). O rótulo de equipamento é o
+     * Tipo do exercício de cardio (V113; só com modalidade {@code CARDIO}, CHECK no banco). O rótulo de equipamento é o
      * que a publicação copia para o plano ({@code PlanoTreinoService.equipamentoDe}); nulo = sem equipamento.
      */
     public enum TipoDeCardio {

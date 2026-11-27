@@ -195,6 +195,9 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/ajustes', 'Aparência e preferências'],
   ['/treinador/minha-conta', 'Assinatura e faturas'],
   ['/treinador/termos', 'Termos e privacidade'],
+  // Fora do CATALOGO (busca global) de propósito: `telasPermitidas` não conhece a chave da plataforma, e com ela desligada
+  // (o padrão) o item apareceria. A entrada é o cartão de Configurações, que confere a chave.
+  ['/treinador/regras-de-atencao', 'Regras de atenção'],
 ];
 
 /** Nome da tela do caminho atual para o título da aba do navegador; `null` quando não se sabe (fica só a consultoria). */

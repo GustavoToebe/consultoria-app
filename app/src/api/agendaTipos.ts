@@ -311,6 +311,8 @@ export interface FiltroAtualizacoes {
   busca?: string | null;
   de?: string | null;
   ate?: string | null;
+  /** Só as com pontos de atenção (regras de atenção, C5); vale na lista, na página e nas contagens. */
+  comAtencao?: boolean;
 }
 
 /** Em qual ocorrência de uma série o PUT e o DELETE agem: o `escopo` e, em `ESTA`/`SEGUINTES`, o `dataOriginal`. */

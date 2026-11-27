@@ -18,7 +18,7 @@ const exercicio = (n: number, nome: string, p: Partial<Exercicio>): Exercicio =>
   videoUrl: null, observacoes: null, origem: 'MANUAL', imagens: [], imagemPropriaEm: null, ...p,
 });
 const LEG_PRESS = exercicio(1, 'Leg press fictício', { grupoMuscular: 'Pernas', equipamento: 'Máquina' });
-// Antes da V199: grupo e equipamento gravados, sem tipo nem medidas na resposta.
+// Antes da V113: grupo e equipamento gravados, sem tipo nem medidas na resposta.
 const ESTEIRA_ANTIGA = exercicio(2, 'Esteira fictícia', { modalidade: 'CARDIO', grupoMuscular: 'Cardio', equipamento: 'Esteira' });
 const ESCADA = exercicio(3, 'Escada fictícia', { modalidade: 'CARDIO', tipoDeCardio: 'ESCADA', medidasDeCardio: ['RITMO'] });
 const LISTA = [LEG_PRESS, ESTEIRA_ANTIGA, ESCADA];
@@ -128,7 +128,7 @@ test('editar: o cardio salvo abre com o tipo e as medidas dele; o antigo avisa q
 
   await page.getByRole('button', { name: `Editar ${ESTEIRA_ANTIGA.nome}` }).click();
   await expect(folha(page).getByRole('button', { name: 'Tipo de cardio (opcional): Não informado. Escolher.' })).toBeVisible();
-  // Sem medidas na resposta (antes da V199): as duas, como a API grava por padrão.
+  // Sem medidas na resposta (antes da V113): as duas, como a API grava por padrão.
   await expect(medidas.getByRole('checkbox', { name: 'Distância' })).toHaveAttribute('aria-checked', 'true');
   await expect(folha(page).getByText('Ao salvar como Cardio, saem do exercício o grupo muscular (Cardio) e o equipamento (Esteira); o tipo de cardio fica no lugar deles.')).toBeVisible();
   await page.screenshot({ path: captura('editar-cardio-antigo-1280-claro.png') });

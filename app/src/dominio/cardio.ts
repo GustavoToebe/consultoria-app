@@ -416,7 +416,7 @@ export const MEDIDAS_DE_CARDIO: readonly { codigo: MedidaDeCardio; rotulo: strin
 
 /**
  * O campo aparece no contínuo: sempre com valor já gravado (nunca esconde dado); sem a medida na biblioteca, some.
- * `medidas` ausente (cardio manual ou exercício de antes da V199) = as duas.
+ * `medidas` ausente (cardio manual ou exercício de antes da V113) = as duas.
  */
 export function mostraMedida(medida: MedidaDeCardio, medidas: readonly MedidaDeCardio[] | null | undefined, c: Cardio): boolean {
   const valor = medida === 'DISTANCIA' ? c.distanciaKm : c.ritmo;

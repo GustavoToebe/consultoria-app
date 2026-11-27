@@ -100,4 +100,9 @@ class CatalogoPermissoesTest {
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("CONTRATO_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("CONTRATO_LER"))).isInstanceOf(BadRequestException.class);
     }
+    @Test void regraDeAtencaoDependeDeLerAtualizacoes() {
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("REGRA_ATENCAO_ALTERAR"))))
+                .containsExactlyInAnyOrder("REGRA_ATENCAO_ALTERAR","ATUALIZACAO_LER","ALUNO_SENSIVEL_LER","ALUNO_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("REGRA_ATENCAO_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
+    }
 }

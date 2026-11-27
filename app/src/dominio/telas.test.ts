@@ -30,6 +30,12 @@ describe('catálogo de telas', () => {
     expect(nomeDaTela('/treinador/configuracoes')).toBe('Configurações');
   });
 
+  it('Regras de atenção: dá nome à aba do navegador, mas não entra na busca global (a chave nasce desligada)', () => {
+    expect(nomeDaTela('/treinador/regras-de-atencao')).toBe('Regras de atenção');
+    expect(tituloDaPagina('/treinador/regras-de-atencao', 'Saraiva Team')).toBe('Regras de atenção · Saraiva Team');
+    expect(buscarTelas('regras de atencao', telasPermitidas(com(ADMIN)))).toEqual([]);
+  });
+
   it('Medicação e ergogênicos só aparece e só é achado com ERGOGENICO_LER', () => {
     const sem = telasPermitidas(com(ADMIN));
     expect(ids(sem)).not.toContain('ergogenicos');

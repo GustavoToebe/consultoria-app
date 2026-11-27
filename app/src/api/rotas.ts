@@ -181,6 +181,11 @@ import type {
   TipoPlano,
   TipoReceita,
   VersaoDetalhe,
+  PreferenciasDePush,
+  RegrasDeAtencaoResposta,
+  RegrasDoAlunoResposta,
+  SalvarRegraDoAluno,
+  SalvarRegrasDeAtencao,
 } from './tipos';
 
 /**
@@ -300,6 +305,7 @@ function filtroDeAtualizacoes(meus: boolean, filtro: FiltroAtualizacoes, inicio:
     q.set('de', filtro.de);
     q.set('ate', filtro.ate);
   }
+  if (filtro.comAtencao) q.set('comAtencao', 'true');
   return q;
 }
 export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false, filtro: FiltroAtualizacoes = {}) => {
@@ -322,6 +328,33 @@ export const evolucaoRespostasDoAluno = (id: string) =>
 /** Últimos acontecimentos do aluno (Resumo da ficha); o servidor corta o limite em 1 a 20 e confere a permissão de cada tipo. */
 export const atividadeRecenteDoAluno = (id: string, limite = 5) =>
   requisicao<AtividadeRecente>(`/alunos/${seg(id)}/atividade-recente?limite=${limite}`);
+
+// ---- Regras de atenção do treinador (só com `regrasAtencaoHabilitada`; desligada, 503; `docs/planos/regras-de-atencao.md`) ----
+
+/** As regras, a versão da lista, o teto e as perguntas que a tela oferece (`ATUALIZACAO_LER`). */
+export const obterRegrasDeAtencao = () => requisicao<RegrasDeAtencaoResposta>('/regras-de-atencao');
+/** Lote atômico (C1, `REGRA_ATENCAO_ALTERAR`): monte o corpo com `corpoDoLote` de `dominio/regrasDeAtencao`. */
+export const salvarRegrasDeAtencao = (corpo: SalvarRegrasDeAtencao) =>
+  requisicao<RegrasDeAtencaoResposta>('/regras-de-atencao', { metodo: 'PUT', corpo });
+/** Preferência da conta do membro (C7): o aviso no celular quando a atualização de um aluno tem pontos de atenção. */
+export const obterPreferenciasDePush = () => requisicao<PreferenciasDePush>('/eu/preferencias-de-push');
+export const salvarPreferenciasDePush = (corpo: PreferenciasDePush) =>
+  requisicao<PreferenciasDePush>('/eu/preferencias-de-push', { metodo: 'PUT', corpo });
+/** Token do aparelho do membro da equipe (C7; o do aluno é `/aluno/push-token`): só no corpo, idempotente. */
+export const registrarPushTokenDoTreinador = (token: string, plataforma: 'ANDROID' | 'IOS') =>
+  requisicao<void>('/eu/push-token', { metodo: 'PUT', corpo: { token, plataforma } });
+/** Apaga o token informado; sem token o servidor apaga todos os do usuário (os outros aparelhos também). */
+export const removerPushTokenDoTreinador = (token?: string) =>
+  requisicao<void>('/eu/push-token', token ? { metodo: 'DELETE', corpo: { token } } : { metodo: 'DELETE' });
+/** Etapa 2 (C8): as regras ligadas e a exceção do aluno em cada uma. */
+export const obterRegrasDeAtencaoDoAluno = (alunoId: string) =>
+  requisicao<RegrasDoAlunoResposta>(`/alunos/${seg(alunoId)}/regras-de-atencao`);
+/** Etapa 2: outro número ou desligada só para este aluno (vale a partir do próximo envio). */
+export const salvarRegraDeAtencaoDoAluno = (alunoId: string, regraId: string, corpo: SalvarRegraDoAluno) =>
+  requisicao<RegrasDoAlunoResposta>(`/alunos/${seg(alunoId)}/regras-de-atencao/${seg(regraId)}`, { metodo: 'PUT', corpo });
+/** Etapa 2: volta à regra geral (apaga a exceção). */
+export const voltarRegraDeAtencaoDoAlunoAGeral = (alunoId: string, regraId: string) =>
+  requisicao<void>(`/alunos/${seg(alunoId)}/regras-de-atencao/${seg(regraId)}`, { metodo: 'DELETE' });
 
 // ---- Fotos da atualização (bytes só pela API, com token; nada de link direto para o bucket) ----
 

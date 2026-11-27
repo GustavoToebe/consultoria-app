@@ -42,6 +42,13 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/numeros', acesso(['ATUALIZACAO_LER','ALUNO_SENSIVEL_LER','ALUNO_LER','CONTA_LER']))).toBe(false);
     expect(podeAcessarTela('/treinador/numeros', acesso([]))).toBe(false);
   });
+  it('Regras de atenção abrem com ATUALIZACAO_LER e ALUNO_SENSIVEL_LER (editar é conferido na tela e na API)', () => {
+    expect(podeAcessarTela('/treinador/regras-de-atencao', acesso(['ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER']))).toBe(true);
+    expect(podeAcessarTela('/treinador/regras-de-atencao', acesso(['ATUALIZACAO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/regras-de-atencao', acesso(['REGRA_ATENCAO_ALTERAR', 'ALUNO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/regras-de-atencao/x', acesso(['ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER']))).toBe(false);
+  });
+
   it('Financeiro pede FINANCEIRO_LER e o módulo de pagamentos ligado', () => {
     expect(podeAcessarTela('/treinador/financeiro', acesso(['FINANCEIRO_LER','ALUNO_LER']), true)).toBe(true);
     expect(podeAcessarTela('/treinador/financeiro', acesso(['FINANCEIRO_LER','ALUNO_LER']), false)).toBe(false);

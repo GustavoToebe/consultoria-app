@@ -1,6 +1,8 @@
 package br.com.treinos.api.atualizacoes;
 
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.atencao.AtencaoDaAtualizacao;
+import br.com.treinos.api.atencao.AvaliadorDeAtencao;
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
@@ -36,12 +38,17 @@ public class AtualizacaoService {
     public record Detalhe(UUID id, UUID pastaId, UUID alunoId, String nomeAluno, LocalDate dataAtualizacao,
             String fase, long diasParaData, long diasDeAtraso, LocalDate atrasoAte, String atrasoMotivo,
             int questionarioVersaoNumero, UUID questionarioVersaoId, String questionarioNome, JsonNode modelo, JsonNode respostas, Instant enviadaEm,
-            Feedback feedback, Long versao, ResumoPeriodoService.Resumo resumo) {
-        /** O que vai para o aluno: o nome do questionário é de trabalho do treinador ("Iniciantes", "Pós-lesão") e não sai. */
+            Feedback feedback, Long versao, ResumoPeriodoService.Resumo resumo,
+            /* Pontos de atenção congelados no envio (regras de atenção); nulo com a chave desligada ou antes do envio. */
+            List<AvaliadorDeAtencao.Fato> atencao) {
+        /**
+         * O que vai para o aluno: o nome do questionário é de trabalho do treinador ("Iniciantes", "Pós-lesão") e não sai; os
+         * pontos de atenção também não (regras e pontos são material do treinador, D5).
+         */
         public Detalhe paraAluno() {
             return new Detalhe(id, pastaId, alunoId, nomeAluno, dataAtualizacao, fase, diasParaData, diasDeAtraso, atrasoAte,
                     atrasoMotivo, questionarioVersaoNumero, questionarioVersaoId, null, modelo, respostas, enviadaEm, feedback,
-                    versao, resumo);
+                    versao, resumo, null);
         }
     }
     private final AtualizacaoRepository atualizacoes;
@@ -57,11 +64,15 @@ public class AtualizacaoService {
     private final FotoService fotos;
     private final br.com.treinos.api.equipe.MembrosDoFiltro membros;
     private final ItensDoPlanoService itensDoPlano;
+    private final AtencaoDaAtualizacao atencao;
+    private final br.com.treinos.api.push.PushService push;
     public AtualizacaoService(AtualizacaoRepository atualizacoes, QuestionarioResolver questionarios,
             PastaRepository pastas, PastaVigente vigente, AlunoRepository alunos,
             RegistroPesoRepository pesos, ResumoPeriodoService resumos, ValidadorAtualizacao validador, JsonMapper json,
             br.com.treinos.api.auth.UsuarioRepository usuarios, FotoService fotos,
-            br.com.treinos.api.equipe.MembrosDoFiltro membros, ItensDoPlanoService itensDoPlano) {
+            br.com.treinos.api.equipe.MembrosDoFiltro membros, ItensDoPlanoService itensDoPlano, AtencaoDaAtualizacao atencao,
+            br.com.treinos.api.push.PushService push) {
+        this.atencao = atencao; this.push = push;
         this.usuarios=usuarios; this.fotos=fotos; this.membros=membros; this.itensDoPlano=itensDoPlano;
         this.atualizacoes = atualizacoes; this.questionarios = questionarios; this.pastas = pastas;
         this.vigente = vigente; this.alunos = alunos; this.pesos = pesos;
@@ -76,7 +87,7 @@ public class AtualizacaoService {
         Atualizacao atual = pasta == null ? null : atualizacoes.findByPastaId(pasta.getId()).orElse(null);
         // Sem pasta, ou consultoria sem nenhum questionário de atualização (zerada, ou ainda sem criar): não há o que
         // responder. Sem isto o pacote do aluno (GET /aluno/painel) inteiro dava 404 por causa do questionário.
-        if (pasta == null || !temModelo(pasta, atual)) return new Detalhe(null,null,alunoId,null,null,"NENHUMA",0,0,null,null,0,null,null,null,null,null,null,null,null);
+        if (pasta == null || !temModelo(pasta, atual)) return new Detalhe(null,null,alunoId,null,null,"NENHUMA",0,0,null,null,0,null,null,null,null,null,null,null,null,null);
         return detalhe(pasta, atual);
     }
     private boolean temModelo(PastaPlano pasta, Atualizacao a) {
@@ -117,7 +128,12 @@ public class AtualizacaoService {
         // O peso vem da pergunta do tipo PESO (se o questionário tiver e o aluno tiver respondido).
         var respostaPeso = respostas.path(idDaPergunta(conteudo, "PESO"));
         if (respostaPeso.isNumber()) gravarPeso(eu, alunoId, data, respostaPeso.decimalValue());
-        return detalhe(pasta,atual);
+        // Regras de atenção (R3): avaliadas e congeladas aqui, na mesma transação; o reenvio idempotente saiu lá em cima e não reavalia.
+        var fatos = atencao.avaliarEGravar(atual.getId(), alunoId, data, conteudo, respostas,
+                () -> resumos.calcular(alunoId, pasta.getInicio(), data).diasComTreino());
+        // R7: com algum ponto, o push ao responsável entra na fila nesta mesma transação (outbox; o rollback leva os dois).
+        if (fatos != null && !fatos.isEmpty()) push.enfileirarAtencaoAoResponsavel(br.com.treinos.api.tenant.TenantContext.get(), alunoId);
+        return detalhe(pasta,atual,fatos);
     }
     /** As fotos da resposta FOTOS deixam de ser pendentes e passam a fazer parte desta atualização, na mesma transação. */
     private void ligarFotos(JsonNode conteudo, JsonNode respostas, UUID alunoId, UUID pastaId, UUID atualizacaoId) {
@@ -173,8 +189,12 @@ public class AtualizacaoService {
     @Transactional(readOnly = true)
     public List<Detalhe> doAluno(UUID alunoId) {
         exigirAluno(alunoId);
-        return atualizacoes.findByAlunoIdOrderByDataAtualizacaoDesc(alunoId).stream()
-            .map(a -> detalhe(pastas.findById(a.getPastaId()).orElseThrow(() -> new NaoEncontradoException("Atualização não encontrada.")),a)).toList();
+        List<Atualizacao> lista = atualizacoes.findByAlunoIdOrderByDataAtualizacaoDesc(alunoId);
+        // Os pontos de atenção de todas numa consulta só (nulo com a chave desligada).
+        var pontos = atencao.dasAtualizacoes(lista.stream().filter(AtualizacaoService::enviada).map(Atualizacao::getId).toList());
+        return lista.stream()
+            .map(a -> detalhe(pastas.findById(a.getPastaId()).orElseThrow(() -> new NaoEncontradoException("Atualização não encontrada.")),a,
+                    pontos == null || !enviada(a) ? null : pontos.get(a.getId()))).toList();
     }
     @Transactional(readOnly = true)
     public Detalhe detalheAluno(UsuarioAutenticado eu, UUID id) {
@@ -201,10 +221,13 @@ public class AtualizacaoService {
         return detalhe(atualizacoes.saveAndFlush(a));
     }
     public static final List<String> SITUACOES = List.of("PARA_REVISAR","ATRASADAS","AVISARAM_ATRASO","PROXIMAS");
-    /** Item das listas do treinador: sem modelo, respostas nem resumo (isso é do detalhe). */
+    /**
+     * Item das listas do treinador: sem modelo, respostas nem resumo (isso é do detalhe). {@code pontosDeAtencao}: quantos pontos
+     * de atenção a atualização teve no envio; nulo com a chave desligada ou ainda não enviada (nunca um 0 inventado).
+     */
     public record ItemDaLista(UUID id, UUID pastaId, UUID alunoId, String nomeAluno, LocalDate dataAtualizacao,
-            String fase, long diasParaData, long diasDeAtraso, LocalDate atrasoAte) { }
-    private record Classificada(LinhaAtualizacao linha, RegrasAtualizacao.Situacao regras) { }
+            String fase, long diasParaData, long diasDeAtraso, LocalDate atrasoAte, Long pontosDeAtencao) { }
+    private record Classificada(LinhaAtualizacao linha, RegrasAtualizacao.Situacao regras, Long pontos) { }
     /**
      * Lista e contadores do painel saem da mesma consulta e da mesma classificação, para nunca divergirem.
      * {@code responsavelId} vem do usuário autenticado ("Meus alunos"), nunca do cliente.
@@ -220,17 +243,18 @@ public class AtualizacaoService {
     /**
      * Filtros da lista e das contagens (lote 2 de {@code docs/planos/filtros-nas-listas.md}): responsáveis (ids de membros
      * e/ou "sem responsável"; o "Meus alunos" chega como o id de quem pede), busca pelo nome do aluno (sem acento, sem
-     * diferença de caixa) e período ({@code de}/{@code ate}, dias de Brasília, os dois ou nenhum).
+     * diferença de caixa), período ({@code de}/{@code ate}, dias de Brasília, os dois ou nenhum) e {@code comAtencao} (só as
+     * enviadas com ao menos um ponto de atenção; ignorado com a chave desligada).
      */
-    public record FiltroDaLista(FiltrosDeLista.Responsaveis responsaveis, String busca, LocalDate de, LocalDate ate) {
+    public record FiltroDaLista(FiltrosDeLista.Responsaveis responsaveis, String busca, LocalDate de, LocalDate ate, boolean comAtencao) {
 
         public static FiltroDaLista nenhum() {
-            return new FiltroDaLista(FiltrosDeLista.Responsaveis.NENHUM, null, null, null);
+            return new FiltroDaLista(FiltrosDeLista.Responsaveis.NENHUM, null, null, null, false);
         }
 
         public static FiltroDaLista de(UUID responsavelId, LocalDate de, LocalDate ate) {
             return new FiltroDaLista(responsavelId == null ? FiltrosDeLista.Responsaveis.NENHUM
-                    : FiltrosDeLista.Responsaveis.so(responsavelId), null, de, ate);
+                    : FiltrosDeLista.Responsaveis.so(responsavelId), null, de, ate, false);
         }
     }
 
@@ -240,11 +264,12 @@ public class AtualizacaoService {
      * {@code PERIODO_INVALIDO}.
      */
     @Transactional(readOnly = true)
-    public FiltroDaLista lerFiltro(boolean meus, UUID eu, List<String> responsavel, String busca, LocalDate de, LocalDate ate) {
+    public FiltroDaLista lerFiltro(boolean meus, UUID eu, List<String> responsavel, String busca, LocalDate de, LocalDate ate,
+            boolean comAtencao) {
         FiltrosDeLista.Responsaveis r = FiltrosDeLista.Responsaveis.ler(responsavel, meus);
         membros.exigir(r.ids());
         exigirPeriodo(de, ate);
-        return new FiltroDaLista(meus ? FiltrosDeLista.Responsaveis.so(eu) : r, Buscas.opcional(busca), de, ate);
+        return new FiltroDaLista(meus ? FiltrosDeLista.Responsaveis.so(eu) : r, Buscas.opcional(busca), de, ate, comAtencao);
     }
 
     @Transactional(readOnly = true)
@@ -264,7 +289,7 @@ public class AtualizacaoService {
         exigirPeriodo(f.de(), f.ate());
         return classificar(f).stream().filter(c -> pertence(situacao, c, f.de(), f.ate())).map(c -> new ItemDaLista(
             c.linha().atualizacaoId(),c.linha().pastaId(),c.linha().alunoId(),c.linha().nomeAluno(),c.linha().data(),
-            c.regras().fase(),c.regras().diasParaData(),c.regras().diasDeAtraso(),c.linha().atrasoAte())).toList();
+            c.regras().fase(),c.regras().diasParaData(),c.regras().diasDeAtraso(),c.linha().atrasoAte(),c.pontos())).toList();
     }
     /** Uma página da lista (C8): {@code total} é o da situação com os mesmos filtros; os itens, na ordem que a tela mostra. */
     public record PaginaDeAtualizacoes(List<ItemDaLista> itens, long total) { }
@@ -324,7 +349,16 @@ public class AtualizacaoService {
     private List<Classificada> classificar(FiltroDaLista f) {
         FiltrosDeLista.Responsaveis r = f.responsaveis();
         UUID unico = r.ids().size() == 1 && !r.semResponsavel() ? r.ids().iterator().next() : null;
-        return classificar(f, atualizacoes.linhasDoPainel(unico));
+        List<Classificada> todas = classificar(f, atualizacoes.linhasDoPainel(unico));
+        // Pontos de atenção na mesma leitura (uma consulta agrupada), para lista, página e contagens nunca divergirem.
+        var pontos = atencao.contagens(todas.stream().filter(AtualizacaoService::enviada).map(c -> c.linha().atualizacaoId()).toList());
+        if (pontos == null) return todas;
+        return todas.stream()
+            .map(c -> new Classificada(c.linha(), c.regras(), enviada(c) ? pontos.getOrDefault(c.linha().atualizacaoId(), 0L) : null))
+            .filter(c -> !f.comAtencao() || (c.pontos() != null && c.pontos() > 0)).toList();
+    }
+    private static boolean enviada(Classificada c) {
+        return c.linha().atualizacaoId() != null && List.of("ENVIADA","REVISADA").contains(c.linha().estado());
     }
 
     private static List<Classificada> classificar(FiltroDaLista f, List<LinhaAtualizacao> linhas) {
@@ -335,7 +369,7 @@ public class AtualizacaoService {
         return linhas.stream()
             .filter(l -> r.aceita(l.responsavelId()))
             .filter(l -> procurado.isEmpty() || Buscas.semAcento(l.nomeAluno()).contains(procurado))
-            .map(l -> new Classificada(l, RegrasAtualizacao.calcular(hoje,l.data(),l.atrasoAte(),l.estado()))).toList();
+            .map(l -> new Classificada(l, RegrasAtualizacao.calcular(hoje,l.data(),l.atrasoAte(),l.estado()), null)).toList();
     }
     private static boolean pertence(String situacao, Classificada c, LocalDate de, LocalDate ate) {
         String fase = c.regras().fase();
@@ -386,7 +420,13 @@ public class AtualizacaoService {
         return new ValidacaoException("Confira os campos.", "ATUALIZACAO_INVALIDA", List.of(new ApiError.FieldError(campo,mensagem)));
     }
     private Detalhe detalhe(Atualizacao a) { return detalhe(pastas.findById(a.getPastaId()).orElseThrow(() -> new NaoEncontradoException("Atualização não encontrada.")),a); }
+    private static boolean enviada(Atualizacao a) { return a != null && !"ABERTA".equals(a.getEstado()); }
+    /** Lê os pontos da atualização enviada; nada (nem leitura) com a chave desligada ou antes do envio. */
     private Detalhe detalhe(PastaPlano pasta, Atualizacao a) {
+        var pontos = enviada(a) ? atencao.dasAtualizacoes(List.of(a.getId())) : null;
+        return detalhe(pasta, a, pontos == null ? null : pontos.get(a.getId()));
+    }
+    private Detalhe detalhe(PastaPlano pasta, Atualizacao a, List<AvaliadorDeAtencao.Fato> pontos) {
         LocalDate data = a == null ? pasta.getFim() : a.getDataAtualizacao();
         var regras = RegrasAtualizacao.calcular(LocalDate.now(Fuso.BRASILIA),data,a == null ? null : a.getAtrasoAte(),a == null ? null : a.getEstado());
         var modelo = modelo(pasta, a);
@@ -396,6 +436,6 @@ public class AtualizacaoService {
         var feedback = a == null || a.getFeedbackEm() == null ? null : new Feedback(a.getFeedback(),a.getFeedbackEm(),a.getFeedbackEditadoEm(),a.getFeedbackVistoEm() == null,autor);
         return new Detalhe(a == null ? null : a.getId(),pasta.getId(),aluno.getId(),aluno.getNome(),data,regras.fase(),regras.diasParaData(),regras.diasDeAtraso(),
             a == null ? null : a.getAtrasoAte(),a == null ? null : a.getAtrasoMotivo(),modelo.numero(),modelo.versaoId(),modelo.nome(),json.readTree(modelo.conteudo()),
-            a == null ? json.createObjectNode() : json.readTree(a.getRespostas()),a == null ? null : a.getEnviadaEm(),feedback,a == null ? null : a.getVersao(),resumos.calcular(aluno.getId(),pasta.getInicio(),data));
+            a == null ? json.createObjectNode() : json.readTree(a.getRespostas()),a == null ? null : a.getEnviadaEm(),feedback,a == null ? null : a.getVersao(),resumos.calcular(aluno.getId(),pasta.getInicio(),data),pontos);
     }
 }

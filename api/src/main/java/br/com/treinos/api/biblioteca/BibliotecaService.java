@@ -202,7 +202,7 @@ public class BibliotecaService {
 
     /**
      * Com {@code CARDIO}, grupo e equipamento ficam nulos (o formulário não os mostra; D13 do plano do cardio). Trocar a
-     * modalidade para fora do cardio zera o tipo antes de gravar (o CHECK da V199 recusaria).
+     * modalidade para fora do cardio zera o tipo antes de gravar (o CHECK da V113 recusaria).
      */
     @Transactional
     public ExercicioResponse alterarExercicio(UUID id, ExercicioRequest r) {
