@@ -182,10 +182,10 @@ test('simular imprime a lista final e o diff e não escreve nada', async () => {
   assert.match(r.saida, /Lista final \(32 perguntas/);
   assert.match(r.saida, /\[MULTIPLA_ESCOLHA\] Momento que mais ficou com fome {2}\(opções: Manhã \| Tarde \| Noite \| Madrugada \| Não senti mais fome que o normal\)/);
   assert.match(r.saida, /Em quais exercícios\?.*fonte EXERCICIOS_DO_TREINO.*motivo OPCIONAL.*rótulo do motivo "Onde e como doeu\?".*só aparece se "Sentiu dores ou dificuldades\?" = Sim/);
-  assert.match(r.saida, /Qual dia foi mais desgastante\?.*fonte DIAS_TREINADOS; escolha única; motivo OBRIGATORIO/);
+  assert.match(r.saida, /Qual dia foi mais desgastante\?.*fonte DIAS_TREINADOS; escolha única; motivo OPCIONAL/);
   assert.match(r.saida, /só aparece se "Seu músculo recuperou até a próxima sessão\?" = Não/);
   assert.match(r.saida, /Diff contra o rascunho atual: 8 saem, 14 entram, 18 ficam como estão\./);
-  assert.match(r.saida, /decisão pendente do Gustavo/);
+  assert.match(r.saida, /Motivo de "Qual dia foi mais desgastante\?": OPCIONAL/);
   assert.match(r.saida, /Simulação: nada foi gravado\./);
   assert.ok(!r.saida.includes('senha-de-teste') && !r.saida.includes('token-de-teste') && !r.saida.includes('treinador@exemplo.com'));
 });
@@ -245,7 +245,7 @@ test('as 8 perguntas: tipos, textos, opções e configuração do contrato', asy
   assert.deepEqual(descanso.mostrarSe, { perguntaId: 'treino_descanso_sn', valores: ['sim'] });
 
   const dia = porId(c, 'fb_desgastante_dia');
-  assert.deepEqual([dia.tipo, dia.rotulo, dia.fonte, dia.max, dia.motivo, dia.mostrarSe], ['ITENS_DO_PLANO', 'Qual dia foi mais desgastante?', 'DIAS_TREINADOS', 1, 'OBRIGATORIO', undefined]);
+  assert.deepEqual([dia.tipo, dia.rotulo, dia.fonte, dia.max, dia.motivo, dia.mostrarSe], ['ITENS_DO_PLANO', 'Qual dia foi mais desgastante?', 'DIAS_TREINADOS', 1, 'OPCIONAL', undefined]);
 
   assert.deepEqual(resumo('fb_substituiu_sn'), ['SIM_NAO', 'Teve algum exercício que substituiu por não ter o maquinário?']);
   const subst = porId(c, 'fb_substituiu_itens');
@@ -327,13 +327,13 @@ test('rascunho já certo mas alterado depois da publicação: só publica, sem s
 
 test('rascunho mexido à mão numa pergunta nova volta ao que o script define, sem duplicar', async () => {
   await rodar(['--gravar'], ENV());
-  porId(padrao().rascunho, 'fb_desgastante_dia').motivo = 'OPCIONAL';
+  porId(padrao().rascunho, 'fb_desgastante_dia').motivo = 'OBRIGATORIO';
   porId(padrao().rascunho, 'alim_fome_periodo').rotulo = 'Mexido';
   chamadas = [];
   const r = await rodar(['--gravar'], ENV());
   assert.equal(r.codigo, 0, r.saida);
   assert.deepEqual(caminhos(), ['PUT /questionarios/<id>', 'POST /questionarios/<id>/validar', 'POST /questionarios/<id>/publicar']);
-  assert.equal(porId(padrao().rascunho, 'fb_desgastante_dia').motivo, 'OBRIGATORIO');
+  assert.equal(porId(padrao().rascunho, 'fb_desgastante_dia').motivo, 'OPCIONAL');
   assert.equal(todas(padrao().rascunho).length, 32);
 });
 

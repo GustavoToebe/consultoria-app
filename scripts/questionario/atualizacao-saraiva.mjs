@@ -8,8 +8,7 @@
 // O tipo de um id já publicado não muda entre versões (a API recusa), então cada pergunta nova leva um id novo e a de texto
 // livre sai. As respostas de atualizações já enviadas continuam legíveis: elas guardam a versão que o aluno respondeu.
 //
-// DECISÃO PENDENTE DO GUSTAVO: o motivo de "Qual dia foi mais desgastante?" é obrigatório ou opcional? Hoje o padrão é
-// OBRIGATORIO; para OPCIONAL, troque `MOTIVO_DO_DIA_DESGASTANTE` abaixo e rode de novo (o script é idempotente e troca só isso).
+// O motivo de "Qual dia foi mais desgastante?" é OPCIONAL, como o das outras perguntas novas (decisão do Gustavo, 27/11/2026).
 //
 // SEGURANÇA: o padrão é SIMULAR (lê, monta, imprime a lista final e o diff, sem gravar nada). Só `--gravar` salva o rascunho,
 // valida e publica; se a API recusar, o rascunho anterior volta e nada é publicado. Mostre a lista ao Gustavo antes de gravar
@@ -23,8 +22,8 @@
 import { baseDaApiOuSair, corpoDoLogin, permissoesQueFaltam } from '../importacao/acesso-lib.mjs';
 import { mesmoConteudo } from './inscricao-saraiva-lib.mjs';
 
-/** Motivo de "Qual dia foi mais desgastante?": 'OBRIGATORIO' ou 'OPCIONAL'. Decisão pendente do Gustavo. */
-const MOTIVO_DO_DIA_DESGASTANTE = 'OBRIGATORIO';
+/** Motivo de "Qual dia foi mais desgastante?": 'OBRIGATORIO' ou 'OPCIONAL' (decisão do Gustavo, 27/11/2026). */
+const MOTIVO_DO_DIA_DESGASTANTE = 'OPCIONAL';
 
 const CAPACIDADE_DE_TEXTO_TOTAL = 40000; // LimitesQuestionario.CAPACIDADE_DE_TEXTO_TOTAL
 const MOTIVO_TAMANHO = 300; // ValidadorQuestionario.MOTIVO_TAMANHO
@@ -216,7 +215,7 @@ async function principal() {
   console.log(`Questionário padrão da atualização: "${detalhe.nome}" (versão publicada ${detalhe.versaoPublicada}); rascunho ${rascunhoIgual ? 'igual ao' : 'diferente do'} que o script monta.`);
   imprimirLista(conteudo);
   imprimirDiff(detalhe.rascunho, conteudo);
-  console.log(`Motivo de "Qual dia foi mais desgastante?": ${MOTIVO_DO_DIA_DESGASTANTE} (decisão pendente do Gustavo; troque MOTIVO_DO_DIA_DESGASTANTE no script).`);
+  console.log(`Motivo de "Qual dia foi mais desgastante?": ${MOTIVO_DO_DIA_DESGASTANTE} (decisão do Gustavo, 27/11/2026).`);
   console.log(precisaPublicar ? 'Será salvo, validado e publicado.' : 'Já está publicado com este conteúdo: nada a publicar.');
   if (!gravar) {
     console.log('Simulação: nada foi gravado. Rode com --gravar para publicar.');

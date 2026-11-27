@@ -1,6 +1,6 @@
 # Lote de 26/11: textos novos de interface e perguntas do Saraiva (para aprovação do Gustavo)
 
-Estado: **rascunho consolidado em 26/11/2026, sem aprovação**. Nada vai para produção antes da aprovação do Gustavo.
+Estado: **aprovado pelo Gustavo em 27/11/2026** (textos das seções 1 e 2 e lista da 3b, decisões abaixo). O script do Saraiva continua sem `--gravar` em produção.
 Fonte: relatórios dos agentes do lote (worktree `consultoria-app-lote-26-11`, branch `lote-tres-frentes-26-11`, base `main`
 2e2e8852, nada commitado ainda). Quem ainda não entregou relatório final está em "Pendentes de relatório"; esta lista é
 completada quando eles entregarem. Validade: vale para o código do worktree nesta data; qualquer mudança de texto depois
@@ -69,16 +69,17 @@ dos itens acima antes de gravar.
 ## 3b. Lista final gerada pela simulação do script (C2, `scripts/questionario/atualizacao-saraiva.mjs`)
 
 Nada foi gravado em produção. Padrão = simular; só `--gravar` salva, valida e publica. Hoje são 26 perguntas; saem 8, entram 14, ficam 18 (notas, peso, fotos e o resto intactos): 32 no total. Todas as novas têm `obrigatoria: false`.
-Os rótulos das perguntas de acompanhamento são escolha do agente (o plano não os define): **confirmar**.
+Os rótulos das perguntas de acompanhamento foram escolha do agente e o Gustavo os aprovou como estão (27/11/2026).
 
 - Alimentar: "Momento que mais ficou com fome" (múltipla: Manhã, Tarde, Noite, Madrugada, Não senti mais fome que o normal); "Algum alimento que enjoou ou gostaria de substituir?" (Sim/Não) e, se Sim, "Quais alimentos você quer substituir?" (alimentos da dieta, até 10, motivo opcional).
 - Treino: "Quantos dias por semana está conseguindo treinar?" (Todos os prescritos, Faltei 1 dia, Faltei 2 ou mais); "Sentiu dores ou dificuldades?" (Sim/Não) e, se Sim, "Em quais exercícios?" (exercícios do treino, até 10, motivo opcional "Onde e como doeu?"); "Precisou fazer descanso no meio da semana?" (Sim/Não) e, se Sim, "Qual dia?" (segunda a domingo).
-- Feedbacks: "Qual dia foi mais desgastante?" (dias treinados, escolha única, motivo OBRIGATÓRIO por padrão); "Teve algum exercício que substituiu por não ter o maquinário?" (Sim/Não) e, se Sim, "Quais exercícios você substituiu?" (exercícios, até 10, motivo opcional "O que usou no lugar?") e "Foto do aparelho que você usou" (até 2); "Seu músculo recuperou até a próxima sessão?" (Sim/Não) e, se Não, "Em quais treinos você ainda estava dolorido?" (dias treinados, até 10, motivo opcional).
+- Feedbacks: "Qual dia foi mais desgastante?" (dias treinados, escolha única, motivo opcional); "Teve algum exercício que substituiu por não ter o maquinário?" (Sim/Não) e, se Sim, "Quais exercícios você substituiu?" (exercícios, até 10, motivo opcional "O que usou no lugar?") e "Foto do aparelho que você usou" (até 2); "Seu músculo recuperou até a próxima sessão?" (Sim/Não) e, se Não, "Em quais treinos você ainda estava dolorido?" (dias treinados, até 10, motivo opcional).
 
 Decisões do agente: ids novos para cada pergunta (a API recusa publicar id que muda de tipo; respostas antigas seguem legíveis pela versão em que foram dadas); `max` 10 (1 no dia desgastante) para caber na capacidade de texto (32.800 de 40.000).
 
-**Conflito devolvido ao Gustavo:** o plano manda manter a média de dias de treino que o app mostra embaixo de "Quantos dias por semana...". Essa média é o campo `ajudaAutomatica: MEDIA_DIAS_TREINO`, que a API só aceita em TEXTO e NUMERO; em ESCOLHA_UNICA seria recusado, então o script a retirou e a média deixa de aparecer nessa pergunta. Para mantê-la é preciso mudar o `ValidadorQuestionario` e o espelho `dominio/questionario.ts` (contrato de API) ou mostrar a média por outro caminho. **Decisão pendente.**
+**Conflito decidido pelo Gustavo (27/11/2026): fica sem a média nessa pergunta.** o plano manda manter a média de dias de treino que o app mostra embaixo de "Quantos dias por semana...". Essa média é o campo `ajudaAutomatica: MEDIA_DIAS_TREINO`, que a API só aceita em TEXTO e NUMERO; em ESCOLHA_UNICA seria recusado, então o script a retirou e a média deixa de aparecer nessa pergunta. Para mantê-la é preciso mudar o `ValidadorQuestionario` e o espelho `dominio/questionario.ts` (contrato de API) ou mostrar a média por outro caminho. Decisão: nada disso agora; a média segue no topo da leitura do aluno e no "Resumo do período" do treinador.
 
 ## Aprovação
-- [ ] Textos da seção 1 e os da seção 2 quando entregues
-- [ ] Perguntas da seção 3 e a lista final da seção 3b (rótulos de acompanhamento; motivo da pergunta 6; média de dias de treino)
+- [x] Textos das seções 1 e 2: aprovados como estão (Gustavo, 27/11/2026)
+- [x] Lista final da seção 3b (Gustavo, 27/11/2026): (a) motivo de "Qual dia foi mais desgastante?" OPCIONAL (`MOTIVO_DO_DIA_DESGASTANTE` no script); (b) rótulos de acompanhamento aprovados; (c) sem a média de dias de treino na pergunta de escolha única
+- [ ] Rodar o script com `--gravar` em produção: só com o ok do Gustavo, depois do deploy do lote

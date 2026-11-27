@@ -64,7 +64,7 @@ Nenhum foi editado ainda; conferir cada um sobre a `main` sem o lote antes de at
 Escopo congelado: NÃO começam F (folha da pasta), G (editor de questionários), UI de `ITENS_DO_PLANO` (aluno, editor, prévia), aviso "Seu novo plano está disponível" no Início, "Cancelar agendamento" e PDFs N2 a N4. Fechar o que está em andamento, validar, juntar com a main e subir (push só com ordem dele).
 - Pergunta 6 (dia mais desgastante): motivo OBRIGATÓRIO (como no script do Saraiva).
 - Média de dias de treino: a API não muda; mostrar a média calculada na leitura das respostas (regra em `dominio/` com teste); sem caminho limpo, tirar e registrar pendência.
-- Lista do Saraiva (3b) e textos da seção 1: o Gustavo vai ler; nenhum `--gravar` em produção sem aprovação explícita dele.
+- Lista do Saraiva (3b) e textos das seções 1 e 2: aprovados pelo Gustavo em 27/11/2026 (motivo do dia desgastante opcional, rótulos aprovados, sem a média na escolha única; ver [lote-26-11-textos-e-perguntas.md](lote-26-11-textos-e-perguntas.md)). Nenhum `--gravar` em produção sem um ok explícito dele.
 - Início empilhado (Dieta sob o Hoje, Água sob as pendências): APROVADO.
 - "12:00 · Almoço": voltar para a A12 em todo lugar, inclusive web larga; conciliar no merge com a "opção A no aluno e PDF" da main.
 - Tablet/nativo: a Dieta sempre empilha por `Platform` dentro de `DietaDoAluno`; não mexer no `PrincipalComApoio`.
