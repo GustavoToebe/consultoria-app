@@ -1,6 +1,9 @@
 # Atualização, pasta do aluno e questionários (pedido do Gustavo de 26/11/2026)
 
-Situação: Blocos A a E na `main` (lote de 26/11); rodada de 28/11, onda 1 (itens do plano na atualização, folha da pasta, `Abas` com tabpanel) na branch `leva-1` (27/11); onda 2 (prescrição da época, bloco G parcial) só na branch `onda2-rodada`, NÃO publicada: leva 2 · Onde: `leva-1` · Atualizado: 27/11/2026
+Situação: Em andamento. A, B, C (API e script), D e E entraram no lote de 26/11 (já na `main`, base `fb57efa9`; registro em
+[lote-26-11-retomada.md](lote-26-11-retomada.md)); C1 no app e F no commit local `727957c0` (rodada de 28/11, onda 1, branch
+`rodada-28-11`, sem push); D (prescrição da época) e G parcial aplicados na onda 2, **sem commit** · Onde: worktree
+`consultoria-app-rodada-28-11` · Atualizado: 27/11/2026 (estado real na seção "Passos")
 
 Este documento é o briefing para outra IA executar. Ele junta o que o Gustavo pediu (um PDF de 23 páginas com capturas),
 a análise do código de hoje e o que recomendamos fazer. As capturas estão em
@@ -370,27 +373,83 @@ Ações do ⋯:
 
 ## Perguntas em aberto para o Gustavo
 
-1. Bloco E: avisar o aluno também na publicação sem data? (recomendação: sim, com "Avisar o aluno" marcado por padrão)
-2. Bloco A: "o foco não vai direto" é o teclado cobrindo o campo, o toque no rótulo que não foca, ou os dois?
-3. Bloco F: "Ordem sugerida" vira checklist com estado real ou sai para o ⓘ?
-4. Bloco C: confirmar a lista final de perguntas do questionário do Saraiva antes de gravar em produção.
+1. ~~Bloco E: avisar o aluno também na publicação sem data?~~ Respondida em 26/11: sim, "Avisar o aluno" marcado por padrão.
+2. ~~Bloco A: "o foco não vai direto" é o teclado cobrindo o campo, o toque no rótulo que não foca, ou os dois?~~ Respondida em 26/11: os dois.
+3. ~~Bloco F: "Ordem sugerida" vira checklist com estado real ou sai para o ⓘ?~~ Respondida em 26/11: sai para o ⓘ da folha (feito em `727957c0`).
+4. ~~Bloco C: confirmar a lista final de perguntas do questionário do Saraiva antes de gravar em produção.~~ Lista aprovada em
+   27/11 ([lote-26-11-textos-e-perguntas.md](lote-26-11-textos-e-perguntas.md)); `--gravar` em produção só com ordem dele.
+5. **Aberta (rodada de 28/11, onda 2):** título do cartão da revisão, "Prescrição no envio" ou "Prescrição atual"? O
+   cartão passou a mostrar a versão publicada na data da resposta (item 9). Hoje o código usa "Prescrição no envio" com
+   envio e "Prescrição atual" sem ele (`dominio/prescritoDaAtualizacao.tituloDoPrescrito`). Decisão do Gustavo.
 
 ## Passos
 
-- [x] A. Teclado no Android/iOS (peça compartilhada) — lote de 26/11, na `main`; teclado no aparelho não conferido (`lote-26-11-retomada.md`)
-- [x] B. Leitura das respostas (aluno e treinador) — lote de 26/11, na `main`; o vão pergunta/resposta de 4 px já vale via `arranjoDaLeitura.entre=4`
-- [x] C1. Tipo `ITENS_DO_PLANO`: API e validação (lote de 26/11) e, na onda 1 da rodada de 28/11 (leva 1, 27/11), o campo do aluno (`aluno/atualizacao/CampoItensDoPlano`, `dominio/campoItensDoPlano`) — commit: leva 1 (hash no relatório da leva)
-- [ ] C2. Script `atualizacao-saraiva.mjs` (simular; gravar só com o Gustavo) — o script não foi rodado contra a API local; nenhum `--gravar` em produção
-- [x] D. Revisão do treinador: prescrito ao lado, aba Evolução, "o que mudou" (lote de 26/11). **Leva 2:** a prescrição da época na revisão (`GET /atualizacoes/{id}/prescricao/{tipo}`, "Prescrição no envio" × "Prescrição atual") está só na branch `onda2-rodada`, não publicada
-- [x] E. Data de liberação + aviso ao aluno (migration V106, rotina, push, telas; revisão do `revisor`) — lote de 26/11, na `main`
-- [x] F. Folha da pasta redesenhada — onda 1 da rodada de 28/11, na `leva-1` (27/11); `ui/Abas` com `tabpanel` — commit: leva 1 (hash no relatório da leva)
-- [ ] G. Criação e edição de questionários — **leva 2**: bloco G PARCIAL só na branch `onda2-rodada` (modal Novo único, galeria de 7 grupos, estado vazio, `FolhaDeAcoes`, "editado em"); ficou fora: editor lista + inspetor com arrastar, "Instruções" no cartão Sobre, campos fixos da inscrição no editor, Selo/data como peças
+Estado em 27/11/2026, conferido no código da worktree `consultoria-app-rodada-28-11` (branch `rodada-28-11`). O lote de
+26/11 está na `main` (base `fb57efa9`); a onda 1 da rodada de 28/11 é o commit **local** `727957c0` (sem push, sem PR); a
+onda 2 (itens 9, 10 e 11 do pedido) está aplicada na árvore e **sem commit**. As contagens abaixo são as dos relatórios de
+cada onda, não de uma rodada nova.
 
-### Leva 2 (rodada de 28/11, onda 2)
-Branch `onda2-rodada` da worktree `consultoria-app-rodada-28-11`, sem commit publicado: prescrição da época na revisão (decisão do Gustavo sobre os títulos "Prescrição no envio" e "Prescrição atual"), bloco G parcial e e2e "Histórico: não enviados". Relato da entrega nessa worktree: typecheck e lint ok, jest 1358, e2e 117 + 26 ok, `ArquiteturaTest` 20, `ItensDoPlano` 11 e Flyway 4. Falta a captura Areia, 1536, 2560 e 3440 (item 12) e a suíte completa com `mvn verify`.
+- [~] A. Teclado no Android/iOS (peça compartilhada) — lote de 26/11 (`Tela`, `Folha`, `RolagemComTopo`, `Campo`; toque no
+  rótulo foca o campo). Item 8 da rodada de 28/11: o e2e da atualização em 390 existe e passou na verificação da onda 1
+  (`e2e/atualizacao-itens-do-plano.spec.ts`, responde o questionário inteiro em 390 e 1280), mas o e2e da web **não
+  reproduz o teclado**: **falta conferir num aparelho** (Android e iPhone). A biblioteca do teclado não foi trocada (a doc do
+  Expo sugere `react-native-keyboard-controller`; trocar só com o Gustavo).
+- [x] B. Leitura das respostas (aluno e treinador) — lote de 26/11. Item 11 da rodada (vão de 4 px entre pergunta e resposta
+  empilhadas, seção 2.1) já valia no código; a onda 2 não precisou mudar nada.
+- [x] C1. Tipo `ITENS_DO_PLANO` na API, app, fixtures e editor — API no lote de 26/11; app em `727957c0` (local): campo do
+  aluno (`aluno/atualizacao/CampoItensDoPlano.tsx`, regra `dominio/campoItensDoPlano.ts`; Sim/Não abre a lista, motivo por
+  item com o rótulo da pergunta, 422 de `DIAS_TREINADOS` no campo sem perder a resposta), controles no editor (o tipo saiu de
+  `OCULTOS_NO_MENU`), prévia e leitura (aluno e revisão do treinador); `ItensDoPlanoService` lê a versão liberada da pasta
+  (`ItensDoPlanoIntegrationTest`, com plano agendado). Specs: `e2e/atualizacao-itens-do-plano.spec.ts`,
+  `e2e/editor-questionario-itens.spec.ts`; jest `campoItensDoPlano.test.ts`.
+- [~] C2. Script `atualizacao-saraiva.mjs` — pronto no lote de 26/11, lista aprovada em 27/11, sem `--gravar`. Falta rodar a
+  simulação contra a API local (item 2f; ver "Pendências soltas da rodada 28/11").
+- [~] D. Revisão do treinador — lote de 26/11 (prescrito ao lado, Evolução, "o que mudou"). Onda 2, **sem commit**: o cartão
+  mostra a prescrição da versão publicada na data da resposta (API `atualizacoes/PrescricaoDaEpocaService`, rota no
+  `AtualizacaoTreinadorController`, `PrescricaoDaEpocaIntegrationTest`; app `treinador/revisao/usePrescricaoDaEpoca.ts`) e
+  o item "Quer trocar" do `ITENS_DO_PLANO` entra no "O que mudou" (`dominio/mudancasDaAtualizacao.ts`). Título do cartão:
+  pergunta 5 em aberto. Três colunas na ultralarga: fora da rodada.
+- [x] E. Data de liberação + aviso ao aluno — lote de 26/11 (V106). "Cancelar agendamento": fora, por decisão.
+- [x] F. Folha da pasta redesenhada — `727957c0` (local): cabeçalho com período uma vez, atualização no topo, planos em abas
+  com selo único por linha (`dominio/linhaDoPlano.ts`), "Publicar alterações (N)" e a "Ordem sugerida" no ⓘ. Specs:
+  `e2e/folha-da-pasta.spec.ts`, `e2e/pasta-e-atualizacao.spec.ts`.
+- [~] G. Criação e edição de questionários — **parcial**, onda 2 **sem commit**: um só "Novo" nas três abas (Nome, Descrição
+  e "Começar de": modelo da plataforma só na atualização, "Copiar de um existente", "Em branco"), galeria de tipos agrupada
+  (`treinador/questionarios/GaleriaDeTipos.tsx`, `dominio/editorQuestionario.gruposParaAdicionar`), editor vazio com
+  "Adicione a primeira pergunta", ⋯ das listas na `FolhaDeAcoes` e linha da lista com "Publicado vN · Padrão · Arquivado"
+  e uso. **Ficaram de fora:** editor lista + inspetor com arrastar para reordenar; "Instruções" como campo do cartão
+  "Sobre"; campos fixos da inscrição dentro do editor; selo de situação e data da última edição como peças próprias da
+  linha.
+
+Verificações relatadas (não refeitas aqui):
+- Onda 1 (`727957c0`): `typecheck` limpo, `lint` 0 erros, jest 486 suítes, e2e 1225 passaram, 1 falhou (`filtros-laterais`
+  B3), 238 pulados.
+- Onda 2 (sem commit): jest 1358 testes, e2e 117 + 26, `ArquiteturaTest` 20, `ItensDoPlanoIntegrationTest` 11,
+  `PrescricaoDaEpocaIntegrationTest` 4.
+- Item 7 (Histórico, "Ainda não enviados"): spec nova `e2e/historico-nao-enviados.spec.ts` (390 e 1280, escuro e claro;
+  sem internet e recusado pelo servidor); resultado no relatório da unidade.
 
 ## Fora do escopo
 
 - Cadastro de "máquinas da academia" do aluno (já existe a seção na anamnese).
 - Qualquer alerta de "fora do padrão" com limite calculado pelo app (D5).
 - Notificação da liberação por e-mail ou WhatsApp (só push e aviso no app, D2).
+
+## Pendências soltas da rodada 28/11
+
+Registradas em 27/11/2026 (origem: auditoria dos pedidos 12, 13 e 15 contra a worktree `rodada-28-11`). Ficam aqui, não no
+`README.md`, até a sessão principal integrar.
+
+| Pendência | Origem | Próximo responsável |
+| --- | --- | --- |
+| Conferência visual das telas do aluno e do PDF no tema Areia e em 1536, 2560 e 3440 px, com capturas (corrigir só o quebrado) | pedido 15, item 12 (e 13d) | sessão principal (rodada de 28/11) |
+| Rodar `scripts/questionario/atualizacao-saraiva.mjs` (sem `--gravar`) contra a API local | pedido 15, item 2 (2f) | sessão principal; `--gravar` em produção só com o Gustavo |
+| Teclado: conferir num aparelho (Android e iPhone) que o campo tocado fica acima do teclado; biblioteca não trocada | pedido 15, item 8 (13b) | Gustavo, no aparelho |
+| `FOLGA_DO_BOTAO` ainda duplicada: `ui/RolagemComTopo.tsx` e `aluno/exercicio/colunasDoExercicio.ts` (`FOLGA_NO_FIM_DA_ROLAGEM`). Importar de `RolagemComTopo` quebra o jest puro de `colunasDoExercicio.test.ts` (o lucide ESM não carrega); proposta: constante num arquivo puro `ui/folgaDoBotao.ts`, importado pelos dois | pedido 15, item 6 | sessão principal (dono dos arquivos novos) |
+| Aviso "Seu novo plano" do Início só compara as versões guardadas no aparelho: não anuncia o primeiro plano do aluno | pedido 15, item 3 | Gustavo decide se o primeiro plano também avisa |
+| Pergunta `ITENS_DO_PLANO` obrigatória com a lista vazia (sem dieta, sem treino): definir o que o aluno pode responder | pedido 15, item 2 | Gustavo |
+| Séries registradas em outro aparelho só entram nos dias treinados ao reabrir o app | pedido 15, item 2 (422 de `DIAS_TREINADOS`) | sessão principal |
+| Foto no item da lista (ex.: foto do aparelho, até 2) exige campo na API | pedido 15, item 2 | sessão principal (contrato da API) |
+| Rascunho da atualização sem `criadoEm` | onda 1 | sessão principal |
+| Bloco G: editor lista + inspetor com arrastar, "Instruções" no cartão "Sobre", campos fixos da inscrição no editor, selo e data de edição como peças | pedido 15, item 10 | próxima rodada |
+| Título "Prescrição no envio" × "Prescrição atual" (pergunta 5) | pedido 15, item 9 | Gustavo |

@@ -4,7 +4,8 @@ import {
   moverParaSecao, moverPergunta, moverSecao, normalizarQuestionario, novaOpcao, novaPergunta, novaSecao, paraApi, podeAdicionar,
   podeAdicionarSecao, podeDestacar, podeDuplicar, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR, tiposParaAdicionar,
   controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinosPossiveis, podeUsarDestino,
-  gruposParaAdicionar, alterarDescricaoDaSecao, aceitaImagem, ITENS_DA_PREVIA, mudancaDoMotivo, resumoDosItens,
+  gruposParaAdicionar, alterarDescricaoDaSecao, aceitaImagem, adicionarPrimeiraPergunta, editorVazio, EXEMPLO_DO_TIPO, ITENS_DA_PREVIA, mudancaDoMotivo,
+  resumoDosItens,
 } from './editorQuestionario';
 import { conferirItens } from './respostasAtualizacao';
 import { errosDoQuestionario, errosDosLugares, escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos, TIPOS_FORA_DA_INSCRICAO, validarQuestionario } from './questionario';
@@ -404,8 +405,30 @@ describe('grupos da folha "Adicionar pergunta"', () => {
       expect(new Set(tipos).size).toBe(tipos.length);
       expect([...tipos].sort()).toEqual(tiposParaAdicionar(finalidade).map((t) => t.tipo).sort());
     }
-    expect(gruposParaAdicionar('ATUALIZACAO').map((g) => g.rotulo)).toEqual(['Escolha', 'Texto', 'Número e data', 'Especiais']);
+    expect(gruposParaAdicionar('ATUALIZACAO').map((g) => g.rotulo)).toEqual(['Escrever', 'Escolher', 'Números e notas', 'Datas e contato', 'Fotos', 'Do plano do aluno', 'Texto e aceite']);
     expect(gruposParaAdicionar('ANAMNESE').flatMap((g) => g.itens.map((i) => i.tipo))).not.toContain('DATA_AUTOMATICA');
+    // Grupo sem tipo para a finalidade some (a inscrição não tem fotos nem itens do plano).
+    expect(gruposParaAdicionar('INSCRICAO').map((g) => g.rotulo)).toEqual(['Escrever', 'Escolher', 'Números e notas', 'Datas e contato', 'Texto e aceite']);
+  });
+
+  it('todo tipo tem um exemplo de uma linha (curto o bastante para a célula da galeria)', () => {
+    for (const t of TODOS) expect(EXEMPLO_DO_TIPO[t].length).toBeLessThanOrEqual(32);
+  });
+});
+
+describe('editor vazio', () => {
+  it('vazio = nenhuma pergunta e no máximo uma seção; a primeira pergunta entra na seção que existe ou numa nova', () => {
+    const umaSecao: ConteudoQuestionario = { formato: 2, instrucoes: [], secoes: [{ uid: 'g', titulo: 'Geral', perguntas: [] }] };
+    expect(editorVazio(umaSecao)).toBe(true);
+    expect(editorVazio({ ...umaSecao, secoes: [] })).toBe(true);
+    expect(editorVazio({ ...umaSecao, secoes: [...umaSecao.secoes, { uid: 'h', titulo: 'Outra', perguntas: [] }] })).toBe(false);
+    expect(editorVazio(base())).toBe(false);
+    const comUma = adicionarPrimeiraPergunta(umaSecao, p('x'));
+    expect(comUma.secoes.map((s) => [s.uid, s.perguntas.map((q) => q.id)])).toEqual([['g', ['x']]]);
+    const semSecao = adicionarPrimeiraPergunta({ ...umaSecao, secoes: [] }, p('y'));
+    expect(semSecao.secoes).toHaveLength(1);
+    expect(semSecao.secoes[0].perguntas.map((q) => q.id)).toEqual(['y']);
+    expect(errosDoQuestionario(paraApi({ ...semSecao, secoes: semSecao.secoes.map((s) => ({ ...s, perguntas: s.perguntas.map((q) => ({ ...q, rotulo: 'Ok?' })) })) }))).toEqual([]);
   });
 });
 
@@ -414,11 +437,11 @@ describe('ITENS_DO_PLANO no editor', () => {
     formato: 2, instrucoes: [], secoes: [{ uid: 's1', titulo: 'A', perguntas: [{ ...novaPergunta('ITENS_DO_PLANO'), rotulo: 'Quais?', ...extra }] }],
   });
 
-  it('só a atualização oferece o tipo, no grupo Especiais, e ele nasce com a fonte da dieta (publica sem erro)', () => {
+  it('só a atualização oferece o tipo, no grupo "Do plano do aluno", e ele nasce com a fonte da dieta (publica sem erro)', () => {
     expect(tiposParaAdicionar('ATUALIZACAO').map((t) => t.tipo)).toContain('ITENS_DO_PLANO');
     expect(tiposParaAdicionar('ANAMNESE').map((t) => t.tipo)).not.toContain('ITENS_DO_PLANO');
     expect(tiposParaAdicionar('INSCRICAO').map((t) => t.tipo)).not.toContain('ITENS_DO_PLANO');
-    expect(gruposParaAdicionar('ATUALIZACAO').find((g) => g.rotulo === 'Especiais')?.itens.map((i) => i.tipo)).toContain('ITENS_DO_PLANO');
+    expect(gruposParaAdicionar('ATUALIZACAO').find((g) => g.rotulo === 'Do plano do aluno')?.itens.map((i) => i.tipo)).toEqual(['ITENS_DO_PLANO']);
     expect(novaPergunta('ITENS_DO_PLANO').fonte).toBe('ALIMENTOS_DA_DIETA');
     expect(errosDoQuestionario(paraApi(comItens({})))).toEqual([]);
   });

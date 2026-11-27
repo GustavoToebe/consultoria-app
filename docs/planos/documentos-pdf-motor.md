@@ -1,6 +1,6 @@
 # Documentos (PDF): temas da consultoria e prévia
 
-Situação: Em andamento. Primeira entrega em 16/11/2026 (temas e prévia, sem gravar). Segunda em 21/11/2026 (`59ce839d`, V096): o tema é gravado e **já vale nos PDFs reais**. **Em 26/11/2026 o Gustavo mudou a direção** para modelos prontos + personalização por opções, no estilo da Nuvemshop (seção "Nova direção"): ela substitui a D2 e a D3 e os passos 1.2, 2.1, 2.2 e 3.2 abertos; planejando, nada implementado · Onde: `main` e `origin/main` · Atualizado: 26/11/2026
+Situação: Em andamento. Primeira entrega em 16/11/2026 (temas e prévia, sem gravar). Segunda em 21/11/2026 (`59ce839d`, V096): o tema é gravado e **já vale nos PDFs reais**. **Em 26/11/2026 o Gustavo mudou a direção** para modelos prontos + personalização por opções, no estilo da Nuvemshop (seção "Nova direção"): ela substitui a D2 e a D3 e os passos 1.2, 2.1, 2.2 e 3.2 abertos. O N1 entrou no lote de 26/11 (V107, já na `main`); acertos da galeria no commit local `727957c0` (rodada de 28/11, seção "Rodada de 28/11"); N2 a N4 não começaram · Onde: `main` e branch local `rodada-28-11` · Atualizado: 27/11/2026
 
 Origem: Evolução da decisão 6 de [evolucao-prime.md](evolucao-prime.md) ("Temas (2 ou 3) e prévia própria ficam para depois"). O primeiro desenho deste plano (15/11) era um motor próprio de diagramação em milímetros com prévia em SVG; o Gustavo comparou as duas opções no mesmo dia e escolheu os **temas em CSS sobre os geradores HTML que já existem** (D1). O nome do arquivo ficou o do primeiro desenho.
 
@@ -73,10 +73,21 @@ Pedido do Gustavo, a partir da tela "Layouts de cobrança" da Icondev (editor li
 | D20 | Onde se edita | Editor só no PC (a partir de 1024 px de área), em tela inteira com a guarda "Sair sem salvar?" e desfazer; no celular, no máximo a escolha do modelo | Proposta aceita, 26/11 |
 
 ### Ordem sugerida (passos a detalhar depois do `plano-front`)
-- [ ] N1 Modelos prontos com as opções de **cores, cabeçalho, tabelas e texto** (o que mais muda a cara do PDF; quase tudo CSS sobre o que já existe), gravação e chegada ao aluno — commit: —
+- [x] N1 Modelos prontos com as opções de **cores, cabeçalho, tabelas e texto** (o que mais muda a cara do PDF; quase tudo CSS sobre o que já existe), gravação e chegada ao aluno — commit: lote de 26/11 (V107, na `main`; registro em [lote-26-11-retomada.md](lote-26-11-retomada.md)); acertos da galeria em `727957c0` (local, abaixo)
 - [ ] N2 **Seções e rodapé** do treino e da dieta (inclui o texto livre) — commit: —
 - [ ] N3 Os outros quatro documentos (mobilidade, lista de compras, cargas, avaliação física) — commit: —
 - [ ] N4 Fechamento: prova no celular (passo 0.1), Ajuda e guias, `AGENTS.md`, `docs/design-e-front.md`, revisão independente (validação do JSON, injeção, permissão) — commit: —
+
+### Rodada de 28/11 (commit local `727957c0`, branch `rodada-28-11`, sem push)
+- **"Personalizar este modelo" abre a configuração gravada:** o link e o toque no modelo em uso vão ao editor **sem**
+  `?modelo=` (`treinador/documentos/TelaDocumentos.tsx`; com `?modelo=` o editor trocaria de modelo e zeraria as
+  personalizações); um modelo diferente continua indo com `?modelo=ID` (`galeria/regras.enderecoDoEditor`, testado em
+  `galeria/regras.test.ts`; e2e `e2e/documentos-pdf.spec.ts`).
+- **Regra de colunas uma só:** `galeria/regras.colunasDaGaleria` saiu; a galeria usa `dominio/configuracaoPdf.colunasDaGaleria`
+  e `larguraMaximaDaGaleria` (`configuracaoPdf.test.ts`).
+- Verificação relatada da onda 1: `typecheck` limpo, `lint` 0 erros, jest 486 suítes, e2e 1225 passaram e 1 falhou
+  (`filtros-laterais` B3, de outra área), 238 pulados.
+- Fica para o Gustavo: a cor da miniatura da galeria. Fora da rodada: N2 a N4.
 
 ### Em aberto
 - ~~Gravar pela rota própria ou junto com a Marca~~ · decidido na D25: rota própria, com versão.

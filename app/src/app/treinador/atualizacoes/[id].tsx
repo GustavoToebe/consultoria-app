@@ -20,6 +20,7 @@ import { ResumoDaAtualizacao } from '../../../treinador/ResumoDaAtualizacao';
 import { blocosDaEvolucaoDaRevisao, EvolucaoDaRevisao } from '../../../treinador/revisao/EvolucaoDaRevisao';
 import { MudancasDaAtualizacao } from '../../../treinador/revisao/MudancasDaAtualizacao';
 import { PrescritoDaAtualizacao } from '../../../treinador/revisao/PrescritoDaAtualizacao';
+import { tituloDoPrescrito } from '../../../dominio/prescritoDaAtualizacao';
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
@@ -119,7 +120,7 @@ function Corpo({atualizacao:a,definir,recarregar,fila,largura,faixa,aba}: {
   </>;
   const respostas=<QuestionarioAtualizacao modelo={modelo} dataAtualizacao={a.dataAtualizacao} respostas={a.respostas??{}}
     carregarFotoDaEquipe={a.id?(foto)=>baixarFotoDoTreinador(a.id??'',foto):undefined} />;
-  const prescrito=<PrescritoDaAtualizacao alunoId={a.alunoId} pastaId={a.pastaId} />;
+  const prescrito=<PrescritoDaAtualizacao atualizacao={a} />;
   const abas=aba.abas.length>1?<Abas abas={aba.abas.map(valor=>({valor,rotulo:valor==='evolucao'?'Evolução':'Respostas'}))} ativa={aba.ativa}
     aoMudar={(valor)=>router.setParams({aba:valor==='respostas'?undefined:valor})} />:null;
   const evolucao=<EvolucaoDaRevisao alunoId={a.alunoId} />;
@@ -145,7 +146,7 @@ function Corpo({atualizacao:a,definir,recarregar,fila,largura,faixa,aba}: {
       <View style={[estilos.feedback,web&&!escrevendo?rolagem({maxHeight:Math.round(alturaDoApoio*0.45)}):null]}>{feedback}</View>
       <View style={estilos.feedback}>{navegacao}</View>
       {/* O prescrito rola por dentro do apoio (o apoio tem a altura da janela): o feedback não sai da vista. */}
-      <View style={[estilos.prescrito,web?rolagem({}):null]} role="region" focusable={web} aria-label="Prescrição atual">{prescrito}</View>
+      <View style={[estilos.prescrito,web?rolagem({}):null]} role="region" focusable={web} aria-label={tituloDoPrescrito(a.enviadaEm)}>{prescrito}</View>
     </>} />;
 }
 

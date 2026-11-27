@@ -401,6 +401,23 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
                         .map(v -> new VersaoAtiva<>(p, v, ler(v.getConteudo()))));
     }
 
+    /**
+     * O que o aluno via da pasta em {@code quando} (a revisão da atualização mostra a prescrição da época do envio): entre os
+     * planos do aluno na pasta, arquivados inclusive (a versão é imutável e foi a que ele viu), a versão já liberada e publicada
+     * até {@code quando}, a de publicação mais recente. Vazio = nada publicado na pasta até lá. Passa por {@link #paraLeitura}.
+     * shortcut: não há histórico da liberação; versão agendada liberada depois de {@code quando} conta pela publicação, trocar
+     * se a liberação passar a guardar a data por versão.
+     */
+    @Transactional(readOnly = true)
+    public Optional<VersaoDetalhe<C>> versaoDaPastaEm(UUID alunoId, UUID pastaId, Instant quando) {
+        return planos.findByPastaId(pastaId).stream()
+                .filter(p -> alunoId.equals(p.getAlunoId()) && p.getVersaoLiberada() > 0)
+                .flatMap(p -> versoes.findFirstByPlanoIdAndNumeroLessThanEqualAndPublicadoEmLessThanEqualOrderByNumeroDesc(
+                        p.getId(), p.getVersaoLiberada(), quando).stream())
+                .max(Comparator.comparing(VersaoBase::getPublicadoEm))
+                .map(this::detalheVersao);
+    }
+
     public C ler(String conteudoJson) {
         return json.readValue(conteudoJson, classe);
     }

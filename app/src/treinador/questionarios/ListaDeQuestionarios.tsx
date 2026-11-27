@@ -1,34 +1,39 @@
 import { router } from 'expo-router';
 import { Archive, ArchiveRestore, Copy, Ellipsis, Pencil, Star, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import {
   arquivarQuestionario, criarQuestionario, definirQuestionarioPadrao, desarquivarQuestionario, duplicarQuestionario, excluirQuestionario,
-  listarQuestionarios,
+  listarQuestionarios, salvarQuestionario,
 } from '../../api/rotas';
-import type { FinalidadeQuestionario, OrigemQuestionario, QuestionarioResumo } from '../../api/tipos';
+import type { FinalidadeQuestionario, QuestionarioDetalhe, QuestionarioResumo } from '../../api/tipos';
+import { quandoPublicado } from '../../dominio/barraDoEditor';
 import {
   arquivadosDaApi, chipsDosFiltros, filtrarQuestionarios, PUBLICACOES, SEM_FILTROS, semOFiltro, SITUACOES_DO_QUESTIONARIO, type ChaveDoFiltro,
   type FiltrosDeQuestionarios,
 } from '../../dominio/filtrosDeQuestionarios';
-import { AVISO_SAUDE_NA_INSCRICAO } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
+import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
+import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDaLista, ListaDeLinhas, type SeloDaLinha } from '../../ui/LinhaDaLista';
+import { OpcaoCartao } from '../../ui/OpcaoCartao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { CamposFixosDaInscricao } from './CamposFixosDaInscricao';
 
 const irParaEditor = (id: string) => router.push(`/treinador/planejamento/questionario/${id}`);
@@ -130,20 +135,29 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
         <LinhaDoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</ListaDeLinhas> : null}
     </Cartao>
 
-    {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
-      <Botao rotulo="Duplicar" tipo="acao" Icone={Copy} cheio desabilitado={ocupado !== null}
-        aoTocar={() => { const q = menu; setMenu(null); setOcupado(q.id); duplicarQuestionario(q.id).then((d) => { lista.recarregar(); avisar('Questionário duplicado.', 'sucesso'); irParaEditor(d.id); }, (e: unknown) => avisar(textoDoErro(e), 'perigo')).finally(() => setOcupado(null)); }} />
-      {!menu.padrao && !menu.arquivado ? <Botao rotulo="Definir como padrão" tipo="secundario" Icone={Star} cheio desabilitado={menu.versaoPublicada === 0}
-        motivo="Publique o questionário antes de torná-lo o padrão." aoTocar={() => executar(menu, () => definirQuestionarioPadrao(menu.id), 'Padrão alterado.')} /> : null}
-      {menu.arquivado
-        ? <Botao rotulo="Desarquivar" tipo="secundario" Icone={ArchiveRestore} cheio aoTocar={() => executar(menu, () => desarquivarQuestionario(menu.id), menu.codigoPublico ? 'Questionário desarquivado. O link continua fechado até você abri-lo de novo.' : 'Questionário desarquivado.')} />
-        : <Botao rotulo="Arquivar" tipo="secundario" Icone={Archive} cheio desabilitado={menu.padrao} motivo="O padrão não pode ser arquivado. Defina outro como padrão antes."
-          aoTocar={() => executar(menu, () => arquivarQuestionario(menu.id), menu.publicoAberto ? 'Questionário arquivado. O link de inscrição dele foi fechado.' : 'Questionário arquivado.')} />}
-      <Botao rotulo="Excluir questionário" tipo="perigoTexto" Icone={Trash2} cheio desabilitado={menu.padrao || menu.uso.envios > 0}
-        motivo={menu.padrao ? 'O padrão não pode ser excluído.' : 'Já foi respondido: arquive em vez de excluir.'} aoTocar={() => { setExcluir(menu); setMenu(null); }} />
-    </Folha> : null}
+    {/* ⋯ da linha (bloco G): a `FolhaDeAcoes` do resto do app, com o motivo no detalhe e Excluir como item de perigo. */}
+    {menu ? <FolhaDeAcoes titulo={menu.nome} aoFechar={() => setMenu(null)} acoes={[
+      { rotulo: 'Duplicar', detalhe: 'Cria uma cópia do rascunho e abre no editor.', Icone: Copy, desabilitado: ocupado !== null,
+        aoTocar: () => {
+          const q = menu; setOcupado(q.id);
+          duplicarQuestionario(q.id).then((d) => { lista.recarregar(); avisar('Questionário duplicado.', 'sucesso'); irParaEditor(d.id); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'))
+            .finally(() => setOcupado(null));
+        } },
+      !menu.padrao && !menu.arquivado && { rotulo: 'Definir como padrão', Icone: Star, desabilitado: menu.versaoPublicada === 0,
+        detalhe: menu.versaoPublicada === 0 ? 'Publique o questionário antes de torná-lo o padrão.' : 'Passa a valer para quem não tem outro escolhido.',
+        aoTocar: () => executar(menu, () => definirQuestionarioPadrao(menu.id), 'Padrão alterado.') },
+      menu.arquivado
+        ? { rotulo: 'Desarquivar', Icone: ArchiveRestore, detalhe: 'Volta para a lista e pode ser editado.',
+          aoTocar: () => executar(menu, () => desarquivarQuestionario(menu.id), menu.codigoPublico ? 'Questionário desarquivado. O link continua fechado até você abri-lo de novo.' : 'Questionário desarquivado.') }
+        : { rotulo: 'Arquivar', Icone: Archive, desabilitado: menu.padrao,
+          detalhe: menu.padrao ? 'O padrão não pode ser arquivado. Defina outro como padrão antes.' : 'Sai da lista; quem já respondeu mantém as respostas.',
+          aoTocar: () => executar(menu, () => arquivarQuestionario(menu.id), menu.publicoAberto ? 'Questionário arquivado. O link de inscrição dele foi fechado.' : 'Questionário arquivado.') },
+      { rotulo: 'Excluir questionário', Icone: Trash2, perigo: true, desabilitado: menu.padrao || menu.uso.envios > 0,
+        detalhe: menu.padrao ? 'O padrão não pode ser excluído.' : menu.uso.envios > 0 ? 'Já foi respondido: arquive em vez de excluir.' : undefined,
+        aoTocar: () => setExcluir(menu) },
+    ]} /> : null}
 
-    {novo ? <FormularioNovo finalidade={finalidade} aoFechar={fecharNovo} /> : null}
+    {novo ? <FormularioNovo finalidade={finalidade} existentes={(lista.dados ?? []).filter((q) => !q.arquivado)} aoFechar={fecharNovo} /> : null}
 
     <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.nome ?? ''}”?`}
       mensagem={excluir && (excluir.uso.alunos || excluir.uso.pastas) ? 'Os alunos e as pastas que o usavam passam a usar o padrão da consultoria.' : 'Esta ação não pode ser desfeita.'}
@@ -158,8 +172,9 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
  * Metadados da linha do questionário: "Publicado v3 · Padrão · Arquivado · 2 alunos · 5 envios", cada parte só quando
  * vale. "Nunca publicado" não entra aqui: é selo.
  */
-export function metadadosDoQuestionario(q: Pick<QuestionarioResumo, 'versaoPublicada' | 'padrao' | 'arquivado' | 'uso'>): string {
-  return [q.versaoPublicada ? `Publicado v${q.versaoPublicada}` : null, q.padrao ? 'Padrão' : null, q.arquivado ? 'Arquivado' : null, linhaDeUso(q)]
+export function metadadosDoQuestionario(q: Pick<QuestionarioResumo, 'versaoPublicada' | 'padrao' | 'arquivado' | 'uso'> & { rascunhoAlteradoEm?: string | null }): string {
+  return [q.versaoPublicada ? `Publicado v${q.versaoPublicada}` : null, q.padrao ? 'Padrão' : null, q.arquivado ? 'Arquivado' : null, linhaDeUso(q),
+    q.rascunhoAlteradoEm ? `editado em ${quandoPublicado(q.rascunhoAlteradoEm)}` : null]
     .filter(Boolean).join(' · ');
 }
 
@@ -183,27 +198,60 @@ function LinhaDoQuestionario({ q, ocupado, podeAlterar, aoAbrir, aoMenu }: {
   </>} />;
 }
 
-function FormularioNovo({ finalidade, aoFechar }: { finalidade: FinalidadeQuestionario; aoFechar: () => void }) {
-  const anamnese = finalidade === 'ANAMNESE';
-  const inscricao = finalidade === 'INSCRICAO';
+type Origem = 'FABRICA' | 'COPIA' | 'VAZIO';
+
+/** Uma linha de ajuda por finalidade (bloco G: a regra de saúde da inscrição fica no `Alerta` do editor). */
+const AJUDA_DO_NOVO: Record<FinalidadeQuestionario, string> = {
+  ATUALIZACAO: 'Depois de publicar, defina como padrão ou escolha na ficha do aluno ou na pasta.',
+  ANAMNESE: 'Depois de publicar, envie ao aluno pelo cartão Anamnese da ficha.',
+  INSCRICAO: 'Depois de publicar, defina como padrão do link principal ou use num link próprio em Interessados.',
+};
+
+/**
+ * "Novo" das três abas (bloco G): Nome, Descrição e "Começar de" iguais em todas. Modelo da plataforma só existe na
+ * atualização; "Copiar de um existente" só com outro questionário ativo na aba. A API não cria a partir de outro: copiar
+ * é duplicar e depois gravar o nome e a descrição escritos aqui (se a segunda chamada falhar, a cópia abre com o nome
+ * "(cópia)" e o aviso diz isso).
+ */
+function FormularioNovo({ finalidade, existentes, aoFechar }: { finalidade: FinalidadeQuestionario; existentes: readonly QuestionarioResumo[]; aoFechar: () => void }) {
+  const { avisar } = useAviso();
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
-  // Anamnese e inscrição começam em branco: não há modelo da plataforma para elas.
-  const [origem, setOrigem] = useState<OrigemQuestionario>(anamnese || inscricao ? 'VAZIO' : 'FABRICA');
+  const origens: { valor: Origem; titulo: string; descricao: string }[] = [
+    ...(finalidade === 'ATUALIZACAO' ? [{ valor: 'FABRICA' as const, titulo: 'Modelo da plataforma', descricao: 'As perguntas do questionário original, para você ajustar.' }] : []),
+    ...(existentes.length ? [{ valor: 'COPIA' as const, titulo: 'Copiar de um existente', descricao: 'O rascunho atual de outro desta aba, com as seções e as perguntas dele.' }] : []),
+    { valor: 'VAZIO', titulo: 'Em branco', descricao: 'Você monta as perguntas do zero.' },
+  ];
+  const [origem, setOrigem] = useState<Origem>(origens[0].valor);
+  const [copiarDe, setCopiarDe] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  return <Folha visivel titulo={TEXTOS[finalidade].novo} aoFechar={aoFechar} rodape={<Botao rotulo="Criar e editar" desabilitado={!nome.trim()} motivo="Informe o nome." carregando={salvando} aoTocar={() => {
+  const falta = !nome.trim() ? 'Informe o nome.' : origem === 'COPIA' && !copiarDe ? 'Escolha de qual copiar.' : undefined;
+
+  const criar = (): Promise<QuestionarioDetalhe> => {
+    const corpo = { nome: nome.trim(), descricao: descricao.trim() || null };
+    if (origem !== 'COPIA' || !copiarDe) return criarQuestionario({ ...corpo, origem: origem === 'FABRICA' ? 'FABRICA' : 'VAZIO', finalidade });
+    return duplicarQuestionario(copiarDe).then((copia) => salvarQuestionario(copia.id, { ...corpo, conteudo: copia.rascunho, versao: copia.versao })
+      .catch(() => { avisar('A cópia foi criada, mas o nome não foi gravado. Troque o nome no editor.', 'perigo'); return copia; }));
+  };
+
+  return <Folha visivel titulo={TEXTOS[finalidade].novo} aoFechar={aoFechar} rodape={<Botao rotulo="Criar e editar" desabilitado={!!falta} motivo={falta} carregando={salvando} aoTocar={() => {
     setSalvando(true); setErro(null);
-    criarQuestionario({ nome: nome.trim(), descricao: descricao.trim() || null, origem, finalidade }).then((d) => { aoFechar(); irParaEditor(d.id); }, (e: unknown) => { setErro(e); setSalvando(false); });
+    criar().then((d) => { aoFechar(); irParaEditor(d.id); }, (e: unknown) => { setErro(e); setSalvando(false); });
   }} />}>
-    <Campo rotulo={anamnese ? 'Nome da anamnese' : 'Nome do questionário'} valor={nome} aoMudar={setNome} maxLength={120} />
+    <Campo rotulo={finalidade === 'ANAMNESE' ? 'Nome da anamnese' : 'Nome do questionário'} valor={nome} aoMudar={setNome} maxLength={120} />
     <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={400} />
-    {inscricao ? <Texto variante="suave">Começa com uma seção vazia. Depois de publicar, você pode defini-lo como padrão do link principal ou usá-lo em um link próprio em Interessados. {AVISO_SAUDE_NA_INSCRICAO}</Texto>
-      : anamnese ? <Texto variante="suave">Começa com uma seção vazia. Use seções para dividir (dados, rotina, treino, alimentação) e condições para mostrar perguntas só quando fazem sentido.</Texto> : <>
-      <Escolha rotulo="Começar de" valor={origem} aoMudar={setOrigem} opcoes={[{ valor: 'FABRICA', rotulo: 'Modelo da plataforma' }, { valor: 'VAZIO', rotulo: 'Em branco' }]} />
-      <Texto variante="suave">{origem === 'FABRICA' ? 'Traz as perguntas do questionário original para você ajustar.' : 'Começa com uma seção vazia.'}</Texto>
-    </>}
+    <View style={estilos.origens} role="radiogroup" aria-label="Começar de">
+      <Texto variante="rotulo">Começar de</Texto>
+      {origens.map((o) => <OpcaoCartao key={o.valor} titulo={o.titulo} descricao={o.descricao} selecionada={origem === o.valor} aoEscolher={() => setOrigem(o.valor)} />)}
+    </View>
+    {origem === 'COPIA' ? <EscolhaEmFolha rotulo="Copiar de" titulo="Copiar de" valor={copiarDe ?? ''} rotuloDoValor="Escolher"
+      opcoes={existentes.map((q) => ({ valor: q.id, rotulo: q.nome }))} aoMudar={setCopiarDe} /> : null}
+    <Texto variante="pequeno">{AJUDA_DO_NOVO[finalidade]}</Texto>
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
   </Folha>;
 }
 
+const estilos = StyleSheet.create({
+  origens: { gap: espaco(1) },
+});

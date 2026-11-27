@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { AlunoDetalhe, Atualizacao, ConteudoDieta, ConteudoQuestionario, ConteudoTreino, PlanoResumo, VersaoDetalhe } from '../src/api/tipos';
+import type { AlunoDetalhe, Atualizacao, ConteudoDieta, ConteudoQuestionario, ConteudoTreino, VersaoDetalhe } from '../src/api/tipos';
 import { ALUNO, erroApi, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
@@ -47,11 +47,6 @@ const ANTERIOR: Atualizacao = {
   feedback: { texto: 'Bom trabalho.', em: '2026-10-24T10:00:00Z', editadoEm: null, naoLido: false },
   respostas: { peso: 82, sono: 7, dores: false }, resumo: { diasComTreino: 9, mediaDiasPorSemana: 2.3, pesoAnterior: 83 },
 };
-
-const plano = (id: string, extra: Partial<PlanoResumo> = {}): PlanoResumo => ({
-  id, alunoId: ALUNO_ID, pastaId: PASTA_ID, titulo: id === 't1' ? 'Treino de novembro' : 'Dieta de novembro', inicio: '2026-10-24', fim: '2026-11-20',
-  ativo: true, versaoPublicada: 2, versaoLiberada: 2, publicadoEm: '2026-10-24T10:00:00Z', rascunhoAlteradoDepoisDePublicar: false, versao: 3, ...extra,
-});
 
 const serie = (uid: string, tipo: string | null, min: number, max: number) => ({ uid, tipo, repsMin: min, repsMax: max, carga: null, esforco: null, descansoSegundos: 90 });
 const exercicio = (uid: string, nome: string, series: ReturnType<typeof serie>[]) => ({
@@ -101,10 +96,9 @@ function rotas(o: { atual?: Atualizacao; historico?: Atualizacao[]; extra?: Resp
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     [`GET /atualizacoes/${atual.id}`]: { corpo: atual },
     [`GET /alunos/${ALUNO_ID}/atualizacoes`]: { corpo: o.historico ?? [atual, ANTERIOR] },
-    [`GET /alunos/${ALUNO_ID}/planos-treino`]: { corpo: [plano('t1'), plano('t0', { pastaId: 'outra', ativo: false })] },
-    [`GET /alunos/${ALUNO_ID}/planos-dieta`]: { corpo: [plano('d1')] },
-    'GET /planos-treino/t1/versoes/2': { corpo: versao('t1', TREINO, 'Treino de novembro') },
-    'GET /planos-dieta/d1/versoes/2': { corpo: versao('d1', DIETA, 'Dieta de novembro') },
+    // A versão que o aluno via no envio (a API escolhe; o app só mostra).
+    [`GET /atualizacoes/${atual.id}/prescricao/treino`]: { corpo: { referencia: atual.enviadaEm, versao: versao('t1', TREINO, 'Treino de novembro') } },
+    [`GET /atualizacoes/${atual.id}/prescricao/dieta`]: { corpo: { referencia: atual.enviadaEm, versao: versao('d1', DIETA, 'Dieta de novembro') } },
     [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: [] },
     [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
     [`GET /alunos/${ALUNO_ID}/atualizacoes/evolucao`]: { corpo: { limite: 6, atualizacoes: 2, series: [] } },
@@ -131,7 +125,7 @@ async function capturar(page: Page, nome: string) {
 }
 
 const apoio = (page: Page) => page.getByTestId('apoio-da-revisao');
-const prescrito = (page: Page) => page.getByTestId('cartao').filter({ has: page.getByText(/^Prescrição atual/) });
+const prescrito = (page: Page) => page.getByTestId('cartao').filter({ has: page.getByText(/^Prescrição (no envio|atual)/) });
 
 /** Largura do apoio pela faixa da área (360, 400, 440); `null` = empilhado (390). */
 const APOIO: Record<number, number | null> = { 390: null, 1280: 360, 1920: 400, 3440: 440 };
@@ -223,13 +217,13 @@ for (const largura of [390, 1280]) {
     const soTreino = TODAS.filter((c) => c !== 'DIETA_LER' && c !== 'ERGOGENICO_LER');
     await abrir(page, largura, 900, { permissoes: soTreino });
     const p = prescrito(page);
-    await expect(p.getByText('Prescrição atual: Treino', { exact: true })).toBeVisible();
+    await expect(p.getByText('Prescrição no envio: Treino', { exact: true })).toBeVisible();
     await expect(p.getByRole('tablist')).toHaveCount(0);
     await expect(p.getByText(/^Agachamento livre/)).toBeVisible();
   });
 
   test(`revisão: erro do prescrito fica no cartão e a tela segue (${largura}px)`, async ({ page }) => {
-    const { errosDaPagina } = await abrir(page, largura, 900, { extra: { [`GET /alunos/${ALUNO_ID}/planos-treino`]: erroApi(500, 'Erro interno.') } });
+    const { errosDaPagina } = await abrir(page, largura, 900, { extra: { [`GET /atualizacoes/${ID}/prescricao/treino`]: erroApi(500, 'Erro interno.') } });
     const p = prescrito(page);
     await expect(p.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
     await expect(page.getByText('Resumo do período', { exact: true })).toBeVisible();
@@ -241,10 +235,10 @@ for (const largura of [390, 1280]) {
   test(`revisão: primeira atualização e pasta sem plano publicado (${largura}px)`, async ({ page }) => {
     const { naoTratadas } = await abrir(page, largura, 900, {
       historico: [ATUALIZACAO],
-      extra: { [`GET /alunos/${ALUNO_ID}/planos-treino`]: { corpo: [plano('t1', { versaoPublicada: 0, versaoLiberada: 0, publicadoEm: null })] } },
+      extra: { [`GET /atualizacoes/${ID}/prescricao/treino`]: { corpo: { referencia: ATUALIZACAO.enviadaEm, versao: null } } },
     });
     await expect(page.getByText('Primeira atualização deste aluno.', { exact: true })).toBeVisible();
-    await expect(prescrito(page).getByText('A pasta desta atualização não tem treino publicado.', { exact: true })).toBeVisible();
+    await expect(prescrito(page).getByText('A pasta desta atualização não tinha treino publicado no envio.', { exact: true })).toBeVisible();
     await capturar(page, `revisao-${largura}-primeira-sem-prescrito`);
     expect(naoTratadas).toEqual([]);
   });
@@ -265,6 +259,23 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Editar feedback' })).toBeVisible();
     await expect(page.getByText('Revisada', { exact: true }).first()).toBeVisible();
     await capturar(page, `revisao-${largura}-revisada`);
+  });
+}
+
+for (const largura of [390, 1280]) {
+  test(`revisão: "O que mudou" traz os itens do plano marcados (${largura}px)`, async ({ page }) => {
+    // A atual tem a pergunta de itens; a anterior não tinha: a linha mostra só o fato de agora, sem seta.
+    const modelo: ConteudoQuestionario = { ...MODELO, secoes: [{ ...MODELO.secoes[0], perguntas: [...MODELO.secoes[0].perguntas,
+      { id: 'trocar', tipo: 'ITENS_DO_PLANO', rotulo: 'Quer trocar algum alimento?', rotuloCurto: 'Quer trocar', obrigatoria: false, fonte: 'ALIMENTOS_DA_DIETA', motivo: 'OPCIONAL' }] }, MODELO.secoes[1]] };
+    const atual: Atualizacao = { ...ATUALIZACAO, modelo, respostas: { ...ATUALIZACAO.respostas, trocar: [{ id: 'i5', nome: 'Batata-doce', motivo: 'Enjoei.' }] as never } };
+    const { naoTratadas, errosDaPagina } = await abrir(page, largura, 900, { atual, historico: [atual, ANTERIOR] });
+    const linha = page.getByRole('listitem').filter({ has: page.getByText('Quer trocar', { exact: true }) });
+    await expect(linha).toContainText('Batata-doce');
+    await expect(linha).not.toContainText('→');
+    await expect(page.getByRole('listitem').filter({ has: page.getByText('Sono', { exact: true }) })).toContainText('→');
+    await capturar(page, `revisao-${largura}-o-que-mudou-itens`);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
   });
 }
 

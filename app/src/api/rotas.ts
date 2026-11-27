@@ -186,6 +186,7 @@ import type {
   RegrasDoAlunoResposta,
   SalvarRegraDoAluno,
   SalvarRegrasDeAtencao,
+  PrescricaoDaAtualizacao,
 } from './tipos';
 
 /**
@@ -1201,6 +1202,10 @@ export const pesosAluno = () => requisicao<RegistroPeso[]>('/aluno/pesos');
 
 export const versaoPlano = <C>(tipo: TipoPlano, id: string, numero: number) =>
   requisicao<VersaoDetalhe<C>>(`/${seg(prefixo(tipo))}/${seg(id)}/versoes/${seg(numero)}`);
+
+/** A versão da pasta da atualização que o aluno via no envio (revisão do treinador). */
+export const prescricaoDaAtualizacao = <C>(id: string, tipo: 'treino' | 'dieta') =>
+  requisicao<PrescricaoDaAtualizacao<C>>(`/atualizacoes/${seg(id)}/prescricao/${tipo}`);
 
 export const receita = (id: string) => requisicao<Receita>(`/receitas/${seg(id)}`);
 export const salvarConteudoReceita = (id: string, dados: { nome: string; conteudo: unknown; versao: number }) =>

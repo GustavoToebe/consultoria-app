@@ -1,12 +1,7 @@
-import type { ConteudoDieta, PlanoResumo } from '../api/tipos';
+import type { ConteudoDieta } from '../api/tipos';
 import {
-  abasDoPrescrito, dietaDoPrescrito, dietaLida, outrosDoPrescrito, suplementosDoPrescrito, treinoDoPrescrito, versaoDoPrescrito,
+  abasDoPrescrito, dietaDoPrescrito, dietaLida, outrosDoPrescrito, suplementosDoPrescrito, tituloDoPrescrito, treinoDoPrescrito,
 } from './prescritoDaAtualizacao';
-
-const plano = (id: string, extra: Partial<PlanoResumo>): PlanoResumo => ({
-  id, alunoId: 'a', pastaId: 'p', titulo: id, inicio: null, fim: null, ativo: false, versaoPublicada: 1, publicadoEm: '2026-11-01T10:00:00Z',
-  rascunhoAlteradoDepoisDePublicar: false, versao: 1, ...extra,
-});
 
 describe('abasDoPrescrito', () => {
   const com = (...codigos: string[]) => (c: string) => codigos.includes(c);
@@ -18,21 +13,10 @@ describe('abasDoPrescrito', () => {
   });
 });
 
-describe('versaoDoPrescrito', () => {
-  it('o em uso da pasta, na versão que o aluno vê', () => {
-    const lista = [plano('outra', { pastaId: 'x', ativo: true }), plano('velho', { versaoPublicada: 2 }), plano('ativo', { ativo: true, versaoPublicada: 3, versaoLiberada: 2 })];
-    expect(versaoDoPrescrito(lista, 'p')).toEqual({ planoId: 'ativo', numero: 2, agendada: false });
-  });
-  it('sem o em uso: o publicado mais recente; rascunho nunca publicado não conta', () => {
-    const lista = [plano('rascunho', { versaoPublicada: 0, publicadoEm: null }), plano('a', { publicadoEm: '2026-10-01T00:00:00Z' }), plano('b', { publicadoEm: '2026-11-05T00:00:00Z' })];
-    expect(versaoDoPrescrito(lista, 'p')?.planoId).toBe('b');
-  });
-  it('só agendada (nada liberado ainda): a publicada, marcada como agendada', () => {
-    expect(versaoDoPrescrito([plano('ag', { versaoPublicada: 1, versaoLiberada: 0, liberarEm: '2026-12-01' })], 'p')).toEqual({ planoId: 'ag', numero: 1, agendada: true });
-  });
-  it('sem pasta ou sem plano publicado na pasta: null', () => {
-    expect(versaoDoPrescrito([plano('a', {})], null)).toBeNull();
-    expect(versaoDoPrescrito([plano('a', { pastaId: 'x' })], 'p')).toBeNull();
+describe('tituloDoPrescrito', () => {
+  it('com envio, a do envio; aguardando, a de agora', () => {
+    expect(tituloDoPrescrito('2026-11-20T12:00:00Z')).toBe('Prescrição no envio');
+    expect(tituloDoPrescrito(null)).toBe('Prescrição atual');
   });
 });
 

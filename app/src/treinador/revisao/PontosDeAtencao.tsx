@@ -53,6 +53,8 @@ export function PontosDeAtencao({ pontos }: { pontos: readonly PontoDeAtencao[] 
 /** "82,0 kg → 80,0 kg", com a seta suave; o leitor de tela ouve "para" no lugar da seta. A mesma do "O que mudou". */
 export function AnteriorParaAtual({ mudanca: m }: { mudanca: MudancaDaAtualizacao }) {
   const { cores } = useTema();
+  // Sem anterior (pergunta de itens que a atualização anterior não tinha): só o fato de agora, sem seta.
+  if (m.anterior === null) return <Texto cor={cores.texto}>{m.atual}</Texto>;
   return (
     <Texto cor={cores.texto} numerico>
       {m.anterior}
