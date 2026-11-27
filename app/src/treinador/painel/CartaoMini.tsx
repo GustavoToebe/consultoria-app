@@ -44,9 +44,10 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
   const { cores, bordas, fatorTexto, variante } = useTema();
   const comValor = cartao.estado === 'valor';
   const tom = corDoCartao(cartao, cores);
-  // Poço (`superficie2`) dentro do bloco; com o mouse em cima o degradê termina no realce `sobre` (o hover continua visível).
+  // Poço (`superficie2`) dentro do bloco; com o mouse em cima a tinta passa para `superficie3`, o mesmo hover do cartão neutro
+  // (sobre `sobre` o `textoSuave` cairia abaixo de 4,5:1 nas claras com a tinta de 14%).
   const pintura = tom ? superficiePintada(tom, cores.superficie2, variante, cores) : null;
-  const pinturaSobre = tom ? superficiePintada(tom, cores.sobre, variante, cores) : null;
+  const pinturaSobre = tom ? superficiePintada(tom, cores.superficie3, variante, cores) : null;
   // A cor no texto só se passar 4,5:1 parado e com o mouse em cima (no Oceano o perigo cai abaixo no hover): senão `texto`.
   const textoNaCor = pintura && pinturaSobre ? (pintura.texto === pinturaSobre.texto ? pintura.texto : cores.texto) : null;
   const cor = comValor ? textoNaCor ?? cores.texto : cores.textoSuave;
@@ -57,7 +58,7 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
     <>
       <View style={estilos.topoRotulo}>
         {tom ? <View aria-hidden style={[estilos.ponto, { backgroundColor: tom, boxShadow: `0px 0px 10px ${tom}` }]} /> : null}
-        <Texto variante={linha ? 'corpo' : 'rotulo'} cor={textoNaCor ?? cores.textoSuave}
+        <Texto variante={linha ? 'corpo' : 'rotulo'} cor={cores.textoSuave}
           style={[deitado ? estilos.rotuloDeitado : null, linha ? estilos.rotuloDaLinha : null]}>
           {cartao.rotulo}
         </Texto>

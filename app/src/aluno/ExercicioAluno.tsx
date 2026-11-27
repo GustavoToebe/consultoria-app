@@ -282,7 +282,7 @@ function CorpoDoExercicio(p: Props) {
       style={[estilos.recorde, fundoPintado(pintadoDoRecorde), { borderColor: pintadoDoRecorde.borda }]}>
       <Trophy size={24} color={cores.atencao} />
       <View style={estilos.recordeTextos}>
-        <Texto style={estilos.recordeTitulo} cor={pintadoDoRecorde.texto}>{textoDoRecorde.titulo}</Texto>
+        <Texto style={estilos.recordeTitulo}>{textoDoRecorde.titulo}</Texto>
         <Texto numerico cor={cores.texto}>{textoDoRecorde.detalhe}</Texto>
       </View>
     </View>

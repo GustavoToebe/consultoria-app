@@ -76,13 +76,13 @@ describe('linha tingida', () => {
     expect(estilos[2].borderBottomWidth).toBeUndefined();
   });
 
-  it('o fio entre uma linha e a seguinte tem a cor da tinta se qualquer das duas é tingida, senão a divisória', () => {
+  it('o fio entre uma linha e a seguinte é sempre a divisória, tingida ou não (borda neutra, 26/11)', () => {
     const { estilos } = larga((i) => i.id === '2');
     expect(estilos[0].borderBottomWidth).toBe(1);
     expect(estilos[1].borderBottomWidth).toBe(1);
     expect(estilos[0].borderColor).toBe(estilos[1].borderColor);
     const { estilos: neutras } = larga(() => false);
-    expect(neutras[0].borderColor).not.toBe(estilos[0].borderColor);
+    expect(neutras[0].borderColor).toBe(estilos[0].borderColor);
     expect(neutras[0].borderColor).toBe(neutras[1].borderColor);
   });
 });

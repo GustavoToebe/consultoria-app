@@ -16,13 +16,13 @@ export interface AparenciaDoIndicador {
   pintura: SuperficiePintada | null;
   /** Ponto e ícone: a cor (≥ 3:1 sobre o ponto mais forte do fundo); sem cor, o `corDoMarcador` (só a bolinha) ou `null`. */
   marca: string | null;
-  /** Rótulo: a cor quando ela passa 4,5:1 (senão `texto`); sem cor, `textoSuave`. */
+  /** Rótulo: sempre neutro, `textoSuave` (a cor fica só no ponto e no valor; 26/11). */
   rotulo: string;
   /** Número: a cor quando ela passa 4,5:1 (senão `texto`); sem cor, `texto`; zero e indisponível, `textoSuave`. */
   valor: string;
   /** Base neutra: `superficie` solto na página; `superficie2` (poço) dentro de um `Cartao`. */
   fundo: string;
-  /** Contorno de 1 px: a cor a 50% com cor; `divisor` sem. */
+  /** Contorno de 1 px: `divisor`, com ou sem cor (borda neutra, 26/11). */
   borda: string;
 }
 
@@ -44,7 +44,7 @@ export function aparenciaDoIndicador(
     return { pintura: null, marca: corDoMarcador, rotulo: cores.textoSuave, valor: apagado ? cores.textoSuave : cores.texto, fundo, borda: cores.divisor };
   }
   const pintura = superficiePintada(cor, fundo, variante, cores);
-  return { pintura, marca: cor, rotulo: pintura.texto, valor: pintura.texto, fundo, borda: pintura.borda };
+  return { pintura, marca: cor, rotulo: cores.textoSuave, valor: pintura.texto, fundo, borda: pintura.borda };
 }
 
 /** A cor do tom no tema (`null` no neutro). */

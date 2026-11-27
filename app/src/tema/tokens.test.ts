@@ -30,7 +30,7 @@ import {
   type VarianteDoTema,
 } from './tokens';
 import { variaveisDoTema } from './variaveis';
-import { superficiePintada, TINTA_DA_PINTURA } from '../ui/superficiePintada';
+import { fundoPintado, superficiePintada, TINTA_DA_PINTURA } from '../ui/superficiePintada';
 import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 
 /** Todas as paletas da marca (decisão 1 do plano `paletas-da-marca`): cada teste de contraste percorre a lista inteira. */
@@ -579,10 +579,11 @@ describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, variante) => {
 // ---- Cartão de indicador pintado (Gustavo, 23/11; `ui/superficiePintada`) ----
 
 /**
- * Degradê de 135° da cor misturada à base (14% nas escuras, 11% nas claras e na Areia) até a base pura, borda a 50%. O texto
- * que leva a cor (rótulo e número do `CartaoDeIndicador`, ladrilhos das Séries por tipo, mini-cartões do Início) fica na
- * cor só quando ela passa 4,5:1 no ponto mais forte do degradê; senão cai para `texto`. Nas 9 paletas, com contraste alto
- * e com bordas reforçadas, sobre as bases onde a pintura aparece (cartão solto, poço, faixa e o hover do mini-cartão, `sobre`).
+ * Tinta de 14% em todas as paletas (26/11): lisa nas claras (Claro, Areia, Céu, Lavanda, Rosa), degradê de 135° da cor
+ * misturada à base até a base pura no escuro; borda neutra (`divisor`). O texto que leva a cor (o valor do `CartaoDeIndicador`,
+ * ladrilhos das Séries por tipo, mini-cartões do Início) fica na cor só quando ela passa 4,5:1 no fundo pintado; senão cai
+ * para `texto`; rótulo e detalhe são `textoSuave`. Nas 9 paletas, com contraste alto e com bordas reforçadas, sobre as bases onde a
+ * pintura aparece (cartão solto, poço e o hover do mini-cartão, `superficie3`).
  */
 describe.each(VARIANTES)('superfície pintada (%s)', (_nome, cores, variante) => {
   const identificacao = coresDeIdentificacao(cores, variante);
@@ -592,13 +593,14 @@ describe.each(VARIANTES)('superfície pintada (%s)', (_nome, cores, variante) =>
     coresDeDestaque(cores, variante).azul.cor,
   ];
 
-  it.each([['superficie'], ['superficie2'], ['superficie3'], ['sobre']] as const)('sobre %s: texto da cor (ou `texto`), `textoSuave` e o ponto legíveis no ponto mais forte', (chave) => {
+  it.each([['superficie'], ['superficie2'], ['superficie3']] as const)('sobre %s: texto da cor (ou `texto`), `textoSuave` e o ponto legíveis no ponto mais forte', (chave) => {
     const base = cores[chave];
     for (const cor of cores11) {
       const p = superficiePintada(cor, base, variante, cores);
-      expect(p.forte).toBe(misturar(base, cor, TINTA_DA_PINTURA[variante]));
-      expect(p.degrade).toBe(`linear-gradient(135deg, ${p.forte} 0%, ${base} 70%)`);
-      expect(p.borda).toBe(misturar(base, cor, 0.5));
+      expect(TINTA_DA_PINTURA[variante]).toBe(0.14);
+      expect(p.forte).toBe(misturar(base, cor, 0.14));
+      expect(p.degrade).toBe(variante === 'escuro' ? `linear-gradient(135deg, ${p.forte} 0%, ${base} 70%)` : null);
+      expect(p.borda).toBe(cores.divisor);
       expect(p.texto).toBe(contraste(cor, p.forte) >= 4.5 ? cor : cores.texto);
       expect(contraste(p.texto, p.forte)).toBeGreaterThanOrEqual(4.5);
       expect(contraste(p.texto, base)).toBeGreaterThanOrEqual(4.5);
@@ -621,5 +623,41 @@ describe('mesa da prévia (MESA_DA_PREVIA)', () => {
   });
   it.each(TODAS)('a mesa se destaca da página e do cartão no tema %s (≥ 3:1)', (_codigo, cores) => {
     for (const fundo of [cores.fundo, cores.painel, cores.superficie]) expect(contraste(MESA_DA_PREVIA, fundo)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('fórmula da tinta: lisa nas claras, degradê no escuro (26/11)', () => {
+  const cor = '#B3261E';
+  const cores = PALETAS.CLARO.cores;
+
+  it.each(['claro', 'areia'] as const)('%s: fundo liso, só o forte, sem degradê', (variante) => {
+    const p = superficiePintada(cor, cores.superficie, variante, cores);
+    expect(p.forte).toBe(misturar(cores.superficie, cor, 0.14));
+    expect(p.degrade).toBeNull();
+    expect(fundoPintado(p)).toEqual({ backgroundColor: p.forte });
+  });
+
+  it('escuro: degradê de 135° do forte (14%) até a base em 70%, com o forte liso por baixo', () => {
+    const escuras = PALETAS.ESCURO.cores;
+    const p = superficiePintada(cor, escuras.superficie, 'escuro', escuras);
+    expect(p.forte).toBe(misturar(escuras.superficie, cor, 0.14));
+    expect(p.degrade).toBe(`linear-gradient(135deg, ${p.forte} 0%, ${escuras.superficie} 70%)`);
+    expect(fundoPintado(p)).toMatchObject({ backgroundColor: p.forte, experimental_backgroundImage: p.degrade });
+  });
+});
+
+/** Pedido do Gustavo (26/11): o `textoSuave` do tema, sem tom próprio, passa 4,5:1 sobre a tinta lisa de 14% nas cinco claras. */
+describe.each(['CLARO', 'AREIA', 'CEU', 'LAVANDA', 'ROSA'] as const)('textoSuave sobre a tinta de 14% (%s)', (nome) => {
+  const { cores, variante } = PALETAS[nome];
+  const identificacao = coresDeIdentificacao(cores, variante);
+  const todas = [
+    ...(['sucesso', 'atencao', 'perigo', 'informacao', 'conquista'] as const).map((papel) => cores[papel]),
+    ...CHAVES_DE_IDENTIFICACAO.map((chave) => identificacao[chave].cor),
+  ];
+
+  it.each(['superficie', 'superficie2'] as const)('com as cores de situação e de identificação sobre %s ≥ 4,5:1', (base) => {
+    for (const cor of todas) {
+      expect(contraste(cores.textoSuave, superficiePintada(cor, cores[base], variante, cores).forte)).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

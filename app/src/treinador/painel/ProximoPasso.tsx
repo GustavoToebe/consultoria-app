@@ -3,6 +3,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
+import { CamadaDaSerie } from '../../ui/CamadaDaSerie';
 import { fundoPintado, superficiePintada } from '../../ui/superficiePintada';
 import { Texto } from '../../ui/Texto';
 
@@ -18,8 +19,8 @@ export interface ProximoPassoDaTela {
 
 /**
  * A primeira coisa do painel, quando os Primeiros passos não ocupam o lugar: a pendência mais importante e um botão.
- * Pintado como os cartões do Início (24/11, `ui/superficiePintada`): com pendência, degradê e borda inteira em âmbar
- * (`perigo` se for atraso) e a bolinha antes do rótulo; sem nada, neutro e sem botão. Raio e recuo dos blocos de baixo
+ * Pintado como os cartões do Início (24/11, `ui/superficiePintada`): com pendência, fundo liso (degradê no escuro) na cor da
+ * situação (âmbar; `perigo` se for atraso), borda neutra, a bolinha antes do rótulo e a barrinha à esquerda (26/11, `CamadaDaSerie`); sem nada, neutro e sem botão. Raio e recuo dos blocos de baixo
  * (`BlocoDoPainel`, 16 e o recuo do `Cartao`), para o texto alinhar com o conteúdo deles.
  */
 export function ProximoPasso({ passo }: { passo: ProximoPassoDaTela }) {
@@ -38,12 +39,14 @@ export function ProximoPasso({ passo }: { passo: ProximoPassoDaTela }) {
       <View style={estilos.texto}>
         <View style={estilos.rotulo}>
           {cor ? <View aria-hidden testID="proximo-passo-ponto" style={[estilos.ponto, { backgroundColor: cor, boxShadow: `0px 0px 10px ${cor}` }]} /> : null}
-          <Texto variante="secao" cor={p?.texto ?? cores.textoSuave}>Próximo passo</Texto>
+          <Texto variante="secao">Próximo passo</Texto>
         </View>
         <Texto variante="bloco">{passo.texto}</Texto>
         {passo.aviso ? <Texto variante="pequeno">{passo.aviso}</Texto> : null}
       </View>
       {passo.acao ? <Botao tipo="primario" rotulo={passo.acao.rotulo} aoTocar={passo.acao.aoTocar} style={estilos.botao} /> : null}
+      {/* A barrinha na cor da situação (26/11): a mesma peça das séries, só a faixa, sem a borda (a do bloco já está ali). */}
+      {cor ? <CamadaDaSerie pintura={{ pintada: null, faixa: cor, borda: cores.divisor, larguraDaBorda: bordas.bloco }} ativa={false} raio={16 - bordas.bloco} semBorda testID="proximo-passo" /> : null}
     </View>
   );
 }

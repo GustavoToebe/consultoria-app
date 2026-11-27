@@ -98,10 +98,10 @@ for (const largura of [390, 1280]) {
 
     // Atualização: situação (âmbar) pinta o cartão; treino: categoria (azul); último: neutro.
     expect(await corDoPonto(atualizacao)).toBe(rgb(CLARO.atencao));
-    expect(await fundoDe(atualizacao)).toContain('linear-gradient');
+    expect(await fundoDe(atualizacao)).toBe('none'); // liso nas claras (26/11)
     expect(await corDoPonto(treinos)).toBe(rgb(DESTAQUES.azul.cor));
-    expect(await fundoDe(treinos)).toContain('linear-gradient');
-    expect(await borda(treinos)).not.toBe(rgb(CLARO.divisor));
+    expect(await fundoDe(treinos)).toBe('none');
+    expect(await borda(treinos)).toBe(rgb(CLARO.divisor)); // borda neutra: a cor fica no ponto e no valor
     expect(await fundoDe(ultimo)).toBe('none');
     await expect(ponto(ultimo)).toHaveCount(0);
     expect(await borda(ultimo)).toBe(rgb(CLARO.divisor));
@@ -123,7 +123,7 @@ test('atualização com data próxima, sem situação: valor em texto e a cor da
   const atualizacao = cartao(page, 'Atualização');
   await expect(atualizacao).toHaveAccessibleName(/^Atualização: Em [456] dias$/);
   expect(await corDoPonto(atualizacao)).toBe(rgb(DESTAQUES.ciano.cor));
-  expect(await fundoDe(atualizacao)).toContain('linear-gradient');
+  expect(await fundoDe(atualizacao)).toBe('none'); // liso nas claras (26/11)
 });
 
 test('sem atualização pendente: o texto claro no lugar do "—", na cor da categoria (ciano)', async ({ page }) => {
@@ -133,9 +133,9 @@ test('sem atualização pendente: o texto claro no lugar do "—", na cor da cat
   await expect(atualizacao.getByText('Sem atualização pendente', { exact: true })).toBeVisible();
   await expect(atualizacao.getByText('—', { exact: true })).toHaveCount(0);
   expect(await corDoPonto(atualizacao)).toBe(rgb(DESTAQUES.ciano.cor));
-  // Fundo e borda na cor da categoria: a borda deixa de ser o contorno `divisor` dos neutros.
-  expect(await fundoDe(atualizacao)).toContain('linear-gradient');
-  expect(await borda(atualizacao)).not.toBe(rgb(CLARO.divisor));
+  // Fundo liso na cor da categoria (26/11); a borda é a neutra, a cor fica no ponto e no valor.
+  expect(await fundoDe(atualizacao)).toBe('none');
+  expect(await borda(atualizacao)).toBe(rgb(CLARO.divisor));
 });
 
 test('atualização que não carregou: o cartão fica neutro, com o motivo, e os outros dois seguem na grade', async ({ page }) => {

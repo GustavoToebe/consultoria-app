@@ -57,7 +57,7 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao,antes}:
     {antes}
     {numeros.length?<View style={estilos.numeros}>
       {numeros.map(([rotulo,valor,cor,escala],i)=>{const p=pintar(cor);return <View key={`${i}:${rotulo}`} style={[estilos.numero,{backgroundColor:cores.superficie2,borderColor:p?.borda??cores.borda},p?fundoPintado(p):null]}>
-        <Texto variante="rotulo" cor={p?.texto}>{rotulo}</Texto><Texto variante="destaque" numerico cor={p?.texto}>{valor}</Texto>{escala?<Texto variante="pequeno">{escala}</Texto>:null}
+        <Texto variante="rotulo">{rotulo}</Texto><Texto variante="destaque" numerico cor={p?.texto}>{valor}</Texto>{escala?<Texto variante="pequeno">{escala}</Texto>:null}
       </View>;})}
     </View>:null}
     <Texto>{fraseDeTreinosNoPeriodo(resumo.diasComTreino,resumo.mediaDiasPorSemana)}</Texto>

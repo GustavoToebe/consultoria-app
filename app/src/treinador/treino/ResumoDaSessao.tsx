@@ -44,7 +44,7 @@ export function ResumoDaSessao({ resumo }: { resumo: ResumoDaSessaoPorContagem }
                     accessible accessibilityLabel={`${t.nome || t.codigo}: ${t.quantidade}`}>
                     <View style={estilos.cabecaDoTipo}>
                       {cor ? <View style={[estilos.ponto, { backgroundColor: cor, boxShadow: `0px 0px 10px ${cor}` }]} /> : null}
-                      <Texto variante="pequeno" cor={p?.texto ?? 'suave'} numberOfLines={1} style={estilos.flexivel}>{t.nome || t.codigo}</Texto>
+                      <Texto variante="pequeno" numberOfLines={1} style={estilos.flexivel}>{t.nome || t.codigo}</Texto>
                     </View>
                     <Texto numerico cor={p?.texto} style={estilos.numeroDoTipo}>{t.quantidade}</Texto>
                   </View>

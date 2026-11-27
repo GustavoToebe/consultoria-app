@@ -255,7 +255,7 @@ export function Numeros({ itens }: { itens: { rotulo: string; valor: number; tip
           <View key={i.rotulo} style={[estilos.numero, { borderColor: p?.borda ?? cores.divisor }, p ? fundoPintado(p) : { backgroundColor: cores.superficie2 }]}
             accessible accessibilityLabel={`${i.rotulo}: ${i.valor}`}>
             <Texto variante="destaque" numerico cor={p?.texto ?? corDoNumero(cores, i.valor === 0 ? 'zero' : 'geral')}>{i.valor}</Texto>
-            <Texto variante="suave" cor={p?.texto}>{i.rotulo}</Texto>
+            <Texto variante="suave">{i.rotulo}</Texto>
           </View>
         );
       })}
