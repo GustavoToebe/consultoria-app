@@ -6,6 +6,7 @@ import {
   mensagemDoErroDeCampo,
   mesmaConfig,
   modeloDoEndereco,
+  rascunhoDepoisDeSalvar,
   resumoDoGrupo,
 } from './editorDoPdf';
 
@@ -57,6 +58,21 @@ describe('config da marca e do endereço', () => {
     expect(mesmaConfig(a, b)).toBe(true);
     expect(mesmaConfig(a, { ...b, modelo: 'COMPACTO' })).toBe(false);
     expect(mesmaConfig(trocarModelo('CLASSICO'), definir(trocarModelo('CLASSICO'), 'tabelas', 'estilo', 'LINHAS'))).toBe(true);
+  });
+});
+
+describe('rascunhoDepoisDeSalvar', () => {
+  const alvo = definir(trocarModelo('CLASSICO'), 'texto', 'tamanho', 'G');
+  it('rascunho igual ao que foi salvo some', () => {
+    expect(rascunhoDepoisDeSalvar(definir(trocarModelo('CLASSICO'), 'texto', 'tamanho', 'G'), alvo)).toBeNull();
+  });
+  it('rascunho que mudou durante o salvar continua', () => {
+    const mexido = definir(alvo, 'texto', 'fonte', 'SERIFADA');
+    expect(rascunhoDepoisDeSalvar(mexido, alvo)).toBe(mexido);
+    expect(rascunhoDepoisDeSalvar(trocarModelo('COMPACTO'), alvo)).toEqual(trocarModelo('COMPACTO'));
+  });
+  it('sem rascunho continua sem rascunho', () => {
+    expect(rascunhoDepoisDeSalvar(null, alvo)).toBeNull();
   });
 });
 

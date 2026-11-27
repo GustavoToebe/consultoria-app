@@ -1,12 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Lock, Monitor, RotateCcw, Save } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../../api/cliente';
 import { alterarDocumentosPdf, consultoria } from '../../../api/rotas';
 import { coresDoDestaque, eDoModelo, resolver, resumoDasAlteracoes, restaurar, trocarModelo, type ConfigPdf, type ModeloPdf } from '../../../dominio/configuracaoPdf';
-import { arranjoDoEditor, configDaMarca, mensagemDoErroDeCampo, mesmaConfig, modeloDoEndereco, nomeDoModelo, VAO_DO_EDITOR, type GrupoDoEditor, type ZoomDaFolha } from '../../../dominio/editorDoPdf';
+import { arranjoDoEditor, configDaMarca, mensagemDoErroDeCampo, mesmaConfig, modeloDoEndereco, nomeDoModelo, rascunhoDepoisDeSalvar, VAO_DO_EDITOR, type GrupoDoEditor, type ZoomDaFolha } from '../../../dominio/editorDoPdf';
 import type { SeloDoEditor } from '../../../dominio/barraDoEditor';
 import { MOTIVO_FORA_DO_PLANO } from '../../../dominio/funcionalidadesDoPlano';
 import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from '../../../pdf/exemplos';
@@ -109,7 +109,11 @@ function Personalizar() {
     };
   }, [marca]);
 
+  // O que a tela tem agora: o `.then` do salvar roda depois de o `rascunho` do fechamento ficar velho.
+  const rascunhoAtual = useRef(rascunho);
+  useEffect(() => { rascunhoAtual.current = rascunho; }, [rascunho]);
   const mudar = (proxima: ConfigPdf) => {
+    rascunhoAtual.current = proxima;
     setRascunho(proxima);
     setErroAoSalvar(null);
   };
@@ -127,9 +131,11 @@ function Personalizar() {
       .then((c) => {
         atualizarMarca(c.marca);
         definirDados(c);
-        setRascunho(null);
+        // Mexeu nas opções com o salvar em voo: o rascunho (e o desfazer) ficam; só some o que foi mesmo gravado.
+        const mantido = rascunhoDepoisDeSalvar(rascunhoAtual.current, alvo);
+        setRascunho(mantido);
         setPedido(null);
-        setDesfazer(null);
+        if (!mantido) setDesfazer(null);
         avisar(`Documentos salvos no modelo ${nomeDoModelo(alvo.modelo)}. Os próximos PDFs já saem assim.`, 'sucesso');
         depois?.();
       })

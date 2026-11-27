@@ -65,6 +65,14 @@ export function mesmaConfig(a: ConfigPdf, b: ConfigPdf): boolean {
   return a.modelo === b.modelo && JSON.stringify(normalizar(a.sobrescritas)) === JSON.stringify(normalizar(b.sobrescritas));
 }
 
+/**
+ * O rascunho depois de um salvar concluído: some só se ainda for o que foi gravado (`alvo`); se a pessoa mexeu nas opções
+ * com a requisição em voo, o rascunho continua (agora diferente da base recém-gravada) para não perder a mudança.
+ */
+export function rascunhoDepoisDeSalvar(rascunho: ConfigPdf | null, alvo: ConfigPdf): ConfigPdf | null {
+  return rascunho && !mesmaConfig(rascunho, alvo) ? rascunho : null;
+}
+
 export function nomeDoModelo(modelo: unknown): string {
   return MODELOS_PDF.find((m) => m.id === modeloValido(modelo))?.nome ?? '';
 }

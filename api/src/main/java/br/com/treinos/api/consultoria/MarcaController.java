@@ -2,6 +2,8 @@ package br.com.treinos.api.consultoria;
 
 import br.com.treinos.api.consultoria.MarcaService.ConsultoriaResponse;
 import br.com.treinos.api.consultoria.MarcaService.MarcaRequest;
+import br.com.treinos.api.conta.ExigeFuncionalidade;
+import br.com.treinos.api.conta.RecursosDoApp;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.plataforma.comum.web.BadRequestException;
 import jakarta.validation.Valid;
@@ -44,6 +46,8 @@ public class MarcaController {
         return marcas.alterarMarca(eu.consultoriaId(), request);
     }
 
+    // Só o PUT: o interceptor deixa GET e DELETE livres, então a consultoria que perde o PDF segue lendo o que já configurou.
+    @ExigeFuncionalidade(RecursosDoApp.FUNCIONALIDADE_PDF)
     @PreAuthorize("hasAuthority('PERM_MARCA_ALTERAR')")
     @PutMapping("/documentos-pdf")
     public ConsultoriaResponse alterarDocumentosPdf(@AuthenticationPrincipal UsuarioAutenticado eu,

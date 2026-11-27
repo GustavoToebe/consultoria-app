@@ -219,6 +219,25 @@ class PlanoAplicadoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void pdfDesligadoBarraGravarOModeloEOpcoesMasNaoLer() throws Exception {
+        direitos(consultoria, Map.of(), TODAS);
+        gravarDocumentosPdf("MARCANTE", 200);
+
+        direitos(consultoria, Map.of(), List.of("MOBILIDADE", "EQUIPE"));
+        erro(gravarDocumentosPdf("ESPORTIVO", 403), "FUNCIONALIDADE_FORA_DO_PLANO", "PDF");
+        // Leitura segue livre e o que já estava gravado fica como estava.
+        assertThat(api.get("/consultoria", admin, 200).path("marca").path("temaPdf").asString()).isEqualTo("MARCANTE");
+
+        direitos(consultoria, Map.of(), List.of("PDF"));
+        gravarDocumentosPdf("ESPORTIVO", 200);
+    }
+
+    private JsonNode gravarDocumentosPdf(String modelo, int status) throws Exception {
+        long versao = api.get("/consultoria", admin, 200).path("versao").asLong();
+        return api.put("/consultoria/documentos-pdf", admin, Map.of("modelo", modelo, "versao", versao), status);
+    }
+
+    @Test
     void alunoRecebeAsFuncionalidadesDaConsultoriaNoEu() throws Exception {
         direitos(consultoria, Map.of(), List.of("PDF"));
         UUID aluno = api.criarAluno(admin, "Aluno Fictício");
