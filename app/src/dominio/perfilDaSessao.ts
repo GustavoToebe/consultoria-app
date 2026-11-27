@@ -30,6 +30,8 @@ export interface PerfilDaSessao {
   redesSociaisDaConsultoria?: EuResponse['redesSociaisDaConsultoria'];
   /** Só do aluno: pausado por atraso (`eu.aluno.acessoDesativadoMotivo === 'ATRASO'` ou o 403 `ACESSO_PAUSADO_POR_ATRASO`); salvo no aparelho para bloquear também offline. */
   acessoPausado?: boolean;
+  /** Só do aluno: contrato pendente com o prazo vencido (`eu.aluno.contratoPendenteVencido`); salvo no aparelho para travar também offline. */
+  contratoPendenteVencido?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   termosPendentes?: boolean;
@@ -60,6 +62,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     whatsappDaConsultoria: eu.whatsappDaConsultoria,
     redesSociaisDaConsultoria: eu.redesSociaisDaConsultoria,
     acessoPausado: eu.aluno?.acessoDesativadoMotivo === 'ATRASO',
+    contratoPendenteVencido: eu.aluno?.contratoPendenteVencido === true,
     termosPendentes: eu.termosPendentes,
   };
 }

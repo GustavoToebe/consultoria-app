@@ -42,7 +42,9 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
     /**
      * {@code acessoDesativadoMotivo}: {@code ATRASO} = acesso pausado por atraso (o app mostra só a tela de regularização;
      * as outras rotas dão 403 {@code ACESSO_PAUSADO_POR_ATRASO}); nulo = acesso normal. O MANUAL não chega aqui (sem login).
+     * {@code contratoPendenteVencido}: há contrato pendente do aluno com o prazo vencido (as outras rotas dão 403
+     * {@code CONTRATO_PENDENTE}; o app mostra a tela de assinatura); sempre {@code false} com {@code TREINOS_CONTRATOS_HABILITADO} desligado.
      */
-    public record AlunoResumo(UUID id, String nome, String sexo, String acessoDesativadoMotivo) {
+    public record AlunoResumo(UUID id, String nome, String sexo, String acessoDesativadoMotivo, boolean contratoPendenteVencido) {
     }
 }

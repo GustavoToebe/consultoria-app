@@ -40,6 +40,12 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', acessoDesativadoMotivo: null } }).acessoPausado).toBe(false);
     expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno' } }).acessoPausado).toBe(false);
   });
+
+  it('contratoPendenteVencido só com o verdadeiro do /eu do aluno; ausente vale falso', () => {
+    expect(perfilDoEu(EU).contratoPendenteVencido).toBe(false);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', contratoPendenteVencido: true } }).contratoPendenteVencido).toBe(true);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', contratoPendenteVencido: false } }).contratoPendenteVencido).toBe(false);
+  });
 });
 
 describe('perfilAtualizado', () => {

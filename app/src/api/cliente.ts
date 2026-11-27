@@ -16,6 +16,7 @@ import {
 } from '@plataforma/web';
 
 import { ehAcessoPausado } from '../dominio/acessoPausado';
+import { ehContratoPendente } from '../dominio/travaDoContrato';
 import { ehCicloDesligado } from '../dominio/cicloDesligado';
 import { ehLojaDesligada } from '../dominio/lojaDesligada';
 import { ehMarketplaceDesligado } from '../dominio/marketplaceDesligado';
@@ -72,6 +73,7 @@ let aoVitrineDesligadaSessao: (() => void) | null = null;
 let aoLojaDesligadaSessao: (() => void) | null = null;
 let aoMarketplaceDesligadoSessao: (() => void) | null = null;
 let aoAcessoPausadoSessao: (() => void) | null = null;
+let aoContratoPendenteSessao: (() => void) | null = null;
 /** Quem está com a sessão aberta nesta aba; a renovação que devolve outra pessoa não é aceita. */
 let usuarioEsperado: string | null = null;
 let recusaPorTroca = false;
@@ -127,6 +129,14 @@ export function aoMarketplaceDesligado(callback: (() => void) | null) {
  */
 export function aoAcessoPausado(callback: (() => void) | null) {
   aoAcessoPausadoSessao = callback;
+}
+
+/**
+ * O SessaoProvider é avisado quando uma rota do aluno responde 403 `CONTRATO_PENDENTE` (contrato com o prazo vencido): o perfil
+ * passa a `contratoPendenteVencido: true` e a tela de assinar aparece, sem deslogar o aluno.
+ */
+export function aoContratoPendente(callback: (() => void) | null) {
+  aoContratoPendenteSessao = callback;
 }
 
 export async function guardarSessao(resposta: LoginResponse): Promise<void> {
@@ -229,6 +239,9 @@ export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promi
     }
     if (ehAcessoPausado(erro)) {
       aoAcessoPausadoSessao?.();
+    }
+    if (ehContratoPendente(erro)) {
+      aoContratoPendenteSessao?.();
     }
     throw erro;
   }

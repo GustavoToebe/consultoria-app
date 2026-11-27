@@ -62,7 +62,11 @@ public class Consultoria {
     @Column(name = "dias_atualizacao_padrao")
     private Integer diasAtualizacaoPadrao;
 
-    /** Prazo, em dias, para o aluno assinar o contrato digital (V105, 1 a 60); nulo = não trava, só deixa pendente. */
+    /**
+     * Prazo, em dias, para o aluno assinar o contrato digital (V105, 1 a 60); nulo = não trava, só deixa pendente. Fora do bloqueio
+     * otimista (como as chaves da comunidade): mudar o prazo não derruba quem edita a marca; quem grava trava a linha antes.
+     */
+    @OptimisticLock(excluded = true)
     @Column(name = "contrato_prazo_dias")
     private Short contratoPrazoDias;
 
@@ -184,6 +188,11 @@ public class Consultoria {
 
     public Short getContratoPrazoDias() {
         return contratoPrazoDias;
+    }
+
+    /** Quem chama já conferiu 1 a 60 (ou nulo); o CHECK da V105 é a segunda barreira. */
+    public void definirContratoPrazoDias(Short dias) {
+        this.contratoPrazoDias = dias;
     }
 
     public Integer getDiasAtualizacaoPadrao() {
