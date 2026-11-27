@@ -9,7 +9,7 @@ import { coresDoDestaque, eDoModelo, resolver, resumoDasAlteracoes, restaurar, t
 import { arranjoDoEditor, configDaMarca, mensagemDoErroDeCampo, mesmaConfig, modeloDoEndereco, nomeDoModelo, rascunhoDepoisDeSalvar, VAO_DO_EDITOR, type GrupoDoEditor, type ZoomDaFolha } from '../../../dominio/editorDoPdf';
 import type { SeloDoEditor } from '../../../dominio/barraDoEditor';
 import { MOTIVO_FORA_DO_PLANO } from '../../../dominio/funcionalidadesDoPlano';
-import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from '../../../pdf/exemplos';
+import { documentoDeExemploDeDieta, documentoDeExemploDeMobilidade, documentoDeExemploDeTreino } from '../../../pdf/exemplos';
 import { logoComoDataUri } from '../../../pdf/logo';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { useTema } from '../../../tema/TemaProvider';
@@ -34,6 +34,7 @@ import { PreviaNaMesa, type DocumentoDeExemplo } from './PreviaNaMesa';
 
 const TITULO = 'Personalizar documentos';
 const DESCRICAO = 'Ajuste cores, texto, cabeçalho e tabelas do modelo e confira na prévia com dados de exemplo. Nada muda nos PDFs até você salvar.';
+const GERADORES = { treino: documentoDeExemploDeTreino, dieta: documentoDeExemploDeDieta, mobilidade: documentoDeExemploDeMobilidade } satisfies Record<DocumentoDeExemplo, unknown>;
 const GALERIA = '/treinador/documentos';
 const TRILHA = [{ rotulo: 'Documentos (PDF)', href: GALERIA }, { rotulo: 'Personalizar' }] as const;
 
@@ -183,7 +184,7 @@ function Personalizar() {
   } else {
     const valores = resolver(atual.modelo, atual.sobrescritas);
     const nome = nomeDoModelo(atual.modelo);
-    const gerar = aba === 'treino' ? documentoDeExemploDeTreino : documentoDeExemploDeDieta;
+    const gerar = GERADORES[aba];
     const documento = gerar({ ...marca, temaPdf: atual.modelo, opcoesPdf: atual.sobrescritas }, emitidoEm, logo);
     const selo: SeloDoEditor = salvando ? { texto: 'Salvando…', tipo: 'neutro' }
       : erroAoSalvar ? { texto: 'Falha ao salvar', tipo: 'perigo' }

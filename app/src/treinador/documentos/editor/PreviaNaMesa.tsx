@@ -10,11 +10,12 @@ import { Texto } from '../../../ui/Texto';
 import { useFaixaDeLargura } from '../../../ui/useFaixaDeLargura';
 import { PreviaDoDocumento } from '../PreviaDoDocumento';
 
-export type DocumentoDeExemplo = 'treino' | 'dieta';
+export type DocumentoDeExemplo = 'treino' | 'dieta' | 'mobilidade';
 
 const ABAS: { valor: DocumentoDeExemplo; rotulo: string }[] = [
   { valor: 'treino', rotulo: 'Treino' },
   { valor: 'dieta', rotulo: 'Dieta' },
+  { valor: 'mobilidade', rotulo: 'Mobilidade' },
 ];
 const ZOOMS: { valor: ZoomDaFolha; rotulo: string }[] = [
   { valor: 'AJUSTAR', rotulo: 'Ajustar' },

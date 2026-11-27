@@ -4,6 +4,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import type { Documento } from './html';
 import { documentoDieta } from './pdfDieta';
+import { documentoMobilidade } from './pdfMobilidade';
 import { documentoTreino } from './pdfTreino';
 
 /**
@@ -212,6 +213,54 @@ export function documentoDeExemploDeDieta(marca: Marca, emitidoEm: Date, logoDat
     versao: 1,
     conteudo: conteudoDeDieta(),
     pesos: PESOS,
+    rodapePdf: NOTA_DO_RODAPE,
+    emitidoEm,
+  });
+}
+
+const itemMob = (uid: string, nome: string, prescricao: string, videoUrl = '') => ({ uid, nome, prescricao, videoUrl });
+
+/** Mobilidade de exemplo pelo gerador real: três seções curtas, com um link de vídeo. Sem orientações longas nem dado real. */
+export function documentoDeExemploDeMobilidade(marca: Marca, emitidoEm: Date, logoDataUri: string | null = null): Documento {
+  return documentoMobilidade({
+    marca,
+    logoDataUri,
+    aluno: NOME_DO_ALUNO,
+    titulo: 'Plano de Exemplo',
+    versao: 1,
+    conteudo: {
+      orientacoes: 'Faça sem dor, no seu ritmo, antes ou depois do treino.',
+      secoes: [
+        {
+          uid: 'mob-a',
+          titulo: 'Aquecimento',
+          itens: [
+            itemMob('mob-a1', 'Gato-camelo', '2 séries de 30 segundos', VIDEO),
+            itemMob('mob-a2', 'Rotação de tronco', '2 séries de 10 repetições por lado', ''),
+            itemMob('mob-a3', 'Agachamento profundo com apoio', '2 séries de 30 segundos', ''),
+          ],
+        },
+        {
+          uid: 'mob-b',
+          titulo: 'Quadril e pernas',
+          itens: [
+            itemMob('mob-b1', 'Alongamento do flexor do quadril', '2 séries de 40 segundos por lado', ''),
+            itemMob('mob-b2', 'Ponte de glúteo', '2 séries de 12 repetições', ''),
+            itemMob('mob-b3', 'Alongamento posterior da coxa', '2 séries de 30 segundos por lado', ''),
+            itemMob('mob-b4', 'Mobilidade de tornozelo na parede', '2 séries de 10 repetições por lado', ''),
+          ],
+        },
+        {
+          uid: 'mob-c',
+          titulo: 'Ombros e coluna',
+          itens: [
+            itemMob('mob-c1', 'Passagem de bastão', '2 séries de 10 repetições', ''),
+            itemMob('mob-c2', 'Alongamento de peitoral na porta', '2 séries de 30 segundos', ''),
+            itemMob('mob-c3', 'Postura da criança', '1 série de 60 segundos', ''),
+          ],
+        },
+      ],
+    },
     rodapePdf: NOTA_DO_RODAPE,
     emitidoEm,
   });

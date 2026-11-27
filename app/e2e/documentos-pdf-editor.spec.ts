@@ -170,6 +170,23 @@ for (const m of MATRIZ) {
   });
 }
 
+for (const tema of ['CLARO', 'ESCURO'] as const) {
+  for (const modelo of ['CLASSICO', 'ESPORTIVO'] as const) {
+    test(`(1280) aba Mobilidade da prévia: ${modelo}, ${tema}`, async ({ page }) => {
+      const { pedidos, errosDaPagina } = await abrir(page, 1280, { tema, busca: modelo === 'CLASSICO' ? '' : `?modelo=${modelo}` });
+      await page.getByRole('tab', { name: 'Mobilidade' }).click();
+      await expect(previa(page)).toContainText('Aluno de Exemplo');
+      await expect(previa(page)).toContainText('Gato-camelo');
+      await expect(previa(page)).toContainText('Quadril e pernas');
+      await expect(folha(page)).toHaveAccessibleName(/Prévia do PDF de mobilidade/);
+      await semRolagemLateral(page);
+      await capturar(page, `mobilidade-1280-${tema.toLowerCase()}-${modelo.toLowerCase()}`);
+      expect(escritas(pedidos)).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
+}
+
 test('(1280) ?modelo da galeria abre o modelo como rascunho; trocar e restaurar têm Desfazer, sem pergunta', async ({ page }) => {
   const { pedidos, errosDaPagina } = await abrir(page, 1280, { busca: '?modelo=ESPORTIVO' });
   await expect(page).toHaveURL(/\/treinador\/documentos\/personalizar$/);

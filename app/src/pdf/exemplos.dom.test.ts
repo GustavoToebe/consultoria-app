@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import type { Marca } from '../api/tipos';
-import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from './exemplos';
+import { documentoDeExemploDeDieta, documentoDeExemploDeMobilidade, documentoDeExemploDeTreino } from './exemplos';
 import { cssDaPrevia, documentoCompleto } from './html';
 import { montarCorpo } from './imprimir.web';
 import { TEMAS_PDF } from './temas';
@@ -9,7 +9,7 @@ jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
 const emitidoEm = new Date('2026-10-11T19:30:00Z');
 const marcaDe = (temaPdf: string): Marca => ({ id: 'm', nome: 'Consultoria de Exemplo', corPrimaria: '#C62828', fonteTitulo: 'METAL', temaPadrao: 'ESCURO', logoUrl: null, temaPdf });
-const EXEMPLOS = { treino: documentoDeExemploDeTreino, dieta: documentoDeExemploDeDieta };
+const EXEMPLOS = { treino: documentoDeExemploDeTreino, dieta: documentoDeExemploDeDieta, mobilidade: documentoDeExemploDeMobilidade };
 
 describe.each(TEMAS_PDF.map((t) => t.id))('documentos de exemplo no tema %s', (tema) => {
   describe.each(Object.entries(EXEMPLOS))('%s', (_nome, gerar) => {

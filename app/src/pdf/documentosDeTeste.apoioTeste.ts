@@ -1,13 +1,11 @@
 import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
 import type { Marca } from '../api/tipos';
 import { medidasVazias } from '../dominio/avaliacaoFisica';
-import { normalizarMobilidade } from '../dominio/mobilidade';
-import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from './exemplos';
+import { documentoDeExemploDeDieta, documentoDeExemploDeMobilidade, documentoDeExemploDeTreino } from './exemplos';
 import type { Documento } from './html';
 import { documentoAvaliacaoFisica } from './pdfAvaliacaoFisica';
 import { documentoCargas } from './pdfCargas';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
-import { documentoMobilidade } from './pdfMobilidade';
 
 /** Apoio de teste: os seis documentos dos PDFs com dados 100% fictícios, cada um pelo gerador de verdade. */
 const emitidoEm = new Date('2026-10-11T19:30:00Z');
@@ -21,11 +19,7 @@ const avaliacao = (id: string, data: string, medidas: Partial<MedidasCorporais>,
 export const GERADORES_DE_TESTE: Record<string, (m: Marca) => Documento> = {
   treino: (m) => documentoDeExemploDeTreino(m, emitidoEm),
   dieta: (m) => documentoDeExemploDeDieta(m, emitidoEm),
-  mobilidade: (m) =>
-    documentoMobilidade({
-      ...base, marca: m, versao: 1,
-      conteudo: normalizarMobilidade({ secoes: [{ uid: 's', titulo: 'Seção', itens: [{ uid: 'i', nome: 'Gato-camelo', prescricao: '2x30s', videoUrl: 'https://youtu.be/exemplo' }, { uid: 'j', nome: 'Ponte', prescricao: '2x30s', videoUrl: null }] }] }),
-    }),
+  mobilidade: (m) => documentoDeExemploDeMobilidade(m, emitidoEm),
   cargas: (m) =>
     documentoCargas({
       ...base, marca: m, de: '2026-10-01', ate: '2026-10-14',
