@@ -68,7 +68,7 @@ export default function FinanceiroDoTreinador() {
         acoes={pode('FINANCEIRO_LER') ? <Botao rotulo="Exportar CSV" tipo="secundario" Icone={Download} aoTocar={() => setExportando(true)} /> : undefined} />
       {/* Ativação manual, como na ficha do aluno: com a pergunta de saída, a aba que recebe o foco de volta (Continuar editando)
           não pode trocar sozinha e perguntar de novo. */}
-      <Abas abas={ABAS} ativa={aba} aoMudar={setAba} ativacao="manual" />
+      <Abas abas={ABAS} ativa={aba} aoMudar={setAba} ativacao="manual" vao={espaco(3)}>
       <View style={{ gap: espaco(2) }}>
         {aba === 'visao' ? <VisaoGeral escopo={escopo} aoMudarEscopo={setEscopo} podeAlterar={podeAlterar} /> : null}
         {aba === 'cobrancas' ? <AbaCobrancas podeAlterar={podeAlterar} /> : null}
@@ -77,6 +77,7 @@ export default function FinanceiroDoTreinador() {
         {aba === 'lembretes' ? <AbaLembretes podeAlterar={podeAlterar} /> : null}
         {aba === 'recebimento' ? <AbaRecebimentoOnline podeAlterar={podeAlterar} /> : null}
       </View>
+      </Abas>
       <FolhaDeExportacao visivel={exportando} aoFechar={() => setExportando(false)} painel={painelDoMes.dados} />
     </Tela>
   );

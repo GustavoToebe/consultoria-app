@@ -310,11 +310,19 @@ describe('leitura das respostas (bloco B)', () => {
 describe('ITENS_DO_PLANO na leitura', () => {
   const pergunta: PerguntaAtualizacao = { id: 'i', tipo: 'ITENS_DO_PLANO', rotulo: 'Quais?', obrigatoria: false, fonte: 'ALIMENTOS_DA_DIETA', motivo: 'OPCIONAL' };
   const gravada = respostaDeItens([{ id: 'a', nome: 'Frango grelhado', motivo: 'enjoei' }, { id: 'b', nome: 'Arroz' }]);
-  const texto = 'Frango grelhado — enjoei\nArroz';
+  const texto = 'Frango grelhado — Motivo: enjoei\nArroz';
 
-  it('uma linha por item, "Nome — motivo", com o nome gravado pelo servidor', () => {
+  it('uma linha por item, "Nome — Motivo: motivo", com o nome gravado pelo servidor', () => {
     expect(textoDaResposta(pergunta, gravada)).toBe(texto);
-    expect(respostaLida(pergunta, gravada)).toEqual({ forma: 'texto', texto, numerico: false });
+    expect(respostaLida(pergunta, gravada)).toEqual({ forma: 'itens', texto, rotuloDoMotivo: 'Motivo:', itens: [
+      { id: 'a', nome: 'Frango grelhado', motivo: 'enjoei' }, { id: 'b', nome: 'Arroz', motivo: null }] });
+    expect(respostaLida({ ...pergunta, rotuloMotivo: 'O que usou no lugar?' }, gravada)).toMatchObject({ forma: 'itens', rotuloDoMotivo: 'O que usou no lugar?' });
+  });
+
+  it('o motivo leva o rótulo da pergunta; com pontuação no fim, sem dois-pontos a mais', () => {
+    expect(textoDaResposta({ ...pergunta, rotuloMotivo: 'O que usou no lugar?' }, gravada)).toBe('Frango grelhado — O que usou no lugar? enjoei\nArroz');
+    expect(textoDaResposta({ ...pergunta, rotuloMotivo: 'Onde doeu' }, gravada)).toBe('Frango grelhado — Onde doeu: enjoei\nArroz');
+    expect(textoDaResposta({ ...pergunta, rotuloMotivo: '  ' }, gravada)).toBe(texto);
   });
 
   it('sem resposta, ou só com ids do rascunho (sem nome), é "Não respondeu"', () => {

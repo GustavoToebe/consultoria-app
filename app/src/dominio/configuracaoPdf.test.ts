@@ -6,6 +6,7 @@ import {
   contarAlteracoes,
   definir,
   eDoModelo,
+  larguraMaximaDaGaleria,
   MODELOS_PDF,
   modeloValido,
   normalizar,
@@ -181,9 +182,15 @@ describe('paleta de destaque', () => {
 });
 
 describe('colunasDaGaleria', () => {
-  it('1, 2 ou 3 colunas (divisores de 6), sem passar de 3', () => {
-    expect([0, 350, 390, 415].map(colunasDaGaleria)).toEqual([1, 1, 1, 1]);
-    expect([416, 500, 631].map(colunasDaGaleria)).toEqual([2, 2, 2]);
-    expect([632, 700, 1100, 3000].map(colunasDaGaleria)).toEqual([3, 3, 3, 3]);
+  it('6, 3, 2 ou 1 por linha (nunca 4 ou 5), com célula de pelo menos 220', () => {
+    expect([0, 358, 455].map((l) => colunasDaGaleria(l, 16))).toEqual([1, 1, 1]);
+    expect([456, 691].map((l) => colunasDaGaleria(l, 16))).toEqual([2, 2]);
+    expect([692, 1000, 1399].map((l) => colunasDaGaleria(l, 16))).toEqual([3, 3, 3]);
+    expect([1400, 2400].map((l) => colunasDaGaleria(l, 16))).toEqual([6, 6]);
+  });
+  it('teto da grade: células de no máximo 320', () => {
+    expect(larguraMaximaDaGaleria(1, 16)).toBe(320);
+    expect(larguraMaximaDaGaleria(3, 16)).toBe(992);
+    expect(larguraMaximaDaGaleria(6, 16)).toBe(2000);
   });
 });

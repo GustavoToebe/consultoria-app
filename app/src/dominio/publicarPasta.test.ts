@@ -2,7 +2,10 @@ import type { PlanoResumo } from '../api/tipos';
 import {
   agruparProblemasPorPlano,
   AVISO_DA_COPIA_DA_PASTA,
+  contagemDePendentes,
   mensagemPastaCopiada,
+  MOTIVO_NADA_A_PUBLICAR,
+  motivoDosDuplicados,
   motivoParaNaoCopiar,
   motivoParaNaoPublicar,
   notaDoPesoSugerido,
@@ -10,6 +13,7 @@ import {
   planosDaPasta,
   podeSugerirPeso,
   resumoDaPublicacao,
+  resumoDosPendentes,
   rotuloDoPublicarDaPasta,
   situacaoDoPublicar,
   TEXTO_DO_CONFLITO_DA_PUBLICACAO,
@@ -44,19 +48,69 @@ describe('publicarPasta: plano pendente', () => {
   });
 });
 
-describe('publicarPasta: rótulo pelo alcance', () => {
-  const geral = { rotulo: 'Publicar alterações da pasta', rotuloAcessivel: 'Publicar alterações da pasta Plano 17' };
+describe('publicarPasta: contagem, rótulo e resumo dos pendentes', () => {
+  const doisPendentes: PlanosDaPasta = {
+    treino: [alteradoDepois('t', 'Treino 17'), publicadoSemAlteracao('t0', 'Antigo')], dieta: [plano('d', 'Dieta 17')], mobilidade: [],
+  };
 
-  it('um tipo só com alteração e todas as listas conhecidas: o nome do tipo', () => {
-    const planos: PlanosDaPasta = { treino: [publicadoSemAlteracao('t', 'T')], dieta: [plano('d', 'D')], mobilidade: [] };
-    expect(rotuloDoPublicarDaPasta(planos, 'Plano 17')).toEqual({ rotulo: 'Publicar dieta', rotuloAcessivel: 'Publicar dieta da pasta Plano 17' });
+  it('conta os pendentes; tipo desconhecido dá null, nunca 0', () => {
+    expect(contagemDePendentes(doisPendentes)).toBe(2);
+    expect(contagemDePendentes({ treino: [publicadoSemAlteracao('t', 'T')], dieta: [], mobilidade: [] })).toBe(0);
+    expect(contagemDePendentes({ treino: null, dieta: [plano('d', 'D')], mobilidade: [] })).toBeNull();
+    expect(contagemDePendentes({ treino: [], dieta: [], mobilidade: null })).toBeNull();
+    expect(contagemDePendentes(null)).toBeNull();
   });
 
-  it('lista desconhecida, nenhum ou dois tipos com alteração: o rótulo geral', () => {
-    expect(rotuloDoPublicarDaPasta({ treino: null, dieta: [plano('d', 'D')], mobilidade: [] }, 'Plano 17')).toEqual(geral);
-    expect(rotuloDoPublicarDaPasta({ treino: [publicadoSemAlteracao('t', 'T')], dieta: [], mobilidade: [] }, 'Plano 17')).toEqual(geral);
-    expect(rotuloDoPublicarDaPasta({ treino: [alteradoDepois('t', 'T')], dieta: [plano('d', 'D')], mobilidade: [] }, 'Plano 17')).toEqual(geral);
-    expect(rotuloDoPublicarDaPasta(null, 'Plano 17')).toEqual(geral);
+  it('a mobilidade fora do plano não conta', () => {
+    expect(contagemDePendentes(planosDaPasta(PASTA, { treino: [], dieta: [], mobilidade: [plano('m', 'M')] }, false))).toBe(0);
+    expect(contagemDePendentes(planosDaPasta(PASTA, { treino: [], dieta: [], mobilidade: [plano('m', 'M')] }, true))).toBe(1);
+  });
+
+  it('rótulo com N conhecido e sem ele; o nome acessível diz a pasta', () => {
+    expect(rotuloDoPublicarDaPasta(doisPendentes, 'Plano 17'))
+      .toEqual({ rotulo: 'Publicar alterações (2)', rotuloAcessivel: 'Publicar alterações (2) da pasta Plano 17' });
+    const semN = { rotulo: 'Publicar alterações', rotuloAcessivel: 'Publicar alterações da pasta Plano 17' };
+    expect(rotuloDoPublicarDaPasta({ treino: null, dieta: [plano('d', 'D')], mobilidade: [] }, 'Plano 17')).toEqual(semN);
+    expect(rotuloDoPublicarDaPasta(null, 'Plano 17')).toEqual(semN);
+    expect(rotuloDoPublicarDaPasta(doisPendentes, 'Plano 17').rotulo).not.toMatch(/treino|dieta/);
+  });
+
+  it('resumo: os títulos que vão, no plural e no singular; null com N desconhecido ou 0', () => {
+    expect(resumoDosPendentes(doisPendentes)).toBe('Vai publicar 2 planos: “Treino 17” e “Dieta 17”.');
+    expect(resumoDosPendentes({ treino: [plano('t', 'Treino 17')], dieta: [], mobilidade: [] })).toBe('Vai publicar 1 plano: “Treino 17”.');
+    expect(resumoDosPendentes({ treino: null, dieta: [plano('d', 'D')], mobilidade: [] })).toBeNull();
+    expect(resumoDosPendentes({ treino: [], dieta: [], mobilidade: [] })).toBeNull();
+    expect(resumoDosPendentes(null)).toBeNull();
+  });
+});
+
+describe('publicarPasta: travas de duplicados e de nada a publicar', () => {
+  const tudo = tem('TREINO_PUBLICAR', 'DIETA_PUBLICAR');
+  const duplicados: PlanosDaPasta = { treino: [plano('a', 'A'), alteradoDepois('b', 'B'), publicadoSemAlteracao('c', 'C')], dieta: [], mobilidade: [] };
+  const textoDuplicados = 'Há mais de um treino pendente nesta pasta (“A” e “B”). Arquive o que não deve ir ao aluno (⋯ › Excluir plano) e publique de novo.';
+
+  it('dois pendentes do mesmo tipo: o motivo com os títulos; um por tipo, nenhum', () => {
+    expect(motivoDosDuplicados(duplicados)).toBe(textoDuplicados);
+    expect(motivoDosDuplicados({ ...duplicados, dieta: [plano('x', 'X'), plano('y', 'Y')] })).toBe(
+      'Há mais de um treino pendente nesta pasta (“A” e “B”). Há mais de uma dieta pendente nesta pasta (“X” e “Y”). '
+      + 'Arquive o que não deve ir ao aluno (⋯ › Excluir plano) e publique de novo.',
+    );
+    expect(motivoDosDuplicados({ treino: [plano('a', 'A'), publicadoSemAlteracao('c', 'C')], dieta: null, mobilidade: [] })).toBeNull();
+  });
+
+  it('nada a publicar só com todos os tipos conhecidos e N = 0', () => {
+    const nada = { podePublicar: false, motivo: MOTIVO_NADA_A_PUBLICAR, tiposComFalha: [] };
+    expect(situacaoDoPublicar({ treino: [publicadoSemAlteracao('t', 'T')], dieta: [], mobilidade: [] }, {}, true, tudo)).toEqual(nada);
+    expect(situacaoDoPublicar({ treino: [publicadoSemAlteracao('t', 'T')], dieta: null, mobilidade: [] }, {}, true, tudo).podePublicar).toBe(true);
+  });
+
+  it('ordem: atualizando > lista que falhou > duplicados > nada a publicar > permissão', () => {
+    const comDuplicados: PlanosDaPasta = { ...duplicados, dieta: [plano('d', 'D')] };
+    expect(situacaoDoPublicar(comDuplicados, { dieta: true }, true, tem(), true).motivo).toBe('Atualizando os planos…');
+    expect(situacaoDoPublicar(comDuplicados, { dieta: true }, true, tem()).motivo).toBe('Não foi possível carregar a dieta. Tente de novo.');
+    expect(situacaoDoPublicar(comDuplicados, {}, true, tem())).toEqual({ podePublicar: false, motivo: textoDuplicados, tiposComFalha: [] });
+    expect(situacaoDoPublicar({ treino: [], dieta: [], mobilidade: [] }, {}, true, tem()).motivo).toBe(MOTIVO_NADA_A_PUBLICAR);
+    expect(situacaoDoPublicar({ treino: [plano('t', 'T')], dieta: [], mobilidade: [] }, {}, true, tem()).motivo).toBe('Falta permissão para publicar o treino.');
   });
 });
 

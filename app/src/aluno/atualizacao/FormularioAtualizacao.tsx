@@ -6,6 +6,7 @@ import { avisarAtrasoAtualizacao, enviarAtualizacao, marcarFeedbackVisto } from 
 import type { Atualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
 import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, SELO_ENVIADA_DO_ALUNO, statusAtualizacao } from '../../dominio/atualizacao';
 import { rascunhoVigente } from '../../dominio/atualizacaoQuestionario';
+import { erroDoEnvioNoCampo } from '../../dominio/campoItensDoPlano';
 import { hojeDoCiclo, temInicioRecente } from '../../dominio/cicloMenstrual';
 import { dataDaTelaNaFaixa, erroDaData } from '../../dominio/datasValidas';
 import { dataParaTela, hojeIso, somarDias } from '../../dominio/formatos';
@@ -31,16 +32,18 @@ import { FeedbackAtualizacao } from './FeedbackAtualizacao';
 import { ContextoDeFotos } from './fotos/ControleDeFotos';
 import { useFotosDoFormulario, type EstadoDasFotos } from './fotos/useFotosDoFormulario';
 import { QuestionarioAtualizacao } from './QuestionarioAtualizacao';
+import { useItensDaAtualizacao } from './useItensDaAtualizacao';
 
 const SEM_CONEXAO='Sem conexão: suas respostas ficam salvas no aparelho. Envie quando conectar.';
 export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho,abrirAtraso,recarregar}: {
   atualizacao:Atualizacao;somenteLeitura?:boolean;rascunho:RascunhoAtualizacao|null;abrirAtraso:boolean;recarregar:()=>void;
 }) {
-  const {repositorio,online,atualizarAtualizacao}=useAluno();
+  const {repositorio,online,atualizarAtualizacao,pendentes,sincronizarAgora}=useAluno();
   const {avisar}=useAviso();
   const {cores}=useTema();
   const reduzido=useMovimentoReduzido();
   const [atual,setAtual]=useState(atualizacao);
+  const itens=useItensDaAtualizacao(atual);
   const [vigente]=useState(()=>rascunhoVigente(rascunho,atualizacao));
   const [respostas,setRespostas]=useState<RespostasAtualizacao>(atual.enviadaEm ? atual.respostas??{} : rascunho ? vigente.respostas : atual.respostas??{});
   // Fotos tiradas e ainda não enviadas (só no celular): ficam na pasta privada do app, aqui só os nomes.
@@ -112,11 +115,14 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
   const enviar=async()=>{
     if(!atual.modelo || !atual.pastaId || !atual.questionarioVersaoId)return;
     const noAparelho=Object.fromEntries(Object.entries(locais).map(([id,nomes])=>[id,nomes.length]));
-    const encontrados=errosRespostasAtualizacao(atual.modelo,respostas,fotos.habilitado===true,noAparelho);
+    const encontrados=errosRespostasAtualizacao(atual.modelo,respostas,fotos.habilitado===true,noAparelho,hojeIso(),itens);
     if(Object.keys(encontrados).length){mostrarErros(encontrados);return;}
     if(!online){avisar(SEM_CONEXAO);return;}
     setOcupado(true);
     try {
+      // Treinos ainda no aparelho sobem antes: os dias treinados que o servidor aceita são os que ele já tem. Falhou, envia
+      // assim mesmo (o servidor aponta o dia no campo).
+      if(pendentes>0) await sincronizarAgora().catch(()=>undefined);
       // As fotos do aparelho sobem agora (uma a uma) e viram ids nas respostas; falhou uma, o resto fica salvo para tentar de novo.
       const completas=fotos.habilitado===true ? await fotos.subirLocais() : ultimo.current.respostas;
       // Resposta de pergunta escondida por condição não vai (o servidor também a descartaria).
@@ -126,7 +132,10 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
       await fotos.apagarLocais();
       setAtual(resultado);setEnviada(true);
     } catch(erro) {
-      if(erro instanceof ErroApi && erro.campos.length) mostrarErros(Object.fromEntries(erro.campos.map(c=>[c.field,c.message])));
+      if(erro instanceof ErroApi && erro.campos.length) {
+        const perguntas=new Map(atual.modelo.secoes.flatMap(s=>s.perguntas).map(p=>[p.id,p]));
+        mostrarErros(Object.fromEntries(erro.campos.map(c=>[c.field,erroDoEnvioNoCampo(perguntas.get(c.field),c.message)])));
+      }
       else if(erro instanceof ErroApi && erro.semConexao) avisar(SEM_CONEXAO);
       else {
         // Todo 409 recarrega (questionário trocado, pasta que deixou de ser a atual, atualização já enviada), menos o peso do
@@ -189,7 +198,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
       </Cartao>
       <ContextoDeFotos.Provider value={fotos.controle}>
         <QuestionarioAtualizacao modelo={atual.modelo} dataAtualizacao={atual.dataAtualizacao} resumo={atual.resumo} respostas={respostas}
-          aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} progresso={!leitura&&liberada} travado={!leitura} />
+          aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} progresso={!leitura&&liberada} travado={!leitura} itens={itens} />
       </ContextoDeFotos.Provider>
       {!leitura&&liberada?<Botao rotulo="Enviar atualização" carregando={ocupado} aoTocar={()=>void enviar()} />:null}
       {!leitura?<Botao rotulo="Vou atrasar" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setAtraso(true)} />:null}

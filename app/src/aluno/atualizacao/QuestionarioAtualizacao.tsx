@@ -2,8 +2,10 @@ import { Fragment, useState, type ReactNode, type RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type {
-  Atualizacao, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, SecaoAtualizacao,
+  Atualizacao, ConteudoQuestionario, ItemDaLista, ItensDisponiveis, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, SecaoAtualizacao,
 } from '../../api/tipos';
+import { comNomesDaLista } from '../../dominio/campoItensDoPlano';
+import { aceitaAjudaAutomatica } from '../../dominio/editorQuestionario';
 import {
   ajudaDoNumero, alternarMarcado, escolhaParaSimNao, fraseDaMediaDeTreino, NAO_SE_APLICA, progressoDasSecoes,
   respostasDaGrade, simNaoParaEscolha, temImagemNasOpcoes, textoDaNota, textoDaResposta, textoDoProgresso, type SimNao,
@@ -36,6 +38,7 @@ import { useControleDeFotos } from './fotos/ControleDeFotos';
 import { CampoFotos } from './fotos/CampoFotos';
 import { ImagemDaPergunta } from './ImagemDaPergunta';
 import { LeituraDasRespostas } from './LeituraDasRespostas';
+import { CampoItensDoPlano } from './CampoItensDoPlano';
 import { OpcoesComImagem } from './OpcoesComImagem';
 
 /** Página da anamnese: a seção (índice em `modelo.secoes`) e a posição dela entre as visíveis. */
@@ -65,7 +68,14 @@ interface Props {
    * seções mostradas (a primeira é 0).
    */
   cascaDaSecao?: (secao: { titulo: string; posicao: number; conteudo: ReactNode }) => ReactNode;
+  /**
+   * Lista de cada fonte das perguntas ITENS_DO_PLANO (`useItensDaAtualizacao` no aluno; itens fictícios na prévia do editor).
+   * Sem ela a pergunta mostra a lista vazia e a resposta não conta como válida.
+   */
+  itens?: ItensDisponiveis;
 }
+
+const SEM_ITENS: readonly ItemDaLista[] = [];
 
 const SIM_NAO = [{ valor: 'sim' as SimNao, rotulo: 'Sim' }, { valor: 'nao' as SimNao, rotulo: 'Não' }];
 
@@ -80,7 +90,7 @@ export const alvoDaPergunta = (id: string) => `pergunta:${id}`;
  * `progresso` é o formulário travado durante o envio: fica no desenho do formulário, com o valor em texto, para a tela
  * não trocar de forma por um instante.
  */
-export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}, campos, dataAtualizacao, resumo, carregarFotoDaEquipe, pagina, progresso, travado, cascaDaSecao }: Props) {
+export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}, campos, dataAtualizacao, resumo, carregarFotoDaEquipe, pagina, progresso, travado, cascaDaSecao, itens = {} }: Props) {
   const { cores, marcaPeca } = useTema();
   const fotos = useControleDeFotos();
   const rolagem = useRolagem();
@@ -101,14 +111,14 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
           rolagem.registrar(alvoDaPergunta(p.id), view);
         }}>
         <Pergunta pergunta={p} valor={respostas[p.id] ?? null} dataAtualizacao={dataAtualizacao} resumo={resumo} erro={erros[p.id]}
-          notaDoCadastro={leitura ? null : notaDoCadastro(p, modelo)}
+          notaDoCadastro={leitura ? null : notaDoCadastro(p, modelo)} lista={(p.fonte && itens[p.fonte]) || SEM_ITENS}
           carregarFotoDaEquipe={carregarFotoDaEquipe} aoMudar={aoMudar ? (valor) => aoMudar(p.id, valor) : undefined} />
       </View>;
     })}
   </View>;
 
   // Fotos desligadas não contam: a pergunta não tem como ser respondida.
-  const contagens = pagina || progresso ? progressoDasSecoes(modelo, respostas, fotos?.habilitado === true) : [];
+  const contagens = pagina || progresso ? progressoDasSecoes(modelo, respostas, fotos?.habilitado === true, itens) : [];
   if (pagina) {
     const secao = modelo.secoes[pagina.secao];
     if (!secao) return null;
@@ -152,9 +162,9 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
   </>;
 }
 
-function Pergunta({ pergunta: p, valor, dataAtualizacao, resumo, erro, notaDoCadastro: nota, carregarFotoDaEquipe, aoMudar }: {
+function Pergunta({ pergunta: p, valor, dataAtualizacao, resumo, erro, notaDoCadastro: nota, lista, carregarFotoDaEquipe, aoMudar }: {
   pergunta: PerguntaAtualizacao; valor: RespostaAtualizacao; dataAtualizacao?: string | null; resumo?: Atualizacao['resumo'];
-  erro?: string; notaDoCadastro?: string | null; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>; aoMudar?: (valor: RespostaAtualizacao) => void;
+  erro?: string; notaDoCadastro?: string | null; lista: readonly ItemDaLista[]; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>; aoMudar?: (valor: RespostaAtualizacao) => void;
 }) {
   const imagem = p.imagemId ? <ImagemDaPergunta id={p.imagemId} descricao={`Imagem da pergunta: ${p.rotulo}`} /> : null;
   if (p.tipo === 'INFORMATIVO') {
@@ -164,18 +174,19 @@ function Pergunta({ pergunta: p, valor, dataAtualizacao, resumo, erro, notaDoCad
       {imagem}
     </View>;
   }
-  const controle = <Controle p={p} valor={valor} dataAtualizacao={dataAtualizacao} resumo={resumo} erro={erro} nota={nota} carregarFotoDaEquipe={carregarFotoDaEquipe} aoMudar={aoMudar} />;
+  const controle = <Controle p={p} valor={valor} dataAtualizacao={dataAtualizacao} resumo={resumo} erro={erro} nota={nota} lista={lista} carregarFotoDaEquipe={carregarFotoDaEquipe} aoMudar={aoMudar} />;
   if (!imagem) return controle;
   return <View style={estilos.pergunta}>{imagem}{controle}</View>;
 }
 
-function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoDaEquipe, aoMudar }: {
+function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, lista, carregarFotoDaEquipe, aoMudar }: {
   p: PerguntaAtualizacao; valor: RespostaAtualizacao; dataAtualizacao?: string | null; resumo?: Atualizacao['resumo'];
-  erro?: string; nota?: string | null; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>; aoMudar?: (valor: RespostaAtualizacao) => void;
+  erro?: string; nota?: string | null; lista: readonly ItemDaLista[]; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>; aoMudar?: (valor: RespostaAtualizacao) => void;
 }) {
   const { cores } = useTema();
   const rotulo = `${p.rotulo}${p.obrigatoria ? ' *' : ''}`;
-  const ajuda = p.ajudaAutomatica === 'MEDIA_DIAS_TREINO' && resumo?.mediaDiasPorSemana != null
+  // A média de dias só vale onde a API a aceita (TEXTO e NUMERO): numa escolha que veio com o campo, fica a ajuda escrita.
+  const ajuda = p.ajudaAutomatica === 'MEDIA_DIAS_TREINO' && aceitaAjudaAutomatica(p.tipo) && resumo?.mediaDiasPorSemana != null
     ? fraseDaMediaDeTreino(resumo.mediaDiasPorSemana, false)
     : p.ajuda;
   const ajudaTexto = ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null;
@@ -188,7 +199,9 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   if (!TIPOS_DE_PERGUNTA.includes(p.tipo)) return <View style={estilos.pergunta}>
     <Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto variante="pequeno">{aoMudar ? 'Atualize o app para responder esta pergunta.' : 'Atualize o app para ver esta resposta.'}</Texto>
   </View>;
-  if (!aoMudar) return <Leitura p={p} valor={valor} ajuda={ajudaTexto} />;
+  // O rascunho guarda só os ids dos itens; o nome vem da lista.
+  if (!aoMudar) return <Leitura p={p} valor={p.tipo === 'ITENS_DO_PLANO' ? comNomesDaLista(valor, lista) : valor} ajuda={ajudaTexto} />;
+  if (p.tipo === 'ITENS_DO_PLANO') return <CampoItensDoPlano p={p} valor={valor} lista={lista} rotulo={rotulo} ajuda={ajudaTexto} erro={erro} aoMudar={aoMudar} />;
   if (p.tipo === 'PESO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null}
     aoMudar={aoMudar} ajuda={['Em kg, de 20 a 400, com uma casa decimal.', nota].filter(Boolean).join(' ')} erro={erro} />;
   if (p.tipo === 'NUMERO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null} aoMudar={aoMudar}

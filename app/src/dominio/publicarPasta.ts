@@ -59,12 +59,45 @@ export function motivoParaNaoPublicar(planos: PlanosDaPasta, pode: (codigo: stri
 }
 
 /**
- * Estado do "Publicar tudo" diante das listas de planos. Duas travas, sem enviar nada à API:
+ * Quantos planos "Publicar tudo" publicaria. `null` = não se sabe: nada chegou ou algum tipo é desconhecido (lista `null`;
+ * desconhecido nunca vira 0). A mobilidade fora do plano da consultoria já chega como `[]` ({@link planosDaPasta}).
+ */
+export function contagemDePendentes(planos: PlanosDaPasta | null): number | null {
+  if (!planos || TIPOS_DA_PASTA.some((t) => planos[t] === null)) return null;
+  return TIPOS_DA_PASTA.reduce((n, t) => n + (planos[t] ?? []).filter(planoPendente).length, 0);
+}
+
+/** "Vai publicar 2 planos: “Treino 17” e “Dieta 17”."; `null` com a contagem desconhecida ou zero. */
+export function resumoDosPendentes(planos: PlanosDaPasta | null): string | null {
+  const n = contagemDePendentes(planos);
+  if (!planos || !n) return null;
+  const titulos = TIPOS_DA_PASTA.flatMap((t) => (planos[t] ?? []).filter(planoPendente).map((p) => `“${p.titulo}”`));
+  return `Vai publicar ${n === 1 ? '1 plano' : `${n} planos`}: ${listaComE(titulos)}.`;
+}
+
+/**
+ * Trava dos pendentes duplicados antes de enviar: dois ou mais pendentes do mesmo tipo, o mesmo critério do 409
+ * `PLANOS_PENDENTES_DUPLICADOS` da API (só nas listas conhecidas). `null` = nenhum.
+ */
+export function motivoDosDuplicados(planos: PlanosDaPasta): string | null {
+  const frases = TIPOS_DA_PASTA.flatMap((t) => {
+    const pendentes = (planos[t] ?? []).filter(planoPendente);
+    return pendentes.length > 1 ? [fraseDoDuplicado(t, pendentes.map((p) => p.titulo))] : [];
+  });
+  return frases.length ? `${frases.join(' ')} ${ORIENTACAO_DOS_DUPLICADOS}` : null;
+}
+
+export const MOTIVO_NADA_A_PUBLICAR = 'Nada para publicar: os planos desta pasta já estão publicados.';
+
+/**
+ * Estado do "Publicar tudo" diante das listas de planos. Travas, nesta ordem, sem enviar nada à API:
  * - alguma lista está sendo buscada de novo (`atualizando`: depois de publicar, de um 409 ou de um "Tentar de novo"; os
  *   dados antigos ainda estão na tela, e um clique agora mandaria versões velhas e daria "Os planos mudaram" outra vez):
  *   "Atualizando os planos…";
  * - a lista de um tipo falhou ao carregar (`falhou`): o tipo fica desconhecido e fora de `versoes`, e publicar assim bateria
- *   num 409 que a tela explicaria errado. O motivo diz qual tipo e a tela oferece "Tentar de novo" só para essas listas.
+ *   num 409 que a tela explicaria errado. O motivo diz qual tipo e a tela oferece "Tentar de novo" só para essas listas;
+ * - dois pendentes do mesmo tipo ({@link motivoDosDuplicados}): a API recusaria com 409;
+ * - todos os tipos conhecidos e nenhum pendente: {@link MOTIVO_NADA_A_PUBLICAR}.
  * Sem trava vale o motivo de permissão ({@link motivoParaNaoPublicar}). `falhou` considera só as listas buscadas (as que a
  * pessoa lê); a mobilidade fora do plano da consultoria não conta, porque a API a pula. `planos` `null` (nada chegou) não
  * trava aqui: quem chama já trata a primeira carga.
@@ -91,7 +124,9 @@ export function situacaoDoPublicar(
   if (tiposComFalha.length) {
     return { podePublicar: false, motivo: `Não foi possível carregar ${juntar(tiposComFalha)}. Tente de novo.`, tiposComFalha };
   }
-  const motivo = planos ? motivoParaNaoPublicar(planos, pode) : null;
+  const motivo = planos
+    ? motivoDosDuplicados(planos) ?? (contagemDePendentes(planos) === 0 ? MOTIVO_NADA_A_PUBLICAR : motivoParaNaoPublicar(planos, pode))
+    : null;
   return { podePublicar: motivo === null, motivo, tiposComFalha: [] };
 }
 
@@ -162,36 +197,34 @@ export function textoDosPendentesDuplicados(
   campos: readonly { field: string; message?: string }[],
   planos: PlanosDaPasta | null = null,
 ): string | null {
-  const frases = TIPOS_DA_PASTA.filter((t) => campos.some((c) => c.field === t)).map((t) => {
-    const { um, nome } = ARTIGOS_DO_TIPO[t];
-    const titulos = campos
+  const frases = TIPOS_DA_PASTA.filter((t) => campos.some((c) => c.field === t)).map((t) => fraseDoDuplicado(
+    t,
+    campos
       .filter((c) => c.field === t)
       .map((c) => (planos?.[t] ?? []).find((p) => p.id === c.message)?.titulo)
-      .filter((titulo): titulo is string => !!titulo)
-      .map((titulo) => `“${titulo}”`);
-    return `Há mais de ${um} ${nome} pendente nesta pasta${titulos.length ? ` (${listaComE(titulos)})` : ''}.`;
-  });
+      .filter((titulo): titulo is string => !!titulo),
+  ));
   return frases.length ? `${frases.join(' ')} Nada foi publicado. ${ORIENTACAO_DOS_DUPLICADOS}` : null;
+}
+
+/** "Há mais de um treino pendente nesta pasta (“A” e “B”)."; sem título conhecido, só o tipo. */
+function fraseDoDuplicado(t: TipoPlano, titulos: readonly string[]): string {
+  const { um, nome } = ARTIGOS_DO_TIPO[t];
+  return `Há mais de ${um} ${nome} pendente nesta pasta${titulos.length ? ` (${listaComE(titulos.map((x) => `“${x}”`))})` : ''}.`;
 }
 
 /** Fecha o texto do 409 de pendentes duplicados: o que fazer. */
 export const ORIENTACAO_DOS_DUPLICADOS = 'Arquive o que não deve ir ao aluno (⋯ › Excluir plano) e publique de novo.';
 
-const ROTULO_GERAL_DO_PUBLICAR = 'Publicar alterações da pasta';
-
 /**
- * Rótulo do "Publicar" da pasta pelo alcance (guia premium, pág. 8): um tipo só com alteração e todas as listas
- * conhecidas = "Publicar dieta"; senão (dois tipos, nenhum, ou um tipo desconhecido que pode ter alteração) =
- * "Publicar alterações da pasta". O nome acessível começa pelo rótulo visível (WCAG 2.5.3) e diz a pasta.
+ * Rótulo do "Publicar" da pasta com o alcance: "Publicar alterações (2)" quando a contagem é conhecida
+ * ({@link contagemDePendentes}); sem ela, "Publicar alterações". O nome acessível começa pelo rótulo visível (WCAG 2.5.3)
+ * e diz a pasta.
  */
 export function rotuloDoPublicarDaPasta(planos: PlanosDaPasta | null, tituloDaPasta: string): { rotulo: string; rotuloAcessivel: string } {
-  const pendentes = planos ? TIPOS_DA_PASTA.filter((t) => (planos[t] ?? []).some(planoPendente)) : [];
-  const todosConhecidos = !!planos && TIPOS_DA_PASTA.every((t) => planos[t] !== null);
-  if (todosConhecidos && pendentes.length === 1) {
-    const rotulo = `Publicar ${ARTIGOS_DO_TIPO[pendentes[0]].nome}`;
-    return { rotulo, rotuloAcessivel: `${rotulo} da pasta ${tituloDaPasta}` };
-  }
-  return { rotulo: ROTULO_GERAL_DO_PUBLICAR, rotuloAcessivel: `${ROTULO_GERAL_DO_PUBLICAR} ${tituloDaPasta}` };
+  const n = contagemDePendentes(planos);
+  const rotulo = n === null ? 'Publicar alterações' : `Publicar alterações (${n})`;
+  return { rotulo, rotuloAcessivel: `${rotulo} da pasta ${tituloDaPasta}` };
 }
 
 const PUBLICADO: Record<TipoPlano, string> = { treino: 'Treino publicado', dieta: 'Dieta publicada', mobilidade: 'Mobilidade publicada' };

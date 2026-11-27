@@ -1,4 +1,4 @@
-import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { CircleAlert, TriangleAlert } from 'lucide-react-native';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
@@ -38,6 +38,13 @@ interface Props<T extends string> {
    * haja; só as abas rolam.
    */
   depois?: ReactNode;
+  /**
+   * O painel da aba ativa (`role="tabpanel"`, padrão Tabs da APG): mora dentro das abas, e o primitivo liga a aba ao painel
+   * (`aria-controls` na aba, `aria-labelledby` no painel). Sem ele, o conteúdo vem depois, fora das abas, como antes.
+   */
+  children?: ReactNode;
+  /** Vão entre a faixa das abas e o painel e entre os filhos do painel (padrão 12; numa `Tela`, o vão dela, 24). */
+  vao?: number;
 }
 
 const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com aviso' } as const;
@@ -48,7 +55,7 @@ const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com avi
  * do lado em que há mais abas (sem isso "Atua…" parecia cortado). A aba ativa é rolada para a vista, inteira e fora do
  * esmaecido (C5): ao abrir por link uma aba do fim (`?aba=`), ao voltar, ou ao tocar numa aba meio escondida. Alvo de 44 px.
  */
-export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, ativacao = 'automatica' }: Props<T>) {
+export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, ativacao = 'automatica', children, vao = espaco(1.5) }: Props<T>) {
   const { cores } = useTema();
   const { direita, esquerda, medidas } = useEsmaecimento();
   const daArea = useFundoDaArea();
@@ -89,8 +96,8 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, at
     },
   };
   return (
-    <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} activationMode={ativacao === 'manual' ? 'manual' : 'automatic'} style={[estilos.borda, { borderColor: cores.divisor }]}>
-      <View style={depois ? estilos.comDepois : null}>
+    <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} activationMode={ativacao === 'manual' ? 'manual' : 'automatic'} style={{ gap: vao }}>
+      <View style={[estilos.borda, { borderColor: cores.divisor }, depois ? estilos.comDepois : null]}>
       <View style={[estilos.area, depois ? estilos.areaQueCede : null]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={estilos.rolagem} contentContainerStyle={estilos.conteudoRolagem} {...medidasDaRolagem}>
         <TabsList style={estilos.linha}>
@@ -99,12 +106,16 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, at
             const rotulo = [a.contagem === undefined ? a.rotulo : `${a.rotulo} (${inteiroComMilhar(a.contagem)})`, a.detalhe, a.problema ? TEXTO_DO_PROBLEMA[a.problema] : null].filter(Boolean).join(', ');
             const corDoProblema = a.problema ? cores[a.problema] : null;
             const IconeDoProblema = a.problema === 'perigo' ? CircleAlert : TriangleAlert;
+            // O primitivo aponta toda aba (`aria-controls`) para o painel dela, mas só o da ativa existe, e só quando quem
+            // usa passa o painel: as outras ficariam apontando para nada (o Slot do Radix deixa a prop da aba valer).
+            const semPainel = children === undefined || !sel ? ({ 'aria-controls': undefined } as object) : {};
             return (
               <TabsTrigger value={a.valor}
                 key={a.valor}
                 accessibilityRole="tab"
                 accessibilityLabel={rotulo}
                 accessibilityState={{ selected: sel }}
+                {...semPainel}
                 onLayout={(e: LayoutChangeEvent) => {
                   // `x` vem da lista das abas, que fica depois da folga do anel no conteúdo da rolagem.
                   caixas.current[a.valor] = { x: e.nativeEvent.layout.x + FOLGA_DO_ANEL, largura: e.nativeEvent.layout.width };
@@ -132,6 +143,7 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, at
       </View>
       {depois ? <View style={estilos.depois}>{depois}</View> : null}
       </View>
+      {children === undefined ? null : <TabsContent value={ativa} style={{ gap: vao }}>{children}</TabsContent>}
     </Tabs>
   );
 }

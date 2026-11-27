@@ -9,7 +9,7 @@ import { ALUNO, erroApi, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, ty
  * Revisão da atualização pelo treinador (bloco D de `docs/planos/atualizacao-pasta-e-questionarios.md`, 2.2 de
  * `orientacoes-de-design-26-11.md`): com espaço, a principal (abas Respostas | Evolução, "O que mudou" no topo do Resumo) e o
  * apoio fixo ao rolar (Feedback em cima, "O que está prescrito" embaixo, com rolagem própria); no celular, tudo empilhado
- * (Resumo, Feedback, Prescrito, Respostas). Abas do prescrito somem sem a permissão. `CAPTURAS_REVISAO` grava as capturas
+ * (Resumo, Feedback, Prescrito, Respostas). Abas do prescrito somem sem a permissão. `E2E_CAPTURAS` (ou `CAPTURAS_REVISAO`) grava as capturas
  * numa pasta de fora do repositório. Só dados fictícios.
  */
 
@@ -124,7 +124,7 @@ async function abrir(page: Page, largura: number, altura: number, o: { escuro?: 
 }
 
 async function capturar(page: Page, nome: string) {
-  const pasta = process.env.CAPTURAS_REVISAO;
+  const pasta = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS_REVISAO;
   if (!pasta) return;
   mkdirSync(pasta, { recursive: true });
   await page.screenshot({ path: join(pasta, `${nome}.png`) });
@@ -266,6 +266,55 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Revisada', { exact: true }).first()).toBeVisible();
     await capturar(page, `revisao-${largura}-revisada`);
   });
+}
+
+const JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGf/9k=',
+  'base64',
+);
+
+for (const largura of [390, 1280]) {
+  for (const escuro of [false, true]) {
+    const tema = escuro ? 'escuro' : 'claro';
+    test(`revisão: leitura dos itens do plano com Sim/Não, motivo e fotos do aparelho (${largura}px, ${tema})`, async ({ page }) => {
+      // A pergunta 12 do Saraiva: Sim/Não; se Sim, os exercícios (motivo com o rótulo da pergunta) e até 2 fotos do aparelho.
+      const se = { perguntaId: 'substituiu', valores: ['sim'] };
+      const modelo: ConteudoQuestionario = { ...MODELO, secoes: [...MODELO.secoes, { uid: 's3', titulo: 'Treino', perguntas: [
+        { id: 'substituiu', tipo: 'SIM_NAO', rotulo: 'Teve algum exercício que substituiu por não ter o maquinário?', obrigatoria: false },
+        { id: 'quais', tipo: 'ITENS_DO_PLANO', rotulo: 'Quais?', obrigatoria: false, fonte: 'EXERCICIOS_DO_TREINO', motivo: 'OBRIGATORIO', rotuloMotivo: 'O que usou no lugar?', mostrarSe: se },
+        { id: 'aparelho', tipo: 'FOTOS', rotulo: 'Foto do aparelho que você usou', obrigatoria: false, max: 2, mostrarSe: se },
+        { id: 'semMotivo', tipo: 'ITENS_DO_PLANO', rotulo: 'Quer trocar algum alimento?', obrigatoria: false, fonte: 'ALIMENTOS_DA_DIETA' },
+      ] }] };
+      const fotos = ['b0000000-0000-4000-8000-0000000000f1', 'b0000000-0000-4000-8000-0000000000f2'];
+      const respostas = {
+        ...ATUALIZACAO.respostas, substituiu: true, aparelho: fotos,
+        quais: [{ id: 'e1', nome: 'Supino reto', motivo: 'Supino com halteres.' }, { id: 'e3', nome: 'Agachamento livre', motivo: 'Leg press.' }],
+        semMotivo: [{ id: 'i5', nome: 'Batata-doce' }],
+      } as unknown as Atualizacao['respostas'];
+      const atual: Atualizacao = { ...ATUALIZACAO, modelo, respostas };
+      const { naoTratadas, errosDaPagina } = await abrir(page, largura, 900, { escuro, atual, historico: [atual, ANTERIOR], extra: {
+        'GET /atualizacoes/{id}/fotos/{fotoId}': (_p, route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: JPEG }),
+      } });
+      // O cartão da seção (o Resumo também mostra as fotos): o da pergunta Sim/Não, que só a leitura tem.
+      const secao = page.getByTestId('cartao').filter({ has: page.getByText('Teve algum exercício que substituiu por não ter o maquinário?', { exact: true }) });
+      await expect(secao.getByText('Sim', { exact: true })).toBeVisible();
+      // Um item por bloco: o nome e, embaixo, o rótulo do motivo da pergunta com o motivo; só leitura.
+      for (const [nome, motivo] of [['Supino reto', 'Supino com halteres.'], ['Agachamento livre', 'Leg press.']]) {
+        await expect(secao.getByText(nome, { exact: true })).toBeVisible();
+        await expect(secao.getByText(`O que usou no lugar? ${motivo}`, { exact: true })).toBeVisible();
+      }
+      // Sem motivo na pergunta, só o nome (a busca fica na linha da leitura: o item pode aparecer em outro bloco).
+      await expect(page.getByLabel('Quer trocar algum alimento?:').getByText('Batata-doce', { exact: true })).toBeVisible();
+      await expect(secao.getByRole('textbox')).toHaveCount(0);
+      await expect(secao.getByText('Foto do aparelho que você usou', { exact: true })).toBeVisible();
+      await expect(secao.getByRole('img')).toHaveCount(2);
+      await secao.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(300);
+      await capturar(page, `revisao-${largura}-${tema}-itens-do-plano`);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
 }
 
 test('revisão: aba Evolução com os cartões da ficha, no endereço (1280px)', async ({ page }) => {

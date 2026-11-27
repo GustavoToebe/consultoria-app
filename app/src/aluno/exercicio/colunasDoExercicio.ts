@@ -1,6 +1,7 @@
 import { arranjoPrincipalComApoio, larguraDoApoioDaFaixa, VAO_DA_PRINCIPAL } from '../../dominio/arranjoPrincipalComApoio';
 import { LARGURA_LISTA_DO_ALUNO, telaLargaDoAluno } from '../../dominio/telaLargaDoAluno';
-import { ALVO_TOQUE, espaco, type FaixaDeLargura } from '../../tema/tokens';
+import { espaco, type FaixaDeLargura } from '../../tema/tokens';
+import { FOLGA_DO_BOTAO } from '../../ui/folgaDoBotao';
 
 /**
  * Colunas do exercício do aluno na web (27/11, no contêiner do treinador; `docs/planos/orientacoes-de-design-26-11.md`, 1.4,
@@ -67,7 +68,7 @@ export const colunaDasSeriesNoBloco = (c: ColunasDoExercicio) => ({ esquerda: c.
 export const TOPO_DA_COLUNA_DO_EXERCICIO = espaco(2);
 /**
  * O que fica abaixo da coluna no fim da rolagem: a folga de baixo da `Tela` (16) e a do botão "voltar ao topo" da
- * `RolagemComTopo` (`FOLGA_DO_BOTAO`, 16 + 44 + 8, não exportada; trocar pelo valor exportado quando existir). Entra na
+ * `RolagemComTopo` (`FOLGA_DO_BOTAO`, 16 + 44 + 8, a mesma constante de `ui/folgaDoBotao`). Entra na
  * altura máxima da coluna para o nome e o Descanso continuarem à vista também no fim das séries.
  */
-export const FOLGA_NO_FIM_DA_ROLAGEM = espaco(2) + ALVO_TOQUE + espaco(1);
+export const FOLGA_NO_FIM_DA_ROLAGEM = FOLGA_DO_BOTAO;

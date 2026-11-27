@@ -24,7 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pergunta ITENS_DO_PLANO no envio da atualização: o servidor confere cada id contra a versão publicada da pasta (e os
+ * Pergunta ITENS_DO_PLANO no envio da atualização: o servidor confere cada id contra a versão LIBERADA da pasta (e os
  * registros do aluno) e grava o nome lido dela. O questionário é gravado direto no banco (como a migration do padrão), porque
  * o rascunho ainda não leva a configuração da pergunta. Dados fictícios.
  */
@@ -47,6 +47,7 @@ class ItensDoPlanoIntegrationTest extends AbstractIntegrationTest {
     private UUID frangoDaOpcaoB;
     private UUID arroz;
     private String planoDaDieta;
+    private String planoDoTreino;
 
     @BeforeEach void preparar() throws Exception {
         api = new ApiDeTeste(mvc, json);
@@ -57,7 +58,7 @@ class ItensDoPlanoIntegrationTest extends AbstractIntegrationTest {
         pasta = api.post("/alunos/" + aluno + "/pastas", treinador,
                 Map.of("titulo", "Período fictício", "inicio", hoje.minusDays(27), "fim", hoje), 200).path("id").asString();
         treino = ApiDeTeste.treino();
-        publicar("planos-treino", "Treino fictício", treino.conteudo());
+        planoDoTreino = publicar("planos-treino", "Treino fictício", treino.conteudo());
         frango = UUID.randomUUID();
         frangoDaOpcaoB = UUID.randomUUID();
         arroz = UUID.randomUUID();
@@ -82,13 +83,35 @@ class ItensDoPlanoIntegrationTest extends AbstractIntegrationTest {
     }
 
     private String publicar(String rota, String titulo, Object conteudo) throws Exception {
-        JsonNode criado = api.post("/alunos/" + aluno + "/" + rota, treinador, Map.of("titulo", titulo, "pastaId", pasta), 200);
+        return publicarEm(treinador, aluno, pasta, rota, titulo, conteudo, null);
+    }
+
+    /** Cria o plano na pasta e publica; {@code liberarEm} nulo = liberado na hora, com data = agendado (V106). */
+    private String publicarEm(JsonNode quem, UUID dono, String pastaId, String rota, String titulo, Object conteudo,
+                              LocalDate liberarEm) throws Exception {
+        JsonNode criado = api.post("/alunos/" + dono + "/" + rota, quem, Map.of("titulo", titulo, "pastaId", pastaId), 200);
         String id = criado.path("plano").path("id").asString();
-        JsonNode salvo = api.put("/" + rota + "/" + id + "/rascunho", treinador,
-                ApiDeTeste.rascunho(titulo, conteudo, criado.path("plano").path("versao").asLong()), 200);
-        api.post("/" + rota + "/" + id + "/publicar", treinador,
-                Map.of("versao", salvo.path("plano").path("versao").asLong(), "confirmarAvisos", true), 200);
+        republicar(quem, rota, id, titulo, conteudo, criado.path("plano").path("versao").asLong(), liberarEm);
         return id;
+    }
+
+    private void republicar(JsonNode quem, String rota, String id, String titulo, Object conteudo, long versao, LocalDate liberarEm)
+            throws Exception {
+        JsonNode salvo = api.put("/" + rota + "/" + id + "/rascunho", quem, ApiDeTeste.rascunho(titulo, conteudo, versao), 200);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("versao", salvo.path("plano").path("versao").asLong());
+        corpo.put("confirmarAvisos", true);
+        if (liberarEm != null) {
+            corpo.put("liberarEm", liberarEm.toString());
+        }
+        api.post("/" + rota + "/" + id + "/publicar", quem, corpo, 200);
+    }
+
+    private static ConteudoDieta dietaDeUmItem(UUID uid, String nome) {
+        return new ConteudoDieta("Objetivo fictício", null, "Treinador Teste", List.of(
+                new ConteudoDieta.Refeicao(UUID.randomUUID(), "Almoço", "12:00", null, List.of(
+                        new ConteudoDieta.Opcao(UUID.randomUUID(), "A", List.of(item(uid, nome)))))),
+                List.of(), null, List.of());
     }
 
     /** Três perguntas: alimentos (motivo opcional), exercício (um só, motivo obrigatório) e dia treinado (um só, motivo obrigatório). */
@@ -263,6 +286,44 @@ class ItensDoPlanoIntegrationTest extends AbstractIntegrationTest {
         assertThat(campoDoErro(enviar(respostas("alim", List.of(escolha(peixe.toString(), null))), 422))).isEqualTo("alim");
         JsonNode enviada = enviar(respostas("alim", List.of(escolha(frango.toString(), null))), 200);
         assertThat(enviada.path("respostas").path("alim").get(0).path("nome").asString()).isEqualTo("Frango grelhado");
+    }
+
+    @Test void treinoAgendadoSoValeDepoisDeLiberado() throws Exception {
+        // versão nova do treino (exercício com outro uid) agendada: o exercício novo ainda não existe para o aluno
+        ApiDeTeste.TreinoDeTeste novo = ApiDeTeste.treino();
+        long versao = api.get("/planos-treino/" + planoDoTreino, treinador, 200).path("plano").path("versao").asLong();
+        republicar(treinador, "planos-treino", planoDoTreino, "Treino fictício", novo.conteudo(), versao, hoje.plusDays(3));
+        assertThat(campoDoErro(enviar(respostas("dor", List.of(escolha(novo.exercicioUid().toString(), "Ombro"))), 422))).isEqualTo("dor");
+        // liberado, a lista passa a ser a da versão nova: o exercício antigo sai
+        api.post("/planos-treino/" + planoDoTreino + "/liberar-agora", treinador, null, 200);
+        assertThat(campoDoErro(enviar(respostas("dor", List.of(escolha(treino.exercicioUid().toString(), "Ombro"))), 422))).isEqualTo("dor");
+        JsonNode enviada = enviar(respostas("dor", List.of(escolha(novo.exercicioUid().toString(), "Ombro"))), 200);
+        assertThat(enviada.path("respostas").path("dor").get(0).path("id").asString()).isEqualTo(novo.exercicioUid().toString());
+    }
+
+    @Test void dietaSoAgendadaNaPastaDeixaAListaVazia() throws Exception {
+        // a dieta liberada sai da pasta e a única dieta que sobra foi publicada pela primeira vez com data: nada a escolher
+        api.delete("/planos-dieta/" + planoDaDieta, treinador, 204);
+        UUID agendado = UUID.randomUUID();
+        publicarEm(treinador, aluno, pasta, "planos-dieta", "Dieta agendada", dietaDeUmItem(agendado, "Ovo agendado"), hoje.plusDays(5));
+        for (UUID ruim : List.of(agendado, frango)) {
+            assertThat(campoDoErro(enviar(respostas("alim", List.of(escolha(ruim.toString(), null))), 422))).as(ruim.toString()).isEqualTo("alim");
+        }
+        // o resto do envio segue normal (o treino da pasta continua liberado)
+        JsonNode enviada = enviar(respostas("dor", List.of(escolha(treino.exercicioUid().toString(), "Ombro"))), 200);
+        assertThat(enviada.path("respostas").has("alim")).isFalse();
+    }
+
+    @Test void itemDeOutraConsultoriaNaoEAceito() throws Exception {
+        JsonNode outroTreinador = api.novoTreinador();
+        UUID alunoDeLa = api.criarAluno(outroTreinador, "Aluno Fictício de Outra Consultoria");
+        String pastaDeLa = api.post("/alunos/" + alunoDeLa + "/pastas", outroTreinador,
+                Map.of("titulo", "Período de lá", "inicio", hoje.minusDays(27), "fim", hoje), 200).path("id").asString();
+        UUID alimentoDeLa = UUID.randomUUID();
+        publicarEm(outroTreinador, alunoDeLa, pastaDeLa, "planos-dieta", "Dieta de lá", dietaDeUmItem(alimentoDeLa, "Peixe de lá"), null);
+        JsonNode erro = enviar(respostas("alim", List.of(escolha(alimentoDeLa.toString(), null))), 422);
+        assertThat(campoDoErro(erro)).isEqualTo("alim");
+        assertThat(erro.toString()).doesNotContain("Peixe de lá").doesNotContain(alimentoDeLa.toString());
     }
 
     @Test void semAPerguntaNaoHaConsultaEOEnvioComumSegue() throws Exception {

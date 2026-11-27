@@ -5,7 +5,7 @@ import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
 import { enderecoDaResposta, enderecoParaLeitura } from './cadastroDoAluno';
 import type { AjusteDoArranjo } from './listaDeDados';
 import { dataParaTela, numeroParaTela } from './formatos';
-import { escalaDaNota, LIMITES_QUESTIONARIO, semResposta, TIPOS_DE_PERGUNTA } from './questionario';
+import { escalaDaNota, LIMITES_QUESTIONARIO, rotuloDoMotivo, semResposta, TIPOS_DE_PERGUNTA } from './questionario';
 import { avaliarRespostas, respondida, respondidaNaPergunta, respostaValida } from './respostasAtualizacao';
 
 const SEM_DADO = '—';
@@ -53,23 +53,41 @@ export function textoDaResposta(p: PerguntaAtualizacao, valor: RespostaAtualizac
       return (p.linhas ?? []).map((l) => `${l.rotulo}: ${(p.colunas ?? []).find((c) => c.id === marcadas[l.id])?.rotulo ?? SEM_DADO}`).join('\n');
     }
     case 'ENDERECO': return enderecoParaLeitura(enderecoDaResposta(valor)) ?? SEM_DADO;
-    case 'ITENS_DO_PLANO': return textoDosItens(valor);
+    case 'ITENS_DO_PLANO': return textoDosItens(p, valor);
     default: return SEM_DADO;
   }
 }
 
 /**
- * ITENS_DO_PLANO na leitura: uma linha por item, "Nome — motivo". O nome vem gravado na resposta do servidor (o rascunho do
- * aluno não o tem, só o `id`: item sem nome não aparece, e sem nenhum é "—").
+ * ITENS_DO_PLANO na leitura: uma linha por item, "Nome — <rótulo do motivo> motivo" ("Supino reto — O que usou no lugar?
+ * Halteres"; rótulo sem pontuação no fim ganha dois-pontos, "Motivo: ..."). O nome vem gravado na resposta do servidor (o
+ * rascunho do aluno não o tem, só o `id`: item sem nome não aparece, e sem nenhum é "—").
  */
-function textoDosItens(valor: RespostaAtualizacao | undefined): string {
+/** Rótulo do motivo antes do texto: o da pergunta, com dois-pontos se não termina em pontuação ("Motivo:", "O que usou no lugar?"). */
+export function prefixoDoMotivo(p: Pick<PerguntaAtualizacao, 'rotuloMotivo'>): string {
+  const rotulo = rotuloDoMotivo(p);
+  return /[?:!]$/.test(rotulo) ? rotulo : `${rotulo}:`;
+}
+
+function textoDosItens(p: Pick<PerguntaAtualizacao, 'rotuloMotivo'>, valor: RespostaAtualizacao | undefined): string {
   if (!Array.isArray(valor)) return SEM_DADO;
+  const prefixo = prefixoDoMotivo(p);
   const linhas = (valor as unknown[]).flatMap((i) => {
     const { nome, motivo } = (typeof i === 'object' && i !== null ? i : {}) as { nome?: unknown; motivo?: unknown };
     if (typeof nome !== 'string' || nome.trim() === '') return [];
-    return [typeof motivo === 'string' && motivo.trim() !== '' ? `${nome.trim()} — ${motivo.trim()}` : nome.trim()];
+    return [typeof motivo === 'string' && motivo.trim() !== '' ? `${nome.trim()} — ${prefixo} ${motivo.trim()}` : nome.trim()];
   });
   return linhas.length ? linhas.join('\n') : SEM_DADO;
+}
+
+/** Itens gravados pelo servidor, com nome (o rascunho, só com ids, não tem o que mostrar). */
+function itensLidos(valor: RespostaAtualizacao | undefined): { id: string; nome: string; motivo: string | null }[] {
+  if (!Array.isArray(valor)) return [];
+  return (valor as unknown[]).flatMap((i, n) => {
+    const { id, nome, motivo } = (typeof i === 'object' && i !== null ? i : {}) as { id?: unknown; nome?: unknown; motivo?: unknown };
+    if (typeof nome !== 'string' || nome.trim() === '') return [];
+    return [{ id: typeof id === 'string' ? id : String(n), nome: nome.trim(), motivo: typeof motivo === 'string' && motivo.trim() !== '' ? motivo.trim() : null }];
+  });
 }
 
 /** Pergunta que o aluno pulou, na leitura: diz o que houve (o "—" solto não dizia). */
@@ -88,6 +106,8 @@ export type RespostaLida =
   | { forma: 'simNao'; texto: 'Sim' | 'Não' }
   | { forma: 'notasPorDia'; dias: { dia: number; nota: string }[]; texto: string }
   | { forma: 'grade'; linhas: { id: string; linha: string; resposta: string }[]; texto: string }
+  /** ITENS_DO_PLANO: um item por linha, o nome e, embaixo, o rótulo do motivo (já com a pontuação) e o motivo (390 não quebra no meio). */
+  | { forma: 'itens'; itens: { id: string; nome: string; motivo: string | null }[]; rotuloDoMotivo: string; texto: string }
   /** Escolha com imagem por opção: as escolhidas em destaque e as outras apagadas. */
   | { forma: 'opcoesComImagem'; texto: string }
   /** Fotos e texto informativo têm desenho próprio (miniaturas que abrem, texto formatado), fora da linha da lista. */
@@ -137,6 +157,11 @@ export function respostaLida(p: PerguntaAtualizacao, valor: RespostaAtualizacao 
       if (texto === SEM_DADO) return { forma: 'vazia' };
       return temImagemNasOpcoes(p) ? { forma: 'opcoesComImagem', texto } : { forma: 'texto', texto };
     }
+    case 'ITENS_DO_PLANO': {
+      const itens = itensLidos(valor);
+      if (!itens.length) return { forma: 'vazia' };
+      return { forma: 'itens', itens, rotuloDoMotivo: prefixoDoMotivo(p), texto: textoDaResposta(p, valor) };
+    }
     case 'PESO':
     case 'NUMERO':
     case 'DATA':
@@ -145,7 +170,6 @@ export function respostaLida(p: PerguntaAtualizacao, valor: RespostaAtualizacao 
     case 'TEXTO_LONGO':
     case 'EMAIL':
     case 'ACEITE':
-    case 'ITENS_DO_PLANO':
     case 'ENDERECO': {
       const texto = textoDaResposta(p, valor);
       if (texto === SEM_DADO) return { forma: 'vazia' };

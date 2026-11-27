@@ -11,7 +11,9 @@ import { corpoDaLiberacao, destinoDoErro, erroDoCampo, type EscolhaDaLiberacao }
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import {
   agruparProblemasPorPlano,
+  contagemDePendentes,
   contagemDeProblemas,
+  resumoDosPendentes,
   resumoDaPublicacao,
   rotuloDoPublicarDaPasta,
   situacaoDoPublicar,
@@ -71,6 +73,11 @@ interface Props {
   aoRecarregar: () => void;
   /** Antes de abrir o editor de um plano (fecha a Folha, que é um Modal). */
   aoNavegar: () => void;
+  /**
+   * O botão é o primário da Folha (bloco F). Com a atualização para revisar, quem é primário é o "Revisar atualização" e
+   * este vira secundário: um primário por folha.
+   */
+  principal: boolean;
 }
 
 /**
@@ -79,10 +86,13 @@ interface Props {
  * lista vem por plano. O pedido leva a versão de cada plano pendente que a tela leu (`versoes`): se mudou, a API responde
  * 409 e a tela recarrega e avisa; dois pendentes do mesmo tipo (409) pedem arquivar o que não deve ir ao aluno, sem tentar de novo.
  * Lista de planos que falhou ou sendo buscada de novo trava o botão com o motivo visível (a que falhou ganha "Tentar de novo"),
- * para nunca mandar `versoes` incompletas ou velhas. Botão secundário (o primário da Folha é Finalizar/Reabrir). O resultado fica aqui mesmo, dentro
- * da Folha: o aviso do rodapé ficaria atrás dela, e um painel de confirmação seria um modal sobre outro.
+ * para nunca mandar `versoes` incompletas ou velhas; dois pendentes do mesmo tipo e "nada a publicar" também travam o botão
+ * com o motivo, sem chamar a API. O botão é o primário da Folha (`principal`), salvo com a atualização para revisar. A
+ * escolha da liberação só aparece quando há o que publicar. O resultado fica aqui mesmo, dentro da Folha: o aviso do
+ * rodapé ficaria atrás dela, e um painel de confirmação seria um modal sobre outro.
  */
-export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, carregando, atualizando, falhou, aoTentarDeNovo, aoPublicar, aoRecarregar, aoNavegar }: Props) {
+export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, carregando, atualizando, falhou, aoTentarDeNovo, aoPublicar, aoRecarregar, aoNavegar, principal }: Props) {
+  const { cores } = useTema();
   const { pode, temFuncionalidade } = useSessao();
   const { confirmar } = useSaidaGuardada();
   const [publicando, setPublicando] = useState(false);
@@ -97,6 +107,8 @@ export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, car
   // não lido) a API decide.
   const situacao = situacaoDoPublicar(planos, falhou, temFuncionalidade('MOBILIDADE'), pode, atualizando);
   const motivo = carregando ? 'Carregando os planos da pasta.' : situacao.motivo;
+  // Enquanto as listas são buscadas de novo, a escolha continua se ainda havia o que publicar: não some e volta num piscar.
+  const comEscolha = !carregando && (situacao.podePublicar || (atualizando && (contagemDePendentes(planos) ?? 0) > 0));
 
   const publicar = async (confirmarAvisos: boolean, dosAvisos?: { versoes: Versoes; liberacao: CorpoDaLiberacao }) => {
     if (!situacao.podePublicar) return;
@@ -146,15 +158,16 @@ export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, car
   });
 
   return (
-    <View style={estilos.bloco}>
+    <View style={[estilos.bloco, estilos.separado, { borderTopColor: cores.divisor }]}>
       <Texto variante="suave">
-        Publica de uma vez os planos com alterações não publicadas desta pasta. Se algum plano tiver erro, nada é publicado.
+        {/* "Vai publicar…" só quando dá para publicar: com duplicados ou sem permissão o motivo do botão diz o porquê. */}
+        {(situacao.podePublicar ? resumoDosPendentes(planos) : null) ?? 'Publica de uma vez os planos com alterações não publicadas desta pasta.'} Se algum plano tiver erro, nada é publicado.
       </Texto>
-      <EscolhaDaLiberacaoDoPlano valor={escolha} refData={refData}
+      {comEscolha ? <EscolhaDaLiberacaoDoPlano valor={escolha} refData={refData}
         erro={escolha.modo === 'agendar' ? erroDaData ?? erroDoCampo(escolha.dataTexto, tentou) : null}
-        aoMudar={(v) => { setEscolha(v); setErroDaData(null); }} />
+        aoMudar={(v) => { setEscolha(v); setErroDaData(null); }} /> : null}
       <LinhaDeAcoes>
-        <Botao {...rotuloDoPublicarDaPasta(planos, pasta.titulo)} tipo="secundario" Icone={Send}
+        <Botao {...rotuloDoPublicarDaPasta(planos, pasta.titulo)} tipo={principal ? 'primario' : 'secundario'} Icone={Send}
           carregando={publicando} desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => void publicar(false)} />
         {!carregando && situacao.tiposComFalha.length ? (
           <Botao rotulo="Tentar de novo" rotuloAcessivel="Tentar carregar os planos de novo" tipo="fantasma" aoTocar={() => aoTentarDeNovo(situacao.tiposComFalha)} />
@@ -219,6 +232,8 @@ function ListaPorPlano({ grupos, tom, aoAbrir }: { grupos: ProblemasPorPlano[]; 
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
+  // Fio entre a lista dos planos e o publicar, no mesmo cartão.
+  separado: { borderTopWidth: 1, paddingTop: espaco(1.5) },
   grupos: { gap: espaco(1), marginTop: espaco(0.5) },
   grupo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(0.75) },
   cabecalhoDoGrupo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },

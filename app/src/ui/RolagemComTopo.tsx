@@ -4,6 +4,7 @@ import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWi
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { FOLGA_DO_BOTAO } from './folgaDoBotao';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 
 /** Quem está dentro de uma rolagem registra pontos (`AlvoDeRolagem`) e pede para rolar até eles. */
@@ -25,8 +26,6 @@ const SEM_ROLAGEM: Rolagem = { registrar: () => undefined, rolarAte: () => undef
 const LIMITE_TOPO = 400;
 /** Movimento mínimo (px) para contar como rolar para cima ou para baixo (ignora o tremor do dedo). */
 const DIFERENCA_MINIMA = 4;
-/** Espaço no fim da rolagem para o botão flutuante não cobrir o último item. */
-const FOLGA_DO_BOTAO = espaco(2) + ALVO_TOQUE + espaco(1);
 
 /**
  * Web: reserva a faixa da barra de rolagem mesmo quando ela não aparece (`scrollbar-gutter: stable`). Sem isto, perto do limite de

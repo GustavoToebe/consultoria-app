@@ -252,7 +252,17 @@ export function coresDoDestaque(destaque: unknown, marca: string | null | undefi
   return { fundo, texto: marcaParaTexto(fundo, BRANCO), sobreFundo: textoSobre(fundo) };
 }
 
-/** Cartões do modelo na galeria: 1, 2 ou 3 colunas (divisores de 6, sem cartão sobrando numa linha), pela largura medida. */
-export function colunasDaGaleria(largura: number): number {
-  return colunasPorCelula(largura, 200, 16, 3);
+/** Célula do cartão do modelo na galeria (seção 3.1 de `orientacoes-de-design-26-11.md`): nunca mais estreita que 220 (miniatura ilegível) nem mais larga que 320. */
+export const CELULA_MINIMA_DA_GALERIA = 220;
+export const CELULA_MAXIMA_DA_GALERIA = 320;
+
+/** Cartões do modelo por linha na galeria: o maior divisor de 6 que cabe (6, 3, 2 ou 1; nunca 4 + 2), como `mesesPorLinhaDoAno`. */
+export function colunasDaGaleria(largura: number, vao: number): number {
+  const cabem = colunasPorCelula(largura, CELULA_MINIMA_DA_GALERIA, vao, 6);
+  return [6, 3, 2].find((n) => n <= cabem) ?? 1;
+}
+
+/** Teto da grade com `colunas` células de no máximo `CELULA_MAXIMA_DA_GALERIA`: a sobra da linha vira margem, nunca cartão esticado. */
+export function larguraMaximaDaGaleria(colunas: number, vao: number): number {
+  return colunas * CELULA_MAXIMA_DA_GALERIA + (colunas - 1) * vao;
 }

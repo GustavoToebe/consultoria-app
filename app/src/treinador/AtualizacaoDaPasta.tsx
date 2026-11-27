@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import type { Atualizacao } from '../api/tipos';
 import { statusAtualizacaoTreinador } from '../dominio/atualizacao';
@@ -14,9 +15,10 @@ import { ICONE_DO_SELO } from './iconesDosSelos';
 /**
  * Fecho do período na folha da pasta, logo abaixo das ações: situação (selo curto no cabeçalho, o cartão já diz que é
  * a atualização), data e feedback, com o botão para abrir ou revisar. `destaque`: com a atualização para revisar, o
- * botão é a ação principal da folha.
+ * botão é a ação principal da folha. `children` é a última linha do cartão (a Folha da pasta põe ali o questionário do
+ * período, bloco F).
  */
-export function AtualizacaoDaPasta({atualizacao,carregando,aoAbrir,destaque=false}:{atualizacao:Atualizacao|null;carregando:boolean;aoAbrir:(a:Atualizacao)=>void;destaque?:boolean}) {
+export function AtualizacaoDaPasta({atualizacao,carregando,aoAbrir,destaque=false,children}:{atualizacao:Atualizacao|null;carregando:boolean;aoAbrir:(a:Atualizacao)=>void;destaque?:boolean;children?:ReactNode}) {
   const registrada = !carregando && atualizacao?.dataAtualizacao ? atualizacao : null;
   const selo = registrada ? statusAtualizacaoTreinador(registrada) : null;
   const quando = registrada ? dataRelativa(registrada.dataAtualizacao) : '';
@@ -35,6 +37,7 @@ export function AtualizacaoDaPasta({atualizacao,carregando,aoAbrir,destaque=fals
             : registrada.enviadaEm ? 'Respostas recebidas, aguardando seu feedback.' : 'O aluno ainda não enviou.'}</Texto>
           <Botao rotulo={registrada.fase === 'ENVIADA' ? 'Revisar atualização' : 'Abrir atualização'} tipo={destaque ? 'primario' : 'secundario'} aoTocar={() => aoAbrir(registrada)} />
         </View>}
+      {children}
     </Cartao>
   );
 }

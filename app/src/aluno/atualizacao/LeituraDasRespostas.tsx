@@ -115,6 +115,13 @@ function LinhaLida({ p, valor, lida }: { p: PerguntaAtualizacao; valor: Resposta
     // Sim/Não no texto normal da resposta: nunca mais fraco que a pergunta.
     case 'simNao': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} />;
     case 'notasPorDia': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} conteudo={<NotasPorDia dias={lida.dias} />} />;
+    // Um item por bloco: o nome em texto normal e, embaixo, rótulo e motivo em texto suave (em 390 o motivo longo quebrava no meio da linha).
+    case 'itens': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} conteudo={<View style={estilos.itensLidos}>
+      {lida.itens.map((i) => <View key={i.id} style={estilos.itemLido}>
+        <Texto style={estilos.textoCorrido}>{i.nome}</Texto>
+        {i.motivo ? <Texto variante="suave" style={estilos.textoCorrido}>{`${lida.rotuloDoMotivo} ${i.motivo}`}</Texto> : null}
+      </View>)}
+    </View>} />;
     case 'grade': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} conteudo={<GradeLida linhas={lida.linhas} />} />;
     case 'opcoesComImagem': return <LinhaDeDado rotulo={p.rotulo} valor={lida.texto} nota={nota} conteudo={<OpcoesComImagem p={p} valor={valor} />} />;
     // Fotos e informativo viram bloco antes de chegar aqui.
@@ -160,6 +167,8 @@ function GradeLida({ linhas }: { linhas: { id: string; linha: string; resposta: 
 const estilos = StyleSheet.create({
   // O mesmo respiro das linhas da lista até o fio.
   bloco: { gap: espaco(1), paddingVertical: RESPIRO_DA_LEITURA },
+  itensLidos: { gap: espaco(1) },
+  itemLido: { gap: espaco(0.25) },
   textoCorrido: { maxWidth: LARGURA_TEXTO_CORRIDO },
   // A nota em destaque: 20, semibold, algarismos tabulares.
   nota: { fontFamily: fontes.semi, fontSize: 20, lineHeight: 26, fontVariant: ['tabular-nums'] },
