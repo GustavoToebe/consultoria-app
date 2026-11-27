@@ -641,7 +641,7 @@ for (const c of [
   { largura: 3440, menuRecolhido: false, total: 400, larguraConteudo: 'LIMITADA' as const },
 ]) {
   test(`dieta ${c.largura} px (menu ${c.menuRecolhido ? 'recolhido' : 'aberto'}, ${c.larguraConteudo ?? 'AUTOMATICA'}): 3 colunas até a borda, total fixo ao rolar`, async ({ page }) => {
-    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: c.largura >= 1920 ? 700 : 900, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo }); // a partir de 1920 a dieta cabe quase toda em 900 de altura: 700 garante rolagem para provar a coluna fixa
+    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: 900, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo });
     await page.goto(`/treinador/dietas/${DIETA_ID}`);
     const coluna = page.getByTestId('coluna-total-dieta');
     // "Por refeição" escolhe a refeição no editor (a escolhida abre com as abas das opções).
@@ -662,6 +662,9 @@ for (const c of [
     }).toPass({ timeout: 5_000 });
     // Fixo ao rolar: rolada a tela, a coluna gruda logo abaixo da barra do editor (16 px), à vista.
     const titulo = page.getByRole('heading', { name: /^Refeições \(/ });
+    // O clique em "Ir para" rola a página com animação: espera assentar antes de medir (senão o "antes" pega o meio do movimento e a animação desfaz a rolagem do teste).
+    let anterior = Number.NaN;
+    await expect.poll(async () => { const y = (await caixa(titulo)).y; const parou = y === anterior; anterior = y; return parou; }, { intervals: [250] }).toBe(true);
     const antes = (await caixa(titulo)).y;
     await page.mouse.move(c.largura / 2, 600);
     await page.mouse.wheel(0, 3000);
