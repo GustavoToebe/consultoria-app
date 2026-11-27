@@ -41,7 +41,7 @@ export function BarraDescanso({ proximo }: { proximo?: ReactNode }) {
     <View style={[estilos.barra, fundoPintado(pintada), { borderColor: pintada.borda }]} accessibilityRole="timer" aria-label="Descanso">
       <View style={estilos.linha}>
         <View style={estilos.tempo}>
-          <Texto variante="pequeno" cor={pintada.texto} style={estilos.rotulo}>{descanso?.rotulo ?? 'Descanso'}</Texto>
+          <Texto variante="pequeno" style={estilos.rotulo}>{descanso?.rotulo ?? 'Descanso'}</Texto>
           {/* O relógio não é região viva: o leitor de tela lê o valor quando o foco chega, sem anunciar cada segundo. */}
           <Texto numerico style={estilos.numero} cor={cores.texto} accessibilityLabel={`${relogio.segundos} segundos restantes`}>{relogio.texto}</Texto>
         </View>

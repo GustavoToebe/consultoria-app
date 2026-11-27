@@ -67,10 +67,11 @@ test('aviso de atenção (edição em conflito): pintado de âmbar (borda inteir
   await page.getByRole('button', { name: 'Salvar marca', exact: true }).click();
   const aviso = page.getByRole('alert').filter({ hasText: 'A marca foi alterada em outra aba' });
   await expect(aviso).toBeVisible();
-  // Pintado (24/11, `ui/superficiePintada`): borda inteira a 50% do âmbar sobre a `superficie2`, sem a faixa de 4 px.
-  await expect(aviso).toHaveCSS('border-top-color', rgb(misturar(CLARO.superficie2, CLARO.atencao, 0.5)));
+  // Pintado (`ui/superficiePintada`; 26/11: liso nas claras, borda neutra): `divisor` inteiro, sem a faixa de 4 px.
+  await expect(aviso).toHaveCSS('border-top-color', rgb(CLARO.divisor));
   await expect(aviso).toHaveCSS('border-left-width', '1px');
-  await expect(aviso).toHaveCSS('background-image', /linear-gradient/);
+  await expect(aviso).toHaveCSS('background-image', 'none');
+  await expect(aviso).toHaveCSS('background-color', rgb(misturar(CLARO.superficie2, CLARO.atencao, 0.14)));
   await expect(aviso.locator('svg')).toHaveCount(2); // o ícone de atenção e o X de fechar
   // Não some sozinho (o de sucesso some em 4 s).
   await page.waitForTimeout(4500);

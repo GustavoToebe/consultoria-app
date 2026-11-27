@@ -275,7 +275,7 @@ describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].ma
     expect(a.marca).toBe(cor);
     expect(contraste(cor, forte)).toBeGreaterThanOrEqual(3);
     for (const texto of [a.rotulo, a.valor, cores.textoSuave]) expect(contraste(texto, forte)).toBeGreaterThanOrEqual(4.5);
-    expect(a.borda).not.toBe(cores.divisor);
+    expect(a.borda).toBe(cores.divisor); // borda neutra (26/11): a cor fica no ponto e no valor
   });
 
   it('zero, indisponível e neutro: sem pintura, contorno `divisor`, número legível', () => {

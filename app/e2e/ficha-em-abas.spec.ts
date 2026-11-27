@@ -395,12 +395,12 @@ for (const largura of [390, 1280]) {
     expect(await corDe(selo)).toBe(rgb(CLARO.perigo));
     const numero = numeroDosTreinos(page).getByText('1', { exact: true });
     await expect(numero).toBeVisible();
-    // ficha: resumo em cartões (24/11): treino é categoria, então o cartão é pintado de azul (ponto, degradê, borda); o
+    // ficha: resumo em cartões (24/11): treino é categoria, então o cartão é pintado de azul (ponto, fundo liso nas claras, borda neutra); o
     // número fica na cor se passar 4,5:1 sobre o fundo mais forte, senão em `texto` (a regra do cartão pintado).
-    const forte = misturar(CLARO.superficie2, AZUL_CLARO, 0.08 /* TINTA_DA_PINTURA.claro: ui/superficiePintada importa o RN, que o Playwright não carrega */);
+    const forte = misturar(CLARO.superficie2, AZUL_CLARO, 0.14 /* TINTA_DA_PINTURA.claro: ui/superficiePintada importa o RN, que o Playwright não carrega */);
     expect(await corDe(numero)).toBe(rgb(contraste(AZUL_CLARO, forte) >= 4.5 ? AZUL_CLARO : CLARO.texto));
     expect(await numeroDosTreinos(page).locator('[aria-hidden="true"]').first().evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(rgb(AZUL_CLARO));
-    expect(await numeroDosTreinos(page).evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('linear-gradient');
+    expect(await numeroDosTreinos(page).evaluate((e) => getComputedStyle(e).backgroundImage)).toBe('none');
     await expect(numeroDosTreinos(page).getByText('nesta semana', { exact: true })).toBeVisible();
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

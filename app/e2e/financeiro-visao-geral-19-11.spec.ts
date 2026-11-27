@@ -71,15 +71,16 @@ for (const [largura, indicadores, parcelas] of [
   });
 }
 
-// Cartão de indicador pintado (23/11): com situação, degradê e borda de 1 px em volta (a faixa grossa saiu); neutro, liso.
-test('cartão de indicador pintado: recebido com degradê e borda fina, alunos pagantes liso', async ({ page }) => {
+// Cartão de indicador pintado (23/11; liso nas claras desde 26/11): com situação, fundo liso na cor e borda neutra de 1 px; neutro, sem cor.
+test('cartão de indicador pintado: recebido com fundo na cor e borda fina, alunos pagantes sem cor', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280);
   const estilo = (rotulo: string) => page.getByLabel(new RegExp(`^${rotulo}: `)).first().evaluate((e) => {
     const s = getComputedStyle(e);
-    return { imagem: s.backgroundImage, esquerda: s.borderLeftWidth, topo: s.borderTopWidth };
+    return { imagem: s.backgroundImage, fundo: s.backgroundColor, esquerda: s.borderLeftWidth, topo: s.borderTopWidth };
   });
   const recebido = await estilo('Recebido no período');
-  expect(recebido.imagem).toContain('linear-gradient(135deg');
+  expect(recebido.imagem).toBe('none');
+  expect(recebido.fundo).not.toBe((await estilo('Alunos pagantes')).fundo);
   expect(recebido.esquerda).toBe(recebido.topo);
   expect((await estilo('Alunos pagantes')).imagem).toBe('none');
   expect(errosDaPagina).toEqual([]);

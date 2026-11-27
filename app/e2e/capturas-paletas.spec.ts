@@ -13,7 +13,7 @@ import { resumoFalso, rotasDaTela } from './inscricoes-falsas';
 
 /**
  * Prancha das telas nos temas: Claro, Areia e Escuro (verificação final de `docs/planos/hierarquia-visual-tres-temas.md`)
- * e Céu e Rosa em 390 e 1280, Lavanda em 390 (D10 de `docs/planos/cores-de-destaque.md`). As sete primeiras telas moram
+ * e Céu e Rosa em 390 e 1280, Lavanda em 390 e 1280 (D10 de `docs/planos/cores-de-destaque.md`; o 1280 entrou em 26/11). As sete primeiras telas moram
  * aqui; as que vieram com a hierarquia visual, em `capturas-telas.ts`. Só roda com `CAPTURAS_PALETAS=<pasta>`: grava
  * `<tela>-<paleta>-<largura>-<tema>.png` e, ao lado, um `.json` com a rolagem horizontal, os textos abaixo de 4,5:1 (3:1 no
  * texto grande) contra o fundo composto dos ancestrais e o que a API simulada não tratou. Só dados fictícios.
@@ -31,6 +31,7 @@ const ESCURO: Paleta = { nome: 'escuro', tema: 'escuro', preferencia: 'ESCURO' }
 const MATRIZ: [Paleta, number][] = [
   ...[CLARO, AREIA, ESCURO, CEU, ROSA].flatMap((p) => [[p, 390], [p, 1280]] as [Paleta, number][]),
   [LAVANDA, 390],
+  [LAVANDA, 1280], // 26/11: a superfície pintada lisa pede as cinco claras nas duas larguras
 ];
 
 const id = (n: number) => `a0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;

@@ -4,8 +4,8 @@ import { abrirLesoes, CENAS } from './lesoes-falsas';
 
 /**
  * ficha: tabela com linha tingida (24/11, `docs/planos/tabela-linha-tingida.md`). A `ui/Tabela` recorta pelo próprio raio,
- * a linha tingida (a lesão ativa) não leva borda própria (só o fundo; o fio entre duas linhas é o de baixo da de cima, na
- * cor da tinta se qualquer das duas é tingida) e o ⋯ fica na altura da primeira linha de texto. As ativas vêm sempre
+ * a linha tingida (a lesão ativa) não leva borda própria (só o fundo; o fio entre duas linhas é o de baixo da de cima, sempre
+ * a divisória, borda neutra desde 26/11) e o ⋯ fica na altura da primeira linha de texto. As ativas vêm sempre
  * primeiro: com recuperadas embaixo só nas colunas largas. A tabela (colunas) só cabe a partir de 760 px na própria lista: em 1280 e 1920 ela fica
  * embaixo das duas colunas da aba Dados (tela larga 24/11, pedido de 24/11 à noite) e em 390 vira cartões. Só dados fictícios, API simulada.
  */
@@ -38,13 +38,13 @@ test('1920px: ativa como última linha da tabela, sem borda própria, ⋯ na alt
   expect((await lado(caixa, 'Left'))[0]).toBeGreaterThan(0);
   expect(await lado(ultima, 'Top', 'Right', 'Bottom', 'Left')).toEqual([0, 0, 0, 0]);
   expect(await lado(linha('Ombro direito'), 'Right', 'Left')).toEqual([0, 0]);
-  // O fio entre as duas ativas é um só (o de baixo da primeira) e tem a cor da tinta, não a da divisória.
+  // O fio entre as duas ativas é um só (o de baixo da primeira) e é a divisória (borda neutra, 26/11).
   expect((await lado(linha('Ombro direito'), 'Bottom'))[0]).toBe(1);
   expect(await desvioDoMais(page, ultima, 'Cotovelo esquerdo')).toBeLessThanOrEqual(4);
   expect(errosDaPagina).toEqual([]);
 });
 
-test('1920px: ativa no meio (ativa, ativa, recuperadas): um fio por divisão, tingido ao redor da ativa, neutro depois', async ({ page }) => {
+test('1920px: ativa no meio (ativa, ativa, recuperadas): um fio por divisão, sempre a divisória (borda neutra)', async ({ page }) => {
   const { errosDaPagina } = await abrirLesoes(page, 1920, 'ESCURO', CENAS.meio);
   await expect(page.getByRole('table', { name: 'Lesões' })).toBeVisible();
   const linha = (regiao: string) => page.getByRole('row').filter({ hasText: regiao });
@@ -55,9 +55,9 @@ test('1920px: ativa no meio (ativa, ativa, recuperadas): um fio por divisão, ti
   expect(await lado(linha('Cotovelo esquerdo'), 'Bottom')).toEqual([1]);
   expect(await lado(linha('Joelho esquerdo'), 'Bottom')).toEqual([1]);
   expect(await lado(linha('Punho direito'), 'Bottom')).toEqual([0]);
-  // Ombro e Cotovelo (fio tingido) têm a mesma cor; o fio entre as recuperadas é outro (a divisória).
+  // Desde 26/11 a borda do pintado é neutra: todos os fios têm a cor da divisória, ao redor da ativa e entre as recuperadas.
   expect(await corDoFio(linha('Ombro direito'))).toBe(await corDoFio(linha('Cotovelo esquerdo')));
-  expect(await corDoFio(linha('Joelho esquerdo'))).not.toBe(await corDoFio(linha('Ombro direito')));
+  expect(await corDoFio(linha('Joelho esquerdo'))).toBe(await corDoFio(linha('Ombro direito')));
   expect(await linha('Joelho esquerdo').evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
   expect(await desvioDoMais(page, linha('Ombro direito'), 'Ombro direito')).toBeLessThanOrEqual(4);
   expect(errosDaPagina).toEqual([]);

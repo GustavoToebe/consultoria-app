@@ -2,6 +2,8 @@
 
 Situação: Entregue (commit `328df011`, publicado no run 45310566613) · Onde: main · Atualizado: 23/11/2026
 
+> Atualização de 26/11/2026: fundo liso a 14% nas claras, degradê só no escuro, borda neutra e rótulo neutro; ver [superficie-pintada-lisa.md](superficie-pintada-lisa.md). As decisões D1 a D3 abaixo valem como estavam em 23/11.
+
 ## Objetivo
 O cartão de indicador com significado (situação ou categoria) passa a ser "pintado": fundo em degradê da cor, borda de 1 px na
 cor e rótulo e número na cor quando legíveis. O resto fica neutro. Uma peça só (`ui/CartaoDeIndicador`) e uma regra reutilizável

@@ -45,7 +45,7 @@ export function ResumoDoPeso({ registros, meta, linhaDaMeta }: {
           accessibilityLabel={desde
             ? `${resumo.rotuloDiferenca}: ${direcaoFalada(desde.seta, desde.texto).toLowerCase()}, comparado a ${desde.referencia}`
             : `${resumo.rotuloDiferenca}: ${SEM_REGISTRO_ANTERIOR.toLowerCase()}`}>
-          <Texto variante="secao" cor={pintura?.texto}>{resumo.rotuloDiferenca}</Texto>
+          <Texto variante="secao">{resumo.rotuloDiferenca}</Texto>
           {desde ? (
             <>
               <Texto variante="titulo" numerico cor={pintura?.texto}>{seta ? `${seta} ${desde.texto}` : desde.texto}</Texto>

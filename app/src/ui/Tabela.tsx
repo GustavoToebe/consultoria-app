@@ -52,7 +52,7 @@ interface Props<T> {
   /** Teto opcional de largura da tabela em telas largas/ultralargas (no modo empilhado não limita). */
   larguraMaxima?: number;
   /**
-   * Linha que pede atenção (a lesão ativa): fundo e fio tingidos de `atencao` (`ui/superficiePintada`, liso). Na tabela
+   * Linha que pede atenção (a lesão ativa): fundo tingido de `atencao` (`ui/superficiePintada`, liso, fio neutro). Na tabela
    * larga o fio é o das divisórias (nunca borda lateral nem a de baixo da última: quem fecha a tabela é a caixa, que
    * também recorta o fundo pelo raio); no cartão empilhado, a borda do próprio cartão. O sinal nunca vai só na cor: o
    * registro também diz o motivo em texto (o selo "Ativa").
@@ -133,13 +133,10 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
             ))}
           </View>
           {linhas.map((l, i) => {
-            // Um fio só entre duas linhas (o de baixo da de cima), na cor da tinta se qualquer das duas é tingida: a linha
+            // Um fio só entre duas linhas (o de baixo da de cima), sempre o das divisórias (borda neutra, 26/11): a linha
             // tingida não leva borda própria, que dobraria a da caixa nas laterais e embaixo.
             const t = tinta(l, 'superficie');
-            const entreTingidas = tingida?.(l) || (i < linhas.length - 1 && tingida?.(linhas[i + 1]));
-            const divisoria = i < linhas.length - 1 && {
-              borderColor: entreTingidas ? superficiePintada(cores.atencao, cores.superficie, variante, cores).borda : cores.divisor, borderBottomWidth: 1,
-            };
+            const divisoria = i < linhas.length - 1 && { borderColor: cores.divisor, borderBottomWidth: 1 };
             const fundo = t ? { backgroundColor: t.fundo } : null;
             return (
               // O `vao` também entre a caixa e a primeira coluna: no cabeçalho a célula vazia do `inicio` já leva esse vão.
