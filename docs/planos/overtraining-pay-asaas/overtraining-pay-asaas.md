@@ -48,6 +48,12 @@
 
 **Pode esperar (também em "Pendências soltas" do `docs/planos/README.md`):** rotação do token do webhook (I4), subconta órfã (I5), `toString` de `GerarPixAsaasRequest`, `temCpfCadastrado`, o texto "Pix e Cartão" em `central-api-front/.../homologacao-split.component.ts:74` e os itens 3 e 6 da revisão da Central.
 
+**Verificação de nível completo (27/11/2026, sem push; origin/main `cb8c6fec` contido na branch):**
+- `mvn verify` (`api/`): 3565 testes, 1 falha = `ImportacaoIntegrationTest.previaNaoGravaECsvEXlsxCriamAluno`, intermitência do próprio teste já existente no `main` (409 `PREVIA_DESATUALIZADA`; `.xlsx` montado duas vezes; ver "Pendências soltas" do `docs/planos/README.md`); isolado passa na branch e no `origin/main` (41 testes). Tempo: 1h45.
+- `npm run typecheck` ok (55 s antes do merge, 181 s depois), `npm run lint` ok (0 erros, 10 avisos antigos; 39 s e 90 s), Jest 463 suítes e 11248 testes ok (58 s antes, 208 s depois do merge do main).
+- e2e completo (`npx playwright test`, 8 workers): 3372 passaram, 299 pulados, 10 falhas em 32m56. 8 reais da branch (as telas de Recebimento do `financeiro.spec.ts` não abriam "Integrações externas opcionais"), corrigidas e passando (commit `f74fa417`); 2 intermitentes (`arrastar.spec.ts:352` e `tela-larga-app-do-aluno.spec.ts:133`), passam isoladas. Não rodei o e2e inteiro de novo depois do merge do main (só mexeu em `CampoDaTabela`, `TotalDoDia`, `Campo` e `PreferenciasDoApp`).
+- Renumeração V108 (nível rápido): `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest` (total 105) mais as 8 suítes do Overtraining Pay, Asaas e split, todas verdes.
+
 **Não conferido ou atenção:**
 - **Pasta de trabalho separada (worktree) precisa de `npm ci` próprio em `app/`.** Com `node_modules` sendo um atalho (junction) para a pasta principal, o `expo export` sai sem rotas (bundle de ~1,2 MB, tela em branco, "No routes found") e o e2e falha em massa por tela vazia, sem relação com o código da branch (visto em 27/11 neste worktree: 383 falhas; depois do `npm ci` o spec `abas-alcance` passou). Remover a pasta no futuro: o `node_modules` dela agora é próprio, não há atalho a desfazer. O Gustavo leva isso ao `AGENTS.md` pela sessão dos níveis de validação.
 - Não verificado no sandbox do Asaas (depende da conta): `pixQrCode` com cobrança `UNDEFINED`, meio real em `GET /payments/{id}` e boleto na página.
