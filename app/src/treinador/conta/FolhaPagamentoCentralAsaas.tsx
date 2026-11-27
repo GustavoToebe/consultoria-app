@@ -216,7 +216,7 @@ function ConteudoPagamentoCentral({ cobranca, documentoPadrao, aoFechar, aoConfi
       ) : (
         <>
           <View style={estilos.bloco}>
-            <Texto variante="secao">Pix imediato</Texto>
+            <Texto variante="secao">Pix na hora</Texto>
             {!pix ? (
               <>
                 <Campo
@@ -232,7 +232,7 @@ function ConteudoPagamentoCentral({ cobranca, documentoPadrao, aoFechar, aoConfi
                   numerico
                 />
                 <Texto variante="suave">
-                  Gere o QR Code Pix imediato para quitar sua fatura sem sair do aplicativo.
+                  Gere o Pix na hora, pelo QR Code, para quitar sua fatura sem sair do aplicativo.
                 </Texto>
                 <Botao
                   rotulo="Gerar QR Code Pix"

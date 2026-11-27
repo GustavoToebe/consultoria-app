@@ -173,8 +173,6 @@ describe('CartaoMeuPlano: Overtraining Pay (checkout transparente no app)', () =
     mockDados = {
       ...financeiro({ pagamentoOnline: false, formasDePagamento: ['MANUAL'] }),
       overtrainingPayDisponivel: true,
-      overtrainingPayMaxParcelas: 12,
-      overtrainingPayJuros: 'ALUNO',
       cpfPagadorCadastrado: false,
     } as FinanceiroDoAluno;
     const t = await textos('web');

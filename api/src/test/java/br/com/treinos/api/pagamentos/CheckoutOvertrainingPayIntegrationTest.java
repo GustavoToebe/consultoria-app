@@ -74,6 +74,7 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private CifraDePagamento cifra;
     @Autowired private ConciliadorAsaas conciliador;
+    @Autowired private CancelamentoDeCobrancaAsaas cancelamentos;
     @Autowired private ContaLocalRepositorio contasLocais;
 
     private ApiDeTeste api;
@@ -93,7 +94,7 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
         consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
                 admin.get("usuario").get("id").asString());
 
-        homologarELigarOvertrainingPay(admin, 6, "TREINADOR");
+        homologarELigarOvertrainingPay(admin);
 
         Map<String, Object> linha = jdbc.queryForMap(
                 "select token_caminho, token_webhook_cifrado from subconta_asaas where consultoria_id = ?", consultoria);
@@ -110,7 +111,7 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
         ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).detachAppender(log);
     }
 
-    private void homologarELigarOvertrainingPay(JsonNode treinador, int maxParcelas, String juros) throws Exception {
+    private void homologarELigarOvertrainingPay(JsonNode treinador) throws Exception {
         Map<String, Object> sub = new LinkedHashMap<>();
         sub.put("tipoPessoa", "PF");
         sub.put("documento", "12345678901");
@@ -126,8 +127,6 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
         sub.put("conta", "12345-6");
         sub.put("tipoConta", "CORRENTE");
         sub.put("repasseAutomatico", true);
-        sub.put("maxParcelas", maxParcelas);
-        sub.put("jurosParcelamento", juros);
         api.put(ROTA_CONFIG, treinador, sub, 200);
 
         JsonNode teste = api.post(ROTA_CONFIG + "/cobranca-teste", treinador, Map.of(), 200);
@@ -201,9 +200,9 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void fluxoCompletoPixFaturaCpfSplitAbaterMensalidadeIsolamentoELgpd() throws Exception {
-        // Configura split ABATER_MENSALIDADE (10% até saldo restante de R$ 15,00 = 1500 centavos)
+        // Split TAXA_PLATAFORMA de 10% (ABATER_MENSALIDADE não retém nada enquanto não houver a retenção gravada, B2)
         contasLocais.gravarDireitos(new DireitosLocais(consultoria, UUID.randomUUID(), 1L, "ATIVA", true, null, null,
-                "PRO", "Pro", Map.of(), List.of(), Instant.now(), "ABATER_MENSALIDADE", 1000, 1500L, 19900L, null));
+                "PRO", "Pro", Map.of(), List.of(), Instant.now(), "TAXA_PLATAFORMA", 1000, 0L, 19900L, null));
 
         UUID alunoId = api.criarAluno(admin, "Aluno Onda2");
         JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
@@ -218,8 +217,9 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
         // 1. GET /aluno/financeiro expõe campos do Overtraining Pay e cpfPagadorCadastrado=false
         JsonNode fin = api.get("/aluno/financeiro", alunoLogin, 200);
         assertThat(fin.get("overtrainingPayDisponivel").asBoolean()).isTrue();
-        assertThat(fin.get("overtrainingPayMaxParcelas").asInt()).isEqualTo(6);
-        assertThat(fin.get("overtrainingPayJuros").asString()).isEqualTo("TREINADOR");
+        // Parcelas e juros saíram do contrato do aluno (o parcelamento é decidido na página do Asaas).
+        assertThat(fin.has("overtrainingPayMaxParcelas")).isFalse();
+        assertThat(fin.has("overtrainingPayJuros")).isFalse();
         assertThat(fin.get("cpfPagadorCadastrado").asBoolean()).isFalse();
 
         // 2. Sem CPF cadastrado nem informado -> 422 no campo cpfPagador
@@ -227,7 +227,7 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
                 alunoLogin, Map.of(), 422);
         assertThat(erroCpf.get("codigo").asString()).isEqualTo("CPF_OBRIGATORIO");
 
-        // 3. Gera Pix informando cpfPagador válido -> 200 com QR Code e copia e cola + split ABATER_MENSALIDADE
+        // 3. Gera Pix informando cpfPagador válido -> 200 com QR Code e copia e cola + split de 10% (matriz 65% e sócio 35%)
         JsonNode pix = api.post("/aluno/financeiro/cobrancas/" + cobrancaPixId + "/overtraining-pay/pix",
                 alunoLogin, Map.of("cpfPagador", CPF_VALIDO), 200);
         String pixPaymentId = pix.get("asaasCobrancaId").asString();
@@ -236,15 +236,15 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
         assertThat(pix.get("qrCodeBase64").asString()).isNotBlank();
         assertThat(pix.get("codigoCopiaECola").asString()).contains("br.gov.bcb.pix");
 
-        // Verifica que split enviado ao Asaas respeitou teto de 1500 centavos (9.75 matriz + 5.25 sócio)
+        // Split enviado ao Asaas: 10% de R$ 200,00 = R$ 20,00 (13.00 matriz + 7.00 sócio)
         AsaasFalsa.Requisicao reqPix = ASAAS.requisicoes("/payments").getLast();
         JsonNode splitArray = reqPix.corpo().path("split");
         assertThat(splitArray.isArray()).isTrue();
         assertThat(splitArray.size()).isEqualTo(2);
         assertThat(splitArray.get(0).path("walletId").asString()).isEqualTo("wal_matriz_onda2");
-        assertThat(splitArray.get(0).path("fixedValue").decimalValue()).isEqualByComparingTo("9.75");
+        assertThat(splitArray.get(0).path("fixedValue").decimalValue()).isEqualByComparingTo("13.00");
         assertThat(splitArray.get(1).path("walletId").asString()).isEqualTo("wal_socio_onda2");
-        assertThat(splitArray.get(1).path("fixedValue").decimalValue()).isEqualByComparingTo("5.25");
+        assertThat(splitArray.get(1).path("fixedValue").decimalValue()).isEqualByComparingTo("7.00");
 
         // Situação ainda ABERTA
         JsonNode sitAntes = api.get("/aluno/financeiro/cobrancas/" + cobrancaPixId + "/situacao", alunoLogin, 200);
@@ -539,5 +539,274 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
 
     private String motivoNoBanco(UUID alunoId) {
         return jdbc.queryForObject("select acesso_desativado_motivo from aluno where id = ?", String.class, alunoId);
+    }
+
+    // ---- rodada "antes de ligar": cobrança órfã, boleto, estorno parcial, chargeback, limpeza da subconta ----
+
+    private String gerarPix(JsonNode alunoLogin, UUID cobrancaId) throws Exception {
+        return api.post("/aluno/financeiro/cobrancas/" + cobrancaId + "/overtraining-pay/pix", alunoLogin,
+                Map.of("cpfPagador", CPF_VALIDO), 200).get("asaasCobrancaId").asString();
+    }
+
+    private String asaasIdNoBanco(UUID cobrancaId) {
+        return jdbc.queryForObject("select asaas_cobranca_id from cobranca_aluno where id = ?", String.class, cobrancaId);
+    }
+
+    private int naFila(String asaasId) {
+        return jdbc.queryForObject("select count(*) from cancelamento_asaas_pendente where consultoria_id = ? "
+                + "and asaas_cobranca_id = ?", Integer.class, consultoria, asaasId);
+    }
+
+    private long versaoDaCobranca(UUID cobrancaId) {
+        return jdbc.queryForObject("select versao from cobranca_aluno where id = ?", Long.class, cobrancaId);
+    }
+
+    private JsonNode contratarMensal(UUID alunoId, long valorCentavos) throws Exception {
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        JsonNode plano = api.post("/financeiro/planos", admin, Map.of("nome", "Plano órfã " + UUID.randomUUID(),
+                "valorCentavos", valorCentavos, "periodicidade", "MENSAL"), 200);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("planoComercialId", plano.get("id").asString());
+        corpo.put("inicio", hoje.toString());
+        corpo.put("diaVencimento", hoje.getDayOfMonth());
+        return api.post("/alunos/" + alunoId + "/contratacoes", admin, corpo, 200);
+    }
+
+    @Test
+    void reajusteDoValorCancelaNoAsaasACobrancaAnteriorSemHttpNaTransacao() throws Exception {
+        UUID alunoId = api.criarAluno(admin, "Aluno Reajuste Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        JsonNode contratacao = contratarMensal(alunoId, 10000L);
+        UUID cobrancaId = jdbc.queryForObject("select id from cobranca_aluno where aluno_id = ? and tipo = 'MENSALIDADE' "
+                + "and situacao = 'ABERTA' order by vencimento limit 1", UUID.class, alunoId);
+        String primeira = gerarPix(alunoLogin, cobrancaId);
+
+        Map<String, Object> alteracao = new LinkedHashMap<>();
+        alteracao.put("valorCentavos", 13000L);
+        alteracao.put("motivoValor", "Acerto fictício");
+        alteracao.put("diaVencimento", LocalDate.now(Fuso.BRASILIA).getDayOfMonth());
+        alteracao.put("versao", contratacao.get("versao").asLong());
+        api.put("/contratacoes/" + contratacao.get("id").asString(), admin, alteracao, 200);
+
+        // A operação do treinador só gravou o pedido: nada saiu para o Asaas e o id velho já não está na cobrança.
+        assertThat(asaasIdNoBanco(cobrancaId)).isNull();
+        assertThat(naFila(primeira)).isEqualTo(1);
+        assertThat(ASAAS.statusDoPagamento(primeira)).isEqualTo("PENDING");
+
+        assertThat(cancelamentos.processarPendentes()).isEqualTo(1);
+        assertThat(ASAAS.statusDoPagamento(primeira)).isEqualTo("DELETED");
+        assertThat(naFila(primeira)).isZero();
+
+        // O Pix seguinte nasce com o valor novo, em outra cobrança do Asaas.
+        String segunda = gerarPix(alunoLogin, cobrancaId);
+        assertThat(segunda).isNotEqualTo(primeira);
+        assertThat(ASAAS.requisicoes("/payments").getLast().corpo().path("value").decimalValue())
+                .isEqualByComparingTo("130.00");
+        assertThat(ASAAS.violacoes()).isEmpty();
+    }
+
+    @Test
+    void cancelarERenegociarCancelamNoAsaasACobrancaDaOriginal() throws Exception {
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        UUID alunoId = api.criarAluno(admin, "Aluno Cancela Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        UUID paraCancelar = criarCobrancaAvulsa(admin, alunoId, 20000L, hoje.plusDays(5));
+        UUID paraRenegociar = criarCobrancaAvulsa(admin, alunoId, 30000L, hoje.plusDays(6));
+        String payCancelada = gerarPix(alunoLogin, paraCancelar);
+        String payRenegociada = gerarPix(alunoLogin, paraRenegociar);
+
+        api.post("/cobrancas/" + paraCancelar + "/cancelar", admin,
+                Map.of("motivo", "Teste fictício", "versao", versaoDaCobranca(paraCancelar)), 200);
+        Map<String, Object> renegociar = new LinkedHashMap<>();
+        renegociar.put("itens", List.of(Map.of("cobrancaId", paraRenegociar.toString(),
+                "versao", versaoDaCobranca(paraRenegociar))));
+        renegociar.put("acrescimoCentavos", 0);
+        renegociar.put("descontoCentavos", 0);
+        renegociar.put("parcelas", 2);
+        renegociar.put("primeiroVencimento", hoje.plusDays(10).toString());
+        renegociar.put("pedidoId", UUID.randomUUID().toString());
+        renegociar.put("motivo", "Motivo fictício do acordo");
+        api.post("/cobrancas/renegociar", admin, renegociar, 201);
+
+        assertThat(asaasIdNoBanco(paraCancelar)).isNull();
+        assertThat(asaasIdNoBanco(paraRenegociar)).isNull();
+        assertThat(naFila(payCancelada)).isEqualTo(1);
+        assertThat(naFila(payRenegociada)).isEqualTo(1);
+
+        assertThat(cancelamentos.processarPendentes()).isEqualTo(2);
+        assertThat(ASAAS.statusDoPagamento(payCancelada)).isEqualTo("DELETED");
+        assertThat(ASAAS.statusDoPagamento(payRenegociada)).isEqualTo("DELETED");
+        assertThat(ASAAS.violacoes()).isEmpty();
+    }
+
+    @Test
+    void baixaManualTambemApagaACobrancaPagavelNoAsaas() throws Exception {
+        UUID alunoId = api.criarAluno(admin, "Aluno Baixa Manual Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        UUID cobrancaId = criarCobrancaAvulsa(admin, alunoId, 20000L, LocalDate.now(Fuso.BRASILIA).plusDays(5));
+        String pay = gerarPix(alunoLogin, cobrancaId);
+
+        api.post("/cobrancas/" + cobrancaId + "/baixa-manual", admin, Map.of("data",
+                LocalDate.now(Fuso.BRASILIA).toString(), "forma", "DINHEIRO", "versao", versaoDaCobranca(cobrancaId)), 200);
+
+        assertThat(naFila(pay)).isEqualTo(1);
+        cancelamentos.processarPendentes();
+        assertThat(ASAAS.statusDoPagamento(pay)).isEqualTo("DELETED");
+    }
+
+    @Test
+    void corridaPixXFaturaEmDuasAbasDeixaUmaSoCobrancaPagavel() throws Exception {
+        UUID alunoId = api.criarAluno(admin, "Aluno Corrida Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        UUID cobrancaId = criarCobrancaAvulsa(admin, alunoId, 20000L, LocalDate.now(Fuso.BRASILIA).plusDays(5));
+
+        int postsAntes = postsEmPayments();
+        // A "outra aba" cria a cobrança dela e grava o id na linha no meio do POST /payments desta aba.
+        String[] vencedora = new String[1];
+        ASAAS.aoCriarPagamento(ref -> {
+            vencedora[0] = ASAAS.criarPagamentoPreExistente("UNDEFINED", new BigDecimal("200.00"), ref, "PENDING");
+            jdbc.update("update cobranca_aluno set asaas_cobranca_id = ? where id = ?::uuid", vencedora[0], ref);
+        });
+        JsonNode fatura = api.post("/aluno/financeiro/cobrancas/" + cobrancaId + "/overtraining-pay/fatura", alunoLogin,
+                Map.of("cpfPagador", CPF_VALIDO), 200);
+
+        // Vale a cobrança da vencedora; a criada por esta aba foi apagada na hora (fora de transação), sem ir à fila.
+        assertThat(asaasIdNoBanco(cobrancaId)).isEqualTo(vencedora[0]);
+        assertThat(urlDaFatura(fatura)).isEqualTo("https://sandbox.asaas.com/i/" + vencedora[0]);
+        assertThat(postsEmPayments()).isEqualTo(postsAntes + 1);
+        String perdedora = ASAAS.requisicoes().stream().filter(r -> "DELETE".equals(r.metodo()))
+                .map(r -> r.caminho().substring("/payments/".length())).findFirst().orElseThrow();
+        assertThat(perdedora).isNotEqualTo(vencedora[0]);
+        assertThat(ASAAS.statusDoPagamento(perdedora)).isEqualTo("DELETED");
+        assertThat(ASAAS.statusDoPagamento(vencedora[0])).isEqualTo("PENDING");
+        assertThat(naFila(perdedora)).isZero();
+        assertThat(ASAAS.violacoes()).isEmpty();
+    }
+
+    @Test
+    void falhaNoCancelamentoNaoDerrubaOTreinadorFicaNaFilaEPagamentoDaOrfaVaiParaConferir() throws Exception {
+        UUID alunoId = api.criarAluno(admin, "Aluno Falha Cancela Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        UUID cobrancaId = criarCobrancaAvulsa(admin, alunoId, 20000L, LocalDate.now(Fuso.BRASILIA).plusDays(5));
+        String orfa = gerarPix(alunoLogin, cobrancaId);
+
+        // O treinador cancela (200) e o Asaas está fora do ar quando o worker tenta apagar.
+        api.post("/cobrancas/" + cobrancaId + "/cancelar", admin,
+                Map.of("motivo", "Teste fictício", "versao", versaoDaCobranca(cobrancaId)), 200);
+        ASAAS.falharProximasExclusoes(1);
+        cancelamentos.processarPendentes();
+        assertThat(ASAAS.statusDoPagamento(orfa)).isEqualTo("PENDING");
+        Map<String, Object> pedido = jdbc.queryForMap("select situacao, tentativas from cancelamento_asaas_pendente "
+                + "where consultoria_id = ? and asaas_cobranca_id = ?", consultoria, orfa);
+        assertThat(pedido.get("situacao")).isEqualTo("PENDENTE");
+        assertThat(((Number) pedido.get("tentativas")).intValue()).isEqualTo(1);
+
+        // Antes da nova tentativa a órfã é paga: a baixa nunca é aplicada; o aviso vai para CONFERIR.
+        ASAAS.marcarPago(orfa);
+        enviarWebhook("PAYMENT_RECEIVED", orfa, cobrancaId.toString());
+        assertThat(conciliador.processarPendentes()).isGreaterThanOrEqualTo(1);
+        assertThat(jdbc.queryForObject("select situacao from cobranca_aluno where id = ?", String.class, cobrancaId))
+                .isEqualTo("CANCELADA");
+        Map<String, Object> aviso = jdbc.queryForMap(
+                "select situacao, motivo from aviso_de_pagamento where consultoria_id = ? and transacao = ?", consultoria, orfa);
+        assertThat(aviso.get("situacao")).isEqualTo("CONFERIR");
+        assertThat(aviso.get("motivo")).isEqualTo("COBRANCA_CANCELADA");
+        nadaVazou(orfa, CHAVE_MATRIZ, "$aact_fake");
+    }
+
+    @Test
+    void recusadoPeloAsaasOPedidoDesisteSemNovaTentativa() throws Exception {
+        UUID alunoId = api.criarAluno(admin, "Aluno Recusa Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        UUID cobrancaId = criarCobrancaAvulsa(admin, alunoId, 20000L, LocalDate.now(Fuso.BRASILIA).plusDays(5));
+        String orfa = gerarPix(alunoLogin, cobrancaId);
+        api.post("/cobrancas/" + cobrancaId + "/cancelar", admin,
+                Map.of("motivo", "Teste fictício", "versao", versaoDaCobranca(cobrancaId)), 200);
+        ASAAS.marcarPago(orfa); // o Asaas recusa apagar cobrança recebida (400)
+
+        cancelamentos.processarPendentes();
+
+        assertThat(jdbc.queryForObject("select situacao from cancelamento_asaas_pendente where consultoria_id = ? "
+                + "and asaas_cobranca_id = ?", String.class, consultoria, orfa)).isEqualTo("FALHOU");
+        assertThat(cancelamentos.processarPendentes()).isZero();
+    }
+
+    @Test
+    void boletoPagoNaPaginaDaFaturaDaBaixaComFormaBoleto() throws Exception {
+        UUID alunoId = api.criarAluno(admin, "Aluno Boleto Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        UUID cobrancaId = criarCobrancaAvulsa(admin, alunoId, 20000L, LocalDate.now(Fuso.BRASILIA).plusDays(5));
+        api.post("/aluno/financeiro/cobrancas/" + cobrancaId + "/overtraining-pay/fatura", alunoLogin,
+                Map.of("cpfPagador", CPF_VALIDO), 200);
+        String pay = asaasIdNoBanco(cobrancaId);
+
+        ASAAS.marcarPagoNoBoleto(pay);
+        enviarWebhook("PAYMENT_RECEIVED", pay, cobrancaId.toString());
+        assertThat(conciliador.processarPendentes()).isGreaterThanOrEqualTo(1);
+
+        Map<String, Object> linha = jdbc.queryForMap("select situacao, forma, provedor from cobranca_aluno where id = ?",
+                cobrancaId);
+        assertThat(linha.get("situacao")).isEqualTo("PAGA");
+        assertThat(linha.get("forma")).isEqualTo("BOLETO");
+        assertThat(linha.get("provedor")).isEqualTo(ProvedorAsaas.CODIGO);
+        assertThat(jdbc.queryForObject("select situacao from aviso_de_pagamento where consultoria_id = ? and transacao = ?",
+                String.class, consultoria, pay)).isEqualTo("APLICADO");
+    }
+
+    @Test
+    void estornoParcialEChargebackViramConferirSemMexerNaBaixa() throws Exception {
+        // O webhook da subconta foi criado já assinando os eventos novos.
+        String eventosAssinados = ASAAS.requisicoes("/webhooks").getFirst().corpo().path("events").toString();
+        assertThat(eventosAssinados).contains("PAYMENT_PARTIALLY_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED",
+                "PAYMENT_CHARGEBACK_DISPUTE", "PAYMENT_AWAITING_CHARGEBACK_REVERSAL");
+
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        UUID alunoId = api.criarAluno(admin, "Aluno Estorno Parcial Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        for (String evento : List.of("PAYMENT_PARTIALLY_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED",
+                "PAYMENT_CHARGEBACK_DISPUTE", "PAYMENT_AWAITING_CHARGEBACK_REVERSAL")) {
+            UUID cobrancaId = criarCobrancaAvulsa(admin, alunoId, 20000L, hoje.plusDays(5));
+            String pay = gerarPix(alunoLogin, cobrancaId);
+            ASAAS.marcarPago(pay);
+            enviarWebhook("PAYMENT_RECEIVED", pay, cobrancaId.toString());
+            assertThat(conciliador.processarPendentes()).isGreaterThanOrEqualTo(1);
+            Map<String, Object> antes = jdbc.queryForMap(
+                    "select situacao, forma, pago_em, id_externo, provedor from cobranca_aluno where id = ?", cobrancaId);
+            assertThat(antes.get("situacao")).isEqualTo("PAGA");
+
+            // O estorno parcial não muda o status da cobrança no Asaas (segue RECEIVED): o evento basta.
+            enviarWebhook(evento, pay, cobrancaId.toString());
+
+            assertThat(jdbc.queryForMap(
+                    "select situacao, forma, pago_em, id_externo, provedor from cobranca_aluno where id = ?", cobrancaId))
+                    .isEqualTo(antes);
+            Map<String, Object> aviso = jdbc.queryForMap(
+                    "select situacao, motivo from aviso_de_pagamento where consultoria_id = ? and transacao = ?",
+                    consultoria, pay);
+            assertThat(aviso.get("situacao")).as(evento).isEqualTo("CONFERIR");
+            assertThat(aviso.get("motivo")).as(evento).isEqualTo(AvisoDePagamentoRepositorio.ESTORNO_INFORMADO);
+        }
+    }
+
+    @Test
+    void removerASubcontaLimpaOAsaasCobrancaIdDasAbertasENaoDasPagas() throws Exception {
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        UUID alunoId = api.criarAluno(admin, "Aluno Remove Subconta Asaas");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        UUID aberta = criarCobrancaAvulsa(admin, alunoId, 20000L, hoje.plusDays(5));
+        UUID paga = criarCobrancaAvulsa(admin, alunoId, 30000L, hoje.plusDays(6));
+        gerarPix(alunoLogin, aberta);
+        String payPaga = gerarPix(alunoLogin, paga);
+        ASAAS.marcarPago(payPaga);
+        enviarWebhook("PAYMENT_RECEIVED", payPaga, paga.toString());
+        assertThat(conciliador.processarPendentes()).isGreaterThanOrEqualTo(1);
+        assertThat(asaasIdNoBanco(aberta)).isNotNull();
+
+        api.delete(ROTA_CONFIG, admin, 204);
+
+        assertThat(asaasIdNoBanco(aberta)).isNull();
+        assertThat(asaasIdNoBanco(paga)).isEqualTo(payPaga);
+        assertThat(jdbc.queryForObject("select count(*) from subconta_asaas where consultoria_id = ?", Integer.class,
+                consultoria)).isZero();
     }
 }

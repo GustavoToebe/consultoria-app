@@ -31,10 +31,6 @@ CREATE TABLE subconta_asaas (
     tipo_conta                      varchar(20) NOT NULL CONSTRAINT ck_subconta_asaas_tipo_conta
         CHECK (tipo_conta IN ('CORRENTE', 'POUPANCA', 'PAGAMENTO')),
     repasse_automatico              boolean NOT NULL DEFAULT true,
-    max_parcelas                    integer NOT NULL DEFAULT 12 CONSTRAINT ck_subconta_asaas_max_parcelas
-        CHECK (max_parcelas BETWEEN 1 AND 12),
-    juros_parcelamento              varchar(10) NOT NULL DEFAULT 'ALUNO' CONSTRAINT ck_subconta_asaas_juros
-        CHECK (juros_parcelamento IN ('ALUNO', 'TREINADOR')),
     situacao                        varchar(25) NOT NULL DEFAULT 'NAO_CONFIGURADA' CONSTRAINT ck_subconta_asaas_situacao
         CHECK (situacao IN ('NAO_CONFIGURADA', 'DOCUMENTOS_PENDENTES', 'PRONTA_PARA_TESTE', 'ATIVA', 'REJEITADA')),
     onboarding_url                  varchar(500),
@@ -48,18 +44,25 @@ CREATE TABLE subconta_asaas (
     versao                          bigint NOT NULL DEFAULT 0,
     criado_em                       timestamptz NOT NULL DEFAULT now(),
     atualizado_em                   timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT ck_subconta_asaas_anterior CHECK ((token_webhook_anterior_cifrado IS NULL) = (anterior_valido_ate IS NULL))
+    CONSTRAINT ck_subconta_asaas_anterior CHECK ((token_webhook_anterior_cifrado IS NULL) = (anterior_valido_ate IS NULL)),
+    -- Alvo da FK composta de cliente_asaas_aluno.
+    CONSTRAINT ux_subconta_asaas_consultoria_id UNIQUE (consultoria_id, id)
 );
 
 -- 2. Mapeamento de aluno para customer_id na subconta Asaas da consultoria.
 CREATE TABLE cliente_asaas_aluno (
     id                  uuid PRIMARY KEY,
     consultoria_id      uuid NOT NULL REFERENCES consultoria (id) ON DELETE CASCADE,
-    aluno_id            uuid NOT NULL REFERENCES aluno (id) ON DELETE CASCADE,
-    subconta_id         uuid NOT NULL REFERENCES subconta_asaas (id) ON DELETE CASCADE,
+    aluno_id            uuid NOT NULL,
+    subconta_id         uuid NOT NULL,
     asaas_customer_id   varchar(60) NOT NULL,
     criado_em           timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT ux_cliente_asaas_aluno UNIQUE (consultoria_id, aluno_id, subconta_id)
+    CONSTRAINT ux_cliente_asaas_aluno UNIQUE (consultoria_id, aluno_id, subconta_id),
+    -- FK compostas com consultoria_id: o aluno e a subconta têm de ser da mesma consultoria da linha.
+    CONSTRAINT fk_cliente_asaas_aluno FOREIGN KEY (consultoria_id, aluno_id)
+        REFERENCES aluno (consultoria_id, id) ON DELETE CASCADE,
+    CONSTRAINT fk_cliente_asaas_subconta FOREIGN KEY (consultoria_id, subconta_id)
+        REFERENCES subconta_asaas (consultoria_id, id) ON DELETE CASCADE
 );
 
 -- 3. Forma de recebimento: liga/desliga Overtraining Pay (só permitido quando a subconta estiver ATIVA).
@@ -83,3 +86,26 @@ ALTER TABLE direitos_locais
     ADD COLUMN meta_mensal_centavos bigint NOT NULL DEFAULT 0 CONSTRAINT ck_direitos_meta_mensal
         CHECK (meta_mensal_centavos >= 0),
     ADD COLUMN cobranca_central_id uuid;
+
+-- Uma cobrança do Asaas pertence a uma só cobrança do aluno (único por consultoria, como o id_externo; o Asaas já garante o
+-- id único na conta). Duas abas criando a cobrança ao mesmo tempo não ficam as duas gravadas.
+CREATE UNIQUE INDEX ux_cobranca_asaas_cobranca_id ON cobranca_aluno (consultoria_id, asaas_cobranca_id)
+    WHERE asaas_cobranca_id IS NOT NULL;
+
+-- 6. Fila durável de cancelamento no Asaas: a cobrança que ficou órfã (valor reajustado, renegociada, cancelada, baixa manual
+--    ou corrida Pix x fatura) segue pagável lá até alguém apagá-la. A operação do treinador só grava a linha, na mesma
+--    transação; o DELETE /payments/{id} é feito fora de transação por ConciliadorAsaas.processarCancelamentos.
+--    cobranca_id SEM FK de propósito: excluir a conta do aluno apaga a cobrança e não pode levar o pedido junto.
+CREATE TABLE cancelamento_asaas_pendente (
+    id                  uuid PRIMARY KEY,
+    consultoria_id      uuid NOT NULL REFERENCES consultoria (id) ON DELETE CASCADE,
+    cobranca_id         uuid NOT NULL,
+    asaas_cobranca_id   varchar(60) NOT NULL,
+    situacao            varchar(10) NOT NULL DEFAULT 'PENDENTE' CONSTRAINT ck_cancelamento_asaas_situacao
+        CHECK (situacao IN ('PENDENTE', 'FALHOU')),
+    tentativas          integer NOT NULL DEFAULT 0,
+    proxima_tentativa   timestamptz NOT NULL DEFAULT now(),
+    criado_em           timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT ux_cancelamento_asaas UNIQUE (consultoria_id, asaas_cobranca_id)
+);
+CREATE INDEX ix_cancelamento_asaas_fila ON cancelamento_asaas_pendente (proxima_tentativa) WHERE situacao = 'PENDENTE';

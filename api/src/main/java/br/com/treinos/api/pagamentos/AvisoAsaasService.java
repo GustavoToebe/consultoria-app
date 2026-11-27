@@ -41,10 +41,8 @@ public class AvisoAsaasService {
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
     private static final Set<String> EVENTOS_PAGO = Set.of("PAYMENT_RECEIVED", "PAYMENT_CONFIRMED");
-    private static final Set<String> EVENTOS_ESTORNO = Set.of("PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED");
-    private static final Set<String> EVENTOS_CONHECIDOS = Set.of(
-            "PAYMENT_CREATED", "PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_OVERDUE",
-            "PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_DELETED");
+    private static final Set<String> EVENTOS_ESTORNO = AsaasCliente.EVENTOS_DE_ESTORNO;
+    private static final Set<String> EVENTOS_CONHECIDOS = ProvedorAsaas.EVENTOS;
 
     record ChavesSubconta(String tokenAtual, String tokenAnterior, String apiKey, String cobrancaTesteId) {
         @Override

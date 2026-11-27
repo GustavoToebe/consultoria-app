@@ -79,8 +79,9 @@ describe('textos da ajuda', () => {
     expect(treinador).toContain('abatimento automático pelo Split');
     const aluno = textoDoGuia('aluno');
     expect(aluno).toContain('Overtraining Pay');
-    expect(aluno).toContain('QR Code Pix');
-    expect(aluno).toContain('até 12x');
+    expect(aluno).toContain('Pix na hora, pelo QR Code');
+    expect(aluno).not.toContain('QR Code Pix imediato');
+    expect(aluno).not.toContain('até 12x');
   });
 
   it('nenhum item fica sem título ou sem texto', () => {

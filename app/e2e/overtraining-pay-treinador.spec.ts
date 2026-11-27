@@ -65,8 +65,6 @@ function criarConfigInicial(): OvertrainingPayConfigResponse {
     agenciaMascarada: null,
     contaMascarada: null,
     repasseAutomatico: true,
-    maxParcelas: 12,
-    jurosParcelamento: 'ALUNO',
     onboardingUrl: null,
     cobrancasLiquidadas: 0,
     homologadaEm: null,
@@ -111,8 +109,6 @@ function criarRotasOvertrainingPay(inicial: OvertrainingPayConfigResponse) {
         agenciaMascarada: '**01',
         contaMascarada: '****56-7',
         repasseAutomatico: corpo.repasseAutomatico,
-        maxParcelas: corpo.maxParcelas,
-        jurosParcelamento: corpo.jurosParcelamento,
         versao: (config.versao ?? 0) + 1,
       };
       return json(route, config);
@@ -244,7 +240,7 @@ for (const largura of LARGURAS) {
     const switchOvertraining = page.getByRole('switch', { name: 'Overtraining Pay' });
     await expect(switchOvertraining).toBeEnabled();
     await switchOvertraining.click();
-    await expect(page.getByText('No aplicativo: QR Code Pix imediato e Cartão em até 12x')).toBeVisible();
+    await expect(page.getByText('No aplicativo: Pix na hora, pelo QR Code, e cartão pela página do Asaas.')).toBeVisible();
 
     if (largura === 1280) {
       await page.evaluate(() => window.scrollTo(0, 0));

@@ -124,8 +124,6 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
         agenciaMascarada: null,
         contaMascarada: null,
         repasseAutomatico: true,
-        maxParcelas: 12,
-        jurosParcelamento: 'ALUNO',
         onboardingUrl: null,
         cobrancasLiquidadas: 0,
         homologadaEm: null,

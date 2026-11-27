@@ -199,7 +199,7 @@ class ConclusaoDoAvisoAsaas {
             paraConferir(aviso, "VALOR_DIFERENTE", cobrancaId, amount, dados);
             return Optional.empty();
         }
-        FormaDePagamento forma = mapearForma(consulta.billingType());
+        FormaDePagamento forma = ProvedorAsaas.mapearForma(consulta.billingType());
         if (forma == null) {
             paraConferir(aviso, "FORMA_DESCONHECIDA", cobrancaId, amount, dados);
             return Optional.empty();
@@ -260,17 +260,6 @@ class ConclusaoDoAvisoAsaas {
         return "REFUNDED".equals(s) || "REFUND_REQUESTED".equals(s) || "REFUND_IN_PROGRESS".equals(s)
                 || "CHARGEBACK_REQUESTED".equals(s) || "CHARGEBACK_DISPUTE".equals(s)
                 || "AWAITING_CHARGEBACK_REVERSAL".equals(s);
-    }
-
-    private static FormaDePagamento mapearForma(String billingType) {
-        if (billingType == null) {
-            return null;
-        }
-        return switch (billingType.toUpperCase(Locale.ROOT)) {
-            case "PIX" -> FormaDePagamento.PIX;
-            case "CREDIT_CARD" -> FormaDePagamento.CARTAO;
-            default -> null;
-        };
     }
 
     private static DadosDoPagamento dadosDe(CobrancaConsultadaAsaas c) {

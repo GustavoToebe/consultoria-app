@@ -1,5 +1,4 @@
 import { requisicao } from './cliente';
-import type { JurosDoParcelamento } from './financeiroTipos';
 
 /**
  * Contrato do Overtraining Pay (Asaas) para o treinador (`/financeiro/overtraining-pay`).
@@ -56,8 +55,6 @@ export interface OvertrainingPayConfigResponse {
   agenciaMascarada: string | null;
   contaMascarada: string | null;
   repasseAutomatico: boolean;
-  maxParcelas: number;
-  jurosParcelamento: JurosDoParcelamento;
   onboardingUrl: string | null;
   cobrancasLiquidadas: number;
   homologadaEm: string | null;
@@ -83,8 +80,6 @@ export interface OvertrainingPayConfigRequest {
   /** Só de escrita: omitido quando a conta já está salva e não foi alterada. */
   conta?: string;
   repasseAutomatico: boolean;
-  maxParcelas: number;
-  jurosParcelamento: JurosDoParcelamento;
   versao: number | null;
 }
 

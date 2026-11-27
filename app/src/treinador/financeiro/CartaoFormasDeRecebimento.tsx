@@ -74,7 +74,6 @@ export function CartaoFormasDeRecebimento({
   infinitePayConfigurada,
   comOvertrainingPay = false,
   overtrainingPayAtivo = false,
-  overtrainingPayMaxParcelas = 12,
   overtrainingPaySituacao,
   maisAjustes,
 }: {
@@ -86,8 +85,6 @@ export function CartaoFormasDeRecebimento({
   comOvertrainingPay?: boolean;
   /** Subconta homologada (`ATIVA`): só então o interruptor do Overtraining Pay fica liberado. */
   overtrainingPayAtivo?: boolean;
-  /** Parcelas máximas configuradas no Overtraining Pay para atualizar a prévia do aluno em tempo real. */
-  overtrainingPayMaxParcelas?: number;
   overtrainingPaySituacao?: SituacaoHomologacao;
   /** Outros cartões da coluna de ajustes, embaixo deste (homologação, integrações externas). Ficam no mesmo lugar da árvore em todo estado. */
   maisAjustes?: ReactNode;
@@ -143,7 +140,6 @@ export function CartaoFormasDeRecebimento({
           infinitePayConfigurada={infinitePayConfigurada === true}
           comOvertrainingPay={comOvertrainingPay}
           overtrainingPayAtivo={overtrainingPayAtivo}
-          overtrainingPayMaxParcelas={overtrainingPayMaxParcelas}
         />
       ) : null}
     />
@@ -160,14 +156,12 @@ function PreviaDoAluno({
   infinitePayConfigurada,
   comOvertrainingPay,
   overtrainingPayAtivo,
-  overtrainingPayMaxParcelas,
 }: {
   estado: EstadoDasFormas | null;
   comInfinitePay: boolean;
   infinitePayConfigurada: boolean;
   comOvertrainingPay: boolean;
   overtrainingPayAtivo: boolean;
-  overtrainingPayMaxParcelas: number;
 }) {
   const { cores } = useTema();
   const { pagarNoIos, pagarNoAndroid } = useSessao();
@@ -177,7 +171,7 @@ function PreviaDoAluno({
   const previa = previaDoAluno(
     estado,
     { naInstalacao: comInfinitePay, configurada: infinitePayConfigurada },
-    { naInstalacao: comOvertrainingPay, ativa: overtrainingPayAtivo, maxParcelas: overtrainingPayMaxParcelas },
+    { naInstalacao: comOvertrainingPay, ativa: overtrainingPayAtivo },
   );
   const celular = notaDoCelular(pagarNoIos, pagarNoAndroid);
   return (
@@ -394,7 +388,7 @@ function Formulario({
           <LinhaDeOpcao
             titulo="Overtraining Pay"
             descricao={overtrainingPayAtivo
-              ? 'Principal · No aplicativo. O aluno paga por QR Code Pix imediato no aplicativo ou por cartão na página de pagamento, com baixa automática.'
+              ? 'Principal · No aplicativo. O aluno paga com Pix na hora, pelo QR Code, no aplicativo, ou com cartão na página de pagamento, com baixa automática.'
               : 'Principal · No aplicativo. Conclua a homologação e a cobrança de teste abaixo para habilitar esta opção.'}
             interruptor={{
               valor: estado.overtrainingPay,

@@ -103,8 +103,6 @@ class OvertrainingPayIntegrationTest extends AbstractIntegrationTest {
         m.put("conta", "12345-6");
         m.put("tipoConta", "CORRENTE");
         m.put("repasseAutomatico", true);
-        m.put("maxParcelas", 12);
-        m.put("jurosParcelamento", "ALUNO");
         if (versao != null) {
             m.put("versao", versao);
         }
@@ -256,12 +254,14 @@ class OvertrainingPayIntegrationTest extends AbstractIntegrationTest {
         long versao = criada.get("versao").asLong();
 
         Map<String, Object> atualizacao = payloadPj(versao);
-        atualizacao.put("maxParcelas", 6);
-        atualizacao.put("jurosParcelamento", "TREINADOR");
         atualizacao.put("rotacionarWebhook", true);
         JsonNode atualizada = api.put(ROTA, admin, atualizacao, 200);
-        assertThat(atualizada.get("maxParcelas").asInt()).isEqualTo(6);
-        assertThat(atualizada.get("jurosParcelamento").asString()).isEqualTo("TREINADOR");
+        // Parcelas e juros saíram do contrato (o parcelamento é decidido na página do Asaas).
+        assertThat(criada.has("maxParcelas")).isFalse();
+        assertThat(criada.has("jurosParcelamento")).isFalse();
+        assertThat(atualizada.has("maxParcelas")).isFalse();
+        assertThat(atualizada.has("jurosParcelamento")).isFalse();
+        assertThat(api.get(ROTA, admin, 200).has("maxParcelas")).isFalse();
 
         Map<String, Object> linha = jdbc.queryForMap("select * from subconta_asaas where consultoria_id = ?", consultoria);
         assertThat((String) linha.get("token_webhook_anterior_cifrado")).startsWith("v1:teste:");

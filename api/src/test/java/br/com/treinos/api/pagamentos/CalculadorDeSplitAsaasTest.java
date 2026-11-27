@@ -65,33 +65,17 @@ class CalculadorDeSplitAsaasTest {
         assertThat(r.splits()).containsExactly(new SplitAsaas(WALLET_MATRIZ, 400L, null));
     }
 
+    /** B2: sem a retenção gravada na cobrança e o aviso repetido à Central, ABATER_MENSALIDADE não retém nem abate nada. */
     @Test
-    void abaterMensalidadeRespeitaTetoDoSaldoRestanteEMargemDe100Centavos() {
+    void abaterMensalidadeNaoRetemNemAbateNada() {
         AsaasProperties p = props(WALLET_MATRIZ, WALLET_SOCIO, 3500);
-        // 10% de R$ 200,00 = R$ 20,00 (2000), mas saldo restante é só R$ 7,00 (700)
-        ResultadoSplit r = CalculadorDeSplitAsaas.calcular(20000L, WALLET_TREINADOR,
-                direitos("ABATER_MENSALIDADE", 1000, 700L), p);
 
-        assertThat(r.retencaoTotalCentavos()).isEqualTo(700L);
-        assertThat(r.valorAbatidoCentavos()).isEqualTo(700L);
-        assertThat(r.splits()).containsExactly(
-                new SplitAsaas(WALLET_MATRIZ, 455L, null),
-                new SplitAsaas(WALLET_SOCIO, 245L, null));
-
-        // Cobrança de R$ 5,00 (500) com 100% de retenção e saldo alto: limita a valorCobranca - 100 = 400
-        ResultadoSplit margem = CalculadorDeSplitAsaas.calcular(500L, WALLET_TREINADOR,
-                direitos("ABATER_MENSALIDADE", 10000, 5000L), p);
-        assertThat(margem.retencaoTotalCentavos()).isEqualTo(400L);
-        assertThat(margem.valorAbatidoCentavos()).isEqualTo(400L);
-    }
-
-    @Test
-    void abaterMensalidadeComSaldoZeradoRetornaSemSplit() {
-        AsaasProperties p = props(WALLET_MATRIZ, WALLET_SOCIO, 3500);
-        ResultadoSplit r = CalculadorDeSplitAsaas.calcular(20000L, WALLET_TREINADOR,
-                direitos("ABATER_MENSALIDADE", 1000, 0L), p);
-
-        assertThat(r).isEqualTo(ResultadoSplit.SEM_SPLIT);
+        assertThat(CalculadorDeSplitAsaas.calcular(20000L, WALLET_TREINADOR,
+                direitos("ABATER_MENSALIDADE", 1000, 700L), p)).isEqualTo(ResultadoSplit.SEM_SPLIT);
+        assertThat(CalculadorDeSplitAsaas.calcular(500L, WALLET_TREINADOR,
+                direitos("ABATER_MENSALIDADE", 10000, 5000L), p)).isEqualTo(ResultadoSplit.SEM_SPLIT);
+        assertThat(CalculadorDeSplitAsaas.calcular(20000L, WALLET_TREINADOR,
+                direitos("ABATER_MENSALIDADE", 1000, 0L), p)).isEqualTo(ResultadoSplit.SEM_SPLIT);
     }
 
     @Test

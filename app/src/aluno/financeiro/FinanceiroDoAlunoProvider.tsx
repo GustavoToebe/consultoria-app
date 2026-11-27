@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import type { CobrancaDoAluno, FinanceiroDoAluno, JurosDoParcelamento } from '../../api/financeiroTipos';
+import type { CobrancaDoAluno, FinanceiroDoAluno } from '../../api/financeiroTipos';
 import { lerOpcoesOvertrainingPay } from '../../api/alunoOvertrainingPay';
 import { financeiroDoAluno } from '../../api/rotas';
 import { acoesDePagamentoDoAluno, comoPagar, plataformaDoApp, type AcaoDePagamento, type ComoPagar } from '../../dominio/financeiro';
@@ -36,10 +36,6 @@ interface Valor {
   acoesDaCobranca: (c: DaCobranca) => AcaoDePagamento[];
   /** Overtraining Pay (Asaas) ativo e homologado na consultoria. */
   overtrainingPayDisponivel: boolean;
-  /** Máximo de parcelas no cartão no Overtraining Pay (1..12). */
-  overtrainingPayMaxParcelas: number;
-  /** Quem arca com os juros do parcelamento no Overtraining Pay. */
-  overtrainingPayJuros: JurosDoParcelamento;
   /** Indica se o aluno/responsável já tem CPF cadastrado para emissão transparente. */
   cpfPagadorCadastrado: boolean;
   recarregar: () => void;
@@ -86,13 +82,11 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
   const formas = chave !== null ? carga.dados?.formasDePagamento : undefined;
   const temLinkProprio = chave !== null && !!carga.dados?.plano?.linkDePagamento;
   const opcoesPay = lerOpcoesOvertrainingPay(chave !== null ? carga.dados : undefined);
-  const { overtrainingPayDisponivel, overtrainingPayMaxParcelas, overtrainingPayJuros, cpfPagadorCadastrado } = opcoesPay;
+  const { overtrainingPayDisponivel, cpfPagadorCadastrado } = opcoesPay;
   const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', {
     formas,
     temLinkProprio,
     overtrainingPayDisponivel,
-    overtrainingPayMaxParcelas,
-    overtrainingPayJuros,
     cpfPagadorCadastrado,
   });
   const modoDaCobranca = useCallback(
@@ -102,11 +96,9 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
         temLinkProprio,
         cobrancaAutomatica: c.cobrancaAutomatica,
         overtrainingPayDisponivel,
-        overtrainingPayMaxParcelas,
-        overtrainingPayJuros,
         cpfPagadorCadastrado,
       }),
-    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio, overtrainingPayDisponivel, overtrainingPayMaxParcelas, overtrainingPayJuros, cpfPagadorCadastrado],
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio, overtrainingPayDisponivel, cpfPagadorCadastrado],
   );
   const acoesDaCobranca = useCallback(
     (c: DaCobranca) =>
@@ -115,11 +107,9 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
         temLinkProprio,
         cobrancaAutomatica: c.cobrancaAutomatica,
         overtrainingPayDisponivel,
-        overtrainingPayMaxParcelas,
-        overtrainingPayJuros,
         cpfPagadorCadastrado,
       }),
-    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio, overtrainingPayDisponivel, overtrainingPayMaxParcelas, overtrainingPayJuros, cpfPagadorCadastrado],
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio, overtrainingPayDisponivel, cpfPagadorCadastrado],
   );
   const valor = useMemo<Valor>(
     () => ({
@@ -132,8 +122,6 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
       modoDaCobranca,
       acoesDaCobranca,
       overtrainingPayDisponivel,
-      overtrainingPayMaxParcelas,
-      overtrainingPayJuros,
       cpfPagadorCadastrado,
       recarregar: carga.recarregar,
     }),
@@ -149,8 +137,6 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
       modoDaCobranca,
       acoesDaCobranca,
       overtrainingPayDisponivel,
-      overtrainingPayMaxParcelas,
-      overtrainingPayJuros,
       cpfPagadorCadastrado,
       carga.recarregar,
     ],

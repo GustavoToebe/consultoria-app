@@ -23,8 +23,6 @@ public class CalculadorDeSplitAsaas {
     public static final String MODO_TAXA_PERCENTUAL = "TAXA_PERCENTUAL";
     public static final String MODO_ABATER_MENSALIDADE = "ABATER_MENSALIDADE";
 
-    private static final long MARGEM_MINIMA_ABATER_CENTAVOS = 100L;
-
     public record ResultadoSplit(List<SplitAsaas> splits, long retencaoTotalCentavos, long valorAbatidoCentavos) {
         public static final ResultadoSplit SEM_SPLIT = new ResultadoSplit(List.of(), 0L, 0L);
     }
@@ -66,15 +64,9 @@ public class CalculadorDeSplitAsaas {
                 return ResultadoSplit.SEM_SPLIT;
             }
         } else if (MODO_ABATER_MENSALIDADE.equals(modo)) {
-            long saldoAbater = direitos.saldoAbaterCentavos();
-            if (saldoAbater <= 0) {
-                return ResultadoSplit.SEM_SPLIT;
-            }
-            long tetoCobranca = valorCobrancaCentavos - MARGEM_MINIMA_ABATER_CENTAVOS;
-            retencaoCentavos = Math.min(retencaoBruta, Math.min(saldoAbater, tetoCobranca));
-            if (retencaoCentavos <= 0) {
-                return ResultadoSplit.SEM_SPLIT;
-            }
+            // shortcut: ABATER_MENSALIDADE não retém nem abate nada (age como ISENTO) até a retenção ser gravada na cobrança e o
+            // abatimento ir à Central com repetição (B2 do plano); religar o cálculo por saldo só depois disso.
+            return ResultadoSplit.SEM_SPLIT;
         } else {
             return ResultadoSplit.SEM_SPLIT;
         }
@@ -111,8 +103,7 @@ public class CalculadorDeSplitAsaas {
         if (splits.isEmpty() || retencaoEfetiva <= 0) {
             return ResultadoSplit.SEM_SPLIT;
         }
-        long abatidoEfetivo = MODO_ABATER_MENSALIDADE.equals(modo) ? retencaoEfetiva : 0L;
-        return new ResultadoSplit(List.copyOf(splits), retencaoEfetiva, abatidoEfetivo);
+        return new ResultadoSplit(List.copyOf(splits), retencaoEfetiva, 0L);
     }
 
     private static String limpar(String valor) {

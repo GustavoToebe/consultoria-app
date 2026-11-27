@@ -81,4 +81,31 @@ class ProvedorAsaasContratoTest extends ProvedorContratoTest {
         assertThat(registro.conhece("ASAAS")).isTrue();
         assertThat(falsa.violacoes()).isEmpty();
     }
+
+    @Test
+    void boletoEFormaValidaDePagamento() {
+        String boleto = falsa.criarPagamentoPreExistente("BOLETO", new BigDecimal("150.00"), REFERENCIA_FIXA.toString(),
+                "RECEIVED");
+
+        var consulta = provedor.consultar(credencial(), new PedidoDeConsulta(REFERENCIA_FIXA, boleto, null));
+
+        assertThat(consulta.situacao()).isEqualTo(SituacaoNormalizada.PAGA);
+        assertThat(consulta.forma()).isEqualTo(br.com.treinos.api.pagamentos.FormaDePagamento.BOLETO);
+        assertThat(ProvedorAsaas.mapearForma("credit_card")).isEqualTo(br.com.treinos.api.pagamentos.FormaDePagamento.CARTAO);
+        assertThat(ProvedorAsaas.mapearForma("DEBIT_CARD")).isNull();
+    }
+
+    @Test
+    void estornoParcialEChargebackSaoLidosComoEstornoInformado() {
+        for (String evento : List.of("PAYMENT_REFUNDED", "PAYMENT_PARTIALLY_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED",
+                "PAYMENT_CHARGEBACK_DISPUTE", "PAYMENT_AWAITING_CHARGEBACK_REVERSAL")) {
+            String corpo = "{\"event\":\"" + evento + "\",\"payment\":{\"id\":\"" + paymentIdExistente
+                    + "\",\"externalReference\":\"" + REFERENCIA_FIXA + "\"}}";
+
+            EventoDeWebhook lido = provedor.lerWebhook(new RequisicaoDeWebhook(Map.of(),
+                    corpo.getBytes(StandardCharsets.UTF_8)));
+
+            assertThat(lido.estornoInformado()).as(evento).isTrue();
+        }
+    }
 }

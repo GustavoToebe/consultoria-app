@@ -405,10 +405,6 @@ export interface OpcoesDePagamentoDoAluno {
   cobrancaAutomatica?: CobrancaAutomatica | null;
   /** Overtraining Pay (Asaas) ativo e homologado: ação primária abre o Checkout Transparente no próprio app. */
   overtrainingPayDisponivel?: boolean;
-  /** Máximo de parcelas no cartão no Overtraining Pay (1..12). */
-  overtrainingPayMaxParcelas?: number;
-  /** Quem paga os juros do parcelamento no Overtraining Pay (`ALUNO` ou `TREINADOR`). */
-  overtrainingPayJuros?: JurosDoParcelamento;
   /** Indica se o aluno/responsável já possui CPF cadastrado para emissão do Pix/Cartão. */
   cpfPagadorCadastrado?: boolean;
 }

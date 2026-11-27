@@ -227,7 +227,7 @@ function ConteudoCheckoutTransparente({ cobranca, cpfPagadorCadastrado, aoFechar
       ) : (
         <>
           <View style={estilos.bloco}>
-            <Texto variante="secao">Pix imediato</Texto>
+            <Texto variante="secao">Pix na hora</Texto>
             {!pix ? (
               <>
                 {!cpfPagadorCadastrado ? (
@@ -299,7 +299,7 @@ function ConteudoCheckoutTransparente({ cobranca, cpfPagadorCadastrado, aoFechar
           <View style={[estilos.bloco, estilos.cartao, { borderTopColor: cores.divisor }]}>
             <Texto variante="secao">Cartão de crédito</Texto>
             <Texto variante="suave">
-              Você paga na página segura do Asaas, no navegador, e escolhe lá o parcelamento. O app não recebe nem guarda dados do cartão.
+              Com cartão, você paga na página segura do Asaas, no navegador. O app não recebe nem guarda os dados do cartão.
             </Texto>
             <Botao
               rotulo="Pagar com cartão"

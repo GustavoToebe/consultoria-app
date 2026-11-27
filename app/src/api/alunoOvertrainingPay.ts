@@ -1,5 +1,5 @@
 import { requisicao } from './cliente';
-import type { FinanceiroDoAluno, JurosDoParcelamento } from './financeiroTipos';
+import type { FinanceiroDoAluno } from './financeiroTipos';
 
 export interface PixOvertrainingPayResponse {
   cobrancaId: string;
@@ -19,15 +19,11 @@ export interface SituacaoCobrancaAlunoResponse {
 /** Extensão aditiva de `FinanceiroDoAluno` quando o backend envia os campos do Overtraining Pay. */
 export interface OpcoesOvertrainingPayDoAluno {
   overtrainingPayDisponivel: boolean;
-  overtrainingPayMaxParcelas: number;
-  overtrainingPayJuros: JurosDoParcelamento;
   cpfPagadorCadastrado: boolean;
 }
 
 type FinanceiroDoAlunoExtendido = FinanceiroDoAluno & {
   overtrainingPayDisponivel?: boolean;
-  overtrainingPayMaxParcelas?: number;
-  overtrainingPayJuros?: JurosDoParcelamento;
   cpfPagadorCadastrado?: boolean;
 };
 
@@ -36,10 +32,6 @@ export function lerOpcoesOvertrainingPay(dados: FinanceiroDoAluno | undefined): 
   const ext = dados as FinanceiroDoAlunoExtendido | undefined;
   return {
     overtrainingPayDisponivel: ext?.overtrainingPayDisponivel === true,
-    overtrainingPayMaxParcelas: typeof ext?.overtrainingPayMaxParcelas === 'number' && ext.overtrainingPayMaxParcelas >= 1
-      ? Math.min(12, Math.floor(ext.overtrainingPayMaxParcelas))
-      : 12,
-    overtrainingPayJuros: ext?.overtrainingPayJuros === 'TREINADOR' ? 'TREINADOR' : 'ALUNO',
     cpfPagadorCadastrado: ext?.cpfPagadorCadastrado === true,
   };
 }

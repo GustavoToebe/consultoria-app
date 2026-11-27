@@ -136,14 +136,12 @@ export function TelaAcessoPausado() {
   const pagamentoOnline = carga.dados?.pagamentoOnline === true;
   const formas = carga.dados?.formasDePagamento;
   const temLinkProprio = !!carga.dados?.plano?.linkDePagamento;
-  const { overtrainingPayDisponivel, overtrainingPayMaxParcelas, overtrainingPayJuros, cpfPagadorCadastrado } =
+  const { overtrainingPayDisponivel, cpfPagadorCadastrado } =
     lerOpcoesOvertrainingPay(carga.dados);
   const modoDePagamento = comoPagar(plataforma, pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', {
     formas,
     temLinkProprio,
     overtrainingPayDisponivel,
-    overtrainingPayMaxParcelas,
-    overtrainingPayJuros,
     cpfPagadorCadastrado,
   });
   const modoDaCobranca = (c: Pick<CobrancaDoAluno, 'tipo' | 'cobrancaAutomatica'>) =>
@@ -152,8 +150,6 @@ export function TelaAcessoPausado() {
       temLinkProprio,
       cobrancaAutomatica: c.cobrancaAutomatica,
       overtrainingPayDisponivel,
-      overtrainingPayMaxParcelas,
-      overtrainingPayJuros,
       cpfPagadorCadastrado,
     });
   const acoesDaCobranca = (c: Pick<CobrancaDoAluno, 'tipo' | 'cobrancaAutomatica'>) =>
@@ -162,8 +158,6 @@ export function TelaAcessoPausado() {
       temLinkProprio,
       cobrancaAutomatica: c.cobrancaAutomatica,
       overtrainingPayDisponivel,
-      overtrainingPayMaxParcelas,
-      overtrainingPayJuros,
       cpfPagadorCadastrado,
     });
 

@@ -106,15 +106,12 @@ public class AlunoFinanceiroService {
         boolean subcontaAtiva = subconta.map(s -> s.getSituacao() == SubcontaAsaas.Situacao.ATIVA).orElse(false);
         boolean overtrainingPayDisponivel = !soDaKiwify && asaasProperties.habilitado()
                 && formas.overtrainingPayLigado() && subcontaAtiva;
-        int overtrainingPayMaxParcelas = subconta.map(SubcontaAsaas::getMaxParcelas).orElse(12);
-        String overtrainingPayJuros = subconta.map(s -> s.getJurosParcelamento().name())
-                .orElse(JurosDoParcelamento.ALUNO.name());
         boolean cpfPagadorCadastrado = temCpfCadastrado(alunoId);
 
         return new FinanceiroDoAluno(plano, abertas.stream()
                 .map(c -> Respostas.cobrancaDoAluno(c, hoje, CobrancaAutomatica.eh(c, automaticas))).toList(), historico,
-                pagamentoOnline, formasDePagamento, overtrainingPayDisponivel, overtrainingPayMaxParcelas,
-                overtrainingPayJuros, cpfPagadorCadastrado);
+                pagamentoOnline, formasDePagamento, overtrainingPayDisponivel,
+                cpfPagadorCadastrado);
     }
 
     private boolean temCpfCadastrado(UUID alunoId) {

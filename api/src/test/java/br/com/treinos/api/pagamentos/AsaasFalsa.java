@@ -82,6 +82,8 @@ public final class AsaasFalsa implements AutoCloseable {
     private volatile String statusDocumentation = "PENDING";
     private volatile String onboardingUrl = "https://sandbox.asaas.com/onboarding/doc-teste";
     private volatile String hostDaFatura = "sandbox.asaas.com";
+    private final AtomicInteger exclusoesQueFalham = new AtomicInteger();
+    private volatile java.util.function.Consumer<String> aoCriarPagamento;
 
     public AsaasFalsa() {
         try {
@@ -111,12 +113,34 @@ public final class AsaasFalsa implements AutoCloseable {
         statusDocumentation = "PENDING";
         onboardingUrl = "https://sandbox.asaas.com/onboarding/doc-teste";
         hostDaFatura = "sandbox.asaas.com";
+        exclusoesQueFalham.set(0);
+        aoCriarPagamento = null;
     }
 
     /** Host da invoiceUrl devolvida (padrão: o do sandbox); serve para provar que a API recusa host de fora do Asaas. */
     public AsaasFalsa hostDaFatura(String host) {
         this.hostDaFatura = host;
         return this;
+    }
+
+    /** As próximas {@code n} exclusões ({@code DELETE /payments/{id}}) respondem 503, como um Asaas fora do ar. */
+    public AsaasFalsa falharProximasExclusoes(int n) {
+        exclusoesQueFalham.set(n);
+        return this;
+    }
+
+    /**
+     * Gancho chamado uma vez, com a {@code externalReference}, no meio do próximo {@code POST /payments} (já validado, antes de
+     * criar): é a "outra aba" que grava a cobrança dela primeiro.
+     */
+    public AsaasFalsa aoCriarPagamento(java.util.function.Consumer<String> gancho) {
+        this.aoCriarPagamento = gancho;
+        return this;
+    }
+
+    public String statusDoPagamento(String paymentId) {
+        PagamentoFake p = pagamentos.get(paymentId);
+        return p == null ? null : p.status;
     }
 
     public AsaasFalsa esperaApiKeyMatriz(String apiKeyMatriz) {
@@ -143,6 +167,11 @@ public final class AsaasFalsa implements AutoCloseable {
 
     public void marcarPagoNoCartao(String paymentId) {
         marcarPagoCom(paymentId, "CREDIT_CARD");
+    }
+
+    /** Pago por boleto na página da fatura (UNDEFINED): o Asaas troca o tipo para BOLETO. */
+    public void marcarPagoNoBoleto(String paymentId) {
+        marcarPagoCom(paymentId, "BOLETO");
     }
 
     private void marcarPagoCom(String paymentId, String meio) {
@@ -242,6 +271,8 @@ public final class AsaasFalsa implements AutoCloseable {
             } else if ("GET".equals(metodo) && caminho.startsWith("/payments/") && caminho.endsWith("/pixQrCode")) {
                 String id = caminho.substring("/payments/".length(), caminho.length() - "/pixQrCode".length());
                 tratarQrCode(troca, id);
+            } else if ("DELETE".equals(metodo) && caminho.startsWith("/payments/")) {
+                tratarExcluirPagamento(troca, caminho.substring("/payments/".length()));
             } else if ("GET".equals(metodo) && caminho.startsWith("/payments/")) {
                 String id = caminho.substring("/payments/".length());
                 tratarConsultarPagamento(troca, id);
@@ -382,6 +413,11 @@ public final class AsaasFalsa implements AutoCloseable {
             falhar(troca, "/payments", problemas);
             return;
         }
+        java.util.function.Consumer<String> gancho = aoCriarPagamento;
+        if (gancho != null) {
+            aoCriarPagamento = null;
+            gancho.accept(corpo.path("externalReference").isString() ? corpo.path("externalReference").asString() : null);
+        }
         String id = "pay_fake_" + seqPagamento.incrementAndGet();
         String extRef = corpo.path("externalReference").isString() ? corpo.path("externalReference").asString() : null;
         Integer parcelas = corpo.path("installmentCount").isIntegralNumber()
@@ -400,6 +436,25 @@ public final class AsaasFalsa implements AutoCloseable {
             resp.put("externalReference", extRef);
         }
         responder(troca, 200, json.writeValueAsString(resp));
+    }
+
+    /** Cobrança paga não se apaga (400); inexistente dá 404; senão vira DELETED. */
+    private void tratarExcluirPagamento(HttpExchange troca, String id) throws IOException {
+        if (exclusoesQueFalham.getAndUpdate(n -> Math.max(0, n - 1)) > 0) {
+            responder(troca, 503, "{\"errors\":[{\"description\":\"indisponivel\"}]}");
+            return;
+        }
+        PagamentoFake p = pagamentos.get(id);
+        if (p == null) {
+            responder(troca, 404, "{\"errors\":[{\"description\":\"not found\"}]}");
+            return;
+        }
+        if ("RECEIVED".equals(p.status) || "CONFIRMED".equals(p.status) || "RECEIVED_IN_CASH".equals(p.status)) {
+            responder(troca, 400, "{\"errors\":[{\"description\":\"cobranca recebida\"}]}");
+            return;
+        }
+        p.status = "DELETED";
+        responder(troca, 200, json.writeValueAsString(json.createObjectNode().put("deleted", true).put("id", id)));
     }
 
     private void tratarQrCode(HttpExchange troca, String id) throws IOException {

@@ -8,7 +8,8 @@ import java.util.Locale;
 /**
  * Overtraining Pay via Asaas ({@code TREINOS_PAGAMENTOS_ASAAS_HABILITADO}). Desligado por padrão: as rotas respondem 503
  * {@code OVERTRAINING_PAY_INDISPONIVEL} e {@code GET /eu} traz {@code overtrainingPayHabilitado=false}. Ligado, a API só sobe
- * com as chaves de cifra ({@link PagamentosProperties}), {@code TREINOS_PAGAMENTOS_ASAAS_API_KEY_MATRIZ} e URL pública https.
+ * com as chaves de cifra ({@link PagamentosProperties}), {@code TREINOS_PAGAMENTOS_ASAAS_API_KEY_MATRIZ}, as carteiras da matriz
+ * e do sócio e URL pública https.
  * Segredos só em variável de ambiente, sem valor padrão. {@code toString()} nunca expõe a API Key da matriz.
  */
 @ConfigurationProperties("treinos.pagamentos.asaas")
@@ -49,6 +50,9 @@ public record AsaasProperties(boolean habilitado, String urlBase, String apiKeyM
         faltando(publica, "TREINOS_PAGAMENTOS_ASAAS_URL_PUBLICA");
         exigirHttps(publica, "TREINOS_PAGAMENTOS_ASAAS_URL_PUBLICA", false);
         exigirHttps(urlBase, "TREINOS_PAGAMENTOS_ASAAS_URL_BASE", true);
+        // Sem carteira o split some em silêncio (CalculadorDeSplitAsaas): ligado, a subida exige as duas (I7).
+        faltando(walletMatriz, "TREINOS_PAGAMENTOS_ASAAS_WALLET_MATRIZ");
+        faltando(walletSocio, "TREINOS_PAGAMENTOS_ASAAS_WALLET_SOCIO");
         if (percentualSocioBps < 0 || percentualSocioBps > 10000) {
             throw new IllegalStateException("TREINOS_PAGAMENTOS_ASAAS_PERCENTUAL_SOCIO_BPS precisa estar entre 0 e 10000.");
         }

@@ -56,7 +56,6 @@ export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) 
         infinitePayConfigurada={dados?.configurado}
         comOvertrainingPay={overtrainingPayHabilitado}
         overtrainingPayAtivo={otDados?.situacao === 'ATIVA'}
-        overtrainingPayMaxParcelas={otDados?.maxParcelas ?? 12}
         overtrainingPaySituacao={otDados?.situacao}
         maisAjustes={(
           <>

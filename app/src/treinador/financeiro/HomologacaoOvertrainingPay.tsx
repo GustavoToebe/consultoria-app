@@ -20,8 +20,6 @@ import {
   formatarTelefoneTitular,
   motivoBloqueioCobrancaTeste,
   OPCOES_DE_BANCO,
-  OPCOES_JUROS_OVERTRAINING_PAY,
-  OPCOES_MAX_PARCELAS,
   OPCOES_TIPO_CONTA,
   OPCOES_TIPO_PESSOA,
   podeGerarCobrancaTeste,
@@ -546,27 +544,6 @@ export function HomologacaoOvertrainingPay({ dados, podeAlterar, aoMudar, aoReca
               />
             </View>
 
-            {/* 3. Preferências do checkout */}
-            <View style={estilos.secao}>
-              <Texto variante="secao">3. Preferências do checkout</Texto>
-              <EscolhaSuspensa
-                rotulo="Parcelamento máximo no cartão"
-                valor={estado.maxParcelas}
-                opcoes={OPCOES_MAX_PARCELAS}
-                semBusca
-                aoMudar={(maxParcelas) => {
-                  mudar({ maxParcelas });
-                  setErros((e) => ({ ...e, maxParcelas: undefined }));
-                }}
-              />
-              <Escolha
-                rotulo="Quem paga os juros do parcelamento"
-                valor={estado.jurosParcelamento}
-                opcoes={[...OPCOES_JUROS_OVERTRAINING_PAY]}
-                aoMudar={(jurosParcelamento) => mudar({ jurosParcelamento })}
-              />
-            </View>
-
             {configurada ? (
               <LinhaDeAcoes>
                 <Botao
@@ -589,8 +566,6 @@ export function HomologacaoOvertrainingPay({ dados, podeAlterar, aoMudar, aoReca
               <CampoLeitura rotulo="Banco" valor={dados.bancoCodigo && dados.bancoNome ? `${dados.bancoCodigo} - ${dados.bancoNome}` : SEM_DADO} />
               <CampoLeitura rotulo="Agência" valor={dados.agenciaMascarada ?? SEM_DADO} />
               <CampoLeitura rotulo="Conta" valor={dados.contaMascarada ?? SEM_DADO} />
-              <CampoLeitura rotulo="Parcelas máximas" valor={dados.maxParcelas ? `Até ${dados.maxParcelas}x` : SEM_DADO} />
-              <CampoLeitura rotulo="Juros do parcelamento" valor={dados.jurosParcelamento === 'TREINADOR' ? 'Treinador' : 'Aluno'} />
             </CamposEmLinha>
             <Texto variante="suave">Para alterar a homologação do Overtraining Pay, peça a quem administra o financeiro.</Texto>
           </View>

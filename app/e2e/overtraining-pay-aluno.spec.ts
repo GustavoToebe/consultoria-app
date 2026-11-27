@@ -27,8 +27,6 @@ const LARGURAS = [390, 1280] as const;
 
 type FinanceiroDoAlunoOvertraining = FinanceiroDoAluno & {
   overtrainingPayDisponivel: boolean;
-  overtrainingPayMaxParcelas: number;
-  overtrainingPayJuros: 'ALUNO' | 'TREINADOR';
   cpfPagadorCadastrado: boolean;
 };
 
@@ -62,8 +60,6 @@ function financeiroInicial(cpfCadastrado = false): FinanceiroDoAlunoOvertraining
     pagamentoOnline: true,
     formasDePagamento: ['MANUAL'],
     overtrainingPayDisponivel: true,
-    overtrainingPayMaxParcelas: 12,
-    overtrainingPayJuros: 'ALUNO',
     cpfPagadorCadastrado: cpfCadastrado,
     plano: {
       contratacaoId: 'e0000000-0000-4000-8000-000000000101',
@@ -238,7 +234,7 @@ for (const largura of LARGURAS) {
     for (const campo of ['Número do cartão', 'Validade', 'CVV', 'Nome impresso no cartão', 'CPF do titular', 'CEP']) {
       await expect(folhaCartao.getByLabel(campo)).toHaveCount(0);
     }
-    await expect(folhaCartao.getByText(/não recebe nem guarda dados do cartão/)).toBeVisible();
+    await expect(folhaCartao.getByText(/não recebe nem guarda os dados do cartão/)).toBeVisible();
 
     const [popup] = await Promise.all([
       page.waitForEvent('popup'),

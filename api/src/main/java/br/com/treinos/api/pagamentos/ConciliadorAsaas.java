@@ -43,18 +43,21 @@ public class ConciliadorAsaas {
     private final AsaasProperties asaas;
     private final PagamentosProperties pagamentos;
     private final AbatimentoSplitCentralService abatimentoCentral;
+    private final CancelamentoDeCobrancaAsaas cancelamentos;
     private final TransactionTemplate transacao;
     private volatile Instant ultimaLimpeza = Instant.EPOCH;
 
     ConciliadorAsaas(AvisoDePagamentoRepositorio avisos, ConclusaoDoAvisoAsaas conclusao, AsaasCliente asaasCliente,
                      AsaasProperties asaas, PagamentosProperties pagamentos,
-                     AbatimentoSplitCentralService abatimentoCentral, PlatformTransactionManager transacoes) {
+                     AbatimentoSplitCentralService abatimentoCentral, CancelamentoDeCobrancaAsaas cancelamentos,
+                     PlatformTransactionManager transacoes) {
         this.avisos = avisos;
         this.conclusao = conclusao;
         this.asaasCliente = asaasCliente;
         this.asaas = asaas;
         this.pagamentos = pagamentos;
         this.abatimentoCentral = abatimentoCentral;
+        this.cancelamentos = cancelamentos;
         this.transacao = new TransactionTemplate(transacoes);
     }
 
@@ -68,6 +71,7 @@ public class ConciliadorAsaas {
             if (processados > 0) {
                 LOG.info("Conciliação Asaas: {} avisos processados.", processados);
             }
+            cancelamentos.processarPendentes();
             limparSeVenceu();
         } catch (RuntimeException e) {
             LOG.warn("Conciliação Asaas falhou ({}).", e.getClass().getSimpleName());

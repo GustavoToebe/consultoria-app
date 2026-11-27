@@ -64,6 +64,7 @@ public class CheckoutTransparenteAsaasService {
     private final AsaasCliente asaasCliente;
     private final ContaLocalRepositorio contasLocais;
     private final CalculadorDeSplitAsaas calculadorDeSplit;
+    private final FilaDeCancelamentoAsaas fila;
     private final TransactionTemplate leitura;
     private final TransactionTemplate escrita;
 
@@ -73,7 +74,7 @@ public class CheckoutTransparenteAsaasService {
                                             FormasDeRecebimentoService formas, CobrancaAutomatica automatica,
                                             CifraDePagamento cifra, AsaasCliente asaasCliente,
                                             ContaLocalRepositorio contasLocais, CalculadorDeSplitAsaas calculadorDeSplit,
-                                            PlatformTransactionManager transacoes) {
+                                            FilaDeCancelamentoAsaas fila, PlatformTransactionManager transacoes) {
         this.cobrancas = cobrancas;
         this.subcontas = subcontas;
         this.clientesAsaas = clientesAsaas;
@@ -85,6 +86,7 @@ public class CheckoutTransparenteAsaasService {
         this.asaasCliente = asaasCliente;
         this.contasLocais = contasLocais;
         this.calculadorDeSplit = calculadorDeSplit;
+        this.fila = fila;
         this.leitura = new TransactionTemplate(transacoes);
         this.leitura.setReadOnly(true);
         this.escrita = new TransactionTemplate(transacoes);
@@ -212,8 +214,13 @@ public class CheckoutTransparenteAsaasService {
         }
     }
 
-    /** Reaproveita a cobrança já criada no Asaas; senão cria uma (UNDEFINED: Pix e cartão) com o split do servidor. */
+    /**
+     * Reaproveita a cobrança já criada no Asaas; senão cria uma (UNDEFINED: Pix e cartão) com o split do servidor. O id novo
+     * só é gravado se a linha ainda estiver ABERTA, com o mesmo valor e o mesmo id de antes (compare-and-set): duas abas ou um
+     * reajuste no meio não deixam duas cobranças pagáveis. Quem perde apaga a que criou e usa a da vencedora.
+     */
     private AsaasCliente.CobrancaPixCriada garantirCobranca(ContextoCheckout ctx, UUID cobrancaId) {
+        boolean anteriorPagavel = false;
         if (ctx.asaasCobrancaId() != null) {
             AsaasCliente.CobrancaConsultadaAsaas existente = asaasCliente.consultarCobranca(ctx.apiKey(),
                     ctx.asaasCobrancaId());
@@ -227,6 +234,7 @@ public class CheckoutTransparenteAsaasService {
                 return new AsaasCliente.CobrancaPixCriada(existente.id(), existente.status(), existente.invoiceUrl(),
                         null, null, null);
             }
+            anteriorPagavel = REAPROVEITAVEIS.contains(status);
         }
         String customerId = obterOuCriarCliente(ctx);
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
@@ -234,8 +242,61 @@ public class CheckoutTransparenteAsaasService {
         AsaasCliente.CobrancaPixCriada criada = asaasCliente.criarCobrancaDoAluno(ctx.apiKey(),
                 new AsaasCliente.PedidoPixAsaas(customerId, ctx.valorCentavos(), vencimentoEfetivo,
                         ctx.descricao(), cobrancaId.toString(), ctx.walletIdSubconta(), ctx.split().splits()));
-        registrarIdAsaas(cobrancaId, criada.paymentId());
+        if (!registrarIdAsaas(cobrancaId, ctx, criada.paymentId())) {
+            return usarDaVencedora(ctx, cobrancaId, criada.paymentId());
+        }
+        if (anteriorPagavel) {
+            // A cobrança anterior (outro valor) continua pagável no Asaas: vai para a fila de cancelamento.
+            escrita.executeWithoutResult(st -> fila.enfileirar(ctx.consultoriaId(), cobrancaId, ctx.asaasCobrancaId()));
+        }
         return criada;
+    }
+
+    /** Compare-and-set: grava o id só se a linha segue ABERTA, com o valor usado e o id que o checkout viu. */
+    private boolean registrarIdAsaas(UUID cobrancaId, ContextoCheckout ctx, String paymentId) {
+        Integer linhas = escrita.execute(st -> ctx.asaasCobrancaId() == null
+                ? cobrancas.registrarPrimeiraCobrancaAsaas(cobrancaId, ctx.valorCentavos(), paymentId,
+                        CobrancaAluno.Situacao.ABERTA)
+                : cobrancas.trocarCobrancaAsaas(cobrancaId, ctx.valorCentavos(), ctx.asaasCobrancaId(), paymentId,
+                        CobrancaAluno.Situacao.ABERTA));
+        return linhas != null && linhas > 0;
+    }
+
+    /**
+     * Outra aba (ou um reajuste) mexeu na cobrança enquanto esta criava a dela: a criada aqui é apagada (fora de transação; se o
+     * Asaas falhar, vai para a fila) e vale a que já estava gravada, se ainda servir.
+     */
+    private AsaasCliente.CobrancaPixCriada usarDaVencedora(ContextoCheckout ctx, UUID cobrancaId, String perdedoraId) {
+        boolean apagada = false;
+        try {
+            apagada = asaasCliente.excluirCobranca(ctx.apiKey(), perdedoraId);
+        } catch (ProvedorIndisponivelException e) {
+            log.warn("Overtraining Pay: não deu para apagar uma cobrança duplicada agora; ficou na fila.");
+        }
+        if (!apagada) {
+            escrita.executeWithoutResult(st -> fila.enfileirar(ctx.consultoriaId(), cobrancaId, perdedoraId));
+        }
+        CobrancaAluno atual = leitura.execute(st -> cobrancas.findById(cobrancaId).orElse(null));
+        if (atual == null || atual.getSituacao() != CobrancaAluno.Situacao.ABERTA) {
+            throw new ConflictException("Esta cobrança não está em aberto.", "COBRANCA_NAO_ABERTA");
+        }
+        String vencedoraId = atual.getAsaasCobrancaId();
+        if (vencedoraId == null || atual.getValorCentavos() != ctx.valorCentavos()) {
+            throw new ConflictException("A cobrança mudou enquanto o pagamento era preparado. Tente de novo.",
+                    "CONFLITO_EDICAO");
+        }
+        AsaasCliente.CobrancaConsultadaAsaas vencedora = asaasCliente.consultarCobranca(ctx.apiKey(), vencedoraId);
+        String status = vencedora.status().toUpperCase(Locale.ROOT);
+        if (EM_CONFIRMACAO.contains(status)) {
+            throw new ConflictException("O pagamento desta cobrança já foi identificado e está sendo confirmado.",
+                    "PAGAMENTO_EM_CONFIRMACAO");
+        }
+        if (!REAPROVEITAVEIS.contains(status) || vencedora.valorCentavos() == null
+                || vencedora.valorCentavos() != ctx.valorCentavos()) {
+            throw new ConflictException("A cobrança mudou enquanto o pagamento era preparado. Tente de novo.",
+                    "CONFLITO_EDICAO");
+        }
+        return new AsaasCliente.CobrancaPixCriada(vencedora.id(), vencedora.status(), vencedora.invoiceUrl(), null, null, null);
     }
 
     static boolean urlDaFatura(String url) {
@@ -249,13 +310,6 @@ public class CheckoutTransparenteAsaasService {
         } catch (IllegalArgumentException e) {
             return false;
         }
-    }
-
-    private void registrarIdAsaas(UUID cobrancaId, String paymentId) {
-        escrita.executeWithoutResult(st -> cobrancas.findById(cobrancaId).ifPresent(c -> {
-            c.registrarAsaasCobranca(paymentId);
-            cobrancas.flush();
-        }));
     }
 
     private static String resolverCpfPagador(ResponsavelFinanceiro responsavel, Aluno aluno, String cpfInformado,

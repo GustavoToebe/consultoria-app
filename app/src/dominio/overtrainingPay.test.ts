@@ -11,7 +11,6 @@ import {
   motivoBloqueioCobrancaTeste,
   podeGerarCobrancaTeste,
   seloDaHomologacao,
-  textoPreviaOvertrainingPay,
   urlOnboardingSegura,
   validarFormularioOvertrainingPay,
   type EstadoFormularioOvertrainingPay,
@@ -40,8 +39,6 @@ const estadoValido = (extra: Partial<EstadoFormularioOvertrainingPay> = {}): Est
   conta: '123456-7',
   contaJaSalva: false,
   repasseAutomatico: true,
-  maxParcelas: 6,
-  jurosParcelamento: 'ALUNO',
   versao: null,
   ...extra,
 });
@@ -136,12 +133,6 @@ describe('bancos brasileiros e utilitários', () => {
     expect(urlOnboardingSegura('http://inseguro.com')).toBeNull();
     expect(urlOnboardingSegura('javascript:alert(1)')).toBeNull();
   });
-
-  it('gera texto da prévia do aluno para 1x e múltiplas parcelas', () => {
-    expect(textoPreviaOvertrainingPay(12)).toBe('No aplicativo: QR Code Pix imediato e Cartão em até 12x');
-    expect(textoPreviaOvertrainingPay(6)).toBe('No aplicativo: QR Code Pix imediato e Cartão em até 6x');
-    expect(textoPreviaOvertrainingPay(1)).toBe('No aplicativo: QR Code Pix imediato e Cartão à vista');
-  });
 });
 
 describe('estadoInicialOvertrainingPay e validarFormularioOvertrainingPay', () => {
@@ -160,8 +151,10 @@ describe('estadoInicialOvertrainingPay e validarFormularioOvertrainingPay', () =
         bancoNome: 'Nubank',
         agencia: '0001',
         conta: '123456-7',
-        maxParcelas: 6,
       });
+      // O parcelamento é decidido na página do Asaas: o corpo não leva política de parcelas nem de juros.
+      expect(r.corpo).not.toHaveProperty('maxParcelas');
+      expect(r.corpo).not.toHaveProperty('jurosParcelamento');
     }
   });
 
@@ -198,8 +191,6 @@ describe('estadoInicialOvertrainingPay e validarFormularioOvertrainingPay', () =
       agenciaMascarada: '**01',
       contaMascarada: '****56-7',
       repasseAutomatico: true,
-      maxParcelas: 10,
-      jurosParcelamento: 'ALUNO',
       onboardingUrl: null,
       cobrancasLiquidadas: 0,
       homologadaEm: null,
@@ -220,7 +211,7 @@ describe('estadoInicialOvertrainingPay e validarFormularioOvertrainingPay', () =
     }
   });
 
-  it('recusa CPF, CNPJ, e-mail, CEP, agência, conta, renda e parcelas inválidas', () => {
+  it('recusa CPF, CNPJ, e-mail, CEP, agência, conta, renda inválidos', () => {
     const r = validarFormularioOvertrainingPay(estadoValido({
       documento: '111.111.111-11',
       nomeTitular: 'AB',
@@ -234,7 +225,6 @@ describe('estadoInicialOvertrainingPay e validarFormularioOvertrainingPay', () =
       bancoNomeCustom: '',
       agencia: '1',
       conta: '12',
-      maxParcelas: 15,
     }));
     expect(r.ok).toBe(false);
     if (!r.ok) {
@@ -249,7 +239,6 @@ describe('estadoInicialOvertrainingPay e validarFormularioOvertrainingPay', () =
       expect(r.erros.bancoNome).toBeTruthy();
       expect(r.erros.agencia).toBeTruthy();
       expect(r.erros.conta).toBeTruthy();
-      expect(r.erros.maxParcelas).toBeTruthy();
     }
   });
 });

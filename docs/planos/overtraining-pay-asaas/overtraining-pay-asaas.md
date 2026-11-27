@@ -15,7 +15,7 @@
 - **Conta Asaas com permissão para criar subcontas** (ele está confirmando). Sem ela, nada do Overtraining Pay roda de verdade; os testes usam o `AsaasFalsa`.
 - **Validar no sandbox** (não conferido na documentação do Asaas): `GET /payments/{id}/pixQrCode` para cobrança `UNDEFINED`; se o `GET /payments/{id}` devolve o meio real (CREDIT_CARD/PIX) após o pagamento (senão a baixa cai em CONFERIR, falha segura); se a página `UNDEFINED` oferece também boleto.
 - **Cartão dentro do app (adiado em 26/11):** ver a decisão e a pendência registradas na seção 8 e em "Pendências soltas" do `docs/planos/README.md`.
-- `maxParcelas` e juros da política (`overtrainingPayMaxParcelas`, `overtrainingPayJuros`) continuam no contrato e na tela do treinador, mas não valem na prática: o parcelamento é decidido na página do Asaas. Remover ou religar a um parâmetro do Asaas em decisão própria.
+- ~~`maxParcelas` e juros da política~~ **removidos em 27/11** do app, da API e da V108 (ver "Rodada antes de ligar" abaixo). O parcelamento é decidido na página do Asaas.
 
 **Revisão independente de 26/11 (`revisor`, sobre o commit `9f6f70d1`) — o que foi corrigido e o que ficou aberto:**
 - **Corrigido:** migration renumerada para V106 (depois V108, em 27/11) depois que o main trouxe a V105 do contrato digital (B1); CPF enviado também na fatura quando o aluno não tem cadastro (I1); remover a subconta limpa o `asaas_cobranca_id` das cobranças abertas (I3; coberto só pela inicialização do repositório, sem teste próprio).
@@ -27,7 +27,7 @@
   - Carteira da matriz ou do sócio ausente desliga o split sem erro na subida (I7; o mesmo vale na Central, `CENTRAL_ASAAS_SOCIO_WALLET_ID`): decidir se a subida passa a exigir.
   - Menores: exigir `externalReference` igual na consulta; FK composta com `consultoria_id` e índice único parcial em `cobranca_aluno.asaas_cobranca_id` na V108; assinar `PAYMENT_PARTIALLY_REFUNDED` e os eventos de chargeback; `toString` de `GerarPixAsaasRequest`; `temCpfCadastrado` não considera o cliente que já existe no Asaas.
 
-**Decisões do Gustavo (27/11) e rodada "antes de ligar":** só registradas; nenhuma delas foi implementada neste lote. A implementação fica para a rodada "antes de ligar", que começa quando a conta Asaas estiver aprovada, junto com a validação no sandbox e uma bateria só.
+**Decisões do Gustavo (27/11) e rodada "antes de ligar":** implementadas no código em 27/11 (ver o bloco "Rodada antes de ligar: estado" abaixo); **ainda sem commit, sem a bateria final e sem a validação no sandbox**.
 - **`ABATER_MENSALIDADE`: não ligar.** Na rodada, bloquear a opção na tela da Central (não selecionável) até existir a retenção gravada na cobrança e o aviso à Central com repetição (B2 acima).
 - **Carteira ausente:** com o Asaas configurado (credenciais presentes) e sem a carteira da matriz ou do sócio, a aplicação **não sobe**, com mensagem clara. Vale para o consultoria-app (`TREINOS_PAGAMENTOS_ASAAS_WALLET_MATRIZ` e `_WALLET_SOCIO`) e para a Central (`CENTRAL_ASAAS_SOCIO_WALLET_ID`). Sem Asaas configurado, sobe normal (I7).
 - **Boleto:** mapear como forma válida de pagamento, para a baixa não cair em CONFERIR (I6). Confirmar no sandbox como ele aparece em `GET /payments/{id}`.
@@ -35,15 +35,35 @@
 - **Link antigo e cobrança órfã:** ao mudar o valor, reajustar, renegociar, cancelar ou na corrida Pix × fatura, cancelar no Asaas a cobrança anterior (I2). **Bloqueia ligar.**
 - **Pix da Central sem reserva nem prazo:** decidido em 27/11, **A + B**: cancelar no Asaas o QR pendente quando o restante muda (o mesmo mecanismo da cobrança órfã) e prazo curto no QR; a opção C está descartada. Opções e impacto em `asaas-pagamentos.md` (repositório da Central). Entra em "bloqueia ligar" da Central.
 
-**Bloqueia ligar em produção:**
-1. `ABATER_MENSALIDADE` bloqueado na tela da Central (e, depois, a retenção gravada com aviso repetido).
-2. Carteira ausente derruba a subida (consultoria-app e Central).
-3. Boleto mapeado como forma válida.
-4. Parcelas e juros removidos da tela e do contrato.
-5. Cobrança anterior cancelada no Asaas nas cinco situações acima.
-6. Assinar `PAYMENT_PARTIALLY_REFUNDED` e os eventos de chargeback.
-7. Índice único parcial em `asaas_cobranca_id` e FK composta com `consultoria_id` (migration do Overtraining Pay).
-8. As três validações no sandbox: `pixQrCode` com cobrança `UNDEFINED`, o meio real em `GET /payments/{id}` e o boleto na página.
+**Bloqueia ligar em produção** (estado em 27/11, código feito, falta bateria e sandbox):
+1. [x] `ABATER_MENSALIDADE` bloqueado: na Central (tela e 409 no back) e, aqui, o cálculo do split trata o modo como sem retenção. A retenção gravada com aviso repetido segue como trabalho futuro.
+2. [x] Carteira ausente derruba a subida (consultoria-app: `AsaasProperties.exigirCompleta`; Central: `AsaasPropriedades`).
+3. [x] Boleto mapeado como forma válida (`ProvedorAsaas.mapearForma`); falta conferir o `billingType` real no sandbox.
+4. [x] Parcelas e juros removidos da tela, do contrato, da entidade e da V108.
+5. [x] Cobrança anterior cancelada no Asaas nas cinco situações (fila `cancelamento_asaas_pendente` + worker). **Não validado no sandbox.**
+6. [ ] Tarefa do Gustavo (no roteiro): assinar no painel do Asaas `PAYMENT_PARTIALLY_REFUNDED` e os eventos de chargeback na Central. Na consultoria o webhook de cada subconta é criado pela API e já inclui os quatro eventos novos.
+7. [x] Índice único parcial por consultoria em `cobranca_aluno (consultoria_id, asaas_cobranca_id)` e FKs compostas (V108).
+8. [ ] Validações no sandbox: `pixQrCode` com `UNDEFINED`, o meio real em `GET /payments/{id}`, o boleto na página e, **condição para ligar o cancelamento**, se o `DELETE /payments/{id}` recusa cobrança `RECEIVED`/`CONFIRMED`.
+
+### Rodada antes de ligar: estado (27/11/2026, base `613049d6` + alterações locais sem commit)
+**Feito, com teste focado verde (agente da API, `mvn -o -Dtest=...`, 13 classes):** carteira ausente; boleto; parcelas e juros removidos (resposta e corpo de `GET/PUT /financeiro/overtraining-pay`: saíram `maxParcelas` e `jurosParcelamento`; `GET /aluno/financeiro`: saíram `overtrainingPayMaxParcelas` e `overtrainingPayJuros`; colunas `max_parcelas`, `juros_parcelamento` e seus CHECK saíram direto da V108, sem migration nova; o app não tem mais nenhum desses nomes, só asserções negativas em `overtrainingPay.test.ts`); cancelamento da cobrança anterior (ouvinte `@PostUpdate` em `CobrancaAluno` grava a órfã em `cancelamento_asaas_pendente` na mesma transação; `CancelamentoDeCobrancaAsaas` apaga no Asaas fora de transação, roda dentro do `ConciliadorAsaas`; 2xx/404 apaga a linha, outro 4xx marca `FALHOU`, 5xx/rede reagenda até 12 vezes; troca do id com compare-and-set no checkout, quem perde a corrida apaga a cobrança que criou); estorno parcial e chargeback viram CONFERIR `ESTORNO_INFORMADO` (eventos também no webhook da subconta); V108 com `UNIQUE (consultoria_id, id)`, FKs compostas em `cliente_asaas_aluno`, índice único parcial por consultoria (não global, para os `pay_fake_N` de teste não colidirem; no Asaas real o id já é único) e a tabela da fila; teste da limpeza do `asaas_cobranca_id` ao remover a subconta; `ABATER_MENSALIDADE` no `CalculadorDeSplitAsaas` devolve `SEM_SPLIT` (nada retido, nada abatido; o fluxo principal do teste passou a usar `TAXA_PLATAFORMA` 10%, split esperado 13,00/7,00). Total de migrations segue 105 (a V108 já estava contada).
+
+**Para decidir / pendências desta rodada (nenhuma corrompe a baixa; o pior caso é CONFERIR):**
+- **Cancelamento no consultoria-app sem chave própria.** Na Central o cancelamento ganhou `CENTRAL_ASAAS_CANCELAMENTO_ENABLED` (padrão `false`) porque o `DELETE` pode aceitar cobrança paga. Aqui o worker roda sempre que a conciliação está ativa; um 4xx do Asaas (cobrança já paga) vira `FALHOU` sem nova tentativa, mas isso assume que o Asaas recusa. **Decisão do Gustavo: dar a mesma chave (padrão desligado) ou aceitar a suposição até o sandbox.**
+- A fila só esvazia a cada ~10 s: janela curta em que a órfã segue pagável (se paga, cai em CONFERIR). Com `conciliacao-ativa=false` o worker não roda sozinho.
+- Cobrança órfã de subconta removida: o Asaas não é avisado, a linha da fila vai para `FALHOU` (sem chave), as abertas ficam pagáveis lá e o webhook morre com a subconta; um pagamento ali nem chega ao CONFERIR.
+- Linhas `FALHOU` da fila não têm limpeza nem tela.
+- O `@PostUpdate` que faz INSERT por JDBC dentro do flush do Hibernate funcionou em todos os testes, mas pede **revisão independente** (pagamentos + migration) antes de ligar.
+- Interpretação do item `ABATER_MENSALIDADE`: sem taxa fixa no código, "nada retido" foi a leitura segura (reter percentual sem abater cobraria o treinador sem desconto). Mudar é uma linha.
+- Não validado no sandbox: `DELETE /payments/{id}`, `billingType=BOLETO`, estorno parcial manter `RECEIVED`, nomes dos eventos novos. `CapacidadesDoProvedor.maxParcelas` (12) segue como capacidade interna do provedor; `boleto` segue `false` lá.
+
+**Textos de tela e guia desta rodada (todos aprovados pelo Gustavo em 27/11; PDFs do guia regenerados uma vez, depois que os dois agentes terminaram):**
+- Central: opção "Abater mensalidade (Ainda não disponível)"; ajuda "Ainda não disponível. Esta contratação já usa este modo; para mudar, escolha outro."; homologação "Pix no app e cartão na página de pagamento do Asaas. O valor é dividido automaticamente entre as carteiras dos sócios."
+- App: checkout do aluno "Com cartão, você paga na página segura do Asaas, no navegador. O app não recebe nem guarda os dados do cartão."; prévia "No aplicativo: Pix na hora, pelo QR Code, e cartão pela página do Asaas."; títulos de seção "Pix na hora" (aluno e fatura na Central); `FolhaPagamentoCentralAsaas` "Gere o Pix na hora, pelo QR Code, para quitar sua fatura sem sair do aplicativo."; `CartaoFormasDeRecebimento` "O aluno paga com Pix na hora, pelo QR Code, no aplicativo, ou com cartão na página de pagamento, com baixa automática."
+- Guia (`app/src/ajuda/conteudo.ts`): "Overtraining Pay (receber no aplicativo)", "Homologação e conta de repasse", "Como pagar", "Pagar no próprio aplicativo (Overtraining Pay)" e "Assinatura e faturas (Minha conta)".
+- Vocabulário: "Em breve" não se usa em texto de tela; "Pix na hora, pelo QR Code" no lugar de "QR Code Pix imediato". Botões e rótulos de acessibilidade ("Gerar QR Code Pix", "QR Code Pix da fatura", "QR Code Pix para pagamento") ficam como estão. Prancha e docs mantêm "Pix imediato" como nome do quadro.
+
+**Fila de verificação (a máquina é compartilhada; só roda depois do "pode rodar a bateria" do Gustavo):** Central (`mvn clean verify`, Karma, e2e:tipos, Playwright, verificar-docs back/front, verificar-contrato-api); consultoria-app (`mvn verify` completo no fim, typecheck, lint, Jest, e2e); depois a rodada no sandbox (arquivo da chave do Gustavo) e os commits locais. Sem push.
 9. Teste próprio da limpeza do `asaas_cobranca_id` ao remover a subconta.
 
 **Pode esperar (também em "Pendências soltas" do `docs/planos/README.md`):** rotação do token do webhook (I4), subconta órfã (I5), `toString` de `GerarPixAsaasRequest`, `temCpfCadastrado`, o texto "Pix e Cartão" em `central-api-front/.../homologacao-split.component.ts:74` e os itens 3 e 6 da revisão da Central.

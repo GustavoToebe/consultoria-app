@@ -237,14 +237,14 @@ describe('previaDoAluno', () => {
     expect(previaDoAluno(estado(), { naInstalacao: true, configurada: false })).toMatchObject({ botoes: [], faltam: [FALTA_INFINITEPAY] });
     expect(previaDoAluno(estado(), { naInstalacao: false, configurada: false })).toMatchObject({ botoes: [], faltam: [] });
   });
-  it('Overtraining Pay ativo e ligado aparece no topo com prévia de Pix e Cartão', () => {
+  it('Overtraining Pay ativo e ligado aparece no topo com prévia de Pix e cartão pela página do Asaas', () => {
     const p = previaDoAluno(
       estado({ overtrainingPay: true, infinitePay: false }),
       { naInstalacao: false, configurada: false },
-      { naInstalacao: true, ativa: true, maxParcelas: 10 },
+      { naInstalacao: true, ativa: true },
     );
     expect(p.botoes).toEqual(['Pagar no aplicativo (Pix ou Cartão)']);
-    expect(p.resumoOvertrainingPay).toBe('No aplicativo: QR Code Pix imediato e Cartão em até 10x');
+    expect(p.resumoOvertrainingPay).toBe('No aplicativo: Pix na hora, pelo QR Code, e cartão pela página do Asaas.');
     expect(p.combinar).toBeNull();
   });
 });

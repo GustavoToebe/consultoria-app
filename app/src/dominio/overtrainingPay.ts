@@ -8,7 +8,6 @@ import type {
   TipoContaRepasse,
   TipoPessoaTitular,
 } from '../api/financeiroOvertrainingPay';
-import type { JurosDoParcelamento } from '../api/financeiroTipos';
 import type { TomDoSelo } from './financeiro';
 
 /**
@@ -52,16 +51,6 @@ export const OPCOES_TIPO_CONTA: readonly { valor: TipoContaRepasse; rotulo: stri
   { valor: 'CORRENTE', rotulo: 'Conta corrente' },
   { valor: 'POUPANCA', rotulo: 'Poupança' },
   { valor: 'PAGAMENTO', rotulo: 'Conta de pagamento' },
-];
-
-export const OPCOES_MAX_PARCELAS: readonly { valor: number; rotulo: string }[] = Array.from({ length: 12 }, (_, i) => {
-  const n = i + 1;
-  return { valor: n, rotulo: n === 1 ? '1x (somente à vista)' : `Até ${n}x` };
-});
-
-export const OPCOES_JUROS_OVERTRAINING_PAY: readonly { valor: JurosDoParcelamento; rotulo: string }[] = [
-  { valor: 'ALUNO', rotulo: 'Aluno' },
-  { valor: 'TREINADOR', rotulo: 'Treinador' },
 ];
 
 export interface SeloHomologacao {
@@ -164,13 +153,6 @@ export function motivoBloqueioCobrancaTeste(situacao: SituacaoHomologacao | null
   }
 }
 
-/** Texto exibido na prévia "O que o aluno vê" quando o Overtraining Pay está ativo. */
-export function textoPreviaOvertrainingPay(maxParcelas: number | null | undefined): string {
-  const n = typeof maxParcelas === 'number' && Number.isInteger(maxParcelas) ? Math.min(12, Math.max(1, maxParcelas)) : 12;
-  if (n <= 1) return 'No aplicativo: QR Code Pix imediato e Cartão à vista';
-  return `No aplicativo: QR Code Pix imediato e Cartão em até ${n}x`;
-}
-
 export interface ItemChecklistTeste {
   id: 'criada' | 'identificado' | 'webhook' | 'ativa';
   rotulo: string;
@@ -236,8 +218,6 @@ export interface EstadoFormularioOvertrainingPay {
   conta: string;
   contaJaSalva: boolean;
   repasseAutomatico: boolean;
-  maxParcelas: number;
-  jurosParcelamento: JurosDoParcelamento;
   versao: number | null;
 }
 
@@ -252,8 +232,7 @@ export type CampoOvertrainingPay =
   | 'bancoCodigo'
   | 'bancoNome'
   | 'agencia'
-  | 'conta'
-  | 'maxParcelas';
+  | 'conta';
 
 export type ErrosOvertrainingPay = Partial<Record<CampoOvertrainingPay, string>>;
 
@@ -279,8 +258,6 @@ export function estadoInicialOvertrainingPay(dados: OvertrainingPayConfigRespons
     conta: '',
     contaJaSalva: !!dados?.contaMascarada,
     repasseAutomatico: dados?.repasseAutomatico ?? true,
-    maxParcelas: dados?.maxParcelas && dados.maxParcelas >= 1 && dados.maxParcelas <= 12 ? dados.maxParcelas : 12,
-    jurosParcelamento: dados?.jurosParcelamento ?? 'ALUNO',
     versao: dados?.versao ?? null,
   };
 }
@@ -381,11 +358,6 @@ export function validarFormularioOvertrainingPay(e: EstadoFormularioOvertraining
     erros.conta = 'Informe o número da conta com dígito.';
   }
 
-  // 10. Parcelas (1..12)
-  if (!Number.isInteger(e.maxParcelas) || e.maxParcelas < 1 || e.maxParcelas > 12) {
-    erros.maxParcelas = 'Escolha entre 1 e 12 parcelas.';
-  }
-
   if (Object.keys(erros).length > 0) return { ok: false, erros };
 
   const corpo: OvertrainingPayConfigRequest = {
@@ -403,8 +375,6 @@ export function validarFormularioOvertrainingPay(e: EstadoFormularioOvertraining
     ...(agenciaFinal ? { agencia: agenciaFinal } : {}),
     ...(contaFinal ? { conta: contaFinal } : {}),
     repasseAutomatico: e.repasseAutomatico,
-    maxParcelas: e.maxParcelas,
-    jurosParcelamento: e.jurosParcelamento,
     versao: e.versao,
   };
   return { ok: true, corpo };

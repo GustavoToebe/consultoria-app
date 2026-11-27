@@ -273,7 +273,7 @@ public class OvertrainingPayService {
                     d.cep(), d.enderecoResumo(), d.rendaMensalCentavos(),
                     d.bancoCodigo(), d.bancoNome(),
                     mascararAgencia(d.agencia()), mascararConta(d.conta()),
-                    d.tipoConta(), d.repasseAutomatico(), d.maxParcelas(), d.jurosParcelamento(),
+                    d.tipoConta(), d.repasseAutomatico(),
                     situacaoInicial, statusInicial.onboardingUrl(), agora);
             SubcontaAsaas gravada;
             try {
@@ -313,7 +313,7 @@ public class OvertrainingPayService {
                     d.bancoCodigo(), d.bancoNome(),
                     d.agencia() != null ? mascararAgencia(d.agencia()) : null,
                     d.conta() != null ? mascararConta(d.conta()) : null,
-                    d.tipoConta(), d.repasseAutomatico(), d.maxParcelas(), d.jurosParcelamento(), agora);
+                    d.tipoConta(), d.repasseAutomatico(), agora);
             if (tokenParaSalvar != null) {
                 s.rotacionarWebhook(cifra.cifrar(consultoriaId, tokenParaSalvar),
                         agora.plus(VALIDADE_TOKEN_ANTERIOR), agora);
@@ -331,8 +331,8 @@ public class OvertrainingPayService {
                     SubcontaAsaas.Situacao.NAO_CONFIGURADA.name(),
                     new Etapas(false, false, false, false),
                     null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, true, 12,
-                    JurosDoParcelamento.ALUNO.name(), null, 0L, null, null, null);
+                    null, null, null, null, null, true,
+                    null, 0L, null, null, null);
         }
         SubcontaAsaas s = opt.get();
         boolean docsAprovados = s.getSituacao() == SubcontaAsaas.Situacao.PRONTA_PARA_TESTE
@@ -345,8 +345,8 @@ public class OvertrainingPayService {
                 s.getTipoPessoa().name(), s.getDocumentoMascarado(), s.getNomeTitular(), s.getEmailFinanceiro(),
                 s.getTelefoneMascarado(), s.getCep(), s.getEnderecoResumo(), s.getRendaMensalCentavos(),
                 s.getBancoCodigo(), s.getBancoNome(), s.getAgenciaMascarada(), s.getContaMascarada(),
-                s.getTipoConta().name(), s.isRepasseAutomatico(), s.getMaxParcelas(),
-                s.getJurosParcelamento().name(), s.getOnboardingUrl(), liquidadas, s.getHomologadaEm(),
+                s.getTipoConta().name(), s.isRepasseAutomatico(),
+                s.getOnboardingUrl(), liquidadas, s.getHomologadaEm(),
                 cobrancaTesteDe(s), s.getVersao());
     }
 
@@ -374,8 +374,7 @@ public class OvertrainingPayService {
                                   String numeroEndereco, String bairro, String enderecoResumo,
                                   Long rendaMensalCentavos, String tipoEmpresa, LocalDate dataNascimento,
                                   String bancoCodigo, String bancoNome, String agencia, String conta,
-                                  SubcontaAsaas.TipoConta tipoConta, boolean repasseAutomatico,
-                                  int maxParcelas, JurosDoParcelamento jurosParcelamento) {
+                                  SubcontaAsaas.TipoConta tipoConta, boolean repasseAutomatico) {
     }
 
     private record SubcontaSnapshot(UUID id, String apiKeyCifrada, String documentoCifrado, String walletId,
@@ -436,16 +435,6 @@ public class OvertrainingPayService {
         if (tipoConta == null) {
             erros.add(new ApiError.FieldError("tipoConta", "Escolha CORRENTE, POUPANCA ou PAGAMENTO."));
         }
-        int maxParcelas = r.maxParcelas() == null ? 12 : r.maxParcelas();
-        if (maxParcelas < 1 || maxParcelas > 12) {
-            erros.add(new ApiError.FieldError("maxParcelas", "Escolha entre 1 e 12 parcelas."));
-        }
-        JurosDoParcelamento juros = r.jurosParcelamento() == null
-                ? JurosDoParcelamento.ALUNO
-                : parseEnum(JurosDoParcelamento.class, r.jurosParcelamento());
-        if (juros == null) {
-            erros.add(new ApiError.FieldError("jurosParcelamento", "Escolha ALUNO ou TREINADOR."));
-        }
         if (r.rendaMensalCentavos() != null && r.rendaMensalCentavos() < 0) {
             erros.add(new ApiError.FieldError("rendaMensalCentavos", "Informe um valor válido."));
         }
@@ -484,7 +473,7 @@ public class OvertrainingPayService {
         return new DadosValidados(tipoPessoa, docLimpo, nome, email, telefoneLimpo, cepLimpo,
                 endereco, numero, bairro, resumo, r.rendaMensalCentavos(), tipoEmpresa, dataNascimento,
                 bancoCodigo, bancoNome, agencia, conta, tipoConta,
-                r.repasseAutomatico() == null || r.repasseAutomatico(), maxParcelas, juros);
+                r.repasseAutomatico() == null || r.repasseAutomatico());
     }
 
     static String mascararDocumento(SubcontaAsaas.TipoPessoa tipo, String digitos) {

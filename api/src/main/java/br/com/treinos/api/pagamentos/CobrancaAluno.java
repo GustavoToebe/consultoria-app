@@ -1,19 +1,24 @@
 package br.com.treinos.api.pagamentos;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Transient;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.OptimisticLock;
+import br.com.treinos.api.pagamentos.provedor.ProvedorAsaas;
 import org.hibernate.annotations.TenantId;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,6 +28,7 @@ import java.util.UUID;
  * {@code observacao} e {@code motivo} são texto do treinador: nunca em log, e a anonimização os apaga.
  */
 @Entity
+@EntityListeners(OrfasDoAsaasNaFila.class)
 @Table(name = "cobranca_aluno")
 public class CobrancaAluno {
 
@@ -97,6 +103,9 @@ public class CobrancaAluno {
     @OptimisticLock(excluded = true)
     @Column(name = "asaas_cobranca_id", length = 60)
     private String asaasCobrancaId;
+    /** Cobranças do Asaas que esta mudança deixou órfãs (ainda pagáveis lá): {@link OrfasDoAsaasNaFila} as enfileira no flush. */
+    @Transient
+    private final List<String> asaasOrfas = new ArrayList<>();
     @Column(name = "valor_liquido_centavos")
     private Long valorLiquidoCentavos;
     @Column(name = "pago_em")
@@ -199,6 +208,9 @@ public class CobrancaAluno {
 
     /** Valor e vencimento novos de uma aberta ainda não vencida (alteração da contratação). */
     void reajustar(long valorCentavos, LocalDate vencimento) {
+        if (valorCentavos != this.valorCentavos) {
+            orfanarAsaas();
+        }
         this.valorCentavos = valorCentavos;
         this.vencimento = vencimento;
     }
@@ -206,6 +218,10 @@ public class CobrancaAluno {
     /** {@code idExterno} é a transação no provedor (única por consultoria e provedor); nulo na baixa manual. */
     void pagar(String provedor, FormaDePagamento forma, LocalDate pagoEm, UUID baixaPor, String observacao,
                String idExterno) {
+        // Baixa que não é do Asaas (manual, InfinitePay, Kiwify): a cobrança do Asaas, se houver, não pode mais ser paga.
+        if (!ProvedorAsaas.CODIGO.equals(provedor)) {
+            orfanarAsaas();
+        }
         this.situacao = Situacao.PAGA;
         this.provedor = provedor;
         this.forma = forma;
@@ -239,6 +255,7 @@ public class CobrancaAluno {
 
     /** ABERTA vira RENEGOCIADA; o motivo é texto do treinador (só a equipe vê, nunca o aluno nem o provedor). */
     void renegociar(UUID acordoId, String motivo) {
+        orfanarAsaas();
         this.situacao = Situacao.RENEGOCIADA;
         this.acordoId = acordoId;
         this.motivo = motivo;
@@ -252,6 +269,7 @@ public class CobrancaAluno {
     }
 
     void cancelar(String motivo) {
+        orfanarAsaas();
         this.situacao = Situacao.CANCELADA;
         this.motivo = motivo;
     }
@@ -284,8 +302,26 @@ public class CobrancaAluno {
         }
     }
 
+    /** Troca o id; o anterior, se for outro, fica órfão (a baixa por uma cobrança velha deixa a vigente pagável). */
     void registrarAsaasCobranca(String asaasCobrancaId) {
+        if (this.asaasCobrancaId != null && !this.asaasCobrancaId.equals(asaasCobrancaId)) {
+            asaasOrfas.add(this.asaasCobrancaId);
+        }
         this.asaasCobrancaId = asaasCobrancaId;
+    }
+
+    private void orfanarAsaas() {
+        if (asaasCobrancaId != null) {
+            asaasOrfas.add(asaasCobrancaId);
+            asaasCobrancaId = null;
+        }
+    }
+
+    /** Entrega e esvazia as órfãs pendentes (só o {@link OrfasDoAsaasNaFila}). */
+    List<String> retirarAsaasOrfas() {
+        List<String> orfas = List.copyOf(asaasOrfas);
+        asaasOrfas.clear();
+        return orfas;
     }
 
     void registrarValorLiquido(Long valorLiquidoCentavos) {

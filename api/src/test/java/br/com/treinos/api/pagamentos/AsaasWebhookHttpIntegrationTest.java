@@ -123,8 +123,6 @@ class AsaasWebhookHttpIntegrationTest extends AbstractIntegrationTest {
         m.put("conta", "12345-6");
         m.put("tipoConta", "CORRENTE");
         m.put("repasseAutomatico", true);
-        m.put("maxParcelas", 12);
-        m.put("jurosParcelamento", "ALUNO");
         if (versao != null) {
             m.put("versao", versao);
         }

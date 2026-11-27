@@ -11,6 +11,8 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Adaptador do provedor {@code ASAAS} (Overtraining Pay) que cumpre {@link ProvedorDePagamento}.
@@ -25,9 +27,9 @@ public class ProvedorAsaas implements ProvedorDePagamento {
     private static final Pattern UUID_CANONICO = Pattern.compile(
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
     private static final Pattern IDENTIFICADOR = Pattern.compile("^[A-Za-z0-9._-]{1,100}$");
-    private static final Set<String> EVENTOS = Set.of(
-            "PAYMENT_CREATED", "PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_OVERDUE",
-            "PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_DELETED");
+    /** Eventos que o aviso aceita: os assinados no webhook mais o de criação. */
+    public static final Set<String> EVENTOS = Stream.concat(Stream.of("PAYMENT_CREATED"),
+            AsaasCliente.EVENTOS_DO_WEBHOOK.stream()).collect(Collectors.toUnmodifiableSet());
 
     private final AsaasCliente cliente;
 
@@ -114,7 +116,7 @@ public class ProvedorAsaas implements ProvedorDePagamento {
         if (referencia == null || !UUID_CANONICO.matcher(referencia).matches()) {
             throw new WebhookInvalidoException();
         }
-        String eventoNormalizado = "PAYMENT_REFUNDED".equals(evento) ? EventoDeWebhook.ESTORNO
+        String eventoNormalizado = AsaasCliente.EVENTOS_DE_ESTORNO.contains(evento) ? EventoDeWebhook.ESTORNO
                 : evento.toLowerCase(Locale.ROOT);
         String idEvento = paymentId + ":" + evento;
         return new EventoDeWebhook(idEvento, UUID.fromString(referencia), paymentId, null, eventoNormalizado);
@@ -133,13 +135,15 @@ public class ProvedorAsaas implements ProvedorDePagamento {
         };
     }
 
-    private static FormaDePagamento mapearForma(String billingType) {
+    /** Meio real do {@code billingType} do Asaas; boleto é forma válida (a página UNDEFINED pode oferecê-lo); o resto é null. */
+    public static FormaDePagamento mapearForma(String billingType) {
         if (billingType == null) {
             return null;
         }
         return switch (billingType.toUpperCase(Locale.ROOT)) {
             case "PIX" -> FormaDePagamento.PIX;
             case "CREDIT_CARD" -> FormaDePagamento.CARTAO;
+            case "BOLETO" -> FormaDePagamento.BOLETO;
             default -> null;
         };
     }

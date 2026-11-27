@@ -219,7 +219,7 @@ export const FALTA_OVERTRAINING_PAY = 'Overtraining Pay: conclua a homologação
 export function previaDoAluno(
   e: EstadoDasFormas,
   infinitePay: { naInstalacao: boolean; configurada: boolean },
-  overtrainingPay?: { naInstalacao: boolean; ativa: boolean; maxParcelas?: number },
+  overtrainingPay?: { naInstalacao: boolean; ativa: boolean },
 ): PreviaDoAluno {
   const pixValendo = e.pix && corpoDasFormas(e).ok;
   const otPayAtivo = overtrainingPay?.naInstalacao === true && overtrainingPay.ativa && e.overtrainingPay;
@@ -237,10 +237,7 @@ export function previaDoAluno(
   if (overtrainingPay?.naInstalacao && e.overtrainingPay && !overtrainingPay.ativa) faltam.push(FALTA_OVERTRAINING_PAY);
   if (infinitePay.naInstalacao && e.infinitePay && !infinitePay.configurada) faltam.push(FALTA_INFINITEPAY);
   if (e.pix && !pixValendo) faltam.push(FALTA_PIX);
-  const parcelas = overtrainingPay?.maxParcelas ?? 12;
-  const resumoOvertrainingPay = otPayAtivo
-    ? (parcelas <= 1 ? 'No aplicativo: QR Code Pix imediato e Cartão à vista' : `No aplicativo: QR Code Pix imediato e Cartão em até ${parcelas}x`)
-    : null;
+  const resumoOvertrainingPay = otPayAtivo ? 'No aplicativo: Pix na hora, pelo QR Code, e cartão pela página do Asaas.' : null;
   return {
     botoes,
     ...(resumoOvertrainingPay ? { resumoOvertrainingPay } : {}),

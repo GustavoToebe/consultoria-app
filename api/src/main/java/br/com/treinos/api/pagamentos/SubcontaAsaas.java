@@ -107,13 +107,6 @@ public class SubcontaAsaas {
     @Column(name = "repasse_automatico", nullable = false)
     private boolean repasseAutomatico;
 
-    @Column(name = "max_parcelas", nullable = false)
-    private int maxParcelas;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "juros_parcelamento", nullable = false, length = 10)
-    private JurosDoParcelamento jurosParcelamento;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "situacao", nullable = false, length = 25)
     private Situacao situacao;
@@ -157,7 +150,7 @@ public class SubcontaAsaas {
                   String documentoMascarado, String nomeTitular, String emailFinanceiro, String telefoneMascarado,
                   String cep, String enderecoResumo, Long rendaMensalCentavos, String bancoCodigo, String bancoNome,
                   String agenciaMascarada, String contaMascarada, TipoConta tipoConta, boolean repasseAutomatico,
-                  int maxParcelas, JurosDoParcelamento jurosParcelamento, Situacao situacao, String onboardingUrl,
+                  Situacao situacao, String onboardingUrl,
                   Instant agora) {
         this.asaasContaId = asaasContaId;
         this.walletId = walletId;
@@ -179,8 +172,6 @@ public class SubcontaAsaas {
         this.contaMascarada = contaMascarada;
         this.tipoConta = tipoConta;
         this.repasseAutomatico = repasseAutomatico;
-        this.maxParcelas = maxParcelas;
-        this.jurosParcelamento = jurosParcelamento;
         this.situacao = situacao;
         this.onboardingUrl = onboardingUrl;
         this.criadoEm = agora;
@@ -190,8 +181,7 @@ public class SubcontaAsaas {
     void atualizarDados(TipoPessoa tipoPessoa, String documentoCifrado, String documentoMascarado, String nomeTitular,
                         String emailFinanceiro, String telefoneMascarado, String cep, String enderecoResumo,
                         Long rendaMensalCentavos, String bancoCodigo, String bancoNome, String agenciaMascarada,
-                        String contaMascarada, TipoConta tipoConta, boolean repasseAutomatico, int maxParcelas,
-                        JurosDoParcelamento jurosParcelamento, Instant agora) {
+                        String contaMascarada, TipoConta tipoConta, boolean repasseAutomatico, Instant agora) {
         this.tipoPessoa = tipoPessoa;
         if (documentoCifrado != null) {
             this.documentoCifrado = documentoCifrado;
@@ -221,8 +211,6 @@ public class SubcontaAsaas {
         }
         this.tipoConta = tipoConta;
         this.repasseAutomatico = repasseAutomatico;
-        this.maxParcelas = maxParcelas;
-        this.jurosParcelamento = jurosParcelamento;
         this.atualizadoEm = agora;
     }
 
@@ -286,8 +274,6 @@ public class SubcontaAsaas {
     public String getContaMascarada() { return contaMascarada; }
     public TipoConta getTipoConta() { return tipoConta; }
     public boolean isRepasseAutomatico() { return repasseAutomatico; }
-    public int getMaxParcelas() { return maxParcelas; }
-    public JurosDoParcelamento getJurosParcelamento() { return jurosParcelamento; }
     public Situacao getSituacao() { return situacao; }
     public String getOnboardingUrl() { return onboardingUrl; }
     public String getCobrancaTesteId() { return cobrancaTesteId; }

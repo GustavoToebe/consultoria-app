@@ -28,6 +28,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -39,6 +40,15 @@ import java.util.UUID;
 public class AsaasCliente {
 
     public static final long VALOR_MINIMO_CENTAVOS = 500L;
+
+    /** Estorno parcial e chargeback: o dinheiro pode ter voltado ao pagador. Só viram CONFERIR; nada mexe na baixa. */
+    public static final Set<String> EVENTOS_DE_ESTORNO = Set.of("PAYMENT_REFUNDED", "PAYMENT_PARTIALLY_REFUNDED",
+            "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE", "PAYMENT_AWAITING_CHARGEBACK_REVERSAL");
+
+    /** Eventos assinados no webhook da subconta (criado em {@link #configurarWebhook}). */
+    static final List<String> EVENTOS_DO_WEBHOOK = List.of("PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_OVERDUE",
+            "PAYMENT_REFUNDED", "PAYMENT_PARTIALLY_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED",
+            "PAYMENT_CHARGEBACK_DISPUTE", "PAYMENT_AWAITING_CHARGEBACK_REVERSAL", "PAYMENT_DELETED");
 
     private static final Logger log = LoggerFactory.getLogger(AsaasCliente.class);
     private static final Duration CONEXAO = Duration.ofSeconds(5);
@@ -185,12 +195,7 @@ public class AsaasCliente {
         corpo.put("authToken", authToken);
         corpo.put("sendType", "SEQUENTIALLY");
         ArrayNode eventos = corpo.putArray("events");
-        eventos.add("PAYMENT_RECEIVED");
-        eventos.add("PAYMENT_CONFIRMED");
-        eventos.add("PAYMENT_OVERDUE");
-        eventos.add("PAYMENT_REFUNDED");
-        eventos.add("PAYMENT_CHARGEBACK_REQUESTED");
-        eventos.add("PAYMENT_DELETED");
+        EVENTOS_DO_WEBHOOK.forEach(eventos::add);
         postar("/webhooks", apiKeySubconta, corpo, "configuração de webhook");
     }
 
@@ -291,6 +296,38 @@ public class AsaasCliente {
                 ? resp.path("installmentCount").intValue() : null;
         return new CobrancaConsultadaAsaas(id, status, billingType, valorCentavos, valorLiquidoCentavos,
                 externalReference, pagoEm, parcelas, texto(resp, "invoiceUrl"));
+    }
+
+    /**
+     * {@code DELETE /payments/{id}}: apaga a cobrança que ficou órfã, para ninguém pagá-la. {@code true} = apagada ou já não
+     * existe (404); {@code false} = o Asaas recusou (outro 4xx, por exemplo cobrança já paga): não adianta repetir. Falha de
+     * rede ou 5xx lança {@link ProvedorIndisponivelException}: vale tentar de novo. Corpo de resposta nunca é lido nem logado.
+     */
+    public boolean excluirCobranca(String apiKeySubconta, String paymentId) {
+        exigirForaDeTransacao();
+        HttpRequest req = HttpRequest.newBuilder(URI.create(base + "/payments/" + codificar(paymentId)))
+                .timeout(RESPOSTA)
+                .header("Accept", "application/json")
+                .header("access_token", apiKeySubconta)
+                .DELETE()
+                .build();
+        try {
+            int status = http.send(req, HttpResponse.BodyHandlers.discarding()).statusCode();
+            if ((status >= 200 && status < 300) || status == 404) {
+                return true;
+            }
+            log.warn("Asaas: exclusão de cobrança respondeu {}.", status);
+            if (status >= 500 || status == 429 || status == 408) {
+                throw new ProvedorIndisponivelException();
+            }
+            return false;
+        } catch (IOException e) {
+            log.warn("Asaas: exclusão de cobrança sem resposta ({}).", e.getClass().getSimpleName());
+            throw new ProvedorIndisponivelException();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ProvedorIndisponivelException();
+        }
     }
 
     JsonMapper json() {

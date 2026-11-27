@@ -27,7 +27,7 @@ public final class OvertrainingPayDtos {
                                           String cep, String enderecoResumo, Long rendaMensalCentavos,
                                           String bancoCodigo, String bancoNome, String agenciaMascarada,
                                           String contaMascarada, String tipoConta, boolean repasseAutomatico,
-                                          int maxParcelas, String jurosParcelamento, String onboardingUrl,
+                                          String onboardingUrl,
                                           long cobrancasLiquidadas, Instant homologadaEm,
                                           CobrancaTesteResposta cobrancaTesteAtiva, Long versao) {
         @Override
@@ -42,8 +42,8 @@ public final class OvertrainingPayDtos {
                                                String enderecoResumo,
                                                Long rendaMensalCentavos, String tipoEmpresa, LocalDate dataNascimento,
                                                String bancoCodigo, String bancoNome, String agencia, String conta,
-                                               String tipoConta, Boolean repasseAutomatico, Integer maxParcelas,
-                                               String jurosParcelamento, Boolean rotacionarWebhook, Long versao) {
+                                               String tipoConta, Boolean repasseAutomatico,
+                                               Boolean rotacionarWebhook, Long versao) {
         @Override
         public String toString() {
             return "[PROTEGIDO]";
