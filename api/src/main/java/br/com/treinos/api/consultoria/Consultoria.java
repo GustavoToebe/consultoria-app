@@ -30,8 +30,8 @@ public class Consultoria {
     /** Paletas da marca (V055); o modo escuro ou claro de cada uma é decidido no app (`tema/tokens.PALETAS`). */
     public enum Tema { ESCURO, MEIA_NOITE, AMEIXA, OCEANO, CLARO, AREIA, LAVANDA, CEU, ROSA }
 
-    /** Temas dos PDFs da consultoria (V096, lista fechada igual a `pdf/temas.ts`). */
-    public enum TemaPdf { CLASSICO, MINIMALISTA, MARCANTE }
+    /** Modelos dos PDFs da consultoria (V096, ampliada na V107; lista fechada igual a `pdf/` no app). A coluna segue {@code tema_pdf}. */
+    public enum ModeloPdf { CLASSICO, MINIMALISTA, MARCANTE, COMPACTO, ELEGANTE, ESPORTIVO }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -56,7 +56,12 @@ public class Consultoria {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tema_pdf", nullable = false)
-    private TemaPdf temaPdf = TemaPdf.CLASSICO;
+    private ModeloPdf modeloPdf = ModeloPdf.CLASSICO;
+
+    /** Só as opções sobrescritas do modelo (V107), JSON já validado por {@link OpcoesPdf}; {@code {}} = tudo do modelo. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "opcoes_pdf", nullable = false, columnDefinition = "jsonb")
+    private String opcoesPdf = "{}";
 
     /** Ciclo de atualização padrão (V009): aluno sem valor próprio usa este; nulo = sem padrão. */
     @Column(name = "dias_atualizacao_padrao")
@@ -174,12 +179,17 @@ public class Consultoria {
         return temaPadrao;
     }
 
-    public TemaPdf getTemaPdf() {
-        return temaPdf;
+    public ModeloPdf getModeloPdf() {
+        return modeloPdf;
     }
 
-    public void definirTemaPdf(TemaPdf temaPdf) {
-        this.temaPdf = temaPdf;
+    public String getOpcoesPdf() {
+        return opcoesPdf;
+    }
+
+    public void definirDocumentosPdf(ModeloPdf modelo, String opcoesValidadas) {
+        this.modeloPdf = modelo;
+        this.opcoesPdf = opcoesValidadas;
     }
 
     public Short getContratoPrazoDias() {

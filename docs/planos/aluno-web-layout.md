@@ -210,3 +210,10 @@ Não veio captura. Já segue a regra de formulário (320 + 640, decisão D6 de
 - Celular (layout de hoje fica).
 - Telas do treinador e a tela da atualização (estão em [atualizacao-pasta-e-questionarios.md](atualizacao-pasta-e-questionarios.md)).
 - Mudança de conteúdo, texto ou regra.
+
+## Decisões do Gustavo de 26/11 (rodada de respostas)
+- **Teto do aluno na web:** 1312 px, centralizado, em todas as telas do aluno, inclusive o Início. O Início pode subir para 1688 depois, se ficar vazio no monitor grande (pendência de avaliação visual; não implementada).
+- **Histórico:** abas Treinos | Corpo | Atualizações, com `?aba=` no endereço (`treinos`, `corpo`, `atualizacoes`).
+- **Dieta:** as refeições ficam sempre numa coluna só, inclusive na faixa ultralarga; o espaço extra vira margem.
+- **Exercício:** Próximo continua `secundario` (um primário por área); ver `orientacoes-de-design-26-11.md`, item 1.4.
+- **Editor do PDF:** abaixo da área mínima o editor mostra "Personalize numa tela maior" e não se mexe no layout do treinador (limitação aceita; detalhe em `documentos-pdf-motor.md`).

@@ -22,11 +22,20 @@ public final class PastaDtos {
     public record PastaRequest(@NotBlank @Size(max = 120) String titulo, LocalDate inicio, LocalDate fim) {
     }
 
+    /**
+     * {@code liberarEm}: o dia em que o aluno passa a ver o plano novo desta pasta (o menor entre os planos agendados dela);
+     * nulo = nada agendado (o selo "Agendado para dd/mm"). Só o {@code PastaService} o preenche (listar, vigente e as respostas
+     * dele); {@link #de(PastaPlano)} deixa nulo.
+     */
     public record PastaResumo(UUID id, UUID alunoId, String titulo, LocalDate inicio, LocalDate fim,
-                              Instant concluidaEm, UUID questionarioId) {
+                              Instant concluidaEm, UUID questionarioId, LocalDate liberarEm) {
         public static PastaResumo de(PastaPlano p) {
+            return de(p, null);
+        }
+
+        public static PastaResumo de(PastaPlano p, LocalDate liberarEm) {
             return new PastaResumo(p.getId(), p.getAlunoId(), p.getTitulo(), p.getInicio(), p.getFim(),
-                    p.getConcluidaEm(), p.getQuestionarioId());
+                    p.getConcluidaEm(), p.getQuestionarioId(), liberarEm);
         }
     }
 
@@ -39,12 +48,18 @@ public final class PastaDtos {
      * {@code {planoId: versao}} (a {@code versao} do lock otimista de cada plano) dos planos da pasta que a tela viu:
      * obrigatório, pode ser vazio. Plano pendente cuja versão atual difira da enviada, ou que não esteja no mapa, dá 409
      * {@code CONFLITO_EDICAO} e nada é publicado. Ids a mais no mapa são ignorados.
+     * {@code liberarEm} (dia de Brasília, de amanhã em diante) vale para todos os planos publicados agora; vazio libera na hora.
+     * {@code avisarAluno}: avisa o aluno (aviso no app e push) quando liberar; ausente = avisa.
      */
-    public record PublicarPastaRequest(boolean confirmarAvisos, @NotNull Map<UUID, @NotNull Long> versoes) {
+    public record PublicarPastaRequest(boolean confirmarAvisos, @NotNull Map<UUID, @NotNull Long> versoes,
+                                       LocalDate liberarEm, Boolean avisarAluno) {
+        public PublicarPastaRequest(boolean confirmarAvisos, Map<UUID, Long> versoes) {
+            this(confirmarAvisos, versoes, null, null);
+        }
     }
 
-    /** {@code tipo}: {@code treino}, {@code dieta} ou {@code mobilidade}. */
-    public record PlanoPublicadoNaPasta(String tipo, UUID planoId, int versao) {
+    /** {@code tipo}: {@code treino}, {@code dieta} ou {@code mobilidade}. {@code liberarEm} nulo = liberado na hora. */
+    public record PlanoPublicadoNaPasta(String tipo, UUID planoId, int versao, LocalDate liberarEm) {
     }
 
     /**

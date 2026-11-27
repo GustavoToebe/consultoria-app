@@ -36,13 +36,13 @@ describe.each(TEMAS_PDF.map((t) => t.id))('documentos de exemplo no tema %s', (t
     });
 
     it('a prévia da web leva só regras do .doc e do papel: nada global que pinte a página do app', () => {
-      const css = cssDaPrevia(doc.css).replace(/\/\*[\s\S]*?\*\//g, '');
+      const css = cssDaPrevia(doc.css, 'k1').replace(/\/\*[\s\S]*?\*\//g, '');
       const seletores = [...css.matchAll(/([^{}]+)\{[^{}]*\}/g)].flatMap(([, s]) => s.split(',').map((x) => x.trim()));
       expect(seletores.length).toBeGreaterThan(20);
-      // Toda regra presa ao papel: nenhuma pega o `.doc` do bloco de impressão, que pode estar na página com outro tema.
-      expect(seletores.filter((s) => !/^\.previa-pdf\b/.test(s))).toEqual([]);
+      // Toda regra presa a ESTA prévia: nenhuma pega o `.doc` do bloco de impressão nem o de outra prévia da página.
+      expect(seletores.filter((s) => !s.startsWith('.previa-pdf[data-previa="k1"]'))).toEqual([]);
       expect(css).not.toContain('@page');
-      expect(cssDaPrevia(doc.css)).toContain(doc.css.slice(doc.css.indexOf('.doc {')).replace(/\.doc(?![\w-])/g, '.previa-pdf .doc'));
+      expect(cssDaPrevia(doc.css, 'k1')).toContain(doc.css.slice(doc.css.indexOf('.doc {')).replace(/\.doc(?![\w-])/g, '.previa-pdf[data-previa="k1"] .doc'));
     });
 
     it('é determinístico e o documento completo carrega o CSS do tema', () => {
@@ -53,5 +53,79 @@ describe.each(TEMAS_PDF.map((t) => t.id))('documentos de exemplo no tema %s', (t
 
   it('o tema muda só o CSS do treino (o HTML é o mesmo do CLASSICO)', () => {
     expect(documentoDeExemploDeTreino(marcaDe(tema), emitidoEm).corpo).toBe(documentoDeExemploDeTreino(marcaDe('CLASSICO'), emitidoEm).corpo);
+  });
+});
+
+describe('duas prévias de modelos diferentes na mesma página (galeria)', () => {
+  /** Monta o que `PreviaDoDocumento.web.tsx` monta: papel com `data-previa`, o `<style>` da instância e o corpo pelo `montarCorpo`. */
+  function montarPrevia(chave: string, doc: { css: string; corpo: string }): HTMLElement {
+    const papel = document.createElement('div');
+    papel.className = 'previa-pdf';
+    papel.setAttribute('data-previa', chave);
+    const estilo = document.createElement('style');
+    estilo.textContent = cssDaPrevia(doc.css, chave);
+    const conteudo = document.createElement('div');
+    conteudo.className = 'doc';
+    conteudo.append(montarCorpo(doc.corpo));
+    papel.replaceChildren(estilo, conteudo);
+    return papel;
+  }
+  const seletoresDe = (css: string) =>
+    [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{[^{}]*\}/g)].flatMap(([, s]) => s.split(',').map((x) => x.trim()));
+
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it.each([
+    ['CLASSICO', 'MARCANTE'],
+    ['MINIMALISTA', 'ESPORTIVO'],
+    ['COMPACTO', 'ELEGANTE'],
+  ])('%s e %s: nenhuma regra de uma prévia alcança elemento da outra', (a, b) => {
+    const docA = documentoDeExemploDeTreino(marcaDe(a), emitidoEm);
+    const docB = documentoDeExemploDeDieta(marcaDe(b), emitidoEm);
+    const papelA = montarPrevia('modelo-a', docA);
+    const papelB = montarPrevia('modelo-b', docB);
+    document.body.append(papelA, papelB);
+    for (const [papel, doc, chave] of [[papelA, docA, 'modelo-a'], [papelB, docB, 'modelo-b']] as const) {
+      const seletores = seletoresDe(cssDaPrevia(doc.css, chave));
+      expect(seletores.length).toBeGreaterThan(20);
+      for (const seletor of seletores) {
+        for (const alvo of document.querySelectorAll(seletor)) expect(alvo.closest('[data-previa]')).toBe(papel);
+      }
+    }
+  });
+
+  it('o estilo de cada prévia vale só nela: a segunda não muda o que a primeira mostra (nem a ordem importa)', () => {
+    const docA = documentoDeExemploDeTreino(marcaDe('CLASSICO'), emitidoEm);
+    const docB = documentoDeExemploDeTreino(marcaDe('ESPORTIVO'), emitidoEm);
+    const medir = (papel: HTMLElement) =>
+      ['.doc', '.topo', 'h1', 'h2', 'th', 'td', '.faixa-marca'].map((q) => {
+        const e = papel.querySelector(q);
+        if (!e) return [q, 'sem elemento'];
+        const c = getComputedStyle(e);
+        return [q, c.fontFamily, c.fontSize, c.backgroundColor, c.color, c.borderBottomWidth, c.padding];
+      });
+    const sozinha = (chave: string, doc: { css: string; corpo: string }) => {
+      const p = montarPrevia(chave, doc);
+      document.body.replaceChildren(p);
+      return medir(p);
+    };
+    const soA = sozinha('modelo-a', docA);
+    const soB = sozinha('modelo-b', docB);
+    expect(soA).not.toEqual(soB); // os modelos se distinguem em alguma dessas propriedades
+
+    for (const ordem of [['a', 'b'], ['b', 'a']]) {
+      const papeis = { a: montarPrevia('modelo-a', docA), b: montarPrevia('modelo-b', docB) };
+      document.body.replaceChildren(...ordem.map((k) => papeis[k as 'a' | 'b']));
+      expect(medir(papeis.a)).toEqual(soA);
+      expect(medir(papeis.b)).toEqual(soB);
+    }
+  });
+
+  it('chave fora de [a-z0-9-] é recusada (nunca texto livre no seletor)', () => {
+    for (const chave of ['', 'A', 'a b', 'a"] .doc { display:none } x[y="', 'a\\', 'a]', 'a:b', 'é']) {
+      expect(() => cssDaPrevia('.doc { color: red; }', chave)).toThrow();
+    }
   });
 });

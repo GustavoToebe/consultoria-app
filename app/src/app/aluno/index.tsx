@@ -4,7 +4,6 @@ import { StyleSheet, View } from 'react-native';
 
 import { CabecalhoDoInicio } from '../../aluno/CabecalhoDoInicio';
 import { CartaoCompromissos } from '../../aluno/CartaoCompromissos';
-import { useCompromissosDoAluno } from '../../aluno/compromissos/CompromissosDoAlunoProvider';
 import { CartaoAguaDoDia } from '../../aluno/CartaoAguaDoDia';
 import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
@@ -13,6 +12,7 @@ import { MapaDeTreinos } from '../../aluno/MapaDeTreinos';
 import { NivelDoAluno } from '../../aluno/NivelDoAluno';
 import { ParaFazer } from '../../aluno/ParaFazer';
 import { ProgressoSemana } from '../../aluno/ProgressoSemana';
+import { CartaoVitrineLarga } from '../../aluno/inicio/CartaoVitrineLarga';
 import { CartaoVitrineDoInicio } from '../../aluno/vitrine/CartaoVitrineDoInicio';
 import { useVitrineDoAluno } from '../../aluno/vitrine/useVitrineDoAluno';
 import { SecaoDoInicio } from '../../aluno/SecaoDoInicio';
@@ -29,9 +29,11 @@ import { textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { duasColunasCom } from '../../dominio/grade';
-import { faixasDaTelaDoInicio, linhasDoInicio, MINIMO_DA_COLUNA_DO_INICIO, pilhasDoInicio, type PecaDoInicio } from '../../dominio/arranjoDoInicio';
-import { telaLargaDoAluno } from '../../dominio/telaLargaDoAluno';
+import { inicioLargo, inicioLargoDoAluno, linhasDoInicio, MINIMO_DA_COLUNA_DO_INICIO, type PecaDoInicio } from '../../dominio/arranjoDoInicio';
+import { VAO_DA_PRINCIPAL } from '../../dominio/arranjoPrincipalComApoio';
+import { progressoSemana } from '../../dominio/progressoSemana';
 import { espaco, LARGURA_FAIXA_NORMAL } from '../../tema/tokens';
+import { PrincipalComApoio } from '../../ui/PrincipalComApoio';
 import { useFaixaDaTela } from '../../ui/Tela';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
@@ -43,7 +45,7 @@ import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
  * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
 export default function InicioAluno() {
-  const { pacote, carregando, erroPacote, pacoteRecusado, tentarDeNovo, sessaoConcluidaDe } = useAluno();
+  const { pacote, carregando, erroPacote, pacoteRecusado, tentarDeNovo, sessaoConcluidaDe, registros } = useAluno();
   const { usuario, retornoHabilitado } = useSessao();
   const dieta = useDietaDoAluno();
   const vitrine = useVitrineDoAluno().dados;
@@ -70,9 +72,10 @@ export default function InicioAluno() {
   const andamento = useTreinoEmAndamento(treino?.versaoId ?? null, conteudo, hoje);
   const andamentoNoHoje = !!andamento && estadoHoje.tipo === 'treino' && estadoHoje.sessao.uid === andamento.sessao.uid;
 
-  const situacao = { retorno: retornoHabilitado, vitrine: !!vitrine?.length };
-  const temCompromissos = !!useCompromissosDoAluno().compromissos?.length;
-  const bloco = (peca: PecaDoInicio): ReactNode => {
+  // Web larga (`largo`): a vitrine leva o "Ver tudo" no cabeçalho do cartão e a semana ou o nível sozinho fica na metade
+  // da linha. No celular e no tablet, os blocos de sempre.
+  const temSemana = !!pacote && progressoSemana(treino, hoje, registros) !== null;
+  const bloco = (peca: PecaDoInicio, largo = false): ReactNode => {
     switch (peca) {
       case 'hoje':
         return (
@@ -92,49 +95,45 @@ export default function InicioAluno() {
       case 'compromissos': return <CartaoCompromissos />;
       case 'semana': return pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} /> : null;
       case 'nivel': return <NivelDoAluno />;
-      case 'vitrine': return <CartaoVitrineDoInicio itens={vitrine} />;
+      case 'vitrine': return largo ? <CartaoVitrineLarga itens={vitrine} /> : <CartaoVitrineDoInicio itens={vitrine} />;
       case 'mapa': return <MapaDeTreinos />;
       // Lado a lado e da mesma altura (a linha estica os dois): nenhum vão embaixo do mais curto.
       case 'semanaENivel':
         return (
-          <View style={estilos.linha}>
-            {/* Sem plano de treino a semana não aparece e o nível ocupa a linha; ele fica na mesma posição (não remonta). */}
+          <View style={[estilos.linha, largo && estilos.vaoLargo]}>
+            {/* Sem plano de treino a semana não aparece e o nível ocupa o lugar dela; ele fica na mesma posição (não remonta).
+                Na web larga o que fica sozinho continua na metade da linha (a outra metade fica vazia, nunca esticada). */}
             {pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} style={estilos.metade} /> : null}
             <NivelDoAluno style={estilos.metade} />
-          </View>
-        );
-      // Na primeira das duas faixas, na borda da semana; a segunda fica vazia (é o fim da pilha, nada vem embaixo).
-      // Sem nenhum dos dois, nada: um bloco vazio ainda abriria o vão da pilha.
-      case 'compromissosEVitrine':
-        return !temCompromissos && !vitrine?.length ? null : (
-          <View style={estilos.linhaDoFim}>
-            <View style={[estilos.metade, estilos.coluna]}>
-              <CartaoCompromissos />
-              <CartaoVitrineDoInicio itens={vitrine} />
-            </View>
-            <View style={estilos.metade} aria-hidden />
+            {largo && temSemana !== retornoHabilitado ? <View style={estilos.metade} aria-hidden /> : null}
           </View>
         );
     }
   };
-  const pecas = (lista: readonly PecaDoInicio[]) => lista.map((p) => <Fragment key={p}>{bloco(p)}</Fragment>);
+  const pecas = (lista: readonly PecaDoInicio[], largo = false) => lista.map((p) => <Fragment key={p}>{bloco(p, largo)}</Fragment>);
+  const largo = inicioLargoDoAluno({ retorno: retornoHabilitado, vitrine: !!vitrine?.length });
 
   return (
-    <TelaDoAluno bordas={['top']} faixas={faixasDaTelaDoInicio(situacao)}>
+    <TelaDoAluno bordas={['top']}>
       <CabecalhoDoInicio nome={nome} hoje={hoje} />
       {/* Treino começado e não concluído que não é o do Hoje: antes de tudo, para voltar a ele num toque. */}
       {andamento && !andamentoNoHoje ? <FaixaTreinoEmAndamento andamento={andamento} hoje={hoje} /> : null}
       <CorpoDoInicio
-        // Tela larga (revisão 2, 24/11): Hoje primeiro e pilhas independentes, sem nada embaixo de todas (`arranjoDoInicio`).
+        // Web larga (26/11, `inicioLargoDoAluno`): no topo, o dia (Hoje, Dieta, compromissos) e, ao lado, as pendências e a
+        // Água; embaixo, linhas na largura toda (semana e nível, o mapa, a vitrine por último).
         largo={(
-          <View style={estilos.pilhas}>
-            {pilhasDoInicio(situacao).map((pilha, i) => (
-              // A chave é a posição: a pilha nunca remonta quando o que ela mostra muda.
-              <View key={i} style={[estilos.coluna, { flex: pilha.faixas, minWidth: 0 }]}>{pecas(pilha.pecas)}</View>
-            ))}
+          <View style={estilos.blocos}>
+            <PrincipalComApoio
+              testID="inicio-principal"
+              idDoApoio="inicio-apoio"
+              rotuloDoApoio="Pendências e água de hoje"
+              principal={pecas(largo.principal, true)}
+              apoio={pecas(largo.apoio, true)}
+            />
+            {pecas(largo.linhas, true)}
           </View>
         )}
-        // Celular, tablet e PC até a faixa `normal` (24/11): o Hoje também primeiro, em uma ou duas colunas (`linhasDoInicio`).
+        // Celular e tablet (24/11): o Hoje também primeiro, em uma ou duas colunas (`linhasDoInicio`).
         comum={(duasColunas) => (
           <View style={estilos.coluna}>
             {linhasDoInicio({ retorno: retornoHabilitado, duasColunas }).map((linha, i) => (linha.length === 1 ? (
@@ -152,17 +151,17 @@ export default function InicioAluno() {
 }
 
 /**
- * Escolhe o arranjo pela faixa que a `Tela` mede (a da área ao lado do menu, 4.10): o largo da `larga` em diante. Antes de a
- * `Tela` medir, a faixa é `compacta`; montar o arranjo do celular e trocar pelo largo um instante depois remontava o nível e
- * o mapa, que liam a API de novo. Por isso nada é montado enquanto a faixa não bate com a largura do próprio corpo (que
- * nunca passa da área): corpo de `LARGURA_FAIXA_NORMAL` ou mais com a faixa ainda `compacta` = a `Tela` não mediu.
+ * Escolhe o arranjo pela largura do próprio corpo (`inicioLargo`, da área de 952 em diante). Antes de a `Tela` medir, a
+ * faixa é `compacta`; montar um arranjo e trocar por outro um instante depois remontava o nível e o mapa, que liam a API de
+ * novo. Por isso nada é montado enquanto a faixa não bate com a largura do próprio corpo (que nunca passa da área): corpo
+ * de `LARGURA_FAIXA_NORMAL` ou mais com a faixa ainda `compacta` = a `Tela` não mediu.
  */
 function CorpoDoInicio({ largo, comum }: { largo: ReactNode; comum: (duasColunas: boolean) => ReactNode }) {
   const faixa = useFaixaDaTela();
   const { largura, aoMedir } = useFaixaDeLargura();
   const medido = largura > 0 && !(faixa === 'compacta' && largura >= LARGURA_FAIXA_NORMAL);
   const duasColunas = duasColunasCom(MINIMO_DA_COLUNA_DO_INICIO, espaco(2))(largura) === 2;
-  return <View onLayout={aoMedir}>{medido ? (telaLargaDoAluno(faixa) ? largo : comum(duasColunas)) : null}</View>;
+  return <View onLayout={aoMedir}>{medido ? (inicioLargo(largura) ? largo : comum(duasColunas)) : null}</View>;
 }
 
 const estilos = StyleSheet.create({
@@ -170,8 +169,10 @@ const estilos = StyleSheet.create({
   // Pilhas lado a lado, cada uma do tamanho do que tem: a sobra fica só no fim da mais curta.
   pilhas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
   linha: { flexDirection: 'row', gap: espaco(2) },
-  linhaDoFim: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
   metade: { flex: 1, minWidth: 0 },
+  // Web larga: 24 entre os blocos, como dentro da `PrincipalComApoio`; semana e nível com o vão dela entre as colunas (32).
+  blocos: { gap: espaco(3) },
+  vaoLargo: { gap: VAO_DA_PRINCIPAL },
 });
 
 /** Título "Hoje" e o cartão do dia. "Escolher treino" abre a aba Treino, onde estão as divisões. */

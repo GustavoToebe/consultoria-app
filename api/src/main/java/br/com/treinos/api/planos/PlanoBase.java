@@ -37,7 +37,8 @@ public abstract class PlanoBase {
     private String titulo;
     @Column(nullable = false) private boolean arquivado;
     public boolean isArquivado() { return arquivado; }
-    public void arquivar() { this.arquivado = true; this.ativo = false; }
+    /** Arquivado nunca é liberado: o agendamento morre com ele. */
+    public void arquivar() { this.arquivado = true; this.ativo = false; this.liberarEm = null; }
 
 
     private LocalDate inicio;
@@ -78,6 +79,18 @@ public abstract class PlanoBase {
 
     @Column(name = "publicado_em")
     private Instant publicadoEm;
+
+    /** Versão que o ALUNO vê (0 = nenhuma ainda); nunca passa de {@code versaoPublicada} (CHECK da V106). */
+    @Column(name = "versao_liberada", nullable = false)
+    private int versaoLiberada;
+
+    /** Dia (Brasília) em que a versão publicada passa a valer para o aluno; nulo = nada agendado. */
+    @Column(name = "liberar_em")
+    private LocalDate liberarEm;
+
+    /** A escolha "Avisar o aluno" da publicação, para a rotina que libera. */
+    @Column(name = "avisar_na_liberacao", nullable = false)
+    private boolean avisarNaLiberacao = true;
 
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
@@ -122,11 +135,41 @@ public abstract class PlanoBase {
         this.rascunhoAlteradoEm = Instant.now();
     }
 
-    /** Publicou a versão {@code numero}: este passa a ser o plano vigente do aluno. */
+    /** Publicou a versão {@code numero} sem data: este passa a ser o plano vigente do aluno, na hora. */
     public void publicar(int numero, Instant quando) {
         this.versaoPublicada = numero;
         this.publicadoEm = quando;
+        this.versaoLiberada = numero;
+        this.liberarEm = null;
         this.ativo = true;
+    }
+
+    /**
+     * Publicou a versão {@code numero} com data: ela existe, mas o aluno segue na versão (ou no plano) anterior até
+     * {@link #liberarVersaoPublicada}. {@code ativo} e {@code versaoLiberada} não mudam. Substitui um agendamento anterior.
+     */
+    public void agendar(int numero, Instant quando, LocalDate liberarEm, boolean avisar) {
+        this.versaoPublicada = numero;
+        this.publicadoEm = quando;
+        this.liberarEm = liberarEm;
+        this.avisarNaLiberacao = avisar;
+    }
+
+    /** Muda o dia de um agendamento existente (quem chama já conferiu que há um). */
+    public void alterarLiberarEm(LocalDate liberarEm) {
+        this.liberarEm = liberarEm;
+    }
+
+    /** O aluno passa a ver a última versão publicada e este plano passa a ser o vigente (quem chama desativa os outros antes). */
+    public void liberarVersaoPublicada() {
+        this.versaoLiberada = this.versaoPublicada;
+        this.liberarEm = null;
+        this.ativo = true;
+    }
+
+    /** Há versão publicada esperando a data de liberação. */
+    public boolean isAgendado() {
+        return liberarEm != null;
     }
 
     /** Rascunho mudou depois da última publicação (o app mostra "Alterado desde a publicação"). */
@@ -180,6 +223,18 @@ public abstract class PlanoBase {
 
     public Instant getPublicadoEm() {
         return publicadoEm;
+    }
+
+    public int getVersaoLiberada() {
+        return versaoLiberada;
+    }
+
+    public LocalDate getLiberarEm() {
+        return liberarEm;
+    }
+
+    public boolean isAvisarNaLiberacao() {
+        return avisarNaLiberacao;
     }
 
     public Instant getCriadoEm() {

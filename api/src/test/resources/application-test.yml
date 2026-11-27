@@ -116,6 +116,10 @@ treinos:
     # A geração diária das mensalidades também: os testes chamam RotinaDeGeracaoDeCobrancas.rodar à mão.
     geracao:
       agendada: false
+  # A rotina das 00:05 que libera os planos agendados também: os testes chamam RotinaDeLiberacaoDePlanos.rodarNa à mão.
+  planos:
+    liberacao:
+      agendada: false
   # A suíte cria treinadores pelo cadastro público; o modo fechado (o de produção) tem a sua classe.
   cadastro:
     aberto: true

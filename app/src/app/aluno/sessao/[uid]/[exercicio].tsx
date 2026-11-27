@@ -4,10 +4,11 @@ import { DescansoManual } from '../../../../aluno/DescansoManual';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, List } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { ExercicioAluno } from '../../../../aluno/ExercicioAluno';
+import { colunaDasSeriesNoBloco, exercicioEmColunas, FOLGA_NO_FIM_DA_ROLAGEM, LARGURA_DA_COLUNA_DO_EXERCICIO } from '../../../../aluno/exercicio/colunasDoExercicio';
 import { BarraDescanso } from '../../../../aluno/BarraDescanso';
 import { TopoDoExercicio } from '../../../../aluno/TopoDoExercicio';
 import { HistoricoDoExercicio } from '../../../../aluno/HistoricoDoExercicio';
@@ -17,12 +18,14 @@ import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { useAluno } from '../../../../offline/AlunoProvider';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
+import { VAO_DA_PRINCIPAL } from '../../../../dominio/arranjoPrincipalComApoio';
 import { posicaoNoGrupo } from '../../../../dominio/combinacoes';
 import { contagemDeSeries, podeConcluirEm } from '../../../../dominio/conclusaoDoTreino';
 import { concluirEmDestaque } from '../../../../dominio/destaqueDaConclusao';
 import { dataCurta } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { indiceDaSerieAtiva, progressoDosExercicios, topoDoExercicio } from '../../../../dominio/telaDoExercicio';
+import { TETO_DA_TELA_DO_ALUNO } from '../../../../dominio/telaLargaDoAluno';
 import { vezNoGrupo } from '../../../../dominio/vezNoGrupo';
 import { espaco, fontes } from '../../../../tema/tokens';
 import { Botao } from '../../../../ui/Botao';
@@ -59,10 +62,30 @@ export default function ExercicioDaSessao() {
   // "Trocar só hoje" ainda sem série marcada: só na tela (decisão do plano), presa a este exercício e data.
   const [escolha, setEscolha] = useState<{ chave: string; exercicioId: string | null } | null>(null);
   const chaveDaEscolha = `${exercicioUid ?? ''}|${data}`;
+  // Web larga (`docs/planos/aluno-web-layout.md`, seção 4): duas colunas quando a área do conteúdo comporta (`exercicioEmColunas`).
+  const [area, setArea] = useState<number | null>(null);
+  const emColunas = exercicioEmColunas(area);
+  // A barra de rolagem da página desloca o bloco do conteúdo em relação à janela: o topo e a barra de baixo se alinham ao
+  // bloco MEDIDO (posição a partir da borda da rota), não a uma conta pela janela.
+  const raiz = useRef<View>(null);
+  const blocoMedido = useRef<View>(null);
+  const [bloco, setBloco] = useState<{ esquerda: number; largura: number } | null>(null);
+  const medirBloco = () => {
+    blocoMedido.current?.measureInWindow((x, _y, largura) => {
+      raiz.current?.measureInWindow((xDaRaiz) => {
+        const esquerda = Math.round(x - xDaRaiz);
+        setBloco((antes) => (antes && antes.esquerda === esquerda && antes.largura === largura ? antes : { esquerda, largura }));
+      });
+    });
+  };
+  // As barras desta rota (topo e rodapé) ficam fora da rolagem: a coluna do exercício só pode ter a altura da área que rola
+  // (medida), menos o que a rolagem põe embaixo dela no fim (`FOLGA_NO_FIM_DA_ROLAGEM`).
+  const janela = useWindowDimensions();
+  const [alturaDaRolagem, setAlturaDaRolagem] = useState<number | null>(null);
 
   if (!dia.carregado) {
     return (
-      <Tela bordas={['top']} largura={1120}>
+      <Tela bordas={['top']} largura={TETO_DA_TELA_DO_ALUNO}>
         <Cabecalho titulo="Exercício" voltar={voltar} />
         <Esqueleto />
       </Tela>
@@ -72,7 +95,7 @@ export default function ExercicioDaSessao() {
   const principal = sessao && posicao >= 0 ? sessao.exercicios[posicao] : undefined;
   if (!dia.treino || !sessao || !principal) {
     return (
-      <Tela bordas={['top']} largura={1120}>
+      <Tela bordas={['top']} largura={TETO_DA_TELA_DO_ALUNO}>
         <Cabecalho titulo="Exercício" voltar="/aluno/treino" />
         <Vazio texto="Este exercício não está mais no seu plano. Volte para ver o treino atual."
           acao={{ rotulo: 'Ver meu treino', aoTocar: () => router.replace('/aluno/treino') }} />
@@ -136,13 +159,30 @@ export default function ExercicioDaSessao() {
       aoTocar={() => ir(proximo.uid)}
     />
   ) : null;
+  const botaoDoAnterior = anterior ? (
+    <Botao rotulo="Anterior" rotuloAcessivel={`Anterior: ${nomeDe(anterior)}`} Icone={ArrowLeft} tipo="secundario" aoTocar={() => ir(anterior.uid)} />
+  ) : null;
+  // Web larga: a barra fixa fica na largura da coluna das séries, com o Anterior à esquerda e o Próximo à direita.
+  const colunaNoBloco = bloco ? colunaDasSeriesNoBloco(bloco.largura) : null;
+  const colunaDaBarra = emColunas && bloco && colunaNoBloco ? { esquerda: bloco.esquerda + colunaNoBloco.esquerda, largura: colunaNoBloco.largura } : null;
+  const conteudoDaBarra = emColunas
+    ? botaoDoProximo || botaoDoAnterior
+      ? (
+        // Até o bloco ser medido, a conta pelo teto (sem descontar a barra de rolagem).
+        <View style={colunaDaBarra ? estilos.barraEmColunas : [estilos.barra, estilos.barraEmColunas, estilos.barraPeloTeto]}>
+          {botaoDoAnterior}
+          <View style={estilos.proximoEmColunas}>{botaoDoProximo}</View>
+        </View>
+      )
+      : null
+    : botaoDoProximo
+      ? <View style={estilos.barra}>{botaoDoProximo}</View>
+      : null;
 
-  return (
-    <View style={estilos.raiz}>
-    <AlvoDoVidro ref={alvoDoVidro} style={estilos.raiz}>
-    <TopoDoExercicio titulo={topo.titulo} posicao={topo.posicao} voltar={voltar} progresso={progresso} atual={posicao}
-      versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={dia.hoje} />
-    <Tela bordas={[]} largura={1120}>
+  // Nome (o h1), troca do dia e grupo; e o fim (concluir, Anterior e Lista do dia, nota do salvamento). No celular ficam
+  // onde sempre estiveram; na web larga, o nome vai para a coluna do exercício e o fim para a coluna das séries.
+  const cabecalho = (
+    <>
       <View style={estilos.nome}>
         <View style={estilos.nomeTexto}>
           <Texto variante="titulo" nivel={1} numberOfLines={2}>{e.nome}</Texto>
@@ -168,28 +208,10 @@ export default function ExercicioDaSessao() {
           </View>
         </Cartao>
       ) : null}
-      <ExercicioAluno
-        acaoDescanso={<DescansoManual sugeridoSegundos={descansoDoPlano} />}
-        acaoHistorico={<HistoricoDoExercicio exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />}
-        key={`${e.uid}|${data}|${e.exercicioId ?? ''}`}
-        exercicio={e}
-        data={data}
-        cargaDoDia={dia.cargaDoDia(e)}
-        ultima={dia.ultimaCarga(e.exercicioId)}
-        registroDe={dia.registroDe}
-        rascunhoDe={(serieUid) => dia.rascunhoDe(e, serieUid)}
-        salvarRascunho={(serieUid, mudanca) => dia.salvarRascunho(e, serieUid, mudanca)}
-        config={dia.config}
-        aoMudarCargaDoDia={(c) => dia.salvarCargaDoDia(e, c)}
-        aoRegistrar={registrarSerie}
-        recordes={dia.recordesDe(e)}
-        ultimaVez={dia.ultimaVezDe(e)}
-        aoIniciarPausa={iniciarDescanso}
-        aoCancelarPausa={cancelarDescansoDe}
-        chaveDaExecucao={dia.chaveDaExecucao}
-        descansoNaSerie={!noGrupo || noGrupo.descansoPorSerie}
-        demonstracao={demonstracao}
-      />
+    </>
+  );
+  const fim = (
+    <>
       <View style={estilos.fim}>
         {!proximo || emDestaque ? (
           <>
@@ -203,18 +225,52 @@ export default function ExercicioDaSessao() {
           </>
         ) : null}
         <LinhaDeAcoes alinhar="entre">
-          {anterior ? (
-            <Botao rotulo="Anterior" rotuloAcessivel={`Anterior: ${nomeDe(anterior)}`} Icone={ArrowLeft} tipo="secundario" aoTocar={() => ir(anterior.uid)} />
-          ) : (
-            <View />
-          )}
+          {(emColunas ? null : botaoDoAnterior) ?? <View />}
           {proximo || retornoHabilitado ? <Botao rotulo="Lista do dia" Icone={List} tipo="secundario" aoTocar={() => router.replace(voltar)} /> : null}
         </LinhaDeAcoes>
       </View>
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet. O que você digita também fica guardado no aparelho.</Texto>
+    </>
+  );
+
+  return (
+    <View ref={raiz} style={estilos.raiz} onLayout={medirBloco}>
+    <AlvoDoVidro ref={alvoDoVidro} style={estilos.raiz}>
+    <TopoDoExercicio titulo={topo.titulo} posicao={topo.posicao} voltar={voltar} progresso={progresso} atual={posicao}
+      versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={dia.hoje} bloco={emColunas ? bloco : null} />
+    <View style={estilos.raiz} onLayout={(ev) => setAlturaDaRolagem(ev.nativeEvent.layout.height)}>
+    <Tela bordas={[]} largura={TETO_DA_TELA_DO_ALUNO}>
+      <View ref={blocoMedido} style={estilos.conteudo} onLayout={(ev) => { setArea(ev.nativeEvent.layout.width); medirBloco(); }}>
+        {emColunas ? null : cabecalho}
+        <ExercicioAluno
+          acaoDescanso={<DescansoManual sugeridoSegundos={descansoDoPlano} />}
+          acaoHistorico={<HistoricoDoExercicio exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />}
+          key={`${e.uid}|${data}|${e.exercicioId ?? ''}`}
+          exercicio={e}
+          data={data}
+          cargaDoDia={dia.cargaDoDia(e)}
+          ultima={dia.ultimaCarga(e.exercicioId)}
+          registroDe={dia.registroDe}
+          rascunhoDe={(serieUid) => dia.rascunhoDe(e, serieUid)}
+          salvarRascunho={(serieUid, mudanca) => dia.salvarRascunho(e, serieUid, mudanca)}
+          config={dia.config}
+          aoMudarCargaDoDia={(c) => dia.salvarCargaDoDia(e, c)}
+          aoRegistrar={registrarSerie}
+          recordes={dia.recordesDe(e)}
+          ultimaVez={dia.ultimaVezDe(e)}
+          aoIniciarPausa={iniciarDescanso}
+          aoCancelarPausa={cancelarDescansoDe}
+          chaveDaExecucao={dia.chaveDaExecucao}
+          descansoNaSerie={!noGrupo || noGrupo.descansoPorSerie}
+          demonstracao={demonstracao}
+          emColunas={emColunas ? { topo: cabecalho, fim, alturaForaDaRolagem: alturaDaRolagem === null ? 0 : Math.max(0, janela.height - alturaDaRolagem) + FOLGA_NO_FIM_DA_ROLAGEM } : undefined}
+        />
+        {emColunas ? null : fim}
+      </View>
     </Tela>
-    {/* Fixa embaixo, fora da rolagem: o descanso (azul) quando conta, senão o "Próximo". */}
-    <BarraDescanso proximo={botaoDoProximo ? <View style={estilos.barra}>{botaoDoProximo}</View> : null} />
+    </View>
+    {/* Fixa embaixo, fora da rolagem: o descanso (azul) quando conta, senão o "Próximo" (na web larga, na coluna das séries). */}
+    <BarraDescanso proximo={conteudoDaBarra} coluna={colunaDaBarra} />
     </AlvoDoVidro>
     <AvisoDeRecorde aviso={aviso} aoFechar={fecharAviso} alvo={alvoDoVidro} />
     </View>
@@ -226,7 +282,11 @@ const estilos = StyleSheet.create({
   fim: { marginTop: espaco(1), gap: espaco(1) },
   nome: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), marginBottom: -espaco(1) },
   nomeTexto: { flex: 1, minWidth: 0, gap: espaco(0.5) },
-  barra: { width: '100%', maxWidth: 1120, alignSelf: 'center' },
+  conteudo: { gap: espaco(3) },
+  barra: { width: '100%', maxWidth: TETO_DA_TELA_DO_ALUNO, alignSelf: 'center' },
+  barraEmColunas: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  barraPeloTeto: { paddingLeft: LARGURA_DA_COLUNA_DO_EXERCICIO + VAO_DA_PRINCIPAL },
+  proximoEmColunas: { flex: 1, minWidth: 0 },
   faixa: { fontFamily: fontes.semi },
   textosDoGrupo: { flex: 1, gap: espaco(0.5) },
   linhaGrupo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },

@@ -45,6 +45,7 @@ public class QuestionarioService {
     private final AtualizacaoModeloRepository fabrica;
     private final AlunoRepository alunos;
     private final br.com.treinos.api.alunos.AlunoService alunoService;
+    private final br.com.treinos.api.pastas.PastaService pastaService;
     private final PastaRepository pastas;
     private final ValidadorQuestionario validador;
     private final JsonMapper json;
@@ -54,7 +55,9 @@ public class QuestionarioService {
     public QuestionarioService(QuestionarioRepository questionarios, QuestionarioVersaoRepository versoes,
                                AtualizacaoModeloRepository fabrica, AlunoRepository alunos, PastaRepository pastas,
                                ValidadorQuestionario validador, JsonMapper json, Auditoria auditoria,
-                               QuestionarioImagemService imagens, br.com.treinos.api.alunos.AlunoService alunoService) {
+                               QuestionarioImagemService imagens, br.com.treinos.api.alunos.AlunoService alunoService,
+                               br.com.treinos.api.pastas.PastaService pastaService) {
+        this.pastaService = pastaService;
         this.alunoService = alunoService;
         this.auditoria = auditoria;
         this.imagens = imagens;
@@ -310,7 +313,10 @@ public class QuestionarioService {
         var pasta = pastas.findById(pastaId).orElseThrow(() -> new NaoEncontradoException("Pasta não encontrada."));
         exigirEscolhivel(questionarioId);
         pasta.alterarQuestionario(questionarioId);
-        return PastaResumo.de(pastas.saveAndFlush(pasta));
+        var salva = pastas.saveAndFlush(pasta);
+        // O mesmo resumo da lista de pastas, com o "liberarEm" (menor data agendada entre os planos da pasta); arquivada não consta da lista.
+        return pastaService.listar(salva.getAlunoId()).stream().filter(r -> r.id().equals(salva.getId())).findFirst()
+                .orElseGet(() -> PastaResumo.de(salva));
     }
 
     // ---------------------------------------------------------------- apoio
@@ -471,7 +477,8 @@ public class QuestionarioService {
         return new Pergunta(p.id(), p.tipo(), p.rotulo(), Boolean.TRUE.equals(p.obrigatoria()), p.ajuda(),
                 p.destaque(), p.rotuloCurto(), p.ajudaAutomatica(), p.dias(), p.opcoes(), p.unidade(), p.min(),
                 p.max(), p.casas(), p.imagemId(), p.somentePassado(), p.linhas(), p.colunas(), p.texto(),
-                p.declaracao(), p.mostrarSe(), p.destino(), p.destinoData(), p.rotuloMin(), p.rotuloMax(), p.lugares());
+                p.declaracao(), p.mostrarSe(), p.destino(), p.destinoData(), p.rotuloMin(), p.rotuloMax(), p.lugares(),
+                p.fonte(), p.motivo(), p.rotuloMotivo());
     }
 
     private ConteudoQuestionario ler(String conteudo) {

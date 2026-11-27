@@ -29,6 +29,7 @@ export const ROTULO_DO_TIPO: Record<TipoPergunta, string> = {
   ENDERECO: 'Endereço',
   ACEITE: 'Aceite de regras',
   INFORMATIVO: 'Texto ou imagem (sem resposta)',
+  ITENS_DO_PLANO: 'Itens do plano do aluno',
 };
 
 /** Tipos do menu "Adicionar pergunta". PESO e DATA_AUTOMATICA são únicos; FOTOS vai até `perguntasFotos` por questionário. */
@@ -51,14 +52,18 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
   { tipo: 'PESO', descricao: 'O peso informado. Na atualização, vai para o registro de peso do aluno. Só uma por questionário.' },
   { tipo: 'DATA_AUTOMATICA', descricao: 'Mostra a data da atualização. Só uma por questionário.', soAtualizacao: true },
   { tipo: 'FOTOS', descricao: 'O aluno anexa de 1 a 6 fotos (você escolhe quantas). Só aparece para o aluno quando o envio de fotos está ligado no servidor.' },
+  { tipo: 'ITENS_DO_PLANO', descricao: 'O aluno escolhe, numa lista do plano dele (alimentos da dieta, exercícios do treino ou dias treinados), com um motivo opcional ou obrigatório.', soAtualizacao: true },
 ];
 
 /**
  * Os tipos que valem para a finalidade (a anamnese não tem data da atualização; o endereço só existe na anamnese; a
  * inscrição fica sem os de `TIPOS_FORA_DA_INSCRICAO`, D5).
  */
+// shortcut: `ITENS_DO_PLANO` fica fora do menu até existir a UI do aluno para respondê-lo (escopo congelado em 26/11,
+// próximo lote); a API e as regras já aceitam o tipo. Reativar: esvaziar `OCULTOS_NO_MENU`.
+const OCULTOS_NO_MENU: readonly TipoPergunta[] = ['ITENS_DO_PLANO'];
 export const tiposParaAdicionar = (finalidade: FinalidadeQuestionario) =>
-  TIPOS_PARA_ADICIONAR.filter((t) => (finalidade === 'ATUALIZACAO' || !t.soAtualizacao) && (finalidade === 'ANAMNESE' || !t.soAnamnese)
+  TIPOS_PARA_ADICIONAR.filter((t) => !OCULTOS_NO_MENU.includes(t.tipo) && (finalidade === 'ATUALIZACAO' || !t.soAtualizacao) && (finalidade === 'ANAMNESE' || !t.soAnamnese)
     && (finalidade !== 'INSCRICAO' || !TIPOS_FORA_DA_INSCRICAO.includes(t.tipo)));
 
 /** A página pública de inscrição não mostra imagem (D6); atualização e anamnese aceitam na pergunta e na opção. */
@@ -72,7 +77,7 @@ const GRUPOS_DE_TIPOS: readonly { rotulo: string; tipos: readonly TipoPergunta[]
   { rotulo: 'Escolha', tipos: ['SIM_NAO', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'GRADE'] },
   { rotulo: 'Texto', tipos: ['TEXTO', 'TEXTO_LONGO', 'TELEFONE', 'EMAIL', 'ENDERECO'] },
   { rotulo: 'Número e data', tipos: ['NOTA', 'NOTAS_POR_DIA', 'NUMERO', 'PESO', 'DATA', 'DATA_AUTOMATICA'] },
-  { rotulo: 'Especiais', tipos: ['FOTOS', 'ACEITE', 'INFORMATIVO'] },
+  { rotulo: 'Especiais', tipos: ['FOTOS', 'ITENS_DO_PLANO', 'ACEITE', 'INFORMATIVO'] },
 ];
 
 /** Tipos da finalidade em grupos, na ordem dos grupos; grupo vazio some. */
@@ -107,6 +112,7 @@ export function novaPergunta(tipo: TipoPergunta): PerguntaAtualizacao {
   if (tipo === 'GRADE') return { ...base, linhas: [novaOpcao()], colunas: [novaOpcao(), novaOpcao()] };
   if (tipo === 'ACEITE') return { ...base, obrigatoria: true, texto: '', declaracao: 'Li e concordo com as regras acima.' };
   if (tipo === 'INFORMATIVO') return { ...base, texto: '' };
+  if (tipo === 'ITENS_DO_PLANO') return { ...base, fonte: 'ALIMENTOS_DA_DIETA' };
   return base;
 }
 
@@ -156,6 +162,8 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
         const destacada = aceitaDestaque(p.tipo) && p.destaque === true;
         const numerico = p.tipo === 'NUMERO';
         const nota = p.tipo === 'NOTA';
+        const itens = p.tipo === 'ITENS_DO_PLANO';
+        const pedeMotivo = itens && (p.motivo === 'OPCIONAL' || p.motivo === 'OBRIGATORIO');
         const lugares = p.tipo === 'FOTOS' && p.lugares && p.lugares.length > 0 ? p.lugares : undefined;
         const destino = p.destino != null && temEfeitoNoCadastro(p.destino) && destinosPossiveis(p.tipo, finalidade).includes(p.destino) ? p.destino : undefined;
         return {
@@ -172,7 +180,11 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
           unidade: numerico ? texto(p.unidade) : undefined,
           min: numerico || nota ? p.min : undefined,
           // Com lugares, o `max` acompanha: é um por lugar (a API só confere que os lugares cabem nele).
-          max: p.tipo === 'FOTOS' ? (lugares?.length ?? p.max) : numerico || nota ? p.max : undefined,
+          max: p.tipo === 'FOTOS' ? (lugares?.length ?? p.max) : numerico || nota || itens ? p.max : undefined,
+          fonte: itens ? p.fonte : undefined,
+          // NENHUM é o mesmo que ausente: só o motivo pedido vai no JSON, com a pergunta dele (vazia = "Motivo" no app).
+          motivo: pedeMotivo ? p.motivo : undefined,
+          rotuloMotivo: pedeMotivo ? texto(p.rotuloMotivo) : undefined,
           casas: numerico ? p.casas : undefined,
           rotuloMin: nota ? texto(p.rotuloMin) : undefined,
           rotuloMax: nota ? texto(p.rotuloMax) : undefined,

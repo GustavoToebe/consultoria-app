@@ -16,7 +16,7 @@ Pôr o aviso de cobrança e de compromisso pelo WhatsApp oficial para rodar, **t
 | R4 | Onde é o primeiro teste em produção | Numa **consultoria de teste**, com o número do Gustavo, **nunca** na do Saraiva. A consultoria do Saraiva só é conectada depois do teste aprovado | Gustavo (pedido da rodada de 27/11/2026) |
 | R5 | Ordem na VPS | Chaves → variáveis **junto com** `TREINOS_WHATSAPP_HABILITADO=true` → recriar a API → webhook → conexão e modelos da consultoria **de teste** → teste → só então a consultoria do Saraiva (ver Partes 4 a 6: o webhook só responde com a chave ligada) | Claude (a partir do código e de `deploy/`), a confirmar pelo Gustavo |
 | R6 | Lembrete de cobrança avulsa pelo WhatsApp | **Fora do piloto**; hoje só a mensalidade. Reabrir depois do piloto | Gustavo, pedido de 26/11/2026 |
-| R7 | Aviso de compromisso (mudança no código, definida e **em implementação pelo coordenador**; coluna `ocorrencia`, migration V109 provisória) | Cada fato vira uma linha **nova** na fila. O mesmo fato repetido em até 10 minutos depois de a mensagem do mesmo tipo sair (mesmo aluno, mesmo compromisso) **não reenvia**; fato igual ainda pendente vira uma mensagem só. Reabrir um compromisso cancelado manda "marcado" de novo. O histórico da exportação LGPD passa a ter uma linha por mensagem | Gustavo (definido pelo coordenador) |
+| R7 | Aviso de compromisso (mudança no código, definida e **em implementação pelo coordenador**; coluna `ocorrencia`, migration V108) | Cada fato vira uma linha **nova** na fila. O mesmo fato repetido em até 10 minutos depois de a mensagem do mesmo tipo sair (mesmo aluno, mesmo compromisso) **não reenvia**; fato igual ainda pendente vira uma mensagem só. Reabrir um compromisso cancelado manda "marcado" de novo. O histórico da exportação LGPD passa a ter uma linha por mensagem | Gustavo (definido pelo coordenador) |
 
 ## Como ficam as peças (em linguagem simples)
 - **A chave da plataforma** (`TREINOS_WHATSAPP_HABILITADO=true`, na VPS) liga o recurso no servidor, **para todas as consultorias**. Sozinha ela não faz ninguém receber nada.
@@ -125,7 +125,7 @@ Lidas em `C:\Users\gusta\Documents\central\central-api-back\deploy\` (no reposit
 - **Cada segredo é diferente:** o README §4 manda nunca reaproveitar o mesmo segredo em dois lugares.
 - **Recriar a API para ler o `.env` novo:** `deploy/recriar.sh consultoria api` (cabeçalho do script: "para ele ler de novo o .env alterado na VPS (chave nova, variável ligada)"). Recria só o `consultoria-api` com a **mesma release** (`releases/consultoria/atual.env`), com `--no-deps --force-recreate --wait --wait-timeout 180`, espera a API ficar saudável e **não altera os registros de release**. **Não use `atualizar.sh` com o mesmo commit no lugar** (ele grava o estado atual como "anterior" e o `rollback.sh` perderia o alvo). Pega uma trava de deploy (só um por vez; espera até 30 min), recusa rodar com o projeto antigo `ecossistema` no ar e registra a saída em `/opt/ecossistema/logs/deploy.log`.
 - **Snapshot antes:** as etapas de VPS de `deploy/README.md` §11 e §12 pedem "snapshot antes"; faça o mesmo aqui.
-- **Publicar código novo é outro caminho:** o deploy de uma versão nova da API (por exemplo, a mudança do aviso de compromisso, com a migration V109 provisória) é o do CI na `main`; à mão, só `atualizar.sh consultoria api <sha12>` com uma imagem já publicada (README §5). `rollback.sh` **recusa voltar** se a migration avançou (`docs/release-rollback.md`). Para só desligar o WhatsApp, não use rollback: grave `TREINOS_WHATSAPP_HABILITADO=false` e recrie.
+- **Publicar código novo é outro caminho:** o deploy de uma versão nova da API (por exemplo, a mudança do aviso de compromisso, com a migration V108) é o do CI na `main`; à mão, só `atualizar.sh consultoria api <sha12>` com uma imagem já publicada (README §5). `rollback.sh` **recusa voltar** se a migration avançou (`docs/release-rollback.md`). Para só desligar o WhatsApp, não use rollback: grave `TREINOS_WHATSAPP_HABILITADO=false` e recrie.
 - **O que não existe lá:** não achei, em `deploy/` nem em `central-api-back/docs/`, texto sobre **acesso do Claude** à VPS. O que existe é "só o dono executa" e "ninguém digita nem vê o segredo". Adotei o mais restritivo: **o Claude só orienta; quem roda comando na VPS e quem digita segredo é o Gustavo.** A seção 7 do README ("WhatsApp (EvolutionGo)") é do WhatsApp não oficial do Servirea e da Central, **outro assunto**, não deste.
 
 ### 4.2 As cinco variáveis
@@ -222,7 +222,7 @@ Na VPS (Gustavo digita e roda; o Claude só orienta; snapshot antes)
 - [ ] `TREINOS_WHATSAPP_HABILITADO=true` gravada (`--regex '^true$'`)
 - [ ] API recriada com `recriar.sh consultoria api` e saudável (nada de `atualizar.sh` com o mesmo commit)
 - [ ] `TREINOS_PAGAMENTOS_HABILITADO` conferida em produção (se o lembrete de cobrança será testado)
-- [ ] Versão da API com a mudança do aviso de compromisso (R7, V109 provisória) publicada pelo CI, se o teste do compromisso for feito
+- [ ] Versão da API com a mudança do aviso de compromisso (R7, V108) publicada pelo CI, se o teste do compromisso for feito
 - [ ] Webhook cadastrado e **verificado** na Meta; campo `messages` assinado
 
 Na consultoria de teste
@@ -254,7 +254,7 @@ Depois do teste aprovado (consultoria do Saraiva)
 - **O app secret do Saraiva** é segredo dele: combinar como o Gustavo o acessa (administrador do aplicativo) sem passar por chat.
 - **Qual das opções do item 1.5** o teste usa, e se a Meta permite (número de teste da Meta; número do Gustavo ligado ao aplicativo do Saraiva): decisão do Gustavo, a conferir na documentação atual da Meta.
 - **Regras de acesso do Claude à VPS:** não existe texto específico em `deploy/` nem em `central-api-back/docs/`; o roteiro adota "o Claude só orienta; o Gustavo roda e digita" (só o dono executa, `deploy/README.md` §11 e §12). Se o Gustavo quiser outro combinado, escreve-se onde ele disser.
-- **Mudança do aviso de compromisso (R7):** em implementação pelo coordenador (coluna `ocorrencia`, V109 provisória, número a confirmar na hora de subir); este roteiro descreve o comportamento decidido, não o código lido. Conferir o passo 4 da Parte 5 contra o código publicado.
+- **Mudança do aviso de compromisso (R7):** em implementação pelo coordenador (coluna `ocorrencia`, V108, número a confirmar na hora de subir); este roteiro descreve o comportamento decidido, não o código lido. Conferir o passo 4 da Parte 5 contra o código publicado.
 - Versão `v23.0` da Graph API fixa no código, e a lista de códigos passageiros escrita de memória (`MetaCliente`): conferir e trocar quando a Meta mudar.
 - Nada foi testado contra a Meta real: formato do JSON, permissões e campos do webhook estão conferidos só pelo código e por servidor de mentira (`MetaFalsa`).
 - A mensagem de lembrete diz "mensalidade", coerente com o fato de só a mensalidade enviar (R6).

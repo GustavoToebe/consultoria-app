@@ -12,6 +12,12 @@ export const LARGURA_DA_LATERAL = 340;
 export const VAO_DA_LATERAL = 32;
 /** Área do mural a partir da qual a coluna vai para a direita; abaixo, ela fica no topo do feed. */
 export const AREA_PARA_A_LATERAL = 1280;
+/**
+ * O bloco feed + vão + coluna (1092). A Comunidade do aluno na web (`docs/planos/aluno-web-layout.md`, 26/11) põe a tela
+ * inteira (título, abas e as quatro abas) num bloco desta largura, centralizado, e abre a coluna assim que ele cabe: o
+ * limite do aluno é este, não os 1280 do treinador (que mede o mural na área toda).
+ */
+export const LARGURA_DO_BLOCO_DO_MURAL = LARGURA_DO_FEED + VAO_DA_LATERAL + LARGURA_DA_LATERAL;
 
 /**
  * `medindo`: a área ainda não chegou (a coluna não nasce no topo para pular para o lado); `sem`: a coluna não tem o que
@@ -19,10 +25,12 @@ export const AREA_PARA_A_LATERAL = 1280;
  */
 export type ArranjoDoMural = 'medindo' | 'sem' | 'topo' | 'lado';
 
-export function arranjoDoMural(area: number | null, temLateral: boolean): ArranjoDoMural {
+/** `limite`: a área a partir da qual a coluna vai ao lado (padrão, os 1280 do treinador; o aluno passa o bloco). */
+export function arranjoDoMural(area: number | null, temLateral: boolean, limite: number = AREA_PARA_A_LATERAL): ArranjoDoMural {
   if (!temLateral) return 'sem';
   if (area === null || !(area > 0)) return 'medindo';
-  return area >= AREA_PARA_A_LATERAL ? 'lado' : 'topo';
+  // Meio pixel abaixo do bloco é arredondamento do `onLayout`, não falta de espaço.
+  return area >= limite - 0.5 ? 'lado' : 'topo';
 }
 
 interface Fonte<T> { dados?: T; erro?: unknown }

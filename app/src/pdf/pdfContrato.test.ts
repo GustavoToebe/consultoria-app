@@ -66,8 +66,10 @@ describe('comprovante do contrato', () => {
     expect(corpo).toContain(base.sha256);
   });
 
-  it.each(TEMAS_PDF.map((t) => t.id))('gera em todos os temas (%s)', (tema) => {
-    const html = documentoCompleto(documentoContrato({ ...equipe, marca: { ...marca, temaPdf: tema } as Marca }));
+  it.each(TEMAS_PDF.map((t) => t.id))('é neutro: com o modelo %s e opções da marca sai igual ao da marca sem personalização', (tema) => {
+    const personalizada = { ...marca, temaPdf: tema, opcoesPdf: { texto: { fonte: 'SERIFADA', tamanho: 'G' }, tabelas: { estilo: 'LISTRAS' } } } as unknown as Marca;
+    const html = documentoCompleto(documentoContrato({ ...equipe, marca: personalizada }));
     expect(html).toContain('Evidências da assinatura');
+    expect(html).toBe(documentoCompleto(documentoContrato(equipe)));
   });
 });

@@ -79,6 +79,67 @@ class ValidadorQuestionarioTest {
         assertThat(errosDe(comLugares(TipoPergunta.NOTA, null, List.of("a")))).containsExactly(base);
     }
 
+    private List<String> errosDe(Finalidade finalidade, Pergunta... perguntas) {
+        return validador.validar(conteudo(perguntas), finalidade).erros().stream()
+                .map(ResultadoValidacao.Problema::caminho).sorted().toList();
+    }
+
+    /** A configuração (fonte, motivo) depende do record da pergunta; aqui só o que não depende dela. */
+    @Test
+    void itensDoPlanoSoValeNaAtualizacao() {
+        String tipo = "secoes[0].perguntas[0].tipo";
+        Pergunta itens = pergunta("itens", TipoPergunta.ITENS_DO_PLANO);
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens)).doesNotContain(tipo);
+        assertThat(errosDe(Finalidade.ANAMNESE, itens)).contains(tipo);
+        assertThat(errosDe(Finalidade.INSCRICAO, itens)).contains(tipo);
+        assertThat(ValidadorQuestionario.FORA_DA_INSCRICAO).contains(TipoPergunta.ITENS_DO_PLANO);
+    }
+
+    private static Pergunta itens(TipoPergunta tipo, String fonte, String motivo, String rotuloMotivo) {
+        return new Pergunta("itens", tipo, "Itens", false, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, fonte, motivo, rotuloMotivo);
+    }
+
+    @Test
+    void configuracaoDoItensDoPlano() {
+        String base = "secoes[0].perguntas[0].";
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens(TipoPergunta.ITENS_DO_PLANO, "DIAS_TREINADOS", null, null))).isEmpty();
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens(TipoPergunta.ITENS_DO_PLANO, "ALIMENTOS_DA_DIETA", "OBRIGATORIO", "a".repeat(60))))
+                .isEmpty();
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens(TipoPergunta.ITENS_DO_PLANO, null, null, null))).containsExactly(base + "fonte");
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens(TipoPergunta.ITENS_DO_PLANO, "SUPLEMENTOS", null, null))).containsExactly(base + "fonte");
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens(TipoPergunta.ITENS_DO_PLANO, "DIAS_TREINADOS", "TALVEZ", null)))
+                .containsExactly(base + "motivo");
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens(TipoPergunta.ITENS_DO_PLANO, "DIAS_TREINADOS", "OPCIONAL", "a".repeat(61))))
+                .containsExactly(base + "rotuloMotivo");
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens(TipoPergunta.ITENS_DO_PLANO, "DIAS_TREINADOS", "NENHUM", "Por quê?")))
+                .containsExactly(base + "rotuloMotivo");
+        assertThat(errosDe(Finalidade.ATUALIZACAO, itens(TipoPergunta.TEXTO, "DIAS_TREINADOS", "OPCIONAL", "x")))
+                .containsExactly(base + "fonte", base + "motivo", base + "rotuloMotivo");
+        // anamnese e inscrição recusam o tipo; a configuração certa não muda isso
+        assertThat(errosDe(Finalidade.ANAMNESE, itens(TipoPergunta.ITENS_DO_PLANO, "DIAS_TREINADOS", null, null))).containsExactly(base + "tipo");
+        assertThat(errosDe(Finalidade.INSCRICAO, itens(TipoPergunta.ITENS_DO_PLANO, "DIAS_TREINADOS", null, null))).containsExactly(base + "tipo");
+    }
+
+    @Test
+    void maximoDeItensVaiDeUmAoTeto() {
+        String max = "secoes[0].perguntas[0].max";
+        for (int valido : new int[] {1, ValidadorQuestionario.ITENS_MAXIMO}) {
+            assertThat(errosDe(Finalidade.ATUALIZACAO, comMax(TipoPergunta.ITENS_DO_PLANO, BigDecimal.valueOf(valido))))
+                    .as("max " + valido).doesNotContain(max);
+        }
+        for (BigDecimal ruim : List.of(BigDecimal.ZERO, BigDecimal.valueOf(ValidadorQuestionario.ITENS_MAXIMO + 1),
+                new BigDecimal("1.5"))) {
+            assertThat(errosDe(Finalidade.ATUALIZACAO, comMax(TipoPergunta.ITENS_DO_PLANO, ruim))).as("max " + ruim).contains(max);
+        }
+        // Os outros tipos continuam sem máximo (só a NOTA e as FOTOS têm).
+        assertThat(errosDe(Finalidade.ATUALIZACAO, comMax(TipoPergunta.TEXTO, BigDecimal.ONE))).contains(max);
+    }
+
+    private static Pergunta comMax(TipoPergunta tipo, BigDecimal max) {
+        return new Pergunta("itens", tipo, "Itens", false, null, null, null, null, null, null, null, null, max, null);
+    }
+
     @Test
     void tamanhoDoRascunhoContaBytesUtf8() {
         String limite = "a".repeat(LimitesQuestionario.RASCUNHO_BYTES);

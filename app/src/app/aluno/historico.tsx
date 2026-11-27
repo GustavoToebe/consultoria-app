@@ -1,12 +1,23 @@
 import { HistoricoAtualizacoes } from '../../aluno/atualizacao/HistoricoAtualizacoes';
 import { nomeDaSerieNoHistorico } from '../../aluno/serieDoAluno';
+import { router, useLocalSearchParams } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Fragment, type ReactNode, useState } from 'react';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { historicoAluno, pastasDoAluno } from '../../api/rotas';
 import type { ExercicioPlano, Sessao } from '../../api/tipos';
+import {
+  abaDoHistorico,
+  ABAS_DO_HISTORICO,
+  ARRANJO_DA_ABA,
+  historicoEmAbas,
+  NO_TOPO_DE_TODA_ABA,
+  ORDEM_NUMA_COLUNA,
+  type AbaDoHistorico,
+  type BlocoDoHistorico,
+} from '../../dominio/abasDoHistorico';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { hojeEmBrasilia } from '../../dominio/financeiro';
@@ -42,6 +53,7 @@ import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { NoPlano } from '../../ui/NoPlano';
+import { PrincipalComApoio } from '../../ui/PrincipalComApoio';
 import { CartaoFotos } from '../../fotos/CartaoFotos';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
@@ -50,7 +62,7 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
-import { FAIXA_DO_ALUNO } from '../../dominio/telaLargaDoAluno';
+import { LARGURA_LISTA_DO_ALUNO } from '../../dominio/telaLargaDoAluno';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -60,9 +72,17 @@ import { useCarregar } from '../../ui/useCarregar';
  * cartão diz na faixa o período que mostra. O período dos Registros fica no painel "Filtros de registros" (`ui/BarraDeFiltros`):
  * é obrigatório (D5 de `docs/planos/filtros-laterais.md`), então o padrão não conta nem vira etiqueta e "Limpar filtros"
  * volta a ele. Estado local da tela, como antes.
+ *
+ * Na web com o menu lateral (`docs/planos/aluno-web-layout.md`, seção 7) os cartões se dividem em abas no topo, Treinos,
+ * Corpo e Atualizações, cada uma com o seu arranjo (`dominio/abasDoHistorico`); a aba mora no endereço (`?aba=`) e trocar é
+ * um passo do histórico do navegador (o voltar a desfaz). No celular, a coluna única de sempre.
  */
 export default function HistoricoAluno() {
   const { registros, pacote, escolhida, falhas, tentarDeNovo, online } = useAluno();
+  const emAbas = historicoEmAbas(Platform.OS === 'web', useWindowDimensions().width);
+  const aba = abaDoHistorico(useLocalSearchParams<{ aba?: string }>().aba);
+  // Aba de tela no endereço (regra de Voltar do AGENTS.md): trocar é `router.push`, então o voltar desfaz a troca.
+  const setAba = (valor: AbaDoHistorico) => { if (valor !== aba) router.push({ pathname: '/aluno/historico', params: { aba: valor } }); };
   const { avisar } = useAviso();
   const unidadeDeCarga = useUnidadeDeCarga();
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
@@ -182,44 +202,41 @@ export default function HistoricoAluno() {
       {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} /> : null}
     </Cartao>
   );
-  const fotos = <CartaoFotos />;
-  const atualizacoes = <HistoricoAtualizacoes />;
-  const progresso = <CartaoProgresso />;
-  // O mesmo cartão da ficha, só leitura (lista e gráfico); o peso não fica guardado no aparelho.
-  const peso = <CartaoPeso />;
-  const avaliacao = <CartaoAvaliacaoFisica online={online} />;
+  // O mesmo cartão da ficha, só leitura (lista e gráfico); o peso não fica guardado no aparelho. Só o que a aba mostra é
+  // montado (e busca os dados); os registros e o período são da tela e sobrevivem à troca de aba.
+  const blocos: Record<BlocoDoHistorico, ReactNode> = {
+    ainda,
+    registros: cartaoDeRegistros,
+    progresso: <CartaoProgresso />,
+    peso: <CartaoPeso />,
+    avaliacao: <CartaoAvaliacaoFisica online={online} />,
+    fotos: <CartaoFotos />,
+    atualizacoes: <HistoricoAtualizacoes />,
+  };
+  const mostrar = (lista: readonly BlocoDoHistorico[]) => lista.map((b) => <Fragment key={b}>{blocos[b]}</Fragment>);
+  const arranjo = ARRANJO_DA_ABA[aba];
 
   return (
     <TelaDoAluno bordas={['top']}>
-      {(largo) => (<>
       <Cabecalho titulo="Histórico" />
-      {largo ? (
-        // Tela larga (24/11): registros e progresso (o que mais se lê) à esquerda; fotos, atualizações, peso e avaliação ao lado.
-        <View style={estilos.colunas}>
-          <View style={[estilos.pilha, estilos.principal]}>
-            {ainda}
-            {cartaoDeRegistros}
-            {progresso}
-          </View>
-          <View style={[estilos.pilha, estilos.lateral]}>
-            {fotos}
-            {atualizacoes}
-            {peso}
-            {avaliacao}
-          </View>
-        </View>
-      ) : (
+      {emAbas ? (
         <>
-          {fotos}
-          {atualizacoes}
-          {ainda}
-          {cartaoDeRegistros}
-          {progresso}
-          {peso}
-          {avaliacao}
+          {/* Ativação manual: cada troca monta os cartões da aba e busca os dados; a seta só move o foco. */}
+          <Abas abas={[...ABAS_DO_HISTORICO]} ativa={aba} aoMudar={setAba} ativacao="manual" />
+          {mostrar(NO_TOPO_DE_TODA_ABA)}
+          {arranjo.lista ? (
+            <View style={estilos.lista}>{mostrar(arranjo.principal)}</View>
+          ) : (
+            <PrincipalComApoio
+              principal={mostrar(arranjo.principal)}
+              apoio={arranjo.apoio.length ? mostrar(arranjo.apoio) : null}
+              rotuloDoApoio={arranjo.rotuloDoApoio ?? ''}
+            />
+          )}
         </>
+      ) : (
+        mostrar(ORDEM_NUMA_COLUNA)
       )}
-      </>)}
     </TelaDoAluno>
   );
 }
@@ -234,10 +251,8 @@ function agrupar(lista: RegistroLocal[]): [string, RegistroLocal[]][] {
 }
 
 const estilos = StyleSheet.create({
-  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
-  pilha: { gap: espaco(3) },
-  principal: { flex: 1, minWidth: 0 },
-  lateral: { width: FAIXA_DO_ALUNO, flexShrink: 0 },
+  // Lista sequencial (as atualizações enviadas): largura de leitura, no meio do bloco.
+  lista: { width: '100%', maxWidth: LARGURA_LISTA_DO_ALUNO, alignSelf: 'center', gap: espaco(3) },
   linha: { gap: 2 },
   forte: { fontFamily: fontes.semi },
 });

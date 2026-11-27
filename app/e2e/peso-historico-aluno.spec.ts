@@ -26,7 +26,7 @@ async function abrir(page: Page, pesos: RespostasApi[string]) {
     'GET /aluno/fotos/linha-do-tempo': { corpo: [] },
     'GET /aluno/avaliacoes-fisicas': { corpo: [] },
   });
-  await page.goto('/aluno/historico');
+  await page.goto('/aluno/historico?aba=corpo');
   return api;
 }
 

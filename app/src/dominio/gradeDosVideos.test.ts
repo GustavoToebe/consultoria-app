@@ -1,4 +1,4 @@
-import { colunasDosVideos, descricaoDoCartao, destinosDoVideo } from './gradeDosVideos';
+import { colunasDosVideos, descricaoDoCartao, destinosDoVideo, vagasDosVideos } from './gradeDosVideos';
 
 describe('colunasDosVideos', () => {
   it('1 no celular (e antes da medida), 2 abaixo de 1024, 3 de 1024 a 1600, 4 a partir de 1600', () => {
@@ -40,5 +40,24 @@ describe('destinosDoVideo', () => {
   });
   it('vídeo sem coleção: só as coleções', () => {
     expect(destinosDoVideo(null, colecoes)).toEqual([{ id: 'a', rotulo: 'Costas' }, { id: 'b', rotulo: 'Pernas' }]);
+  });
+});
+
+describe('vagasDosVideos (linhas equilibradas, sem cartão sozinho na última linha)', () => {
+  // `null` = vaga vazia que fecha a linha; os números são a posição do vídeo na lista.
+  it('em 3 colunas: 5 = 3 + 2, 7 = 3 + 2 + 2, 8 = 3 + 3 + 2', () => {
+    expect(vagasDosVideos(5, 3)).toEqual([0, 1, 2, 3, 4]);
+    expect(vagasDosVideos(7, 3)).toEqual([0, 1, 2, 3, 4, null, 5, 6]);
+    expect(vagasDosVideos(8, 3)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+  });
+  it('em 4 colunas: 5 = 3 + 2, 7 = 4 + 3, 9 = 3 + 3 + 3', () => {
+    expect(vagasDosVideos(5, 4)).toEqual([0, 1, 2, null, 3, 4]);
+    expect(vagasDosVideos(7, 4)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(vagasDosVideos(9, 4)).toEqual([0, 1, 2, null, 3, 4, 5, null, 6, 7, 8]);
+  });
+  it('poucos vídeos numa linha só, uma coluna no celular e nada sem vídeo', () => {
+    expect(vagasDosVideos(2, 3)).toEqual([0, 1]);
+    expect(vagasDosVideos(3, 1)).toEqual([0, 1, 2]);
+    expect(vagasDosVideos(0, 3)).toEqual([]);
   });
 });

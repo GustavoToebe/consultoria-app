@@ -907,6 +907,10 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   em qualquer preferência (telas declaradas abaixo de `LARGURA_MAXIMA` mantêm o teto próprio: formulário curto 640, telas
   do aluno 1120 ou 1688 por faixa (`TelaDoAluno`), editor de uma coluna `LARGURA_EDITOR` 1040).
 - **Modais e folhas: sem mudança.** Seguem as larguras da variante (4.6, P1: 480, 600 e `LARGURA_EDITOR`) e não usam a régua.
+- **Exceção ao token por tema: a mesa da prévia de documento (26/11).** `MESA_DA_PREVIA` (`#7A7F87`, `tema/tokens.ts`) é
+  o mesmo cinza neutro em todos os temas, porque o papel do PDF é sempre branco: a folha passa 3:1 sobre a mesa e a mesa
+  passa 3:1 sobre a página de todo tema (`tokens.test.ts`). Só na prévia de documento (editor dos PDFs, `PreviaNaMesa`);
+  nada mais usa este token.
 - **Preferência "Largura do conteúdo"** (Ajustes › Aparência e preferências, `ui/PreferenciasDoApp`): **Automática**
   (padrão) deixa listas, painéis e editores em duas colunas sem teto; **Limitada** os segura em `LARGURA_MAXIMA` (1800 px).
   Fica no aparelho, em `treinos:<usuarioId>:preferencias`, campo `larguraConteudo` (`AUTOMATICA` | `LIMITADA`,

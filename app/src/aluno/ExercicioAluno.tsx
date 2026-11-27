@@ -5,7 +5,6 @@ import { Linking, StyleSheet, View } from 'react-native';
 import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
 import { cargaIlegivel as cargaDeFormaDesconhecida } from '../dominio/modoDeCarga';
 import { calcularCargasDoExercicio, cargaQueContaComoReferencia, ehSerieDeTrabalho, passoDaCarga, usaCargaDeTrabalho } from '../dominio/cargas';
-import { duasColunasCom } from '../dominio/grade';
 import { contagemDoExercicio } from '../dominio/semana';
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
@@ -18,18 +17,20 @@ import { acompanharPendente, digitarPendente, type ValorPendente } from '../domi
 import { videoValido } from '../dominio/video';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { espaco, fontes, LARGURA_FORMULARIO, RAIO } from '../tema/tokens';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
 import { Folha } from '../ui/Folha';
-import { Grade } from '../ui/Grade';
+import { PrincipalComApoio } from '../ui/PrincipalComApoio';
 import { ProvedorDaPrevia } from '../ui/emPrevia';
 import { fundoPintado, superficiePintada } from '../ui/superficiePintada';
 import { Texto } from '../ui/Texto';
 import { BlocoDaCargaDeTrabalho } from './BlocoDaCargaDeTrabalho';
 import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
+import { LARGURA_DA_COLUNA_DO_EXERCICIO, LARGURA_DAS_SERIES, TOPO_DA_COLUNA_DO_EXERCICIO } from './exercicio/colunasDoExercicio';
+import { VideoDoExercicio } from './exercicio/VideoDoExercicio';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
 import { ESTREITO } from './PartesDaSerie';
 import { LinhaDaSerie } from './LinhaDaSerie';
@@ -89,6 +90,18 @@ interface Props {
    * aparelho (as ações viram nada, não há registro, rascunho no aparelho, pausa nem demonstração).
    */
   previa?: boolean;
+  /**
+   * Web larga (`docs/planos/aluno-web-layout.md`, seção 4), decidida pela rota: o exercício numa coluna de apoio à esquerda,
+   * fixa ao rolar (`topo` da rota, meta com o Histórico e as seções Descanso, Vídeo embutido e "Como fazer" aberto), e a
+   * carga de trabalho com as séries numa coluna só à direita, até 720, com o `fim` da rota embaixo. Sem ele (celular,
+   * prévia do treinador), o desenho de sempre.
+   */
+  emColunas?: {
+    topo: ReactNode;
+    fim: ReactNode;
+    /** Altura das barras da rota fora da rolagem (topo e rodapé), medida: a coluna do exercício não passa da área que rola. */
+    alturaForaDaRolagem: number;
+  };
 }
 
 const SEM_EFEITO = () => undefined;
@@ -118,7 +131,8 @@ export function ExercicioAluno(props: Props) {
  * Exercício na tela do aluno (redesenho de 25/11, "Treino na academia"): a linha "Peso livre · 3 séries · meta da WS: 6 a 8
  * reps", três botões de mesma altura (Vídeo, Como fazer, Descanso), o bloco da carga de trabalho de hoje (só com séries em % da WS),
  * o cabeçalho "Séries 0 de 3 feitas" com o Histórico e uma linha por série. Com todas feitas e a WS de hoje acima da
- * anterior, o aviso de recorde. O nome do exercício (o h1) e a barra de baixo são da rota.
+ * anterior, o aviso de recorde. O nome do exercício (o h1) e a barra de baixo são da rota. Com `emColunas` (web larga), as
+ * mesmas peças em duas colunas (`ui/PrincipalComApoio`).
  */
 function CorpoDoExercicio(p: Props) {
   const unidade = useUnidadeDeCarga();
@@ -171,114 +185,170 @@ function CorpoDoExercicio(p: Props) {
     // Abre fora do app (navegador ou app do YouTube), sem token nem cookie.
     Linking.openURL(e.videoUrl).catch(() => avisar('Não foi possível abrir o vídeo.', 'perigo'));
   };
+  const abrirFora = (url: string) => { Linking.openURL(url).catch(() => avisar('Não foi possível abrir o vídeo.', 'perigo')); };
   const acoes: { chave: string; peca: ReactNode }[] = [];
   if (video) acoes.push({ chave: 'video', peca: <Botao rotulo="Vídeo" rotuloAcessivel={`Vídeo de ${e.nome}`} tipo="secundario" cheio style={ESTREITO} aoTocar={abrirVideo} /> });
   if (temComoFazer) acoes.push({ chave: 'como', peca: <Botao rotulo="Como fazer" rotuloAcessivel={`Como fazer ${e.nome}`} tipo="secundario" cheio style={ESTREITO} aoTocar={() => abrirComoFazer(true)} /> });
   if (p.acaoDescanso) acoes.push({ chave: 'descanso', peca: p.acaoDescanso });
 
+  const meta = <Texto variante="suave">{cabecalhoDoExercicio(e, p.config.tipoTrabalho, p.config.metodologia)}</Texto>;
+  const conteudoDoComoFazer = (
+    <View style={estilos.comoFazer}>
+      {p.demonstracao ? (
+        <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
+          imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="ALUNO" largura={240} altura={180} ampliavel />
+      ) : null}
+      {e.observacao ? <Texto numerico style={estilos.observacao}>{e.observacao}</Texto> : null}
+      {comoFazer.map((t) => <Texto key={t} numerico>{t}</Texto>)}
+    </View>
+  );
+  const blocoDaCarga = usaCargaDeTrabalho(e) ? (
+    <BlocoDaCargaDeTrabalho
+      tipoTrabalho={p.config.tipoTrabalho}
+      corDoTipo={serieDeTrabalho ? selosDaSerie(serieDeTrabalho, p.config.metodologia).tipo?.cor ?? null : null}
+      valorKg={baseNaCaixa}
+      passo={passo}
+      ultima={p.ultima}
+      progressaoKg={progressaoDeHoje ? p.config.arredondamentoKg : null}
+      aoMudarKg={mudarBase}
+    />
+  ) : null;
+  const tituloDasSeries = (historico: ReactNode) => (
+    <View style={estilos.tituloSeries}>
+      <Texto variante="bloco" nivel={2} numerico>{contagem.total > 0 ? textoDasSeriesFeitas(contagem) : 'Séries'}</Texto>
+      {historico}
+    </View>
+  );
+  const cartoes = calculadas.map((c, i) =>
+    cardio ? (
+      <CartaoSerieDeCardio
+        key={c.serie.uid}
+        serie={c.serie}
+        numero={i + 1}
+        feita={feita(c.serie.uid)}
+        ativa={i === ativa}
+        ultimaDoExercicio={feitas === e.series.length - 1}
+        aoMarcar={(concluida) => p.aoRegistrar(c.serie.uid, { carga: null, repeticoes: null, concluida })}
+      />
+    ) : etapasDaSerie(c.serie) ? (
+      <CartaoSerieComEtapas
+        key={c.serie.uid}
+        calculada={c}
+        numero={i + 1}
+        data={p.data}
+        semCarga={semCarga || cargaIlegivel(c.serie)}
+        cargaIlegivel={cargaIlegivel(c.serie)}
+        metodologia={p.config.metodologia}
+        tipoTrabalho={p.config.tipoTrabalho}
+        arredondamentoKg={p.config.arredondamentoKg}
+        descansoNaSerie={p.descansoNaSerie ?? true}
+        baseDaUltimaVez={!temCargaManual && p.ultima?.carga != null}
+        registro={p.registroDe(c.serie.uid)}
+        execucao={p.chaveDaExecucao(c.serie.uid)}
+        anterior={anterior(i)}
+        ativa={i === ativa}
+        aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
+        aoIniciarPausa={p.aoIniciarPausa}
+        aoCancelarPausa={p.aoCancelarPausa}
+      />
+    ) : (
+      <LinhaDaSerie
+        key={c.serie.uid}
+        calculada={c}
+        indice={i}
+        semCarga={semCarga}
+        cargaIlegivel={cargaIlegivel(c.serie)}
+        tipoTrabalho={p.config.tipoTrabalho}
+        metodologia={p.config.metodologia}
+        seriesDoExercicio={e.series}
+        descansoNaSerie={p.descansoNaSerie ?? true}
+        passo={passo}
+        ativa={i === ativa}
+        registro={p.registroDe(c.serie.uid)}
+        rascunho={p.rascunhoDe?.(c.serie.uid) ?? null}
+        salvarRascunho={(m) => p.salvarRascunho?.(c.serie.uid, m)}
+        repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga || cargaIlegivel(c.serie), unidade) : null}
+        ultimaDoExercicio={feitas === e.series.length - 1}
+        recordes={p.recordes?.[c.serie.uid] ?? null}
+        anterior={anterior(i)}
+        arredondamentoKg={p.config.arredondamentoKg}
+        aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
+        aoIniciarPausa={p.aoIniciarPausa}
+      />
+    ),
+  );
+  const avisoDeRecorde = recorde && textoDoRecorde ? (
+    <View accessible accessibilityRole="summary" accessibilityLabel={`${textoDoRecorde.titulo}: ${textoDoRecorde.detalhe}`}
+      style={[estilos.recorde, fundoPintado(pintadoDoRecorde), { borderColor: pintadoDoRecorde.borda }]}>
+      <Trophy size={24} color={cores.atencao} />
+      <View style={estilos.recordeTextos}>
+        <Texto style={estilos.recordeTitulo}>{textoDoRecorde.titulo}</Texto>
+        <Texto numerico cor={cores.texto}>{textoDoRecorde.detalhe}</Texto>
+      </View>
+    </View>
+  ) : null;
+
+  if (p.emColunas) {
+    // Coluna do exercício (orientações de 26/11, 1.4): Descanso, Vídeo e Como fazer viram seções com título, empilhadas, sem
+    // parecer abas; o vídeo toca embutido (o YouTube só monta depois do toque, "Abrir no YouTube" continua) e o "Como fazer"
+    // fica aberto. O Descanso vem primeiro: é o que se toca a cada série e não pode cair fora da vista numa janela baixa.
+    const secao = (titulo: string, conteudo: ReactNode) => (
+      <View style={estilos.secao}>
+        <Texto variante="bloco" nivel={2}>{titulo}</Texto>
+        {conteudo}
+      </View>
+    );
+    return (
+      <PrincipalComApoio
+        apoioAEsquerda
+        larguraDoApoio={LARGURA_DA_COLUNA_DO_EXERCICIO}
+        topoDoApoio={TOPO_DA_COLUNA_DO_EXERCICIO}
+        alturaForaDaRolagem={p.emColunas.alturaForaDaRolagem}
+        rotuloDoApoio="Sobre o exercício"
+        testID="coluna-das-series"
+        apoio={
+          <>
+            {p.emColunas.topo}
+            <View style={estilos.tituloSeries}>
+              <View style={estilos.meta}>{meta}</View>
+              {p.acaoHistorico}
+            </View>
+            {p.acaoDescanso ? secao('Descanso', p.acaoDescanso) : null}
+            {video && e.videoUrl ? secao('Vídeo', <VideoDoExercicio videoUrl={e.videoUrl} nome={e.nome} aoAbrirFora={abrirFora} />) : null}
+            {temComoFazer ? secao('Como fazer', conteudoDoComoFazer) : null}
+          </>
+        }
+        principal={
+          <View style={estilos.colunaDasSeries}>
+            <View style={estilos.exercicio}>
+              {blocoDaCarga ? <View style={estilos.carga}>{blocoDaCarga}</View> : null}
+              {tituloDasSeries(null)}
+              <View style={estilos.series}>{cartoes}</View>
+              {avisoDeRecorde}
+            </View>
+            {p.emColunas.fim}
+          </View>
+        }
+      />
+    );
+  }
+
   return (
     <View style={estilos.exercicio}>
-      <Texto variante="suave">{cabecalhoDoExercicio(e, p.config.tipoTrabalho, p.config.metodologia)}</Texto>
+      {meta}
       {acoes.length ? (
         <View style={estilos.acoes}>
           {acoes.map((a) => <View key={a.chave} style={estilos.acao}>{a.peca}</View>)}
         </View>
       ) : null}
       <Folha visivel={comoFazerAberto} titulo="Como fazer" aoFechar={() => abrirComoFazer(false)}>
-        <View style={estilos.comoFazer}>
-          {p.demonstracao ? (
-            <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
-              imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="ALUNO" largura={240} altura={180} ampliavel />
-          ) : null}
-          {e.observacao ? <Texto numerico style={estilos.observacao}>{e.observacao}</Texto> : null}
-          {comoFazer.map((t) => <Texto key={t} numerico>{t}</Texto>)}
-        </View>
+        {conteudoDoComoFazer}
       </Folha>
-      {usaCargaDeTrabalho(e) ? (
-        <BlocoDaCargaDeTrabalho
-          tipoTrabalho={p.config.tipoTrabalho}
-          corDoTipo={serieDeTrabalho ? selosDaSerie(serieDeTrabalho, p.config.metodologia).tipo?.cor ?? null : null}
-          valorKg={baseNaCaixa}
-          passo={passo}
-          ultima={p.ultima}
-          progressaoKg={progressaoDeHoje ? p.config.arredondamentoKg : null}
-          aoMudarKg={mudarBase}
-        />
-      ) : null}
-      <View style={estilos.tituloSeries}>
-        <Texto variante="bloco" nivel={2} numerico>{contagem.total > 0 ? textoDasSeriesFeitas(contagem) : 'Séries'}</Texto>
-        {p.acaoHistorico}
-      </View>
-      <Grade gap={espaco(1.5)} colunas={duasColunasCom(440, espaco(1.5))} alinhar="inicio">
-      {calculadas.map((c, i) =>
-        cardio ? (
-          <CartaoSerieDeCardio
-            key={c.serie.uid}
-            serie={c.serie}
-            numero={i + 1}
-            feita={feita(c.serie.uid)}
-            ativa={i === ativa}
-            ultimaDoExercicio={feitas === e.series.length - 1}
-            aoMarcar={(concluida) => p.aoRegistrar(c.serie.uid, { carga: null, repeticoes: null, concluida })}
-          />
-        ) : etapasDaSerie(c.serie) ? (
-          <CartaoSerieComEtapas
-            key={c.serie.uid}
-            calculada={c}
-            numero={i + 1}
-            data={p.data}
-            semCarga={semCarga || cargaIlegivel(c.serie)}
-            cargaIlegivel={cargaIlegivel(c.serie)}
-            metodologia={p.config.metodologia}
-            tipoTrabalho={p.config.tipoTrabalho}
-            arredondamentoKg={p.config.arredondamentoKg}
-            descansoNaSerie={p.descansoNaSerie ?? true}
-            baseDaUltimaVez={!temCargaManual && p.ultima?.carga != null}
-            registro={p.registroDe(c.serie.uid)}
-            execucao={p.chaveDaExecucao(c.serie.uid)}
-            anterior={anterior(i)}
-            ativa={i === ativa}
-            aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
-            aoIniciarPausa={p.aoIniciarPausa}
-            aoCancelarPausa={p.aoCancelarPausa}
-          />
-        ) : (
-          <LinhaDaSerie
-            key={c.serie.uid}
-            calculada={c}
-            indice={i}
-            semCarga={semCarga}
-            cargaIlegivel={cargaIlegivel(c.serie)}
-            tipoTrabalho={p.config.tipoTrabalho}
-            metodologia={p.config.metodologia}
-            seriesDoExercicio={e.series}
-            descansoNaSerie={p.descansoNaSerie ?? true}
-            passo={passo}
-            ativa={i === ativa}
-            registro={p.registroDe(c.serie.uid)}
-            rascunho={p.rascunhoDe?.(c.serie.uid) ?? null}
-            salvarRascunho={(m) => p.salvarRascunho?.(c.serie.uid, m)}
-            repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga || cargaIlegivel(c.serie), unidade) : null}
-            ultimaDoExercicio={feitas === e.series.length - 1}
-            recordes={p.recordes?.[c.serie.uid] ?? null}
-            anterior={anterior(i)}
-            arredondamentoKg={p.config.arredondamentoKg}
-            aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
-            aoIniciarPausa={p.aoIniciarPausa}
-          />
-        ),
-      )}
-      </Grade>
-      {recorde && textoDoRecorde ? (
-        <View accessible accessibilityRole="summary" accessibilityLabel={`${textoDoRecorde.titulo}: ${textoDoRecorde.detalhe}`}
-          style={[estilos.recorde, fundoPintado(pintadoDoRecorde), { borderColor: pintadoDoRecorde.borda }]}>
-          <Trophy size={24} color={cores.atencao} />
-          <View style={estilos.recordeTextos}>
-            <Texto style={estilos.recordeTitulo}>{textoDoRecorde.titulo}</Texto>
-            <Texto numerico cor={cores.texto}>{textoDoRecorde.detalhe}</Texto>
-          </View>
-        </View>
-      ) : null}
+      {blocoDaCarga}
+      {tituloDasSeries(p.acaoHistorico)}
+      {/* Uma coluna só, na ordem (1, 2, 3...), também no tablet e na prévia: duas colunas liam 1-2 / 3-4. */}
+      <View style={estilos.series}>{cartoes}</View>
+      {avisoDeRecorde}
     </View>
   );
 }
@@ -290,6 +360,12 @@ const estilos = StyleSheet.create({
   acao: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', minWidth: 0 },
   comoFazer: { gap: espaco(1.5) },
   observacao: { fontStyle: 'italic' },
+  series: { gap: espaco(1.5) },
+  secao: { gap: espaco(1.5) },
+  meta: { flexShrink: 1, minWidth: 0 },
+  // Web larga: as séries até 720 e a carga de trabalho, que é um campo e não uma faixa, até a largura de formulário.
+  colunaDasSeries: { width: '100%', maxWidth: LARGURA_DAS_SERIES, gap: espaco(3) },
+  carga: { maxWidth: LARGURA_FORMULARIO },
   tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   recorde: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
   recordeTextos: { flex: 1, minWidth: 0, gap: 2 },

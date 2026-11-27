@@ -21,7 +21,8 @@ import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { rotuloDoDia, rotuloDoTipo, sessoesDaSemana } from '../dominio/semana';
 import { tituloDoPlano } from '../dominio/tituloDoPlano';
 import { descansoSoDoGrupo, detalheDoBloco } from '../dominio/textoDoGrupo';
-import { cabecalhoDoPdf, cssBase, esc, escLinhas, link, type Documento } from './html';
+import { ajustesDoGerador } from './cssDosAjustes';
+import { cabecalhoDoPdf, cssBase, esc, escLinhas, link, valoresDoPdf, type Documento } from './html';
 
 export interface DadosPdfTreino {
   marca: Marca;
@@ -240,5 +241,5 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
     d.instrucoesTreino?.trim() ? blocoInstrucoes(d.instrucoesTreino) : '',
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
   ].join('\n');
-  return { titulo: `Treino - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf) + CSS_INSTRUCOES, corpo };
+  return { titulo: `Treino - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf, d.marca.opcoesPdf) + CSS_INSTRUCOES + ajustesDoGerador('TREINO', valoresDoPdf(d.marca)), corpo };
 }

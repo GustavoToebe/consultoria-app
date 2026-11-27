@@ -5,7 +5,6 @@ import { StyleSheet, View } from 'react-native';
 import type { ExercicioPlano, Configuracao, Sessao, UltimaCarga } from '../api/tipos';
 import { gruposDaSessao } from '../dominio/combinacoes';
 import { duasColunasCom } from '../dominio/grade';
-import { colunasDaGradeDoAluno } from '../dominio/telaLargaDoAluno';
 import { descansoSoDoGrupo } from '../dominio/textoDoGrupo';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
@@ -17,8 +16,8 @@ import { CartaoExercicioDoDia } from './CartaoExercicioDoDia';
 /**
  * Os exercícios do dia em cartões, com os feitos juntos (superset, circuito, pré e pós-exaustão...) numa moldura com o nome
  * da combinação, a ordem, as voltas e o descanso depois do grupo. Só por props: é a lista da tela do dia do aluno e a da
- * prévia do treinador ("Ver como o aluno"), que não têm o mesmo contexto. `largo` (só a tela do dia passa; a folha da prévia
- * não muda): na tela larga, as colunas que cabem, sem cartão sozinho na última linha (`colunasDaGradeDoAluno`).
+ * prévia do treinador ("Ver como o aluno"), que não têm o mesmo contexto. `umaColuna` (só a tela do dia passa, na web larga;
+ * a folha da prévia não muda): os exercícios numa coluna só, na ordem (`docs/planos/aluno-web-layout.md`, seção 3).
  */
 export function ExerciciosDoDia({
   sessao,
@@ -30,7 +29,7 @@ export function ExerciciosDoDia({
   href,
   aoAbrir,
   animar,
-  largo = false,
+  umaColuna = false,
 }: {
   sessao: Sessao;
   metodologia: Configuracao;
@@ -44,12 +43,12 @@ export function ExerciciosDoDia({
   href?: (e: ExercicioPlano) => Href;
   aoAbrir: (e: ExercicioPlano) => void;
   animar: boolean;
-  largo?: boolean;
+  umaColuna?: boolean;
 }) {
   const { cores } = useTema();
   const grupos = gruposDaSessao(sessao, metodologia);
   return (
-    <Grade gap={espaco(1.5)} colunas={largo ? (l) => colunasDaGradeDoAluno(l, grupos.length, espaco(1.5)) : duasColunasCom(360, espaco(1.5))} alinhar="inicio">
+    <Grade gap={espaco(1.5)} colunas={umaColuna ? umaSo : duasColunasCom(360, espaco(1.5))} alinhar="inicio">
       {grupos.map((g) => {
         // Nos grupos em que o descanso é depois da volta, a série não mostra o descanso dela.
         const descansoNaSerie = !(g.nome && g.grupo && descansoSoDoGrupo(g.grupo));
@@ -84,6 +83,8 @@ export function ExerciciosDoDia({
     </Grade>
   );
 }
+
+const umaSo = () => 1;
 
 const estilos = StyleSheet.create({
   // Moldura do bi-set/supersérie com `bordaCampo` (a `borda` de cartão quase sumia no tema escuro).

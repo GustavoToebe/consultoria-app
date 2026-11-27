@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/** Marca (nome, cor, fonte, tema, logo) da consultoria da sessão. */
+/** Marca (nome, cor, fonte, tema, logo) e modelo/opções dos PDFs da consultoria da sessão. */
 @Service
 public class MarcaService {
 
@@ -48,19 +48,17 @@ public class MarcaService {
             MetaDoPeso metaDoPeso,
             /** Contato (V076): nulo (ausente) mantém o gravado, em branco apaga. Validado no serviço (422 {@code MARCA_INVALIDA} por campo, sem repetir o valor). */
             String whatsapp, String emailRemetenteNome, String emailResponderPara,
-            /** Tema dos PDFs (V096); nulo = não muda o gravado (a coluna nunca é nula). */
-            Consultoria.TemaPdf temaPdf,
             /** Redes sociais (V101): objeto nulo ou campo nulo mantém o gravado, em branco apaga, preenchido valida ({@code @usuario} ou link) e grava o link https. */
             RedesSociaisDto redesSociais) {
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null, null, null, null, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null, null, null, null, null);
         }
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao, Integer diasAtualizacaoPadrao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null, null, null, null, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null, null, null, null, null);
         }
     }
 
@@ -85,9 +83,6 @@ public class MarcaService {
                     redes.get(RedesSociais.Rede.YOUTUBE), redes.get(RedesSociais.Rede.X), redes.get(RedesSociais.Rede.SITE),
                     redes.get(RedesSociais.Rede.FACEBOOK), redes.get(RedesSociais.Rede.LINKEDIN), redes.get(RedesSociais.Rede.TELEGRAM));
         }
-    }
-
-    public record TemaPdfRequest(@NotNull Consultoria.TemaPdf temaPdf) {
     }
 
     /** O contato fica fora de {@link MarcaPublica} (pública): só a equipe o lê aqui; o aluno recebe o número em {@code GET /eu}. */
@@ -141,9 +136,6 @@ public class MarcaService {
         conferirContato(c, r);
         c.alterarMarca(r.nome().trim(), r.corPrimaria().toUpperCase(java.util.Locale.ROOT),
                 r.fonteTitulo(), r.temaPadrao(), r.diasAtualizacaoPadrao());
-        if (r.temaPdf() != null) {
-            c.definirTemaPdf(r.temaPdf());
-        }
         c.definirTextosFasesCiclo(ciclo.textosParaGravar(r.textosFasesCiclo()));
         if (r.metaDoPeso() != null && r.metaDoPeso() != c.getMetaDoPeso()) {
             c.definirMetaDoPeso(r.metaDoPeso());
@@ -155,10 +147,11 @@ public class MarcaService {
     }
 
     @Transactional
-    @br.com.treinos.api.auditoria.Auditar(acao="MARCA_ALTERADA",entidade="CONSULTORIA",resumo="Alterou o tema dos PDFs da consultoria.")
-    public ConsultoriaResponse alterarTemaPdf(UUID consultoriaId, Consultoria.TemaPdf temaPdf) {
+    @br.com.treinos.api.auditoria.Auditar(acao="MARCA_ALTERADA",entidade="CONSULTORIA",resumo="Alterou o modelo e as opções dos PDFs da consultoria.")
+    public ConsultoriaResponse alterarDocumentosPdf(UUID consultoriaId, DocumentosPdfRequest r) {
         Consultoria c = buscar(consultoriaId);
-        c.definirTemaPdf(temaPdf);
+        exigirMesmaVersao(c, r.versao());
+        c.definirDocumentosPdf(r.modelo(), OpcoesPdf.validarParaGravar(r.opcoes()));
         consultorias.saveAndFlush(c);
         return resposta(c);
     }

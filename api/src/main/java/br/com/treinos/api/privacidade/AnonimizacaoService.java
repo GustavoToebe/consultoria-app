@@ -67,6 +67,7 @@ public class AnonimizacaoService {
     private final br.com.treinos.api.agua.AguaDoDiaService agua;
     private final br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDoAluno importacoesAssistidas;
     private final br.com.treinos.api.whatsapp.FilaDeAvisos avisosPeloWhatsApp;
+    private final br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano;
     private final br.com.treinos.api.contratos.ContratoService contratos;
 
     public AnonimizacaoService(AlunoRepository alunos, ConsultoriaRepository consultorias, UsuarioRepository usuarios, Autenticador autenticador,
@@ -82,7 +83,9 @@ public class AnonimizacaoService {
                                br.com.treinos.api.agua.AguaDoDiaService agua, br.com.treinos.api.push.PushService push,
                                br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDoAluno importacoesAssistidas,
                                br.com.treinos.api.whatsapp.FilaDeAvisos avisosPeloWhatsApp,
+                               br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano,
                                br.com.treinos.api.contratos.ContratoService contratos) {
+        this.avisosDePlano = avisosDePlano;
         this.contratos = contratos;
         this.avisosPeloWhatsApp = avisosPeloWhatsApp;
         this.importacoesAssistidas = importacoesAssistidas;
@@ -182,6 +185,8 @@ public class AnonimizacaoService {
         ciclo.apagarNaAnonimizacao(alunoId);
         // Agenda presencial: o aluno sai de todos os compromissos (o de aluno único é apagado) e os avisos dele também.
         agenda.apagarDoAluno(consultoriaId, alunoId);
+        // Avisos de "plano liberado" (V106): sem texto nem dado pessoal, mas saem com o resto do rastro do aluno.
+        avisosDePlano.apagarDoAluno(consultoriaId, alunoId);
         // Contratação encerrada, abertas canceladas e o texto livre do treinador sobre a cobrança apagado; valores ficam.
         pagamentos.encerrarPorAnonimizacao(alunoId);
         pagamentos.apagarDoAluno(alunoId);

@@ -1,6 +1,6 @@
 import { ArrowUp } from 'lucide-react-native';
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
@@ -38,6 +38,19 @@ const FOLGA_DO_BOTAO = espaco(2) + ALVO_TOQUE + espaco(1);
  * shortcut: folha com altura que depende da largura e perto da altura máxima ainda pode piscar; nenhuma conhecida, trocar quando aparecer.
  */
 const FAIXA_DA_BARRA: StyleProp<ViewStyle> = Platform.OS === 'web' ? ({ scrollbarGutter: 'stable' } as ViewStyle) : undefined;
+
+/**
+ * Para onde rolar (px) a fim de o campo focado ficar inteiro na janela, com `folga` de ar; `null` se já está visível. Campo mais
+ * alto que a janela fica com o topo à mostra. Existe porque, com o teclado aberto, a janela da rolagem encolhe depois de o
+ * foco já ter entrado e nada rola o campo de volta para cima do teclado.
+ */
+export function deslocamentoParaMostrar(campo: { topo: number; altura: number }, deslocamento: number, janela: number, folga: number): number | null {
+  if (janela <= 0) return null;
+  const fim = campo.topo + campo.altura + folga;
+  if (fim > deslocamento + janela) return Math.max(0, Math.min(fim - janela, campo.topo - folga));
+  if (campo.topo - folga < deslocamento) return Math.max(0, campo.topo - folga);
+  return null;
+}
 
 interface Props {
   children: ReactNode;
@@ -85,6 +98,27 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
     }, 80);
   }, [reduzido]);
   const contexto = useMemo(() => ({ registrar, rolarAte }), [registrar, rolarAte]);
+  // Com o teclado aberto a janela encolhe (KeyboardAvoidingView da `Tela` e da `Folha`): traz o campo focado de volta à vista.
+  // Fora desta rolagem (campo de uma folha por cima da tela) o `measureLayout` falha e nada acontece.
+  const mostrarCampoFocado = useCallback(() => {
+    const campo = TextInput.State.currentlyFocusedInput();
+    const interior = rolagem.current?.getInnerViewNode?.();
+    if (!campo || interior == null) return;
+    campo.measureLayout(interior, (_x, topo, _largura, altura) => {
+      const destino = deslocamentoParaMostrar({ topo, altura }, deslocamento.current, medidas.current.janela, espaco(2));
+      if (destino !== null) rolagem.current?.scrollTo({ y: destino, animated: !reduzido });
+    }, () => undefined);
+  }, [reduzido]);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let espera: ReturnType<typeof setTimeout> | undefined;
+    // Se a janela não encolher (ou encolher antes do evento), o `onLayout` não basta: confere de novo depois do ajuste.
+    const inscricao = Keyboard.addListener('keyboardDidShow', () => {
+      clearTimeout(espera);
+      espera = setTimeout(mostrarCampoFocado, 120);
+    });
+    return () => { clearTimeout(espera); inscricao.remove(); };
+  }, [mostrarCampoFocado]);
   return (
     <RolagemContexto.Provider value={contexto}>
     <View ref={area} style={[estilos.area, preencher && estilos.preencher]}>
@@ -93,7 +127,11 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
         style={preencher && width >= LARGURA_MENU_LATERAL ? FAIXA_DA_BARRA : undefined}
         contentContainerStyle={[contentContainerStyle, folga && estilos.fim]}
         keyboardShouldPersistTaps="handled"
-        onLayout={(e) => { medidas.current.janela = e.nativeEvent.layout.height; conferirFolga(); }}
+        onLayout={(e) => {
+          medidas.current.janela = e.nativeEvent.layout.height;
+          conferirFolga();
+          if (Platform.OS !== 'web' && Keyboard.isVisible()) mostrarCampoFocado();
+        }}
         onContentSizeChange={(_largura, altura) => {
           medidas.current.conteudo = altura - (medidas.current.folga ? FOLGA_DO_BOTAO : 0);
           conferirFolga();

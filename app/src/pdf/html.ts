@@ -1,9 +1,10 @@
 import type { Marca } from '../api/tipos';
+import { coresDoDestaque, resolver, type ValoresPdf } from '../dominio/configuracaoPdf';
 import { dataHoraParaTela } from '../dominio/formatos';
 import { videoValido } from '../dominio/video';
 import { marcaParaTexto, textoSobre } from '../tema/tokens';
-import { cssDoTema } from './cssDosTemas';
-import { temaValido } from './temas';
+import { cssDasOpcoes } from './cssDasOpcoes';
+import { textoSobreCinza } from './cssDosTemas';
 
 /**
  * Peças comuns dos PDFs: HTML + CSS de impressão gerados a partir dos dados (nunca imagem da tela). Fundo branco,
@@ -55,11 +56,23 @@ export function corDeTextoDaMarca(cor: string | null | undefined): string {
 }
 
 /**
- * Cor da marca como texto nos blocos que os geradores pintam por conta própria (dieta e cargas). `CLASSICO` mantém a cor
- * como sempre foi (o visual de hoje não muda); os outros temas usam `corDeTextoDaMarca` (4,5:1), nunca a cor crua.
+ * Modelo e opções da marca já resolvidos (D19): `marca.temaPdf` é o id do modelo e `marca.opcoesPdf` as sobrescritas; valor
+ * desconhecido cai no do modelo, e modelo desconhecido em `CLASSICO` (`resolver`). Nenhum dos dois chega ao CSS ou ao HTML
+ * como texto: só escolhem trechos fixos do código.
  */
-export function corDeTextoNoTema(cor: string | null | undefined, tema?: unknown): string {
-  return temaValido(tema) === 'CLASSICO' ? corDaMarca(cor) : corDeTextoDaMarca(cor);
+export function valoresDoPdf(marca: Pick<Marca, 'temaPdf' | 'opcoesPdf'>): ValoresPdf {
+  return resolver(marca.temaPdf, marca.opcoesPdf);
+}
+
+/**
+ * Cores que os geradores pintam por conta própria (dieta e cargas): `fundo` e `texto` (4,5:1 sobre o branco) do destaque
+ * escolhido, `sobreFundo` (texto sobre o `fundo`) e `textoNoCinza` (a mesma cor medida contra o cinza mais escuro do papel,
+ * para o que cai em linha listrada). Vale para todo modelo, o Clássico inclusive (D7: o texto cru da marca clara saiu).
+ */
+export function coresDoPdf(marca: Pick<Marca, 'corPrimaria' | 'temaPdf' | 'opcoesPdf'>) {
+  const valores = valoresDoPdf(marca);
+  const { fundo, texto, sobreFundo } = coresDoDestaque(valores.cores.destaque, marca.corPrimaria);
+  return { valores, fundo, texto, sobreFundo, textoNoCinza: textoSobreCinza(fundo) };
 }
 
 /** Regras globais: só a impressão e o `documentoCompleto` as usam; a prévia na tela não (D11), para não pintar a página do app. */
@@ -70,10 +83,11 @@ html, body { background: #fff; color: #111; margin: 0; }
 `;
 
 /**
- * Regras do `.doc` (D11), as que também servem à prévia. `tema` passa por `temaValido` (desconhecido = `CLASSICO`, o visual
- * de sempre, sem mudar um caractere). Os outros temas só acrescentam regras no fim; nenhum texto do usuário entra no CSS.
+ * Regras do `.doc` (D11), as que também servem à prévia. `tema` é o id do modelo e `opcoes` as sobrescritas (`resolver`:
+ * valor desconhecido = o do modelo, e modelo desconhecido = `CLASSICO`, o visual de sempre, sem mudar um caractere). O resto
+ * entra como regras no fim (`cssDasOpcoes`); nenhum texto do usuário entra no CSS.
  */
-export function cssDoDoc(cor: string, tema?: unknown): string {
+export function cssDoDoc(cor: string, tema?: unknown, opcoes?: unknown): string {
   const marca = corDaMarca(cor);
   const marcaTexto = corDeTextoDaMarca(cor);
   const classico = `.doc { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.35; }
@@ -99,18 +113,19 @@ export function cssDoDoc(cor: string, tema?: unknown): string {
 .doc tr { break-inside: avoid; page-break-inside: avoid; }
 .doc .bloco { break-inside: avoid; page-break-inside: avoid; }
 .doc .texto { white-space: normal; }
-.doc a { color: ${marcaTexto}; }
+.doc a { color: ${textoSobreCinza(marca)}; }
 .doc .rodape { margin-top: 14pt; font-size: 8.5pt; color: #666; border-top: 1px solid #ddd; padding-top: 4pt; }
 /* O fim (rodapé e nome) nunca vai sozinho para uma página nova: na reunião de 17/10 a dieta saiu com a 3ª página só
    com o nome da consultoria. Chromium respeita o avoid entre irmãos e leva junto as últimas linhas do bloco anterior. */
 .doc .fim, .doc .rodape { break-before: avoid; page-break-before: avoid; break-inside: avoid; page-break-inside: avoid; }
 `;
-  return classico + cssDoTema(temaValido(tema), marca, marcaTexto);
+  const valores = resolver(tema, opcoes);
+  return classico + cssDasOpcoes(valores, cor);
 }
 
 /** Regras globais + as do `.doc`: o que a impressão e o `documentoCompleto` usam. */
-export function cssBase(cor: string, tema?: unknown): string {
-  return CSS_GLOBAL + cssDoDoc(cor, tema);
+export function cssBase(cor: string, tema?: unknown, opcoes?: unknown): string {
+  return CSS_GLOBAL + cssDoDoc(cor, tema, opcoes);
 }
 
 /**
@@ -118,7 +133,9 @@ export function cssBase(cor: string, tema?: unknown): string {
  * (`textoSobre`, a mesma regra do `sobreMarca` do app). A logo fica num quadro branco pequeno (até 18 pt de altura e
  * 90 pt de largura, proporção mantida e nunca ampliada), para continuar legível sobre qualquer cor da marca. O corpo não
  * ganha fundo colorido. Cor que não é `#RRGGBB` usa o neutro. Os valores de cor vêm só de `corDaMarca` (validada), nunca
- * crus; o `src` da logo e o nome passam por `esc()`.
+ * crus; o `src` da logo e o nome passam por `esc()`. O HTML é o mesmo em todo modelo e opção: destaque, posição e tamanho
+ * da logo e `mostrarNome` são CSS (`cssDasOpcoes`; o destaque cobre o `style` daqui com `!important`), e o nome fica no HTML
+ * mesmo escondido (`display: none` só com logo): o cabeçalho nunca sai sem dizer de quem é (D6).
  */
 export function faixaDaMarca(marca: Marca, logoDataUri: string | null = null): string {
   const fundo = corDaMarca(marca.corPrimaria);
@@ -172,16 +189,23 @@ export function cabecalhoDoPdf(c: CabecalhoDoPdf): string {
   }</div><div class="topo-dados pequeno">${dados.map(esc).join('<br>')}</div></div>`;
 }
 
+/** Chave de uma prévia: só `[a-z0-9-]`, gerada pelo código (nunca texto livre); entra no seletor e no atributo `data-previa`. */
+export const CHAVE_DA_PREVIA = /^[a-z0-9-]{1,64}$/;
+
 /**
  * CSS da prévia na tela da web (D10 e D11): o do documento sem as regras globais (`@page`, `*`, `html, body`), que
  * pintariam a página do app, mais o papel da prévia (`.previa-pdf`: branco, texto escuro e a margem de 14 mm da
- * impressão). Toda regra do `.doc` é presa ao papel (`.previa-pdf .doc`): o `.doc` do bloco de impressão, que pode estar na
- * página ao mesmo tempo com outro tema, não muda, e as regras dele (um seletor a menos) não vencem as da prévia.
+ * impressão). Toda regra é presa à INSTÂNCIA (`.previa-pdf[data-previa="<chave>"]`): o `.doc` do bloco de impressão, que
+ * pode estar na página ao mesmo tempo com outro modelo, não muda; as regras dele (um seletor a menos) não vencem as da
+ * prévia; e várias prévias na mesma página (a galeria) não trocam de CSS entre si. Chave fora de `CHAVE_DA_PREVIA` é erro
+ * de programação (a chave nunca vem de texto livre).
  */
-export function cssDaPrevia(css: string): string {
-  return `.previa-pdf { background: #fff; color: #111; padding: 14mm; width: 210mm; box-sizing: border-box; }
-.previa-pdf * { box-sizing: border-box; }
-${css.replace(CSS_GLOBAL, '').replace(/\.doc(?![\w-])/g, '.previa-pdf .doc')}`;
+export function cssDaPrevia(css: string, chave: string): string {
+  if (!CHAVE_DA_PREVIA.test(chave)) throw new Error('Chave da prévia inválida: só letras minúsculas, números e hífen.');
+  const papel = `.previa-pdf[data-previa="${chave}"]`;
+  return `${papel} { background: #fff; color: #111; padding: 14mm; width: 210mm; box-sizing: border-box; }
+${papel} * { box-sizing: border-box; }
+${css.replace(CSS_GLOBAL, '').replace(/\.doc(?![\w-])/g, `${papel} .doc`)}`;
 }
 
 /** Documento completo (celular: vira arquivo PDF). */

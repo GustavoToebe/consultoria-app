@@ -154,6 +154,7 @@ test.describe('alternativas de troca no PC (1280)', () => {
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'false');
 
     await page.getByRole('button', { name: 'Publicar treino', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Publicar treino' }).getByRole('button', { name: 'Publicar agora' }).click();
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'true');
     const linha = page.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Remover a alternativa Paralelas', exact: true }) });
     await expect(linha.getByText(mensagem)).toBeVisible();

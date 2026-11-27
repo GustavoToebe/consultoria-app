@@ -19,7 +19,11 @@ import java.util.UUID;
 class PushRepositorio {
 
     /** Um envio arrendado pelo job. */
-    record Reservado(UUID id, UUID consultoriaId, UUID usuarioId, int tentativas) {
+    record Reservado(UUID id, UUID consultoriaId, UUID usuarioId, int tentativas, TipoDePush tipo) {
+
+        Reservado(UUID id, UUID consultoriaId, UUID usuarioId, int tentativas) {
+            this(id, consultoriaId, usuarioId, tentativas, TipoDePush.COMPROMISSO);
+        }
     }
 
     static final int DIAS_DE_VALIDADE_DO_TOKEN = 30;
@@ -68,14 +72,14 @@ class PushRepositorio {
      * Enfileira um aviso para cada aluno ATIVO e com acesso que já tem token; quem já tem um PENDENTE fica como está. Roda na
      * transação de quem muda o compromisso (mesma conexão).
      */
-    void enfileirar(UUID consultoriaId, Collection<UUID> alunoIds) {
+    void enfileirar(UUID consultoriaId, Collection<UUID> alunoIds, TipoDePush tipo) {
         for (UUID alunoId : alunoIds) {
-            jdbc.update("insert into push_envio (id, consultoria_id, usuario_id) "
-                    + "select ?, a.consultoria_id, a.usuario_id from aluno a where a.consultoria_id = ? and a.id = ? "
+            jdbc.update("insert into push_envio (id, consultoria_id, usuario_id, tipo) "
+                    + "select ?, a.consultoria_id, a.usuario_id, ? from aluno a where a.consultoria_id = ? and a.id = ? "
                     + "and a.ativo and a.anonimizado_em is null and a.usuario_id is not null "
                     + "and exists (select 1 from push_token t where t.consultoria_id = a.consultoria_id and t.usuario_id = a.usuario_id) "
-                    + "on conflict (consultoria_id, usuario_id) where situacao = 'PENDENTE' do nothing",
-                    UUID.randomUUID(), consultoriaId, alunoId);
+                    + "on conflict (consultoria_id, usuario_id, tipo) where situacao = 'PENDENTE' do nothing",
+                    UUID.randomUUID(), tipo.name(), consultoriaId, alunoId);
         }
     }
 
@@ -84,9 +88,9 @@ class PushRepositorio {
         return jdbc.query("update push_envio p set reservado_por = ?, reserva_ate = now() + make_interval(secs => ?) "
                 + "where p.id in (select id from push_envio where situacao = 'PENDENTE' and proxima_tentativa <= now() "
                 + "and (reservado_por is null or reserva_ate < now()) order by proxima_tentativa limit ? for update skip locked) "
-                + "returning p.id, p.consultoria_id, p.usuario_id, p.tentativas",
+                + "returning p.id, p.consultoria_id, p.usuario_id, p.tentativas, p.tipo",
                 (rs, n) -> new Reservado(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getObject(3, UUID.class),
-                        rs.getInt(4)),
+                        rs.getInt(4), TipoDePush.valueOf(rs.getString(5))),
                 dono, (double) segundos, limite);
     }
 

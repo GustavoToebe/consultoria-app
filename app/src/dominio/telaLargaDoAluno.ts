@@ -14,10 +14,18 @@ export const LARGURA_TELA_DO_ALUNO = 2 * FAIXA_DO_ALUNO + VAO_DAS_FAIXAS;
 /** A faixa ganha a terceira coluna (`larga` e `ultralarga`). */
 export const telaLargaDoAluno = (faixa: FaixaDeLargura) => faixa === 'larga' || faixa === 'ultralarga';
 
-/** Teto do conteúdo da tela do aluno: 1120 até a faixa `normal`; 1688 (três faixas) na `larga` em diante, se a tela pede três. */
-export function larguraDaTelaDoAluno(faixa: FaixaDeLargura, faixas: 2 | 3 = 3): number {
-  const n = telaLargaDoAluno(faixa) ? faixas : 2;
-  return n * FAIXA_DO_ALUNO + (n - 1) * VAO_DAS_FAIXAS;
+/** Lista sequencial (refeições, séries, exercícios do dia, divisões, perguntas e respostas): acima disso o nome fica longe do número. */
+export const LARGURA_LISTA_DO_ALUNO = 880;
+/**
+ * Teto único das telas do aluno, centralizado (`docs/planos/orientacoes-de-design-26-11.md`, 1.0): 880 de principal + 32 de vão
+ * + 400 de apoio. Vale da faixa `normal` em diante; abaixo disso o bloco ocupa a área. A `ultralarga` não ganha coluna nova: a
+ * sobra vira margem. `faixa` e `faixas` ficam só para as telas que ainda os passam (shortcut: parâmetros sem efeito, tirar
+ * quando nenhuma tela do aluno os usar mais).
+ */
+export const TETO_DA_TELA_DO_ALUNO = LARGURA_LISTA_DO_ALUNO + 32 + 400;
+
+export function larguraDaTelaDoAluno(_faixa?: FaixaDeLargura, _faixas: 2 | 3 = 3): number {
+  return TETO_DA_TELA_DO_ALUNO;
 }
 
 /** Cartão de lista (divisão, exercício, refeição) não fica mais estreito que isto na grade larga. */

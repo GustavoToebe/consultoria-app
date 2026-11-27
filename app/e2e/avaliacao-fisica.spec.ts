@@ -526,7 +526,7 @@ async function abrirHistoricoDoAluno(page: Page, funcionalidades: string[] | nul
     'GET /aluno/avaliacoes-fisicas': { corpo: avaliacoes },
     ...extras,
   });
-  await page.goto('/aluno/historico');
+  await page.goto('/aluno/historico?aba=corpo');
   await expect(page.getByText('Suas medidas registradas pelo seu treinador, em centímetros.')).toBeVisible();
   return api;
 }
@@ -584,7 +584,7 @@ for (const largura of LARGURAS) {
       'GET /aluno/fotos/linha-do-tempo': { corpo: [] },
       'GET /aluno/avaliacoes-fisicas': (_p, route) => route.abort('internetdisconnected'),
     });
-    await page.goto('/aluno/historico');
+    await page.goto('/aluno/historico?aba=corpo');
     await expect(page.getByText('Suas medidas registradas pelo seu treinador, em centímetros.')).toBeVisible();
     await expect(page.getByText('Sem conexão.', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Nova avaliação' })).toHaveCount(0);

@@ -148,7 +148,7 @@ for (const largura of [390, 1280, 3440]) {
     await page.getByRole('switch', { name: /Autorizo a consultoria/ }).click();
     await expect(page.getByText('Autorizado em 23/10/2026')).toBeVisible();
 
-    await page.goto('/aluno/historico');
+    await page.goto('/aluno/historico?aba=corpo');
     await page.getByRole('tab', { name: 'Comparar' }).click();
     await page.getByRole('button', { name: 'Primeira × última' }).click();
     await expect(page.getByText('01/01 → 10/02: −1,5 kg em 40 dias')).toBeVisible();

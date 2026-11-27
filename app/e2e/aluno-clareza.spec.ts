@@ -126,9 +126,11 @@ for (const largura of [390, 1280]) {
       'GET /aluno/avaliacoes-fisicas': { corpo: [] },
     });
     await page.goto('/aluno/historico');
-    // B6: registros e progresso vazios dizem por quê, em vez de sumir.
+    // B6: registros e progresso vazios dizem por quê, em vez de sumir (os dois moram na aba Treinos, a que abre).
     await expect(page.getByText('Nenhum registro neste período.', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Nenhum registro neste período.', { exact: true })).toHaveCount(2);
+    // Com o menu lateral (1280) o peso mora na aba Corpo (26/11, `?aba=corpo`); no celular é tudo uma coluna só.
+    if (largura === 1280) await page.goto('/aluno/historico?aba=corpo');
     // A11: direção e número na cor do texto, contra quando; o resumo acima explica a diferença (sem legenda de setas).
     const lista = page.getByLabel('Registros de peso');
     await expect(page.getByLabel('Subiu 1,2 kg desde 12/10', { exact: true })).toBeVisible();

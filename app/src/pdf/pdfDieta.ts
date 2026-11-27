@@ -11,9 +11,10 @@ import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
 import { tituloDoPlano } from '../dominio/tituloDoPlano';
 import { variacaoDoPeso } from '../dominio/variacaoDoPeso';
 import { textoSobre } from '../tema/tokens';
-import { FUNDO_LEVE } from './cssDosTemas';
-import { cabecalhoDoPdf, corDaMarca, corDeTextoNoTema, cssBase, esc, escLinhas, type Documento } from './html';
-import { temaValido, type TemaPdf } from './temas';
+import type { ValoresPdf } from '../dominio/configuracaoPdf';
+import { CINZA_DO_TEXTO_FRACO, FUNDO_LEVE } from './cssDosTemas';
+import { ajustesDoGerador } from './cssDosAjustes';
+import { cabecalhoDoPdf, coresDoPdf, cssBase, esc, escLinhas, type Documento } from './html';
 
 export interface DadosPdfDieta {
   marca: Marca;
@@ -118,13 +119,13 @@ const CSS_DIETA = `
 .doc .refeicao > .cab { background: ${NAVY}; color: #fff; font-weight: 800; padding: 6pt 8pt; font-size: 10.5pt; break-after: avoid; page-break-after: avoid; }
 .doc .opcao > .cab { color: #fff; font-weight: 800; font-size: 9pt; padding: 3pt 8pt 3pt 18pt; margin: 6pt 0 4pt; letter-spacing: .5px; }
 .doc .item { margin: 2pt 0; }
-.doc .item .macros { color: #777; font-size: 9pt; }
+.doc .item .macros { color: ${CINZA_DO_TEXTO_FRACO}; font-size: 9pt; }
 .doc .total { font-size: 9pt; font-weight: 700; margin: 3pt 0 2pt; }
 .doc .escolha { font-size: 9pt; font-weight: 700; margin: 4pt 0 0; }
 .doc .preparo { margin: 6pt 0 2pt; padding: 5pt 8pt; border-left: 3px solid #bbb; background: #f7f7f7; break-inside: avoid; page-break-inside: avoid; }
 .doc .preparo strong { display: block; font-size: 9pt; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2pt; }
 .doc .orient { margin-bottom: 3pt; }
-.doc table.dark th { background: ${NAVY}; }
+.doc table.dark th { background: ${NAVY}; color: #fff; }
 .doc table.dark td { border: 1px solid #ddd; font-weight: 700; }
 .doc table.dark tr:nth-child(even) td { background: #f4f4f4; }
 .doc .centro { text-align: center; }
@@ -132,11 +133,12 @@ const CSS_DIETA = `
 `;
 
 /**
- * Regras da dieta em cada tema (o `CLASSICO` não acrescenta nada). Fundo na cor da marca ou escuro sempre com texto
+ * Regras da dieta por estilo de cabeçalho (`FAIXA`, o Clássico, não acrescenta nada; `LINHA` e `CARTAO` reproduzem o Minimalista e o
+ * Marcante). Fundo na cor de destaque ou escuro sempre com texto
  * legível: no `MINIMALISTA` as faixas escuras viram linhas e o texto é escuro; no `MARCANTE` o cabeçalho das tabelas é leve.
  */
-function cssDoTemaDeDieta(tema: TemaPdf, cor: string): string {
-  if (tema === 'MINIMALISTA') {
+function cssDoTemaDeDieta(estilo: ValoresPdf['cabecalho']['estilo'], cor: string): string {
+  if (estilo === 'LINHA') {
     return `.doc .refeicao > .cab { background: none; color: #111; padding: 4pt 0; border-bottom: 1px solid ${cor}; }
 .doc .opcao > .cab { background: none !important; color: #111 !important; padding: 2pt 0 2pt 6pt; border-left: 2pt solid ${cor}; }
 .doc table.dark th { background: none; color: #333; }
@@ -144,7 +146,7 @@ function cssDoTemaDeDieta(tema: TemaPdf, cor: string): string {
 .doc .barra { height: 1px; margin: 10pt 0; }
 `;
   }
-  if (tema === 'MARCANTE') {
+  if (estilo === 'CARTAO') {
     // O canto da faixa da refeição vem do raio do `.cab`, não de `overflow: hidden` no cartão, que pode cortar o que passa
     // para a página seguinte na impressão.
     return `.doc .barra { display: none; }
@@ -165,17 +167,15 @@ function cssDoTemaDeDieta(tema: TemaPdf, cor: string): string {
 export function documentoDieta(d: DadosPdfDieta): Documento {
   const c = soAVariacao(d.conteudo, d.variacaoUid ?? null);
   const titulo = tituloDoPlano(d.titulo, 'dieta', d.aluno);
-  const cor =corDaMarca(d.marca.corPrimaria);
-  const tema = temaValido(d.marca.temaPdf);
-  const corTexto = corDeTextoNoTema(d.marca.corPrimaria, tema);
+  const { valores, fundo: cor, texto: corTexto, textoNoCinza } = coresDoPdf(d.marca);
   const barra = `<div class="barra" style="background:${cor}"></div>`;
   const sec = (t: string) => `<h2 class="sec" style="color:${corTexto}">${esc(t)}</h2>`;
   const comVariacoes = c.variacoes.length > 0;
   const tabelaDoTotal = (t: TotaisComFibra) => `<table class="macros"><tbody>
-<tr><td>Calorias Totais</td><td style="color:${corTexto}">${esc(kcal(t.kcal))}</td></tr>
-<tr><td>Proteína</td><td style="color:${corTexto}">${esc(g(t.proteina))}</td></tr>
-<tr><td>Carboidrato</td><td style="color:${corTexto}">${esc(g(t.carboidrato))}</td></tr>
-<tr><td>Gordura</td><td style="color:${corTexto}">${esc(g(t.gordura))}</td></tr>
+<tr><td>Calorias Totais</td><td style="color:${textoNoCinza}">${esc(kcal(t.kcal))}</td></tr>
+<tr><td>Proteína</td><td style="color:${textoNoCinza}">${esc(g(t.proteina))}</td></tr>
+<tr><td>Carboidrato</td><td style="color:${textoNoCinza}">${esc(g(t.carboidrato))}</td></tr>
+<tr><td>Gordura</td><td style="color:${textoNoCinza}">${esc(g(t.gordura))}</td></tr>
 <tr><td>Fibra</td><td>${esc(fibra(t))}</td></tr></tbody></table>${fibraParcial(t) ? `<div class="pequeno">${esc('Fibra parcial: há itens sem fibra informada.')}</div>` : ''}`;
   // Nome do aluno e data de emissão ficam no cabeçalho comum (`cabecalhoDoPdf`), sem repetir aqui.
   const identificacao = [
@@ -192,7 +192,8 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
         .map((o, oi) => {
           const corOpcao = oi === 0 ? cor : (COR_OPCAO[oi] ?? NAVY);
           const corDoItem = oi === 0 ? corTexto : corOpcao;
-          const textoDaFaixa = tema === 'CLASSICO' ? '' : `;color:${textoSobre(corOpcao)}`;
+          // O CSS da faixa já é branco: só o fundo claro (destaque amarelo, por exemplo) leva a cor no atributo.
+          const textoDaFaixa = textoSobre(corOpcao) === '#FFFFFF' ? '' : `;color:${textoSobre(corOpcao)}`;
           const faixa = varias ? `<div class="cab" style="background:${corOpcao}${textoDaFaixa}">▸ ${esc(nomeDaOpcao(o.rotulo).toUpperCase())}</div>` : '';
           const itens = o.itens.map((i) => linhaItem(i, varias ? corDoItem : corTexto)).join('') || '<div class="suave">—</div>';
           return `<div class="opcao">${faixa}${itens}<div class="total">Total: ${esc(textoTotaisPdf(somar(o.itens)))}</div></div>`;
@@ -273,5 +274,5 @@ ${tabelaDoTotal(totalDoDia(c.refeicoes))}
     `<div class="fim">${d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : ''}<div class="pequeno centro" style="margin-top:14pt">${esc(d.marca.nome)}</div></div>`,
   ];
   if (d.lista) partes.splice(partes.length - 1, 0, secaoDaLista(d.lista, d.versao, corTexto, comVariacoes));
-  return { titulo: `Dieta - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, tema) + CSS_DIETA + cssDoTemaDeDieta(tema, cor), corpo: partes.join('\n') };
+  return { titulo: `Dieta - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf, d.marca.opcoesPdf) + CSS_DIETA + cssDoTemaDeDieta(valores.cabecalho.estilo, cor) + ajustesDoGerador('DIETA', valores), corpo: partes.join('\n') };
 }

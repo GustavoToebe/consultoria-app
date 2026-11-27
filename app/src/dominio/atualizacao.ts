@@ -144,5 +144,6 @@ export const podeResponderAtualizacao = (a: Atualizacao, hoje: string) =>
 export function fraseDeTreinosNoPeriodo(diasComTreino: number | null | undefined, mediaPorSemana: number | null | undefined): string {
   if (diasComTreino == null) return 'Treinos registrados no período: —';
   const quantos = diasComTreino === 1 ? '1 treino registrado' : diasComTreino === 0 ? 'Nenhum treino registrado' : `${diasComTreino} treinos registrados`;
-  return `${quantos} no período${mediaPorSemana == null ? '' : ` (≈${numeroParaTela(mediaPorSemana, 1)} por semana)`}`;
+  // Sem nenhum treino, "(≈0 por semana)" só repete o zero.
+  return `${quantos} no período${mediaPorSemana == null || diasComTreino === 0 ? '' : ` (≈${numeroParaTela(mediaPorSemana, 1)} por semana)`}`;
 }

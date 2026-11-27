@@ -9339,6 +9339,925 @@
   "finalidade": "INSCRICAO"
  },
  {
+  "nome": "itens_sem_fonte",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].fonte"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_max_1_sem_fonte",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "max": 1
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].fonte"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_max_20_sem_fonte",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "max": 20
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].fonte"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_max_0",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "max": 0
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].fonte",
+   "secoes[0].perguntas[1].max"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_max_21",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "max": 21
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].fonte",
+   "secoes[0].perguntas[1].max"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_max_decimal",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "max": 1.5
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].fonte",
+   "secoes[0].perguntas[1].max"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "max_em_texto_continua_recusado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "max": 1
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].max"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_na_anamnese",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].fonte",
+   "secoes[0].perguntas[0].tipo"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "itens_na_inscricao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].fonte",
+   "secoes[0].perguntas[0].tipo"
+  ],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
+  "nome": "itens_fonte_alimentos_da_dieta_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "itens_fonte_exercicios_do_treino_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "EXERCICIOS_DO_TREINO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "itens_fonte_dias_treinados_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "DIAS_TREINADOS"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "itens_fonte_desconhecida",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "SUPLEMENTOS"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].fonte"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_completo_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "max": 1,
+       "motivo": "OBRIGATORIO",
+       "rotuloMotivo": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "itens_motivo_opcional_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL",
+       "rotuloMotivo": "Onde e como doeu?"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "itens_motivo_nenhum_explicito_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "NENHUM"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "itens_motivo_desconhecido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "TALVEZ"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].motivo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_rotulo_do_motivo_61",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL",
+       "rotuloMotivo": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].rotuloMotivo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_rotulo_do_motivo_sem_motivo",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "rotuloMotivo": "Por quê?"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].rotuloMotivo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_rotulo_do_motivo_com_motivo_nenhum",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "NENHUM",
+       "rotuloMotivo": "Por quê?"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].rotuloMotivo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_max_1_e_20_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "max": 1
+      },
+      {
+       "id": "j",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "max": 20
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "fonte_em_texto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "fonte": "DIAS_TREINADOS"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].fonte"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "motivo_em_texto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].motivo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "rotulo_do_motivo_em_texto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "rotuloMotivo": "x"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].rotuloMotivo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "itens_capacidade_de_texto_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i0",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i1",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i2",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i3",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i4",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i5",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "itens_capacidade_de_texto_estoura",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i0",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i1",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i2",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i3",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i4",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i5",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      },
+      {
+       "id": "i6",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes"
+  ],
+  "avisos": []
+ },
+ {
   "nome": "fabrica_v2",
   "conteudo": {
    "secoes": [

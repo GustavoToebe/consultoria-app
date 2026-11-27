@@ -1,4 +1,5 @@
 import { requisicao } from './cliente';
+import type { CorpoDaLiberacao } from './liberacaoDePlano';
 import type { AniversarianteDoAluno } from './aniversariosTipos';
 import type { PedidoDeComparacao } from '../dominio/comparacaoDeFotos';
 import type {
@@ -725,8 +726,12 @@ export const enviarLogo = (arquivo: FormData) =>
 
 export const removerLogo = () => requisicao<Marca>('/consultoria/marca/logo', { metodo: 'DELETE' });
 
-export const alterarTemaPdf = (temaPdf: import('../pdf/temas').TemaPdf) =>
-  requisicao<ConsultoriaResponse>('/consultoria/tema-pdf', { metodo: 'PUT', corpo: { temaPdf } });
+/** Grava modelo e sobrescritas dos PDFs; `versao` é a da consultoria lida (409 `CONFLITO_EDICAO` se outra pessoa gravou antes). */
+export const alterarDocumentosPdf = (dados: {
+  modelo: import('../dominio/configuracaoPdf').ModeloPdf;
+  opcoes: import('../dominio/configuracaoPdf').OpcoesPdf;
+  versao: number;
+}) => requisicao<ConsultoriaResponse>('/consultoria/documentos-pdf', { metodo: 'PUT', corpo: dados });
 
 // ---- Treinador: início ----
 
@@ -1096,10 +1101,11 @@ export const salvarRascunho = <C>(
 export const validarPlano = (tipo: TipoPlano, id: string) =>
   requisicao<ResultadoValidacao>(`/${seg(prefixo(tipo))}/${seg(id)}/validar`, { metodo: 'POST' });
 
-export const publicarPlano = <C>(tipo: TipoPlano, id: string, versao: number, confirmarAvisos: boolean) =>
+/** `liberacao` (bloco E): `{}` = libera na hora e avisa o aluno (o padrão da API); ver `api/liberacaoDePlano.ts`. */
+export const publicarPlano = <C>(tipo: TipoPlano, id: string, versao: number, confirmarAvisos: boolean, liberacao: CorpoDaLiberacao = {}) =>
   requisicao<PlanoDetalhe<C>>(`/${seg(prefixo(tipo))}/${seg(id)}/publicar`, {
     metodo: 'POST',
-    corpo: { versao, confirmarAvisos },
+    corpo: { versao, confirmarAvisos, ...liberacao },
   });
 
 export const replicarPlano = <C>(tipo: TipoPlano, id: string, dados: Omit<NovoPlano, 'receitaId' | 'copiarDoPlanoId'>) =>

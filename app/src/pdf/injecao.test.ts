@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
+import type { OpcoesPdf } from '../dominio/configuracaoPdf';
 import type { ConteudoDieta, Marca } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
@@ -35,7 +36,7 @@ jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
  */
 
 /** Chaves que só ligam um objeto a outro (uid, referência). Nunca são texto do usuário nem aparecem no PDF. */
-const LIGACAO = ['uid', 'id', 'exercicioId', 'alimentoId', 'grupoUid', 'escolhidas', 'temaPdf']; // temaPdf escolhe o CSS; o tema atacado tem caso próprio, abaixo
+const LIGACAO = ['uid', 'id', 'exercicioId', 'alimentoId', 'grupoUid', 'escolhidas', 'temaPdf', 'opcoesPdf']; // temaPdf e opcoesPdf escolhem o CSS; os atacados têm caso próprio, abaixo
 /** Códigos, enums e datas que escolhem uma entrada da metodologia ou um formato; o servidor os valida. */
 const CODIGOS = [
   'chave', 'codigo', 'tipo', 'modo', 'papel', 'tecnica', 'modalidade', 'regiao', 'unidade', 'periodo',
@@ -240,9 +241,23 @@ const linhaDaLista = (chave: string, extra: Partial<LinhaDaLista> = {}): LinhaDa
   naDieta: 1050, quantidadeCru: 420, fatorCorrecao: 1.1, fatorCoccao: 2.5, grupo: 'Cereais e derivados', ...extra,
 });
 
-// Os mesmos ataques e a mesma barreira (montarCorpo) valem em cada tema: o tema só acrescenta CSS do código, nunca texto do usuário.
-describe.each(TEMAS_PDF.map((x) => x.id))('tema %s', (tema) => {
-const marca: Marca = { id: 'm', nome: 'Marca', corPrimaria: '#C62828', fonteTitulo: 'METAL', temaPadrao: 'ESCURO', logoUrl: null, temaPdf: tema };
+// Sobrescritas diferentes do padrão de todo modelo (um valor por opção, com o nome da consultoria escondido): o gerador sai
+// pelo mesmo caminho, só o CSS e a faixa mudam.
+const NAO_PADRAO: OpcoesPdf = {
+  cores: { destaque: 'AZUL' },
+  texto: { fonte: 'SERIFADA', tamanho: 'G' },
+  cabecalho: { estilo: 'CARTAO', logo: 'CENTRO', tamanhoLogo: 'G', mostrarNome: false },
+  tabelas: { estilo: 'LISTRADA', densidade: 'ESPACOSA' },
+};
+const CASOS: [string, string, OpcoesPdf | undefined][] = TEMAS_PDF.flatMap((x) => [
+  [x.id, 'padrão', undefined] as [string, string, OpcoesPdf | undefined],
+  [x.id, 'com sobrescritas', NAO_PADRAO] as [string, string, OpcoesPdf | undefined],
+]);
+
+// Os mesmos ataques e a mesma barreira (montarCorpo) valem em cada um dos seis modelos, com e sem sobrescritas: modelo e opções
+// só acrescentam CSS do código, nunca texto do usuário.
+describe.each(CASOS)('modelo %s (%s)', (tema, _caso, opcoesPdf) => {
+const marca: Marca = { id: 'm', nome: 'Marca', corPrimaria: '#C62828', fonteTitulo: 'METAL', temaPadrao: 'ESCURO', logoUrl: null, temaPdf: tema, opcoesPdf };
 const base = {
   marca,
   logoDataUri: 'data:image/png;base64,AAAA',
@@ -401,6 +416,18 @@ describe('cor da marca nunca chega crua ao CSS nem ao HTML', () => {
       expect(d.css).not.toContain('red;}');
       expect(d.corpo).not.toContain('<script');
       expect(d.corpo).not.toContain('red;}');
+    });
+    it(`${nome}: opcoesPdf atacado cai no valor do modelo e nada dele chega ao CSS ou ao HTML`, () => {
+      const hostil = {
+        cores: { destaque: '"><script>alert(1)</script>' },
+        texto: { fonte: 'x;}body{display:none', tamanho: { toString: 'alert(1)' } },
+        cabecalho: { estilo: "'><img src=x onerror=alert(1)>", logo: 0, mostrarNome: '<b>', tamanhoLogo: ['G'] },
+        tabelas: { estilo: 'url(javascript:alert(1))', densidade: null },
+        '"><script>alert(1)</script>': { a: 1 },
+      };
+      const d = gerar({ ...marca, opcoesPdf: hostil as never });
+      expect(d).toEqual(gerar({ ...marca, opcoesPdf: null }));
+      expect(JSON.stringify(d)).not.toContain('alert(1)');
     });
     it(`${nome}: temaPdf atacado cai em CLASSICO e nada dele chega ao CSS ou ao HTML`, () => {
       const hostil = '"><script>alert(1)</script>;}body{display:none';

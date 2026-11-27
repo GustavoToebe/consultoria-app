@@ -3,6 +3,8 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 import br.com.treinos.api.questionarios.LimitesQuestionario;
 import br.com.treinos.api.web.ValidacaoException;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import static org.assertj.core.api.Assertions.*;
 class ValidadorAtualizacaoTest {
@@ -79,5 +81,91 @@ class ValidadorAtualizacaoTest {
         var modelo = json.readTree("{\"secoes\":[{\"perguntas\":[{\"id\":\"x\",\"tipo\":\"NOVO\"}]}]}");
         assertThat(validador.validar(modelo, json.createObjectNode()).isEmpty()).isTrue();
         assertThatThrownBy(() -> validador.validar(modelo, json.readTree("{\"x\":\"a\"}"))).isInstanceOf(ValidacaoException.class);
+    }
+
+    // ---- ITENS_DO_PLANO (aspas simples nos JSON abaixo, trocadas por duplas em j()) ----
+
+    private static final String FRANGO = "00000000-0000-4000-8000-0000000000a1";
+    private static final String BATATA = "00000000-0000-4000-8000-0000000000a2";
+    private static final String FRANGO_DA_OPCAO_B = "00000000-0000-4000-8000-0000000000a3";
+    private static final ItensDoPlano LISTA = fonte -> "ALIMENTOS_DA_DIETA".equals(fonte) ? List.of(
+            new ItensDoPlano.Item(FRANGO, "Frango grelhado"), new ItensDoPlano.Item(BATATA, "Batata-doce"),
+            new ItensDoPlano.Item(FRANGO_DA_OPCAO_B, "frango  grelhado")) : List.of();
+
+    private tools.jackson.databind.JsonNode j(String texto) {
+        return json.readTree(texto.replace('\'', '"'));
+    }
+
+    private tools.jackson.databind.JsonNode modeloItens(String config) {
+        return j("{'secoes':[{'perguntas':[{'id':'itens','tipo':'ITENS_DO_PLANO','fonte':'ALIMENTOS_DA_DIETA'" + config + "}]}]}");
+    }
+
+    private tools.jackson.databind.JsonNode itens(String config, String resposta) {
+        return validador.validar(modeloItens(config), j("{'itens':" + resposta + "}"), false, "ATUALIZACAO_INVALIDA",
+                LocalDate.of(2026, 11, 26), LISTA);
+    }
+
+    private void recusa(String config, String resposta) {
+        assertThatThrownBy(() -> itens(config, resposta)).as(resposta).isInstanceOf(ValidacaoException.class)
+            .extracting(e -> ((ValidacaoException) e).getProblemas().get(0).field()).isEqualTo("itens");
+    }
+
+    private static String escolhido(String id) {
+        return "{'id':'" + id + "'}";
+    }
+
+    private static String escolhido(String id, String motivo) {
+        return "{'id':'" + id + "','motivo':'" + motivo + "'}";
+    }
+
+    @Test void itensDoPlanoGravamONomeDaListaEOMotivoSemEspacos() {
+        var gravado = itens(",'motivo':'OPCIONAL'", "[" + escolhido(FRANGO, "  enjoei  ") + "," + escolhido(BATATA, "   ") + "]").path("itens");
+        assertThat(gravado.size()).isEqualTo(2);
+        assertThat(gravado.get(0).path("id").asString()).isEqualTo(FRANGO);
+        assertThat(gravado.get(0).path("nome").asString()).isEqualTo("Frango grelhado");
+        assertThat(gravado.get(0).path("motivo").asString()).isEqualTo("enjoei");
+        assertThat(gravado.get(1).has("motivo")).isFalse();
+        assertThat(gravado.get(1).path("nome").asString()).isEqualTo("Batata-doce");
+    }
+
+    @Test void itensDoPlanoRecusamForaDoContrato() {
+        String opcional = ",'motivo':'OPCIONAL'";
+        recusa("", "'texto'");
+        recusa("", "['" + FRANGO + "']");
+        recusa("", "[{'id':'" + FRANGO + "','nome':'Nome do cliente'}]");
+        recusa("", "[{'id':'" + FRANGO + "','extra':1}]");
+        recusa("", "[{'nome':'sem id'}]");
+        recusa("", "[{'id':7}]");
+        recusa("", "[" + escolhido("00000000-0000-4000-8000-0000000000ff") + "]");
+        recusa("", "[" + escolhido(FRANGO) + "," + escolhido(FRANGO) + "]");
+        // dois uids com o mesmo nome (caixa e espaços) contam como o mesmo item
+        recusa("", "[" + escolhido(FRANGO) + "," + escolhido(FRANGO_DA_OPCAO_B) + "]");
+        recusa(",'max':1", "[" + escolhido(FRANGO) + "," + escolhido(BATATA) + "]");
+        recusa(opcional, "[{'id':'" + FRANGO + "','motivo':7}]");
+        recusa(opcional, "[" + escolhido(FRANGO, "a".repeat(301)) + "]");
+        recusa(",'motivo':'OBRIGATORIO'", "[" + escolhido(FRANGO) + "]");
+        recusa(",'motivo':'OBRIGATORIO'", "[" + escolhido(FRANGO, "  ") + "]");
+        recusa("", "[" + escolhido(FRANGO, "sem pedir") + "]");
+        recusa(",'motivo':'TALVEZ'", "[" + escolhido(FRANGO) + "]");
+    }
+
+    @Test void itensDoPlanoAceitamOLimiteDoMotivoEOMaximoDaPergunta() {
+        assertThat(itens(",'motivo':'OPCIONAL'", "[" + escolhido(FRANGO, "a".repeat(300)) + "]").path("itens").size()).isEqualTo(1);
+        assertThat(itens(",'max':2", "[" + escolhido(FRANGO) + "," + escolhido(BATATA) + "]").path("itens").size()).isEqualTo(2);
+    }
+
+    @Test void itensDoPlanoSemListaOuSemRespostaSeguemAsRegrasDeSempre() {
+        // sem contexto de plano (anamnese, inscrição), qualquer resposta é recusada
+        assertThatThrownBy(() -> validador.validar(modeloItens(""), j("{'itens':[" + escolhido(FRANGO) + "]}")))
+            .isInstanceOf(ValidacaoException.class);
+        // lista vazia = não respondida: opcional passa, obrigatória recusa
+        assertThat(itens("", "[]").has("itens")).isFalse();
+        assertThatThrownBy(() -> itens(",'obrigatoria':true", "[]")).isInstanceOf(ValidacaoException.class);
+    }
+
+    @Test void mensagemDeRecusaDosItensNuncaRepeteOQueVeio() {
+        var e = catchThrowableOfType(ValidacaoException.class, () -> itens(",'motivo':'OPCIONAL'",
+            "[" + escolhido(FRANGO, "SEGREDO ".repeat(60)) + "]"));
+        assertThat(e.getProblemas().toString()).doesNotContain("SEGREDO").doesNotContain("Frango").doesNotContain(FRANGO);
     }
 }

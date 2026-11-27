@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { Send } from 'lucide-react-native';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, View, type TextInput } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
+import type { CorpoDaLiberacao } from '../api/liberacaoDePlano';
 import { publicarPasta } from '../api/rotas';
 import type { PastaResumo, TipoPlano } from '../api/tipos';
+import { corpoDaLiberacao, destinoDoErro, erroDoCampo, type EscolhaDaLiberacao } from '../dominio/liberacaoDePlano';
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import {
   agruparProblemasPorPlano,
@@ -16,6 +18,7 @@ import {
   TEXTO_DO_CONFLITO_DA_PUBLICACAO,
   textoDoErroDaPublicacao,
   textoDosPendentesDuplicados,
+  textoDosPuladosAgendados,
   versoesDosPendentes,
   type PlanosDaPasta,
   type ProblemasPorPlano,
@@ -31,12 +34,19 @@ import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { rotaDoEditor } from './CartaoPlanos';
+import { EscolhaDaLiberacaoDoPlano } from './plano/EscolhaDaLiberacao';
+
+type Versoes = ReturnType<typeof versoesDosPendentes>;
 
 type Resultado =
-  | { tipo: 'publicado'; texto: string }
+  /** `pulados`: plano agendado e sem alteração, que o "Publicar tudo" não reagenda (bloco E). */
+  | { tipo: 'publicado'; texto: string; pulados: string | null }
   | { tipo: 'erros'; grupos: ProblemasPorPlano[] }
-  /** `versoes` = as da tentativa que voltou com os avisos: "Publicar mesmo assim" reenvia exatamente essas, nunca as de uma recarga posterior. */
-  | { tipo: 'avisos'; grupos: ProblemasPorPlano[]; versoes: ReturnType<typeof versoesDosPendentes> }
+  /**
+   * `versoes` e `liberacao` = as da tentativa que voltou com os avisos: "Publicar mesmo assim" reenvia exatamente essas,
+   * nunca as de uma recarga posterior nem uma data mexida depois.
+   */
+  | { tipo: 'avisos'; grupos: ProblemasPorPlano[]; versoes: Versoes; liberacao: CorpoDaLiberacao }
   | { tipo: 'conflito' }
   | { tipo: 'duplicados'; texto: string }
   | { tipo: 'falha'; texto: string };
@@ -77,29 +87,50 @@ export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, car
   const { confirmar } = useSaidaGuardada();
   const [publicando, setPublicando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  // Uma data só para todos os planos publicados agora (bloco E); o padrão é liberar na hora e avisar, como antes.
+  const [escolha, setEscolha] = useState<EscolhaDaLiberacao>({ modo: 'agora', dataTexto: '', avisar: true });
+  const [tentou, setTentou] = useState(false);
+  const [erroDaData, setErroDaData] = useState<string | null>(null);
+  const refData = useRef<TextInput>(null);
   // Lista que falhou ou sendo buscada de novo deixa o botão desabilitado com o motivo (nada vai à API; a que falhou
   // ganha o "Tentar de novo"); sem isso, só trava quando falta a permissão de um tipo QUE TEM alteração; o resto (tipo
   // não lido) a API decide.
   const situacao = situacaoDoPublicar(planos, falhou, temFuncionalidade('MOBILIDADE'), pode, atualizando);
   const motivo = carregando ? 'Carregando os planos da pasta.' : situacao.motivo;
 
-  const publicar = async (confirmarAvisos: boolean, versoesDosAvisos?: ReturnType<typeof versoesDosPendentes>) => {
+  const publicar = async (confirmarAvisos: boolean, dosAvisos?: { versoes: Versoes; liberacao: CorpoDaLiberacao }) => {
     if (!situacao.podePublicar) return;
+    let liberacao = dosAvisos?.liberacao;
+    if (!liberacao) {
+      const r = corpoDaLiberacao(escolha);
+      if ('erro' in r) {
+        setTentou(true);
+        refData.current?.focus();
+        return;
+      }
+      liberacao = r.corpo;
+    }
     setPublicando(true);
-    const versoes = versoesDosAvisos ?? versoesDaTela;
+    const versoes = dosAvisos?.versoes ?? versoesDaTela;
+    // A lista do clique: a recarga depois de publicar já traz o plano novo e perderia quem foi pulado.
+    const planosDoClique = planos;
     try {
-      const r = await publicarPasta(pasta.id, { confirmarAvisos, versoes });
-      setResultado({ tipo: 'publicado', texto: resumoDaPublicacao(r) });
+      const r = await publicarPasta(pasta.id, { confirmarAvisos, versoes, ...liberacao });
+      setResultado({ tipo: 'publicado', texto: resumoDaPublicacao(r), pulados: textoDosPuladosAgendados(r.pulados, planosDoClique) });
       if (r.publicados.length) aoPublicar();
     } catch (e) {
-      if (e instanceof ErroApi && e.codigo === 'CONFLITO_EDICAO') {
+      const destino = e instanceof ErroApi ? destinoDoErro(e) : null;
+      if (destino && 'campo' in destino) {
+        setResultado(null);
+        setErroDaData(destino.campo);
+      } else if (e instanceof ErroApi && e.codigo === 'CONFLITO_EDICAO') {
         setResultado({ tipo: 'conflito' });
         aoRecarregar();
       } else if (e instanceof ErroApi && e.codigo === 'PLANOS_PENDENTES_DUPLICADOS') {
         setResultado({ tipo: 'duplicados', texto: textoDosPendentesDuplicados(e.campos, planos) ?? textoDoErro(e) });
       } else if (e instanceof ErroApi && (e.codigo === 'PLANO_INVALIDO' || e.codigo === 'CONFIRMAR_AVISOS')) {
         const grupos = agruparProblemasPorPlano(e.campos, planos ?? { treino: null, dieta: null, mobilidade: null });
-        setResultado(e.codigo === 'PLANO_INVALIDO' ? { tipo: 'erros', grupos } : { tipo: 'avisos', grupos, versoes });
+        setResultado(e.codigo === 'PLANO_INVALIDO' ? { tipo: 'erros', grupos } : { tipo: 'avisos', grupos, versoes, liberacao });
       } else {
         setResultado({ tipo: 'falha', texto: e instanceof ErroApi ? textoDoErroDaPublicacao({ status: e.status, codigo: e.codigo, mensagem: textoDoErro(e) }) : textoDoErro(e) });
       }
@@ -119,6 +150,9 @@ export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, car
       <Texto variante="suave">
         Publica de uma vez os planos com alterações não publicadas desta pasta. Se algum plano tiver erro, nada é publicado.
       </Texto>
+      <EscolhaDaLiberacaoDoPlano valor={escolha} refData={refData}
+        erro={escolha.modo === 'agendar' ? erroDaData ?? erroDoCampo(escolha.dataTexto, tentou) : null}
+        aoMudar={(v) => { setEscolha(v); setErroDaData(null); }} />
       <LinhaDeAcoes>
         <Botao {...rotuloDoPublicarDaPasta(planos, pasta.titulo)} tipo="secundario" Icone={Send}
           carregando={publicando} desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => void publicar(false)} />
@@ -129,6 +163,7 @@ export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, car
       {/* Região viva: o leitor de tela anuncia o resultado sem tirar o foco do botão. */}
       <View accessibilityLiveRegion="polite" style={estilos.bloco}>
         {resultado?.tipo === 'publicado' ? <Alerta tom="sucesso" texto={resultado.texto} /> : null}
+        {resultado?.tipo === 'publicado' && resultado.pulados ? <Alerta tom="atencao" texto={resultado.pulados} /> : null}
         {resultado?.tipo === 'falha' ? <Alerta tom="perigo" texto={resultado.texto} /> : null}
         {resultado?.tipo === 'conflito' ? <Alerta tom="atencao" titulo="Nada foi publicado" texto={TEXTO_DO_CONFLITO_DA_PUBLICACAO} /> : null}
         {resultado?.tipo === 'duplicados' ? <Alerta tom="atencao" titulo="Nada foi publicado" texto={resultado.texto} /> : null}
@@ -142,7 +177,7 @@ export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, car
             <ListaPorPlano grupos={resultado.grupos} tom="atencao" aoAbrir={abrir} />
             <LinhaDeAcoes>
               <Botao rotulo="Publicar mesmo assim" tipo="secundario" Icone={Send} carregando={publicando}
-                desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => void publicar(true, resultado.versoes)} />
+                desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => void publicar(true, { versoes: resultado.versoes, liberacao: resultado.liberacao })} />
               <Botao rotulo="Cancelar" tipo="fantasma" desabilitado={publicando} aoTocar={() => setResultado(null)} />
             </LinhaDeAcoes>
           </Alerta>

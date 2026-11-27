@@ -255,7 +255,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
   return (
     <PortalDaFolha.Provider value={valorPortal}>
     <GestureHandlerRootView style={{flex:1}} {...capturaDoGatilho}>
-      <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
+      <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'web' ? undefined : 'padding'}>
       <View style={[estilos.fundo, (semVeu || aDireita) && estilos.semVeu, aDireita ? estilos.fundoLateral : centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
         {/* Véu em camada própria: a opacidade no fundo apagaria o painel junto. */}
         {aDireita && !semVeu ? <Animated.View style={[StyleSheet.absoluteFill, estilos.veu, veuDaEntrada]} pointerEvents="none" /> : null}

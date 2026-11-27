@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ErroApi } from '../../api/cliente';
 import { plano as buscarPlano, publicarPlano, salvarRascunho, validarPlano, receita, salvarConteudoReceita } from '../../api/rotas';
+import type { CorpoDaLiberacao } from '../../api/liberacaoDePlano';
 import type { PlanoDetalhe, PlanoResumo, Problema, TipoPlano, VersaoResumo } from '../../api/tipos';
+import { destinoDoErro } from '../../dominio/liberacaoDePlano';
 import { detalheDoModelo } from '../../dominio/modelos';
 import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
@@ -24,8 +26,11 @@ interface Estado<C> {
 }
 
 export type ResultadoPublicacao =
-  | { tipo: 'publicado'; numero: number }
+  /** `liberarEm` não nulo = a versão ficou agendada (o aluno ainda vê a anterior). */
+  | { tipo: 'publicado'; numero: number; liberarEm: string | null }
   | { tipo: 'erros'; erros: Problema[] }
+  /** 422 `LIBERACAO_INVALIDA`: a mensagem vai ao campo da data. */
+  | { tipo: 'liberacaoInvalida'; mensagem: string }
   | { tipo: 'avisos'; avisos: Problema[] }
   | { tipo: 'falha'; mensagem: string };
 
@@ -171,18 +176,23 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
   }, [tipo, id, salvar, modelo]);
 
   const publicar = useCallback(
-    async (confirmarAvisos: boolean): Promise<ResultadoPublicacao> => {
+    /** `liberacao` (bloco E): ausente = libera na hora e avisa, como antes. */
+    async (confirmarAvisos: boolean, liberacao?: CorpoDaLiberacao): Promise<ResultadoPublicacao> => {
       if (modelo || !id) return { tipo: 'falha', mensagem: 'Plano não encontrado.' };
       if (!(await salvar())) {
         return { tipo: 'falha', mensagem: falhaAoSalvar.current ?? 'Corrija o título e as datas antes de publicar.' };
       }
       try {
-        const d = await publicarPlano<unknown>(tipo, id, versao.current, confirmarAvisos);
+        const d = await publicarPlano<unknown>(tipo, id, versao.current, confirmarAvisos, liberacao);
         versao.current = d.plano.versao;
         setEstado((s) => (s ? { ...s, plano: d.plano, versoes: d.versoes } : s));
-        return { tipo: 'publicado', numero: d.plano.versaoPublicada };
+        return { tipo: 'publicado', numero: d.plano.versaoPublicada, liberarEm: d.plano.liberarEm ?? null };
       } catch (erro) {
         if (erro instanceof ErroApi && erro.codigo === 'PLANO_INVALIDO') return { tipo: 'erros', erros: problemas(erro) };
+        if (erro instanceof ErroApi) {
+          const destino = destinoDoErro(erro);
+          if (destino && 'campo' in destino) return { tipo: 'liberacaoInvalida', mensagem: destino.campo };
+        }
         if (erro instanceof ErroApi && erro.codigo === 'CONFIRMAR_AVISOS') {
           return { tipo: 'avisos', avisos: problemas(erro) };
         }

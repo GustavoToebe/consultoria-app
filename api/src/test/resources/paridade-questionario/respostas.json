@@ -5370,5 +5370,2546 @@
    }
   },
   "camposComErro": []
+ },
+ {
+  "nome": "itens_grava_o_nome_da_lista",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": "  enjoei  "
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ],
+  "respostaLimpa": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado",
+     "motivo": "enjoei"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_em_branco_some",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "motivo": "   "
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": null
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ],
+  "respostaLimpa": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_sem_motivo_na_pergunta_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_vazio_opcional_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": []
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": []
+ },
+ {
+  "nome": "itens_ausente_obrigatorio",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": true,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {},
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_vazio_obrigatorio",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": true,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": []
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_nome_do_cliente_recusado",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Outro nome"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_chave_desconhecida",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "quantidade": 3
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_id_fora_da_lista",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000099"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_id_de_outra_fonte",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "2026-11-17"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_id_repetido",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_mesmo_nome_de_outro_item",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_nao_e_lista",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": {
+    "id": "00000000-0000-4000-8000-000000000001"
+   }
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_item_texto",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    "00000000-0000-4000-8000-000000000001"
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_id_numero",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": 1
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_item_sem_id",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "motivo": "x"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_max_1_dois_itens",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "max": 1
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_max_1_um_item_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "max": 1
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000002"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_max_2_dois_itens_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "max": 2
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_max_fora_da_regra_vale_o_teto",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "EXERCICIOS_DO_TREINO",
+       "max": 0
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000100"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000101"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000102"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000103"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000104"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000105"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000106"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000107"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000108"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000109"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000110"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000111"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000112"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000113"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000114"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000115"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000116"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000117"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000118"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000119"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "EXERCICIOS_DO_TREINO": [
+    {
+     "id": "00000000-0000-4000-8000-000000000100",
+     "nome": "Exercício 0"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000101",
+     "nome": "Exercício 1"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000102",
+     "nome": "Exercício 2"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000103",
+     "nome": "Exercício 3"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000104",
+     "nome": "Exercício 4"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000105",
+     "nome": "Exercício 5"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000106",
+     "nome": "Exercício 6"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000107",
+     "nome": "Exercício 7"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000108",
+     "nome": "Exercício 8"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000109",
+     "nome": "Exercício 9"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000110",
+     "nome": "Exercício 10"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000111",
+     "nome": "Exercício 11"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000112",
+     "nome": "Exercício 12"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000113",
+     "nome": "Exercício 13"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000114",
+     "nome": "Exercício 14"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000115",
+     "nome": "Exercício 15"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000116",
+     "nome": "Exercício 16"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000117",
+     "nome": "Exercício 17"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000118",
+     "nome": "Exercício 18"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000119",
+     "nome": "Exercício 19"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000120",
+     "nome": "Exercício 20"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_sem_max_21_itens",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "EXERCICIOS_DO_TREINO"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000100"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000101"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000102"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000103"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000104"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000105"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000106"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000107"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000108"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000109"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000110"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000111"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000112"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000113"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000114"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000115"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000116"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000117"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000118"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000119"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000120"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "EXERCICIOS_DO_TREINO": [
+    {
+     "id": "00000000-0000-4000-8000-000000000100",
+     "nome": "Exercício 0"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000101",
+     "nome": "Exercício 1"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000102",
+     "nome": "Exercício 2"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000103",
+     "nome": "Exercício 3"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000104",
+     "nome": "Exercício 4"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000105",
+     "nome": "Exercício 5"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000106",
+     "nome": "Exercício 6"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000107",
+     "nome": "Exercício 7"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000108",
+     "nome": "Exercício 8"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000109",
+     "nome": "Exercício 9"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000110",
+     "nome": "Exercício 10"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000111",
+     "nome": "Exercício 11"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000112",
+     "nome": "Exercício 12"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000113",
+     "nome": "Exercício 13"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000114",
+     "nome": "Exercício 14"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000115",
+     "nome": "Exercício 15"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000116",
+     "nome": "Exercício 16"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000117",
+     "nome": "Exercício 17"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000118",
+     "nome": "Exercício 18"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000119",
+     "nome": "Exercício 19"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000120",
+     "nome": "Exercício 20"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_obrigatorio_ausente",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OBRIGATORIO"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_obrigatorio_em_branco",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OBRIGATORIO"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": "  "
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_obrigatorio_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OBRIGATORIO"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": "enjoei"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_motivo_obrigatorio_em_so_um_dos_itens",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OBRIGATORIO"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": "x"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_300_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_motivo_300_com_espacos_nas_pontas_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_motivo_301",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_nao_e_texto",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "OPCIONAL"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": 7
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_sem_pedir",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": "sem pedir"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_nenhum_explicito_sem_pedir",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "NENHUM"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "motivo": "sem pedir"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_motivo_desconhecido_no_modelo",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "motivo": "TALVEZ"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_fonte_desconhecida_no_modelo",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "SUPLEMENTOS"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_dias_treinados_data_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "DIAS_TREINADOS",
+       "motivo": "OBRIGATORIO",
+       "max": 1
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "2026-11-17",
+     "motivo": "cansaço"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ],
+  "respostaLimpa": {
+   "i": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A",
+     "motivo": "cansaço"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_dias_treinados_dia_da_semana_com_registro_recusado",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "DIAS_TREINADOS"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "1"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_dias_treinados_sem_registro_semana_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "DIAS_TREINADOS"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "1"
+    },
+    {
+     "id": "7"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "DIAS_TREINADOS": [
+    {
+     "id": "1",
+     "nome": "Dia 1"
+    },
+    {
+     "id": "2",
+     "nome": "Dia 2"
+    },
+    {
+     "id": "3",
+     "nome": "Dia 3"
+    },
+    {
+     "id": "4",
+     "nome": "Dia 4"
+    },
+    {
+     "id": "5",
+     "nome": "Dia 5"
+    },
+    {
+     "id": "6",
+     "nome": "Dia 6"
+    },
+    {
+     "id": "7",
+     "nome": "Dia 7"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_dias_treinados_sem_registro_data_recusada",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "DIAS_TREINADOS"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "2026-11-17"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "DIAS_TREINADOS": [
+    {
+     "id": "1",
+     "nome": "Dia 1"
+    },
+    {
+     "id": "2",
+     "nome": "Dia 2"
+    },
+    {
+     "id": "3",
+     "nome": "Dia 3"
+    },
+    {
+     "id": "4",
+     "nome": "Dia 4"
+    },
+    {
+     "id": "5",
+     "nome": "Dia 5"
+    },
+    {
+     "id": "6",
+     "nome": "Dia 6"
+    },
+    {
+     "id": "7",
+     "nome": "Dia 7"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_fonte_sem_nenhum_item",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "EXERCICIOS_DO_TREINO"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ]
+  }
+ },
+ {
+  "nome": "itens_sem_contexto_de_plano",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ]
+ },
+ {
+  "nome": "itens_escondida_nao_obriga_e_descarta",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": true,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": false,
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000099"
+    }
+   ]
+  },
+  "camposComErro": [],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  },
+  "chavesAceitas": [
+   "s"
+  ]
+ },
+ {
+  "nome": "itens_visivel_valida",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "ITENS_DO_PLANO",
+       "rotulo": "i",
+       "obrigatoria": false,
+       "fonte": "ALIMENTOS_DA_DIETA",
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": true,
+   "i": [
+    {
+     "id": "00000000-0000-4000-8000-000000000099"
+    }
+   ]
+  },
+  "camposComErro": [
+   "i"
+  ],
+  "itens": {
+   "ALIMENTOS_DA_DIETA": [
+    {
+     "id": "00000000-0000-4000-8000-000000000001",
+     "nome": "Frango grelhado"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000002",
+     "nome": "Batata-doce"
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000000003",
+     "nome": "frango  grelhado"
+    }
+   ],
+   "DIAS_TREINADOS": [
+    {
+     "id": "2026-11-17",
+     "nome": "Seg 17/11 · Treino A"
+    },
+    {
+     "id": "2026-11-19",
+     "nome": "Qua 19/11"
+    }
+   ]
+  }
  }
 ]

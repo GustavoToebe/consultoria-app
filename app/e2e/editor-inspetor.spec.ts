@@ -118,6 +118,7 @@ test.describe('editor de treino no PC (1440)', () => {
     expect(escritas(api.pedidos)).toEqual([]);
 
     await page.getByRole('button', { name: 'Publicar treino', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Publicar treino' }).getByRole('button', { name: 'Publicar agora' }).click();
     await expect(page.getByText('Publicado v1. O aluno já vê esta versão.')).toBeVisible();
     expect(escritas(api.pedidos)).toEqual([`PUT /planos-treino/${PLANO_ID}/rascunho`, `POST /planos-treino/${PLANO_ID}/publicar`]);
     const publicar = api.pedidos.find((p) => p.caminho.endsWith('/publicar'))?.corpo as { versao: number; confirmarAvisos: boolean };
@@ -162,6 +163,7 @@ test.describe('editor de treino no celular (390)', () => {
     // O mesmo rótulo do PC: no celular ele não encurta.
     await expect(page.getByRole('button', { name: 'Publicar treino', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Publicar treino', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Publicar treino' }).getByRole('button', { name: 'Publicar agora' }).click();
     await expect(page.getByText('Publicado v1. O aluno já vê esta versão.')).toBeVisible();
     // Sem alteração o rascunho não é salvo de novo: só a publicação vai à API.
     expect(escritas(api.pedidos)).toEqual([`POST /planos-treino/${PLANO_ID}/publicar`]);

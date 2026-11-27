@@ -2,7 +2,9 @@
  * Tipos dos contratos da API (espelho dos records Java). Mudou um DTO na API, muda aqui junto.
  */
 
-export type Papel = 'TREINADOR' | 'ALUNO';
+import type { OpcoesPdf } from '../dominio/configuracaoPdf';
+
+export type Papel ='TREINADOR' | 'ALUNO';
 export type Fonte = 'PADRAO' | 'METAL' | 'ESPORTIVA' | 'CONDENSADA';
 /** Paletas da marca (`temaPadrao` da consultoria); cada uma tem modo fixo em `tema/tokens.PALETAS`. */
 export type Tema = 'ESCURO' | 'MEIA_NOITE' | 'AMEIXA' | 'OCEANO' | 'CLARO' | 'AREIA' | 'LAVANDA' | 'CEU' | 'ROSA';
@@ -15,8 +17,10 @@ export interface Marca {
   temaPadrao: Tema;
   /** Relativo à API (o app junta com a URL base). */
   logoUrl: string | null;
-  /** Tema dos PDFs da consultoria (`pdf/temas.ts`); ausente ou desconhecido = `CLASSICO`. */
+  /** Modelo dos PDFs da consultoria (`ModeloPdf`); ausente ou desconhecido = `CLASSICO`. */
   temaPdf?: string | null;
+  /** Sobrescritas do modelo dos PDFs (`dominio/configuracaoPdf`); nulo ou ausente = as do modelo. */
+  opcoesPdf?: OpcoesPdf | null;
 }
 
 export interface UsuarioResumo {
@@ -1086,6 +1090,8 @@ export interface PastaResumo {
   concluidaEm: string | null;
   /** Questionário escolhido só para o período da pasta; nulo = vale o do aluno. */
   questionarioId?: string | null;
+  /** Menor data de liberação entre os planos agendados da pasta (bloco E); nulo = nenhum agendado ou resposta sem o cálculo. */
+  liberarEm?: string | null;
 }
 
 /** Pasta que o aluno está usando agora (a do treino ativo, senão a da dieta ativa); nula = nenhuma. */
@@ -1108,6 +1114,10 @@ export interface FinalizarPastaRequest {
 export interface PublicarPastaRequest {
   confirmarAvisos: boolean;
   versoes: Record<string, number>;
+  /** Uma data (`AAAA-MM-DD`, de amanhã em Brasília) para todos os planos publicados agora; ausente = libera na hora. */
+  liberarEm?: string;
+  /** Ausente = avisa o aluno. */
+  avisarAluno?: boolean;
 }
 
 /** Versão que a pasta publicou de cada plano; `tipo` em minúsculas, como o prefixo dos erros (`treino.<caminho>`). */
@@ -1115,6 +1125,8 @@ export interface PlanoPublicadoNaPasta {
   tipo: TipoPlano;
   planoId: string;
   versao: number;
+  /** Nulo = liberado na hora. */
+  liberarEm?: string | null;
 }
 
 /** Plano que ficou como estava: já publicado e sem alteração no rascunho depois disso. */
@@ -1169,8 +1181,14 @@ export interface PlanoResumo {
   versaoPublicada: number;
   publicadoEm: string | null;
   rascunhoAlteradoDepoisDePublicar: boolean;
-  /** Lock otimista do rascunho. */
+  /** Lock otimista do rascunho. A rotina de liberação, "Alterar data" e "Liberar agora" também a sobem. */
   versao: number;
+  /** Versão que o aluno vê (0 = nenhuma). */
+  versaoLiberada?: number;
+  /** Não nulo = há versão publicada agendada para este dia (Brasília): selo "Agendado para dd/mm". */
+  liberarEm?: string | null;
+  /** Avisar o aluno quando a versão agendada for liberada; só importa com `liberarEm`. */
+  avisarNaLiberacao?: boolean;
 }
 
 export interface VersaoResumo {
@@ -1650,7 +1668,21 @@ export type RespostasAtualizacao = Record<string, RespostaAtualizacao>;
 /** Mesmos valores de `TipoPergunta` no Java (`questionarios/TipoPergunta`). */
 export type TipoPergunta = 'DATA_AUTOMATICA' | 'PESO' | 'NOTA' | 'TEXTO' | 'TEXTO_LONGO' | 'NOTAS_POR_DIA' | 'FOTOS'
   | 'ESCOLHA_UNICA' | 'MULTIPLA_ESCOLHA' | 'NUMERO' | 'SIM_NAO'
-  | 'DATA' | 'TELEFONE' | 'EMAIL' | 'GRADE' | 'ENDERECO' | 'ACEITE' | 'INFORMATIVO';
+  | 'DATA' | 'TELEFONE' | 'EMAIL' | 'GRADE' | 'ENDERECO' | 'ACEITE' | 'INFORMATIVO' | 'ITENS_DO_PLANO';
+/** ITENS_DO_PLANO: de onde vêm os itens da lista (versão liberada da pasta e registros do aluno). */
+export type FonteDeItens = 'ALIMENTOS_DA_DIETA' | 'EXERCICIOS_DO_TREINO' | 'DIAS_TREINADOS';
+/** ITENS_DO_PLANO: se cada item leva um motivo escrito pelo aluno; ausente = `NENHUM`. */
+export type MotivoDeItens = 'NENHUM' | 'OPCIONAL' | 'OBRIGATORIO';
+/**
+ * Item escolhido na pergunta ITENS_DO_PLANO. O aluno envia só `{id, motivo?}`; o servidor grava `{id, nome, motivo?}` com o
+ * `nome` lido da lista (nunca o que o cliente mandou), e a resposta devolvida já traz o `nome`.
+ */
+export interface ItemEscolhido { id: string; motivo?: string | null; nome?: string }
+/** ITENS_DO_PLANO guarda `ItemEscolhido[]` em `RespostasAtualizacao` pelos ajudantes `itensDaResposta` e `respostaDeItens` (`dominio/respostasAtualizacao`); o tipo da união não o inclui para não mexer na leitura das outras respostas. */
+/** Item que o aluno pode escolher: `id` é o que vai no envio (uid do item no plano ou data ISO); `nome` é o texto legível. */
+export interface ItemDaLista { id: string; nome: string }
+/** Lista de cada fonte (a que o servidor aceita; o app a monta pelo pacote salvo e pelos registros locais). */
+export type ItensDisponiveis = Partial<Record<FonteDeItens, readonly ItemDaLista[]>>;
 /** Opção de escolha (com imagem opcional) e também linha/coluna da GRADE (sem imagem). */
 export interface OpcaoPergunta { id: string; rotulo: string; imagemId?: string; valorNoCadastro?: string }
 /**
@@ -1679,8 +1711,13 @@ export interface PerguntaAtualizacao {
   unidade?: string;
   /** NUMERO: faixa da resposta. NOTA: ponta de baixo (0 ou 1) e de cima (2 a 10); sem elas, 0 a 10. FOTOS: `max` = fotos aceitas (1 a 6; sem ele, 6). */
   min?: number;
+  /** ITENS_DO_PLANO: itens por resposta (1 a 20; vazio ou fora da regra vale 20). */
   max?: number;
   casas?: number;
+  /** ITENS_DO_PLANO: de onde vêm os itens (obrigatória), se cada item leva motivo (ausente = NENHUM) e a pergunta do motivo (até 60; só com motivo; vazia = "Motivo"). */
+  fonte?: FonteDeItens;
+  motivo?: MotivoDeItens;
+  rotuloMotivo?: string;
   /** NOTA: texto curto embaixo das pontas da escala ("Nada", "Muito"); até 40 cada. */
   rotuloMin?: string;
   rotuloMax?: string;

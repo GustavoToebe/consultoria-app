@@ -317,6 +317,7 @@ for (const largura of [390, 1280]) {
       },
     });
     await page.getByRole('button', { name: 'Publicar dieta' }).click();
+    await page.getByRole('dialog', { name: 'Publicar dieta' }).getByRole('button', { name: 'Publicar agora' }).click();
     const painel = page.getByRole('alertdialog', { name: 'Publicar com avisos?' });
     await expect(painel.getByText('Dia sem dieta marcada: segunda.')).toBeVisible();
     await painel.getByRole('button', { name: 'Publicar mesmo assim' }).click();

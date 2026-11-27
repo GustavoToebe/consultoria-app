@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+import type { TextInput } from 'react-native';
+
+import { Label } from '../components/ui/label';
 import { Campo } from './Campo';
 
 jest.mock('../tema/TemaProvider', () => ({
@@ -12,8 +15,35 @@ jest.mock('./Texto', () => ({
 }));
 
 const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
+const React = require('react') as typeof import('react');
 const RN = require('react-native') as typeof import('react-native');
 const { ALVO_TOQUE } = require('../tema/tokens') as typeof import('../tema/tokens');
+
+function montar(ref?: React.Ref<TextInput>) {
+  let raiz!: import('react-test-renderer').ReactTestRenderer;
+  Renderer.act(() => {
+    raiz = Renderer.create(<Campo ref={ref} rotulo="Observações" valor="" aoMudar={() => undefined} />);
+  });
+  return raiz;
+}
+
+describe('Campo', () => {
+  it('tocar no rótulo leva o foco ao campo de texto', () => {
+    const campo = React.createRef<TextInput>();
+    const raiz = montar(campo);
+    Renderer.act(() => { raiz.root.findByType(Label).props.onPress(); });
+    expect(campo.current?.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('o ref de quem usa continua chegando ao campo, objeto ou função', () => {
+    const objeto = React.createRef<TextInput>();
+    montar(objeto);
+    expect(objeto.current).not.toBeNull();
+    const funcao = jest.fn();
+    montar(funcao);
+    expect(funcao).toHaveBeenCalledWith(expect.anything());
+  });
+});
 
 function alturaMinima(linhas: number): number {
   let raiz!: import('react-test-renderer').ReactTestRenderer;

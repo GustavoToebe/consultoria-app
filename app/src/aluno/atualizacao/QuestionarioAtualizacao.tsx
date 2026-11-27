@@ -1,16 +1,15 @@
 import { useState, type ReactNode, type RefObject } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type {
   Atualizacao, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, SecaoAtualizacao,
 } from '../../api/tipos';
 import {
-  ajudaDoNumero, alternarMarcado, colunasDasOpcoes, escolhaParaSimNao, NAO_SE_APLICA, progressoDasSecoes,
-  respostasDaGrade, simNaoParaEscolha, textoDaNota, textoDaResposta, textoDoProgresso, type SimNao,
+  ajudaDoNumero, alternarMarcado, escolhaParaSimNao, fraseDaMediaDeTreino, NAO_SE_APLICA, progressoDasSecoes,
+  respostasDaGrade, simNaoParaEscolha, temImagemNasOpcoes, textoDaNota, textoDaResposta, textoDoProgresso, type SimNao,
 } from '../../dominio/atualizacaoQuestionario';
 import { erroDaData, regraDaPerguntaData } from '../../dominio/datasValidas';
-import { dataDaTela, dataParaTela, mascaraDeNumero, numeroParaTela } from '../../dominio/formatos';
+import { dataDaTela, dataParaTela, mascaraDeNumero } from '../../dominio/formatos';
 import { textoDaParte } from '../../dominio/paginasDoQuestionario';
 import { escalaDaNota, LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
 import { notaDoCadastro } from '../../dominio/anamnese';
@@ -31,12 +30,13 @@ import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { EscalaDeNota } from '../../ui/EscalaDeNota';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { SeletorDeNota } from '../../ui/SeletorDeNota';
-import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { TextoFormatado } from '../../ui/TextoFormatado';
 import { useControleDeFotos } from './fotos/ControleDeFotos';
 import { CampoFotos } from './fotos/CampoFotos';
-import { ImagemDaOpcao, ImagemDaPergunta } from './ImagemDaPergunta';
+import { ImagemDaPergunta } from './ImagemDaPergunta';
+import { LeituraDasRespostas } from './LeituraDasRespostas';
+import { OpcoesComImagem } from './OpcoesComImagem';
 
 /** Página da anamnese: a seção (índice em `modelo.secoes`) e a posição dela entre as visíveis. */
 export interface PaginaDoQuestionario { secao: number; posicao: number; total: number }
@@ -57,6 +57,8 @@ interface Props {
   pagina?: PaginaDoQuestionario;
   /** Numa rolagem só (atualização): "N de M respondidas" por seção e a barra geral no topo. */
   progresso?: boolean;
+  /** Formulário ainda não liberado ("Até lá você pode consultar as perguntas"): fica no desenho do formulário, sem "Não respondeu" em tudo. */
+  travado?: boolean;
 }
 
 const SIM_NAO = [{ valor: 'sim' as SimNao, rotulo: 'Sim' }, { valor: 'nao' as SimNao, rotulo: 'Não' }];
@@ -68,12 +70,18 @@ export const alvoDaPergunta = (id: string) => `pergunta:${id}`;
  * O modelo da API define ordem, tipos, rótulos e condições; aluno e treinador leem a mesma versão. Respondendo, pergunta
  * ou seção escondida por condição some da tela (e a resposta dela não é enviada); na leitura aparece como "Não se aplica".
  * Perguntas não são numeradas (a condição esconde algumas e a numeração pularia); obrigatória leva " *" no rótulo.
+ * Sem `aoMudar`, `progresso` nem `pagina`, é a leitura do que já foi enviado (`LeituraDasRespostas`). Sem `aoMudar` mas com
+ * `progresso` é o formulário travado durante o envio: fica no desenho do formulário, com o valor em texto, para a tela
+ * não trocar de forma por um instante.
  */
-export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}, campos, dataAtualizacao, resumo, carregarFotoDaEquipe, pagina, progresso }: Props) {
+export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}, campos, dataAtualizacao, resumo, carregarFotoDaEquipe, pagina, progresso, travado }: Props) {
   const { cores, marcaPeca } = useTema();
   const fotos = useControleDeFotos();
   const rolagem = useRolagem();
   if (!modelo) return null;
+  if (!aoMudar && !progresso && !pagina && !travado) {
+    return <LeituraDasRespostas modelo={modelo} respostas={respostas} dataAtualizacao={dataAtualizacao} resumo={resumo} carregarFotoDaEquipe={carregarFotoDaEquipe} />;
+  }
   const { escondidas, secoesEscondidas } = avaliarRespostas(modelo, respostas, true);
   const leitura = !aoMudar;
   const perguntas = (secao: SecaoAtualizacao) => <View style={estilos.perguntas}>
@@ -158,7 +166,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   const { cores } = useTema();
   const rotulo = `${p.rotulo}${p.obrigatoria ? ' *' : ''}`;
   const ajuda = p.ajudaAutomatica === 'MEDIA_DIAS_TREINO' && resumo?.mediaDiasPorSemana != null
-    ? `Pelo app, você treinou em média ${numeroParaTela(resumo.mediaDiasPorSemana, 1)} ${resumo.mediaDiasPorSemana < 2 ? 'dia' : 'dias'} por semana neste período.`
+    ? fraseDaMediaDeTreino(resumo.mediaDiasPorSemana, false)
     : p.ajuda;
   const ajudaTexto = ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null;
   // Mesmo tom e região viva do erro do `Campo`, para todos os controles avisarem igual.
@@ -268,7 +276,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     linhas={p.tipo === 'TEXTO_LONGO' ? 5 : undefined} maxLength={tamanhoDoTexto(p)} erro={erro} ajuda={[ajuda, nota].filter(Boolean).join(' ') || undefined} />;
 }
 
-/** Resposta na leitura (treinador, anamnese já enviada): rótulo sem asterisco e o valor em texto. */
+/** O formulário travado durante o envio: rótulo sem asterisco e o valor em texto (a leitura do enviado é `LeituraDasRespostas`). */
 function Leitura({ p, valor, ajuda }: { p: PerguntaAtualizacao; valor: RespostaAtualizacao; ajuda: ReactNode }) {
   const { cores } = useTema();
   let resposta: ReactNode;
@@ -315,59 +323,6 @@ function GradeParaResponder({ p, valor, aoMudar, faltando }: {
   </View>;
 }
 
-const temImagemNasOpcoes = (p: PerguntaAtualizacao) =>
-  (p.tipo === 'ESCOLHA_UNICA' || p.tipo === 'MULTIPLA_ESCOLHA') && (p.opcoes ?? []).some((o) => !!o.imagemId);
-
-const VAO_OPCOES = espaco(1.5);
-
-/**
- * Escolha com imagem por opção (aparelhos da academia, escala de referência): cartões em grade (2 por linha no
- * celular, 3 ou 4 no PC), o cartão inteiro marca, imagem inteira numa proporção fixa e o nome embaixo. Marcado = borda
- * grossa na cor do texto, fundo realçado e a caixinha cheia. Na escolha única marcar uma desmarca a outra. Sem
- * `aoMudar`, só leitura: as escolhidas em destaque e as outras apagadas.
- */
-function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor: RespostaAtualizacao; aoMudar?: (valor: RespostaAtualizacao) => void }) {
-  const { cores } = useTema();
-  const [largura, setLargura] = useState(0);
-  const opcoes = p.opcoes ?? [];
-  const unica = p.tipo === 'ESCOLHA_UNICA';
-  const marcadas = unica ? (typeof valor === 'string' ? [valor] : []) : Array.isArray(valor) ? valor : [];
-  const colunas = colunasDasOpcoes(largura);
-  const celula = largura > 0 ? Math.floor((largura - VAO_OPCOES * (colunas - 1)) / colunas) : 0;
-  const imagem = Math.max(0, celula - 2 * espaco(1) - 4);
-  const tocar = (id: string) => {
-    if (!aoMudar) return;
-    const marcado = marcadas.includes(id);
-    if (unica) aoMudar(marcado ? (p.obrigatoria ? id : null) : id);
-    else aoMudar(alternarMarcado(marcadas, opcoes, id));
-  };
-  return <View style={estilos.gradeDeOpcoes} onLayout={(e: LayoutChangeEvent) => setLargura(Math.floor(e.nativeEvent.layout.width))}
-    accessibilityRole={unica ? 'radiogroup' : undefined} accessibilityLabel={p.rotulo}>
-    {celula > 0 ? opcoes.map((o) => {
-      const marcado = marcadas.includes(o.id);
-      return <Pressable key={o.id} disabled={!aoMudar} onPress={() => tocar(o.id)}
-        accessibilityRole={unica ? 'radio' : 'checkbox'} accessibilityLabel={o.rotulo}
-        accessibilityState={{ checked: marcado, disabled: !aoMudar }} aria-checked={marcado}
-        style={({ pressed }) => [estilos.opcaoComImagem, {
-          width: celula,
-          borderWidth: marcado ? 2 : 1,
-          padding: marcado ? espaco(1) - 1 : espaco(1),
-          borderColor: marcado ? cores.texto : cores.bordaCampo,
-          backgroundColor: !aoMudar && !marcado ? coresDoDesabilitado(cores).fundo : marcado || pressed ? cores.sobre : cores.superficie2,
-        }]}>
-        {o.imagemId ? <ImagemDaOpcao id={o.imagemId} descricao={`Imagem da opção ${o.rotulo}`} largura={imagem} />
-          : <View style={[estilos.semImagem, { height: Math.round(imagem * 0.75), borderColor: cores.divisor }]} />}
-        <View style={estilos.rodapeDaOpcao}>
-          <View style={[unica ? estilos.bolinha : estilos.caixinha, { borderColor: marcado ? cores.texto : cores.bordaCampo, backgroundColor: marcado ? cores.texto : cores.campo }]}>
-            {marcado ? <Check size={14} color={cores.fundo} /> : null}
-          </View>
-          <Texto style={estilos.rotuloDaOpcao} cor={!aoMudar && !marcado ? cores.textoSuave : undefined}>{o.rotulo}</Texto>
-        </View>
-      </Pressable>;
-    }) : null}
-  </View>;
-}
-
 /**
  * Data digitada DD/MM/AAAA (com o calendário do campo). A resposta é AAAA-MM-DD; enquanto o texto não é uma data inteira
  * ele vai como está, e a conferência do envio aponta o campo (o rascunho não perde o que foi digitado).
@@ -404,11 +359,4 @@ const estilos = StyleSheet.create({
   itemDaLista: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2), paddingHorizontal: espaco(1.5), paddingVertical: espaco(1) },
   itemRotulo: { flex: 1 },
   itemValor: { flexShrink: 0, maxWidth: '50%', textAlign: 'right', fontFamily: fontes.semi },
-  gradeDeOpcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: VAO_OPCOES, alignSelf: 'stretch' },
-  opcaoComImagem: { borderRadius: RAIO, gap: espaco(1) },
-  semImagem: { borderWidth: 1, borderStyle: 'dashed', borderRadius: RAIO },
-  rodapeDaOpcao: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), minHeight: 24 },
-  caixinha: { width: 22, height: 22, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
-  bolinha: { width: 22, height: 22, borderWidth: 1, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  rotuloDaOpcao: { flex: 1 },
 });

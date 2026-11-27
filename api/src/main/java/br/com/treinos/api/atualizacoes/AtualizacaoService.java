@@ -56,12 +56,13 @@ public class AtualizacaoService {
     private final br.com.treinos.api.auth.UsuarioRepository usuarios;
     private final FotoService fotos;
     private final br.com.treinos.api.equipe.MembrosDoFiltro membros;
+    private final ItensDoPlanoService itensDoPlano;
     public AtualizacaoService(AtualizacaoRepository atualizacoes, QuestionarioResolver questionarios,
             PastaRepository pastas, PastaVigente vigente, AlunoRepository alunos,
             RegistroPesoRepository pesos, ResumoPeriodoService resumos, ValidadorAtualizacao validador, JsonMapper json,
             br.com.treinos.api.auth.UsuarioRepository usuarios, FotoService fotos,
-            br.com.treinos.api.equipe.MembrosDoFiltro membros) {
-        this.usuarios=usuarios; this.fotos=fotos; this.membros=membros;
+            br.com.treinos.api.equipe.MembrosDoFiltro membros, ItensDoPlanoService itensDoPlano) {
+        this.usuarios=usuarios; this.fotos=fotos; this.membros=membros; this.itensDoPlano=itensDoPlano;
         this.atualizacoes = atualizacoes; this.questionarios = questionarios; this.pastas = pastas;
         this.vigente = vigente; this.alunos = alunos; this.pesos = pesos;
         this.resumos = resumos; this.validador = validador; this.json = json;
@@ -106,7 +107,9 @@ public class AtualizacaoService {
         // O app confere o id da versão que o aluno respondeu: se o treinador publicou outra no meio, recarrega.
         if (!r.questionarioVersaoId().equals(modelo.versaoId())) throw new ConflictException("O modelo mudou. Recarregue o formulário.", "MODELO_ATUALIZACAO_ALTERADO");
         JsonNode conteudo = json.readTree(modelo.conteudo());
-        JsonNode respostas = validador.validar(conteudo, r.respostas(), fotos.ligadas());
+        // ITENS_DO_PLANO: o servidor confere os ids contra a versão publicada da pasta e grava o nome (lista lida só se preciso).
+        JsonNode respostas = validador.validar(conteudo, r.respostas(), fotos.ligadas(), "ATUALIZACAO_INVALIDA",
+                LocalDate.now(Fuso.BRASILIA), itensDoPlano.da(alunoId, pasta, data));
         if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data);
         atual.enviar(json.writeValueAsString(respostas), Instant.now(), modelo.versaoId());
         atualizacoes.saveAndFlush(atual);

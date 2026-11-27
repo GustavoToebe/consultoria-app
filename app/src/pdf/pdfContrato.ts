@@ -46,7 +46,8 @@ export function documentoContrato(d: DadosPdfContrato): Documento {
     '</section>',
   ].join('\n');
 
-  const css = `${cssBase(d.marca.corPrimaria, d.marca.temaPdf)}
+  // Documento de evidência: sempre neutro, sem modelo nem opções da marca (nem `temaPdf` nem `opcoesPdf` chegam ao CSS).
+  const css = `${cssBase(d.marca.corPrimaria)}
 .doc .contrato-texto p { margin: 0 0 8pt; overflow-wrap: anywhere; }
 .doc .evidencias { break-before: page; page-break-before: always; }
 .doc table.ev { table-layout: fixed; }

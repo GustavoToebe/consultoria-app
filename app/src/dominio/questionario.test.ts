@@ -1,5 +1,5 @@
 import type { ConteudoQuestionario } from '../api/tipos';
-import { errosDoQuestionario, LIMITES_QUESTIONARIO, normalizarOpcao, tiposQueMudaram, validarQuestionario } from './questionario';
+import { errosDoQuestionario, LIMITES_QUESTIONARIO, maximoDeItens, modoDoMotivo, normalizarOpcao, rotuloDoMotivo, tiposQueMudaram, validarQuestionario } from './questionario';
 
 /** Dados fictícios. As regras uma a uma estão nas fixtures de paridade (`paridadeQuestionario.test.ts`). */
 const base = (): ConteudoQuestionario => ({
@@ -53,4 +53,25 @@ it('o tipo de um id não muda entre versões', () => {
   expect(tiposQueMudaram(atual, [v1])).toEqual(['sono']);
   expect(tiposQueMudaram(v1, [v1])).toEqual([]);
   expect(tiposQueMudaram(atual, [])).toEqual([]);
+});
+
+describe('ITENS_DO_PLANO: apoio', () => {
+  it('max vazio ou fora da regra vale 20; o motivo ausente é NENHUM; o rótulo vazio vira "Motivo"', () => {
+    expect(maximoDeItens({})).toBe(20);
+    expect(maximoDeItens({ max: 1 })).toBe(1);
+    expect(maximoDeItens({ max: 20 })).toBe(20);
+    expect(maximoDeItens({ max: 0 })).toBe(20);
+    expect(maximoDeItens({ max: 21 })).toBe(20);
+    expect(maximoDeItens({ max: 1.5 })).toBe(20);
+    expect(modoDoMotivo({})).toBe('NENHUM');
+    expect(modoDoMotivo({ motivo: 'OBRIGATORIO' })).toBe('OBRIGATORIO');
+    expect(rotuloDoMotivo({})).toBe('Motivo');
+    expect(rotuloDoMotivo({ rotuloMotivo: '  ' })).toBe('Motivo');
+    expect(rotuloDoMotivo({ rotuloMotivo: ' Onde doeu? ' })).toBe('Onde doeu?');
+  });
+
+  it('fonte, motivo, texto do motivo e max são recusados em outro tipo', () => {
+    const c: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 's', titulo: 'A', perguntas: [{ id: 'a', tipo: 'TEXTO', rotulo: 'A', obrigatoria: false, fonte: 'DIAS_TREINADOS', motivo: 'OPCIONAL', rotuloMotivo: 'x', max: 2 }] }] };
+    expect(errosDoQuestionario(c).map((e) => e.caminho).sort()).toEqual(['secoes[0].perguntas[0].fonte', 'secoes[0].perguntas[0].max', 'secoes[0].perguntas[0].motivo', 'secoes[0].perguntas[0].rotuloMotivo']);
+  });
 });

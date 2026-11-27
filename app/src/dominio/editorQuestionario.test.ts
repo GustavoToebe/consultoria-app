@@ -12,7 +12,7 @@ let mockContador = 0;
 jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContador}` }));
 
 const TODOS: TipoPergunta[] = ['DATA_AUTOMATICA', 'PESO', 'NOTA', 'TEXTO', 'TEXTO_LONGO', 'NOTAS_POR_DIA', 'FOTOS', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO',
-  'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ENDERECO', 'ACEITE', 'INFORMATIVO'];
+  'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ENDERECO', 'ACEITE', 'INFORMATIVO', 'ITENS_DO_PLANO'];
 const p = (id: string, tipo: TipoPergunta = 'TEXTO', extra: Partial<PerguntaAtualizacao> = {}): PerguntaAtualizacao => ({ id, tipo, rotulo: `Pergunta ${id}`, obrigatoria: false, ...extra });
 const base = (): ConteudoQuestionario => ({
   formato: 2, instrucoes: [],
@@ -260,8 +260,8 @@ describe('descrição do local', () => {
 describe('anamnese', () => {
   it('a anamnese não oferece a data da atualização; a atualização oferece tudo, menos o endereço', () => {
     expect(tiposParaAdicionar('ANAMNESE').map((t) => t.tipo)).not.toContain('DATA_AUTOMATICA');
-    expect(tiposParaAdicionar('ATUALIZACAO')).toHaveLength(TODOS.length - 1);
-    expect(tiposParaAdicionar('ANAMNESE')).toHaveLength(TODOS.length - 1);
+    expect(tiposParaAdicionar('ATUALIZACAO')).toHaveLength(TODOS.length - 2);
+    expect(tiposParaAdicionar('ANAMNESE')).toHaveLength(TODOS.length - 2);
   });
   it('grade nasce com uma linha e duas colunas; aceite obrigatório com a frase pronta', () => {
     const g = novaPergunta('GRADE');
@@ -405,5 +405,33 @@ describe('grupos da folha "Adicionar pergunta"', () => {
     }
     expect(gruposParaAdicionar('ATUALIZACAO').map((g) => g.rotulo)).toEqual(['Escolha', 'Texto', 'Número e data', 'Especiais']);
     expect(gruposParaAdicionar('ANAMNESE').flatMap((g) => g.itens.map((i) => i.tipo))).not.toContain('DATA_AUTOMATICA');
+  });
+});
+
+describe('ITENS_DO_PLANO no editor', () => {
+  const comItens = (extra: Partial<PerguntaAtualizacao>): ConteudoQuestionario => ({
+    formato: 2, instrucoes: [], secoes: [{ uid: 's1', titulo: 'A', perguntas: [{ ...novaPergunta('ITENS_DO_PLANO'), rotulo: 'Quais?', ...extra }] }],
+  });
+
+  it('só a atualização oferece o tipo, no grupo Especiais, e ele nasce com a fonte da dieta (publica sem erro)', () => {
+    expect(tiposParaAdicionar('ATUALIZACAO').map((t) => t.tipo)).not.toContain('ITENS_DO_PLANO'); // oculto até a UI do aluno
+    expect(tiposParaAdicionar('ANAMNESE').map((t) => t.tipo)).not.toContain('ITENS_DO_PLANO');
+    expect(tiposParaAdicionar('INSCRICAO').map((t) => t.tipo)).not.toContain('ITENS_DO_PLANO');
+    expect(gruposParaAdicionar('ATUALIZACAO').find((g) => g.rotulo === 'Especiais')?.itens.map((i) => i.tipo)).not.toContain('ITENS_DO_PLANO');
+    expect(novaPergunta('ITENS_DO_PLANO').fonte).toBe('ALIMENTOS_DA_DIETA');
+    expect(errosDoQuestionario(paraApi(comItens({})))).toEqual([]);
+  });
+
+  it('paraApi leva fonte, max, motivo e a pergunta do motivo só no tipo certo e só com motivo pedido', () => {
+    const [pedida] = paraApi(comItens({ fonte: 'EXERCICIOS_DO_TREINO', max: 3, motivo: 'OBRIGATORIO', rotuloMotivo: '  Onde doeu?  ' })).secoes[0].perguntas;
+    expect(pedida).toMatchObject({ fonte: 'EXERCICIOS_DO_TREINO', max: 3, motivo: 'OBRIGATORIO', rotuloMotivo: '  Onde doeu?  ' });
+    const [semMotivo] = paraApi(comItens({ motivo: 'NENHUM', rotuloMotivo: 'sobrou' })).secoes[0].perguntas;
+    expect(semMotivo.motivo).toBeUndefined();
+    expect(semMotivo.rotuloMotivo).toBeUndefined();
+    const [vazia] = paraApi(comItens({ motivo: 'OPCIONAL', rotuloMotivo: '   ' })).secoes[0].perguntas;
+    expect(vazia.motivo).toBe('OPCIONAL');
+    expect(vazia.rotuloMotivo).toBeUndefined();
+    const outro = paraApi({ formato: 2, instrucoes: [], secoes: [{ uid: 's', titulo: 'A', perguntas: [{ ...p('t'), fonte: 'DIAS_TREINADOS', motivo: 'OPCIONAL', rotuloMotivo: 'x', max: 2 }] }] });
+    expect(outro.secoes[0].perguntas[0]).toMatchObject({ fonte: undefined, motivo: undefined, rotuloMotivo: undefined, max: undefined });
   });
 });

@@ -2,7 +2,8 @@ import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import { podeAplicarModelo, podeSalvarPastaComoModelo, temAcaoNoMenuDaPasta } from '../dominio/modelos';
 import { Permitido } from '../ui/Permitido';
 import { useSessao } from '../sessao/SessaoProvider';
-import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, RotateCcw, Trash2, Users } from 'lucide-react-native';
+import { rotuloAgendado } from '../dominio/liberacaoDePlano';
+import { BookmarkPlus, CalendarClock, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, RotateCcw, Trash2, Users } from 'lucide-react-native';
 import { sobre } from '../ui/sobre';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -282,9 +283,9 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
               fica desabilitado com o motivo quando o outro tipo tem alteração. */}
           {podePublicarAlgo ? <PublicarTudoDaPasta key={aberta.id} pasta={aberta} planos={planosEmFoco.planos} versoes={planosEmFoco.versoes} carregando={planosEmFoco.carregando}
             atualizando={planosEmFoco.atualizando} falhou={planosEmFoco.falhou} aoTentarDeNovo={planosEmFoco.recarregarFalhas} aoPublicar={aoPublicar} aoRecarregar={aoPublicar} aoNavegar={() => setAbertaId(null)} /> : null}
-          <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.treino} aoNavegar={() => setAbertaId(null)} /></Permitido>
-          <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.dieta} aoNavegar={() => setAbertaId(null)} /></Permitido>
-          <Permitido codigo={PERMISSOES_DO_PLANO.mobilidade.ler}><CartaoPlanos tipo="mobilidade" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.mobilidade} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.treino} aoNavegar={() => setAbertaId(null)} aoMudarLiberacao={recarregar} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.dieta} aoNavegar={() => setAbertaId(null)} aoMudarLiberacao={recarregar} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO.mobilidade.ler}><CartaoPlanos tipo="mobilidade" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.mobilidade} aoNavegar={() => setAbertaId(null)} aoMudarLiberacao={recarregar} /></Permitido>
           </View>
           <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={{ id: alunoId, nome: alunoNome }} pasta={aberta} filtros={filtrosDosRegistros} aoMudarFiltros={setFiltrosDosRegistros} etapa={etapa} /></Permitido>
         </Folha>
@@ -351,11 +352,13 @@ function LinhaPasta({ pasta, atualizacao, rascunho, prazo, hoje, aoAbrir, aoRevi
   const Icone = concluida ? FolderCheck : Folder;
   // Pasta sem datas: "Não definido" (guia de 11/11, pág. 33), não um "Sem período" que parece erro.
   const periodoTexto = !pasta.inicio && !pasta.fim ? 'Não definido' : periodoCurto(pasta.inicio, pasta.fim, hoje);
+  // Plano agendado (bloco E): a menor data entre os planos da pasta.
+  const agendado = pasta.liberarEm ? rotuloAgendado(pasta.liberarEm) : null;
   return (
     <View style={[estilos.linha, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'aberta'}${rascunho ? ', rascunho' : ''}${prazo ? `, ${prazo.texto.toLowerCase()}` : ''}, período ${periodoTexto}${situacao ? `, ${situacao.texto}` : ''}. Abrir.`}
+        accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'aberta'}${rascunho ? ', rascunho' : ''}${prazo ? `, ${prazo.texto.toLowerCase()}` : ''}${agendado ? `, ${agendado.toLowerCase()}` : ''}, período ${periodoTexto}${situacao ? `, ${situacao.texto}` : ''}. Abrir.`}
         onPress={aoAbrir}
         style={(estado) => [estilos.linhaToque, { backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
         {/* Ícone neutro: a marca não diz situação; quem diz é o selo. */}
@@ -369,6 +372,7 @@ function LinhaPasta({ pasta, atualizacao, rascunho, prazo, hoje, aoAbrir, aoRevi
           {concluida ? <Selo texto="Concluída" tipo="neutro" /> : null}
           {prazo ? <Selo texto={prazo.texto} tipo={prazo.tipo} Icone={ICONE_DO_SELO[prazo.tipo]} /> : null}
           {situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} Icone={ICONE_DO_SELO[situacao.tipo]} /> : null}
+          {agendado ? <Selo texto={agendado} tipo="neutro" Icone={CalendarClock} /> : null}
           <Texto numerico variante="suave">Período: {periodoTexto}</Texto>
         </View>
         <ChevronRight size={20} color={cores.textoSuave} />

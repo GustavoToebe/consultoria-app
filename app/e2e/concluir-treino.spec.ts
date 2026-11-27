@@ -245,7 +245,9 @@ test('comentário passa de 300 caracteres só até o limite e nunca aparece no c
 test('data futura não mostra o botão', async ({ page }) => {
   const api = await abrir(page);
   await page.goto('/aluno/sessao/sx?data=2026-10-21');
-  await expect(page.getByText('Você poderá concluir este treino a partir de 21/10/2026.')).toBeVisible();
+  // Na web larga (viewport padrão, 1280) o resumo do dia junta as duas frases numa só (`fraseDaDataDoTreino`).
+  await expect(page.getByText('Você está registrando o treino de 21/10/2026 e poderá concluí-lo a partir desse dia.', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Você poderá concluir este treino/)).toHaveCount(0);
   await expect(botoesConcluir(page)).toHaveCount(0);
   await page.goto('/aluno/sessao/sx/sxe1?data=2026-10-21');
   await expect(page.getByText('Você poderá concluir este treino a partir de 21/10/2026.')).toHaveCount(1);

@@ -112,8 +112,8 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
 
     /** Plano publicado (treino ou dieta) ligado à pasta; é o que faz o painel tratar a pasta como "com atualização". */
     private void planoPublicado(UUID consultoria, UUID aluno, UUID pasta, String tabela) {
-        banco.update("insert into " + tabela + "(id,consultoria_id,aluno_id,titulo,fim,rascunho,versao_publicada,publicado_em,pasta_id) "
-                + "values (?,?,?,'Plano fictício',(select fim from pasta_plano where id=?),'{}'::jsonb,1,now(),?)",
+        banco.update("insert into " + tabela + "(id,consultoria_id,aluno_id,titulo,fim,rascunho,versao_publicada,versao_liberada,publicado_em,pasta_id) "
+                + "values (?,?,?,'Plano fictício',(select fim from pasta_plano where id=?),'{}'::jsonb,1,1,now(),?)",
                 UUID.randomUUID(), consultoria, aluno, pasta, pasta);
     }
 

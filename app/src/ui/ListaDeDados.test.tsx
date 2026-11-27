@@ -74,3 +74,35 @@ describe('LinhaDeDado: motivo da ação desabilitada', () => {
     expect(ajuda(montar(<LinhaDeDado rotulo="Nome" valor="Ana" />))).toHaveLength(0);
   });
 });
+
+describe('ListaDeDados: arranjo opcional (leitura das respostas)', () => {
+  const medir = (r: ReactTestRenderer, width: number) => {
+    const raiz = r.root.find((n) => typeof n.props.onLayout === 'function');
+    act(() => { raiz.props.onLayout({ nativeEvent: { layout: { width, height: 100, x: 0, y: 0 } } }); });
+  };
+  const estiloPlano = (n: ReactTestInstance) => Object.assign({}, ...[n.props.style].flat(3).filter(Boolean));
+  const item = (r: ReactTestRenderer) => r.root.find((n) => n.props.role === 'listitem' && typeof n.type !== 'string');
+  const termo = (r: ReactTestRenderer) => r.root.find((n) => n.props.role === 'term');
+
+  it('sem arranjo: respiro e coluna do rótulo de sempre (200 px ao lado, a partir de 416)', () => {
+    let r!: ReactTestRenderer;
+    act(() => { r = create(<ListaDeDados><LinhaDeDado rotulo="Nome" valor="Ana" /></ListaDeDados>); });
+    medir(r, 1000);
+    expect(estiloPlano(item(r)).paddingVertical).toBe(8);
+    expect(estiloPlano(termo(r)).width).toBe(200);
+    medir(r, 300);
+    expect(estiloPlano(termo(r).parent!).gap).toBe(2);
+  });
+
+  it('com arranjo: empilha abaixo do limite; acima, rótulo em fração da largura até o teto e respiro próprio', () => {
+    let r!: ReactTestRenderer;
+    const arranjo = { empilharAbaixoDe: 720, rotulo: { fracao: 0.4, maximo: 320 }, respiro: 12, entre: 4 };
+    act(() => { r = create(<ListaDeDados arranjo={arranjo}><LinhaDeDado rotulo="Pergunta" valor="Resposta" /></ListaDeDados>); });
+    medir(r, 600);
+    expect(estiloPlano(item(r)).paddingVertical).toBe(12);
+    expect(estiloPlano(termo(r)).width).toBeUndefined();
+    expect(estiloPlano(termo(r).parent!).gap).toBe(4);
+    medir(r, 1000);
+    expect(estiloPlano(termo(r)).width).toBe(320);
+  });
+});

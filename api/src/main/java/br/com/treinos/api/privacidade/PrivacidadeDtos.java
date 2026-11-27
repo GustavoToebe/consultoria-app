@@ -65,6 +65,8 @@ public final class PrivacidadeDtos {
                              /** Os nomes das tags do aluno (V093), com {@code ALUNO_LER}; nome é texto livre do treinador, por isso sai aqui. */
                              Secao<String> tags,
                              br.com.treinos.api.whatsapp.WhatsAppDtos.AvisosExportados avisosPeloWhatsApp,
+                             /** Avisos de "plano liberado" (V106): só as datas de criação e de visto, sem texto; com {@code ALUNO_LER}. */
+                             Secao<br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado.AvisoExportado> avisosDePlanoLiberado,
                              /** Os contratos digitais do aluno (V105): texto, hash e evidências de assinatura; só com {@code CONTRATO_LER}. */
                              Secao<br.com.treinos.api.contratos.ContratoDtos.ContratoExportado> contratos) { }
 

@@ -2,7 +2,7 @@ import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTi
 import type { Marca } from '../api/tipos';
 import { medidasVazias } from '../dominio/avaliacaoFisica';
 import { compararAvaliacoes } from '../dominio/comparacaoDeAvaliacoes';
-import { MARCADOR_DO_TEMA, textosSemContraste } from './contrasteDoCss.apoioTeste';
+import { MARCADOR_DO_TEMA, temMarcador, textosSemContraste } from './contrasteDoCss.apoioTeste';
 import { cssBase, documentoCompleto } from './html';
 import { documentoAvaliacaoFisica, type DadosPdfAvaliacaoFisica } from './pdfAvaliacaoFisica';
 import { TEMAS_PDF } from './temas';
@@ -282,7 +282,7 @@ describe('PDF da avaliação física nos temas (marca.temaPdf)', () => {
   it.each(TEMAS_PDF.map((t) => t.id))('%s: CSS do tema, HTML idêntico ao do CLASSICO e cabeçalho de tabela cinza da avaliação preservado', (tema) => {
     const d = gerar(['a', 'b', 'c'], comTema(tema));
     expect(d.css.startsWith(cssBase('#123456', tema))).toBe(true);
-    expect(d.css).toMatch(MARCADOR_DO_TEMA[tema]('#123456'));
+    if (temMarcador(tema)) expect(d.css).toMatch(MARCADOR_DO_TEMA[tema]('#123456'));
     expect(d.corpo).toBe(classico.corpo);
     // A tabela comparativa tem fundo cinza próprio, com texto escuro, em qualquer tema (nada de texto da marca sobre fundo da marca).
     expect(d.css).toMatch(/.doc table.comp th { background: #f1f3f5; color: #111;/);

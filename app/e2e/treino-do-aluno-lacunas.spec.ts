@@ -135,25 +135,48 @@ test('com "Concluir treino" desligado, os recordes somem e a última vez vem da 
 /** Orientações do treinador (Gustavo, 25/11): no formato da importação da planilha ("Coluna: texto"). Texto fictício. */
 const ORIENTACOES = 'Leia antes do primeiro treino.\n\nFS: Série de força, pesada e curta.\n\nWS: Série de trabalho até perto da falha.\n\nCardio: 20 min leves depois do treino.';
 
-for (const largura of [390, 1280]) {
-  test(`orientações do treinador: recolhidas com o objetivo à vista; abrir mostra as seções, cada uma fechada (${largura} px)`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width: largura, height: 900 });
-    const respostas = await abrir(page, { objetivoEOrientacoes: { objetivo: 'Ganhar força (fictício)', orientacoes: ORIENTACOES } });
-    await page.goto('/aluno/treino');
-    const cartao = page.getByRole('button', { name: 'Orientações do treinador, recolhido' });
-    await expect(cartao).toBeVisible();
-    await expect(page.getByText('Objetivo: Ganhar força (fictício)', { exact: true })).toBeVisible();
-    await expect(page.getByText('Leia antes do primeiro treino.', { exact: true })).toHaveCount(0);
-    await cartao.click();
-    await expect(page.getByRole('button', { name: 'Orientações do treinador, expandido' })).toBeVisible();
-    await expect(page.getByText('Leia antes do primeiro treino.', { exact: true })).toBeVisible();
-    for (const titulo of ['FS', 'WS', 'Cardio']) await expect(page.getByRole('button', { name: titulo, exact: true })).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByText('Série de força, pesada e curta.', { exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'FS', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'FS', exact: true })).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByText('Série de força, pesada e curta.', { exact: true })).toBeVisible();
-    await expect(page.getByText('Série de trabalho até perto da falha.', { exact: true })).toHaveCount(0);
-    await page.screenshot({ path: testInfo.outputPath(`orientacoes-${largura}.png`), fullPage: true });
-    expect(respostas.errosDaPagina).toEqual([]);
-  });
-}
+test('orientações do treinador: recolhidas com o objetivo à vista; abrir mostra as seções, cada uma fechada (390 px)', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const respostas = await abrir(page, { objetivoEOrientacoes: { objetivo: 'Ganhar força (fictício)', orientacoes: ORIENTACOES } });
+  await page.goto('/aluno/treino');
+  const cartao = page.getByRole('button', { name: 'Orientações do treinador, recolhido' });
+  await expect(cartao).toBeVisible();
+  await expect(page.getByText('Objetivo: Ganhar força (fictício)', { exact: true })).toBeVisible();
+  await expect(page.getByText('Leia antes do primeiro treino.', { exact: true })).toHaveCount(0);
+  await cartao.click();
+  await expect(page.getByRole('button', { name: 'Orientações do treinador, expandido' })).toBeVisible();
+  await expect(page.getByText('Leia antes do primeiro treino.', { exact: true })).toBeVisible();
+  for (const titulo of ['FS', 'WS', 'Cardio']) await expect(page.getByRole('button', { name: titulo, exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByText('Série de força, pesada e curta.', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'FS', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'FS', exact: true })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByText('Série de força, pesada e curta.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Série de trabalho até perto da falha.', { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('orientacoes-390.png'), fullPage: true });
+  expect(respostas.errosDaPagina).toEqual([]);
+});
+
+// Orientação 1.2 (26/11): com o apoio ao lado, `OrientacoesAbertas` nasce aberta e com as seções do texto à vista (sem botão por seção).
+test('orientações do treinador: abertas no apoio, com o objetivo e todas as seções à vista (1280 px)', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const respostas = await abrir(page, { objetivoEOrientacoes: { objetivo: 'Ganhar força (fictício)', orientacoes: ORIENTACOES } });
+  await page.goto('/aluno/treino');
+  await expect(page.getByRole('button', { name: 'Orientações do treinador, expandido' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Orientações do treinador, recolhido' })).toHaveCount(0);
+  await expect(page.getByText('Objetivo: Ganhar força (fictício)', { exact: true })).toBeVisible();
+  await expect(page.getByText('Leia antes do primeiro treino.', { exact: true })).toBeVisible();
+  for (const titulo of ['FS', 'WS', 'Cardio']) {
+    await expect(page.getByText(titulo, { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: titulo, exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByText('Série de força, pesada e curta.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Série de trabalho até perto da falha.', { exact: true })).toBeVisible();
+  await expect(page.getByText('20 min leves depois do treino.', { exact: false })).toBeVisible();
+  // Continua recolhível: tocar no título fecha, e o objetivo segue à vista.
+  await page.getByRole('button', { name: 'Orientações do treinador, expandido' }).click();
+  await expect(page.getByRole('button', { name: 'Orientações do treinador, recolhido' })).toBeVisible();
+  await expect(page.getByText('Leia antes do primeiro treino.', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Objetivo: Ganhar força (fictício)', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('orientacoes-1280.png'), fullPage: true });
+  expect(respostas.errosDaPagina).toEqual([]);
+});

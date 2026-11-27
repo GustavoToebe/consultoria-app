@@ -1,5 +1,6 @@
 package br.com.treinos.api.questionarios;
 
+import br.com.treinos.api.atualizacoes.ItensDoPlano;
 import br.com.treinos.api.atualizacoes.ValidadorAtualizacao;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.plataforma.comum.web.ApiError;
@@ -43,6 +44,15 @@ class ParidadeQuestionarioTest {
 
     private static List<String> lista(JsonNode no) {
         return no.valueStream().map(JsonNode::asString).toList();
+    }
+
+    /** {@code itens} do caso: fonte → [{id, nome}], a lista que o servidor leu do plano; sem ele, não há lista. */
+    private static ItensDoPlano itensDoCaso(JsonNode itens) {
+        if (!itens.isObject()) {
+            return ItensDoPlano.NENHUM;
+        }
+        return fonte -> itens.path(fonte).valueStream()
+                .map(i -> new ItensDoPlano.Item(i.path("id").asString(), i.path("nome").asString())).toList();
     }
 
     @Test
@@ -133,7 +143,7 @@ class ParidadeQuestionarioTest {
             JsonNode aceitas = null;
             try {
                 aceitas = respostas.validar(caso.path("modelo"), caso.path("respostas"), caso.path("fotosLigadas").asBoolean(true),
-                        "ATUALIZACAO_INVALIDA", hoje);
+                        "ATUALIZACAO_INVALIDA", hoje, itensDoCaso(caso.path("itens")));
             } catch (ValidacaoException e) {
                 e.getProblemas().stream().map(ApiError.FieldError::field).forEach(obtido::add);
             }
@@ -141,6 +151,12 @@ class ParidadeQuestionarioTest {
             if (caso.has("chavesAceitas")) {
                 assertThat(aceitas).as("sem erro").isNotNull();
                 assertThat(new TreeSet<>(aceitas.propertyNames())).containsExactlyElementsOf(new TreeSet<>(lista(caso.path("chavesAceitas"))));
+            }
+            // respostaLimpa: o que o servidor grava (ITENS_DO_PLANO leva o nome lido da lista, nunca o do cliente).
+            if (caso.has("respostaLimpa")) {
+                assertThat(aceitas).as("sem erro").isNotNull();
+                JsonNode gravadas = aceitas;
+                caso.path("respostaLimpa").properties().forEach(e -> assertThat(gravadas.path(e.getKey())).isEqualTo(e.getValue()));
             }
         }));
     }

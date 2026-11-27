@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import type { Marca } from '../api/tipos';
 import { textosSemContraste } from './contrasteDoCss.apoioTeste';
 import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from './exemplos';
-import { cssBase, cssDoDoc } from './html';
+import { cssBase, cssDoDoc, type Documento } from './html';
 import { documentoCargas } from './pdfCargas';
 import { TEMAS_PDF, temaValido } from './temas';
 
@@ -12,8 +12,8 @@ const emitidoEm = new Date('2026-10-11T19:30:00Z');
 const sha = (texto: string) => createHash('sha256').update(texto).digest('hex');
 
 describe('temaValido e a lista de temas', () => {
-  it('a lista é fechada: três temas, cada um com nome e descrição em português', () => {
-    expect(TEMAS_PDF.map((t) => t.id)).toEqual(['CLASSICO', 'MINIMALISTA', 'MARCANTE']);
+  it('a lista é fechada: os seis modelos, cada um com nome e descrição em português', () => {
+    expect(TEMAS_PDF.map((t) => t.id)).toEqual(['CLASSICO', 'MINIMALISTA', 'MARCANTE', 'COMPACTO', 'ELEGANTE', 'ESPORTIVO']);
     for (const t of TEMAS_PDF) {
       expect(t.nome.length).toBeGreaterThan(2);
       expect(t.descricao.length).toBeGreaterThan(10);
@@ -61,9 +61,25 @@ describe('o CSS do CLASSICO não mudou um caractere', () => {
       dieta: '3b812a5b460041d2df23575c61048464cef2c4030d5c3d25fa7e3658964b90a8',
       cargas: '836b3c4e2132b5749596bf531fac767b8dab21d7ca0dcd6ebc932b545a156098',
     };
+    // D7 (contraste 4,5:1 vale para o PDF; Gustavo, 26/11): o Clássico DEIXOU de ser byte a byte o de antes onde o antigo violava
+    // os 4,5:1. Mudou, para QUALQUER marca: na dieta, `.item .macros` de #777 (4,48:1 sobre o branco) para #666666 e
+    // `table.dark th` com `color: #fff` (herdava o texto escuro do destaque claro sobre o navy fixo). Mudou, só para marca clara
+    // ou perto do limite: o texto de marca da dieta e das cargas (`h2.sec`, quantidades, totais, `.carga`) e o `.doc a` agora
+    // seguem a conta de 4,5:1 (a cor crua da marca clara saiu do Clássico), e a faixa de opção leva texto escuro sobre fundo
+    // claro. Esta prova usa a marca #C62828, que já passava: desfeitas as duas trocas acima, o documento volta a ser, caractere
+    // por caractere, o de antes (hash antigo): o HTML não mudou e o resto do CSS também não. Treino e cargas não foram
+    // tocados nessa marca e seguem com o hash de antes, sem desfazer nada. Com marca clara a garantia é o contraste, em
+    // `contrasteDosModelos.dom.test.ts` e `modelos.test.ts`.
+    const comoAntesDaDieta = (d: Documento): Documento => ({
+      ...d,
+      css: d.css
+        .replace('.doc .item .macros { color: #666666; font-size: 9pt; }', '.doc .item .macros { color: #777; font-size: 9pt; }')
+        .replace('.doc table.dark th { background: #1A1A2E; color: #fff; }', '.doc table.dark th { background: #1A1A2E; }'),
+    });
+    expect(comoAntesDaDieta(documentoDeExemploDeDieta(marca, emitidoEm)).css).not.toBe(documentoDeExemploDeDieta(marca, emitidoEm).css);
     for (const m of [marca, { ...marca, temaPdf: 'CLASSICO' }, { ...marca, temaPdf: 'inexistente' }, { ...marca, temaPdf: null }]) {
       expect(sha(JSON.stringify(documentoDeExemploDeTreino(m, emitidoEm)))).toBe(esperado.treino);
-      expect(sha(JSON.stringify(documentoDeExemploDeDieta(m, emitidoEm)))).toBe(esperado.dieta);
+      expect(sha(JSON.stringify(comoAntesDaDieta(documentoDeExemploDeDieta(m, emitidoEm))))).toBe(esperado.dieta);
       expect(sha(JSON.stringify(cargas(m)))).toBe(esperado.cargas);
     }
   });
@@ -95,7 +111,7 @@ describe('o CSS dos temas vem só do código', () => {
   });
 });
 
-describe('contraste com a marca amarela (#FFEB3B) nos três temas', () => {
+describe('contraste com a marca amarela (#FFEB3B) nos seis modelos', () => {
   it('o verificador pega texto amarelo sobre branco e aceita texto escuro sobre o amarelo', () => {
     expect(textosSemContraste('.doc h1 { color: #FFEB3B; }')).toHaveLength(1);
     expect(textosSemContraste('.doc .topo { background: #FFEB3B; color: #FFFFFF; }')).toHaveLength(1);

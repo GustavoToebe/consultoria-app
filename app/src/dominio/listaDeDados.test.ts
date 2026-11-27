@@ -1,4 +1,4 @@
-import { empilhaDados, larguraDoRotulo, linhaSemDivisoria } from './listaDeDados';
+import { arranjoDaLista, empilhaDados, larguraDoRotulo, linhaSemDivisoria } from './listaDeDados';
 
 // ficha: lista de dados (24/11)
 describe('lista de dados', () => {
@@ -16,6 +16,22 @@ describe('lista de dados', () => {
     // Texto grande: o mesmo cartão de 450 px passa a empilhar.
     expect(empilhaDados(450, 1.25)).toBe(true);
     expect(empilhaDados(520, 1.25)).toBe(false);
+  });
+
+  test('arranjo sem ajuste é exatamente o de sempre', () => {
+    for (const [largura, fator] of [[0, 1], [415, 1], [416, 1], [900, 1], [450, 1.25], [520, 1.25]] as const) {
+      expect(arranjoDaLista(largura, fator)).toEqual({ empilhado: empilhaDados(largura, fator), rotulo: larguraDoRotulo(fator) });
+    }
+  });
+
+  test('ajuste da leitura: empilha abaixo do limite e o rótulo é a fração da lista, até o teto', () => {
+    const leitura = { empilharAbaixoDe: 720, rotulo: { fracao: 0.4, maximo: 320 } };
+    expect(arranjoDaLista(0, 1, leitura)).toEqual({ empilhado: true, rotulo: 200 });
+    expect(arranjoDaLista(719, 1, leitura).empilhado).toBe(true);
+    expect(arranjoDaLista(720, 1, leitura)).toEqual({ empilhado: false, rotulo: 288 });
+    expect(arranjoDaLista(1100, 1, leitura)).toEqual({ empilhado: false, rotulo: 320 });
+    // Só o limite: a coluna do rótulo segue a de sempre.
+    expect(arranjoDaLista(800, 1, { empilharAbaixoDe: 760 })).toEqual({ empilhado: false, rotulo: 200 });
   });
 
   test('só a última linha do cartão fica sem divisória; a última de uma seção com outra depois tem', () => {

@@ -12,6 +12,7 @@ import { existeContratosNaConta, resumoDoContratoNaConta, resumoDoPerfil, resumo
 import { situacaoDoConvite } from '../../dominio/convidarAmigo';
 import { corDoPerfil, molduraDoPerfil, nomeParaColegas } from '../../dominio/perfilDaComunidade';
 import { redesPreenchidas } from '../../dominio/redesSociais';
+import { TETO_DA_TELA_DO_ALUNO } from '../../dominio/telaLargaDoAluno';
 import { avisoAoSairComPendencias, diasDeAguaNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -130,7 +131,8 @@ export function TelaDaConta() {
 
   return (
     <View style={estilos.raiz} onLayout={aoMedir}>
-      <Tela bordas={['top']} largura={COLUNA_DO_PERFIL + espaco(3) + LARGURA_FORMULARIO}>
+      {/* O contêiner de 1312 das telas do aluno, com o título na borda esquerda dele; perfil + seções (984) começam nela. */}
+      <Tela bordas={['top']} largura={TETO_DA_TELA_DO_ALUNO}>
         <Cabecalho titulo="Conta" />
         {/* A mesma árvore nas duas formas (só o estilo muda) e invisível até a primeira medida, para não saltar de uma coluna para duas. */}
         <View style={[duasColunas ? estilos.colunas : estilos.pilha, largura === 0 ? estilos.semMedida : null]}>
@@ -231,7 +233,7 @@ const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   semMedida: { opacity: 0 },
   pilha: { gap: espaco(3) },
-  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3), maxWidth: COLUNA_DO_PERFIL + espaco(3) + LARGURA_FORMULARIO },
   esquerda: { width: COLUNA_DO_PERFIL, flexShrink: 0 },
   colunaDoPerfil: { gap: espaco(2) },
   secoes: { gap: espaco(3) },

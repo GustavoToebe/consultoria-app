@@ -92,6 +92,7 @@ Pedido do Gustavo, a partir da tela "Layouts de cobrança" da Icondev (editor li
 **Decisões de tela (D-F):**
 - D-F1 Galeria continua em Configurações (`documentos-pdf`) e em `/treinador/documentos`; o **editor** é rota nova em tela inteira, `/treinador/documentos/personalizar`, sobre `TelaDoEditor`.
 - D-F2 Toda escolha navega para o editor (`?modelo=ID`, consumido na chegada). O editor decide pela própria faixa: `normal` ou maior = editor; `compacta` (celular, janela estreita, 1024 com menu aberto) = só confirmar o modelo com `PainelConfirmacao` (o que o celular já faz hoje) ou "Personalize numa tela maior".
+  - **Limitação aceita (Gustavo, 26/11):** o menu do treinador continua à vista no editor (escondê-lo pediria mexer no layout do treinador, fora do escopo), e o arranjo vem da **área** de conteúdo. Por isso uma janela de 1024, com o menu aberto (~784 de área) ou minimizado (~952), fica abaixo de 1024 e mostra "Personalize numa tela maior"; 1280 com o menu aberto (~1040) já abre o editor. Regra em `dominio/editorDoPdf.arranjoDoEditor`; e2e `documentos-pdf-editor.spec.ts`.
 - D-F3 Nada grava antes do "Salvar"; trocar modelo e "Restaurar o modelo" mexem no rascunho com `BarraDesfazer`, sem pergunta; guarda de saída ligada.
 - D-F4 Miniaturas na web pelo gerador real (cabeçalho e uma tabela, com a marca da consultoria, `aria-hidden`); no nativo, sem miniatura.
 - D-F5 Painel em duas partes: "Estilo de todos os documentos" (Cores, Texto, Cabeçalho, Tabelas; Rodapé no N2) e "Seções do <tipo>" (N2). Nada de "em breve" na tela.

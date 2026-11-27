@@ -151,7 +151,7 @@ function FolhaDaAtualizacao({ atualizacao, alunoId, aoFechar }: { atualizacao: A
       {a?.modelo && a.enviadaEm ? (
         <>
           <ResumoDaAtualizacao atualizacao={a} modelo={a.modelo} selo={selo ? { texto: selo.curto, tipo: selo.tipo, Icone: ICONE_DO_SELO[selo.tipo] } : null} />
-          <QuestionarioAtualizacao modelo={a.modelo} dataAtualizacao={a.dataAtualizacao} resumo={a.resumo} respostas={a.respostas ?? {}}
+          <QuestionarioAtualizacao modelo={a.modelo} dataAtualizacao={a.dataAtualizacao} respostas={a.respostas ?? {}}
             carregarFotoDaEquipe={a.id ? (foto) => baixarFotoDoTreinador(a.id ?? '', foto) : undefined} />
         </>
       ) : null}

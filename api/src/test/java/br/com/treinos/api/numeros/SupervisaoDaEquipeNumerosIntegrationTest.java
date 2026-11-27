@@ -122,8 +122,8 @@ class SupervisaoDaEquipeNumerosIntegrationTest extends AbstractIntegrationTest {
         banco.update("insert into atualizacao(id,consultoria_id,aluno_id,pasta_id,data_atualizacao,estado,respostas,enviada_em,"
                         + "atraso_ate,questionario_versao_id) values (?,?,?,?,?,?,'{}'::jsonb,?,null,?)",
                 UUID.randomUUID(), consultoria, aluno, pasta, data, estado, enviadaEm, enviadaEm == null ? null : versao);
-        banco.update("insert into plano_treino(id,consultoria_id,aluno_id,titulo,fim,rascunho,versao_publicada,publicado_em,pasta_id) "
-                + "values (?,?,?,'Plano fictício',?,'{}'::jsonb,1,now(),?)", UUID.randomUUID(), consultoria, aluno, data, pasta);
+        banco.update("insert into plano_treino(id,consultoria_id,aluno_id,titulo,fim,rascunho,versao_publicada,versao_liberada,publicado_em,pasta_id) "
+                + "values (?,?,?,'Plano fictício',?,'{}'::jsonb,1,1,now(),?)", UUID.randomUUID(), consultoria, aluno, data, pasta);
     }
 
     private JsonNode linha(JsonNode numeros, Membro de) {

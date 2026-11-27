@@ -29,6 +29,11 @@ import { PERMISSOES_DO_PLANO } from '../../dominio/permissoes';
 import { BarraDoEditor } from './BarraDoEditor';
 import { FolhaVerComoAluno, type PreviaDoPlano } from './FolhaVerComoAluno';
 import type { usePlanoEditor } from './usePlanoEditor';
+import type { CorpoDaLiberacao } from '../../api/liberacaoDePlano';
+import { escolhaInicial, rotuloAgendado, textoDoPublicado, type EscolhaDaLiberacao } from '../../dominio/liberacaoDePlano';
+import { FolhaPublicarComData } from './FolhaPublicarComData';
+import { hojeEmBrasilia } from '../../dominio/financeiro';
+import { dataSemAnoCorrente } from '../../dominio/periodoCurto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 
 type Editor<C> = ReturnType<typeof usePlanoEditor<C>>;
@@ -67,6 +72,12 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
   const [conteudoPdf, setConteudoPdf] = useState<ConteudoDieta | null>(null);
   const [avisos, setAvisos] = useState<Problema[] | null>(null);
   const [previa, setPrevia] = useState<PreviaDoPlano | null>(null);
+  // Publicar (bloco E): a escolha aberta na Folha (nula = fechada), o erro do campo vindo da API e a liberação da última
+  // tentativa, que o "Publicar mesmo assim" reenvia igual.
+  const [comData, setComData] = useState<EscolhaDaLiberacao | null>(null);
+  const [tentou, setTentou] = useState(false);
+  const [erroDaData, setErroDaData] = useState<string | null>(null);
+  const [liberacao, setLiberacao] = useState<CorpoDaLiberacao | undefined>(undefined);
   const e = editor.estado;
   if (!e) return null;
   const ultima = e.versoes[e.versoes.length - 1];
@@ -115,30 +126,62 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
     }
   };
 
-  const publicar = (confirmarAvisos: boolean) => {
+  // `comLiberacao` vem da Folha; `{}` = libera na hora e avisa (o padrão da API).
+  const publicar = (confirmarAvisos: boolean, comLiberacao?: CorpoDaLiberacao) => {
     setPublicando(true);
-    void editor.publicar(confirmarAvisos).then((r) => {
+    setLiberacao(comLiberacao);
+    void editor.publicar(confirmarAvisos, comLiberacao).then((r) => {
       setPublicando(false);
       setAvisos(null);
       if (r.tipo === 'publicado') {
+        setComData(null);
         aoProblemas(null);
-        avisar(`Publicado v${r.numero}. O aluno já vê esta versão.`, 'sucesso');
+        avisar(textoDoPublicado(r.numero, r.liberarEm), 'sucesso');
       } else if (r.tipo === 'erros') {
+        setComData(null);
         aoProblemas({ erros: r.erros, avisos: [] });
         avisar('Corrija os erros marcados antes de publicar.', 'perigo');
+      } else if (r.tipo === 'liberacaoInvalida') {
+        setErroDaData(r.mensagem);
       } else if (r.tipo === 'avisos') {
         setAvisos(r.avisos);
       } else {
+        // A Folha fecha: o painel de conflito (409) e o aviso ficam na raiz e não podem nascer atrás dela.
+        setComData(null);
         avisar(r.mensagem, 'perigo');
       }
     });
   };
 
   const selo = seloDoEditor(editor.situacao, editor.salvoAs, { versao: e.plano.versaoPublicada, alterado: e.plano.rascunhoAlteradoDepoisDePublicar });
-  const semPublicar = motivoSemPublicar(editor.situacao, { versao: e.plano.versaoPublicada, alterado: e.plano.rascunhoAlteradoDepoisDePublicar, ativo: e.plano.ativo });
+  const agendado = e.plano.liberarEm ? rotuloAgendado(e.plano.liberarEm) : null;
+  const semPublicarBase = motivoSemPublicar(editor.situacao, { versao: e.plano.versaoPublicada, alterado: e.plano.rascunhoAlteradoDepoisDePublicar, ativo: e.plano.ativo });
+  // Com versão agendada o aluno ainda não vê a última: o motivo diz isso e onde mudar a data.
+  const semPublicar = semPublicarBase && agendado
+    ? `Nada novo para publicar: a v${e.plano.versaoPublicada} está agendada para ${dataSemAnoCorrente(e.plano.liberarEm ?? '', hojeEmBrasilia())}. Para mudar a data, use o ⋯ do plano na pasta.`
+    : semPublicarBase;
   const info = escritaLiberada
-    ? infoDoPlano({ inicio: e.inicio, fim: e.fim, daPasta: !!e.plano.pastaId, publicadoEm: ultima?.publicadoEm ?? null })
+    ? `${infoDoPlano({ inicio: e.inicio, fim: e.fim, daPasta: !!e.plano.pastaId, publicadoEm: ultima?.publicadoEm ?? null })}${agendado ? ` · ${agendado.toLowerCase()}` : ''}`
     : 'Disponível em outro plano: dá para consultar, mas não salvar nem publicar.';
+  const abrirComData = () => {
+    setComData(escolhaInicial(e.plano, 'agora'));
+    setTentou(false);
+    setErroDaData(null);
+  };
+  const painelDeAvisos = (
+    <PainelConfirmacao
+      visivel={avisos !== null}
+      titulo="Publicar com avisos?"
+      mensagem="O plano pode ser publicado, mas confira:"
+      rotuloConfirmar="Publicar mesmo assim"
+      carregando={publicando}
+      aoConfirmar={() => publicar(true, liberacao)}
+      aoCancelar={() => setAvisos(null)}>
+      {(avisos ?? []).map((p, i) => (
+        <ItemProblema key={i} conteudo={e.conteudo} problema={p} tipo="atencao" />
+      ))}
+    </PainelConfirmacao>
+  );
   const verComoAluno = () => {
     const copia = { plano: e.plano, titulo: e.titulo, inicio: e.inicio, fim: e.fim };
     // O `tipo` diz o formato do conteúdo (o editor é genérico).
@@ -178,23 +221,22 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}>
               {/* O rótulo diz o alcance (guia de 11/11, pág. 6). Só é o principal quando há versão para publicar; sem ela,
                   vira secundário com o motivo, e "Ver como o aluno" e o PDF ficam ao lado como próxima ação. */}
-              <Botao rotulo={ROTULO_PUBLICAR[tipo]} tipo={semPublicar ? 'secundario' : 'primario'} Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
+              {/* Bloco E (decisão do Gustavo): publicar abre a Folha com quando o aluno vê ("Liberar agora" por padrão, ou
+                  a data já agendada) e "Avisar o aluno" marcado; nada é publicado sem a pessoa ver essa escolha. */}
+              <Botao rotulo={ROTULO_PUBLICAR[tipo]} tipo={semPublicar ? 'secundario' : 'primario'} Icone={Send} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={abrirComData} />
             </Permitido>
           </>
         ) : null}
       </BarraDoEditor>
-      <PainelConfirmacao
-        visivel={avisos !== null}
-        titulo="Publicar com avisos?"
-        mensagem="O plano pode ser publicado, mas confira:"
-        rotuloConfirmar="Publicar mesmo assim"
-        carregando={publicando}
-        aoConfirmar={() => publicar(true)}
-        aoCancelar={() => setAvisos(null)}>
-        {(avisos ?? []).map((p, i) => (
-          <ItemProblema key={i} conteudo={e.conteudo} problema={p} tipo="atencao" />
-        ))}
-      </PainelConfirmacao>
+      {/* Com a Folha aberta o painel nasce dentro dela; fora, ficaria atrás do Modal. */}
+      {comData ? (
+        <FolhaPublicarComData titulo={ROTULO_PUBLICAR[tipo]} plano={e.plano} escolha={comData} tentou={tentou} erroDaApi={erroDaData} publicando={publicando}
+          aoMudar={(v) => { setComData(v); setErroDaData(null); }}
+          aoPublicar={(corpo) => { setTentou(true); if (corpo) publicar(false, corpo); }}
+          aoFechar={() => setComData(null)}>
+          {painelDeAvisos}
+        </FolhaPublicarComData>
+      ) : painelDeAvisos}
       <PainelConfirmacao
         visivel={editor.situacao === 'conflito'}
         titulo="Este plano foi alterado em outra aba"

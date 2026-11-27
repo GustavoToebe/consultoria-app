@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ConteudoQuestionario, FinalidadeQuestionario, RespostasAtualizacao } from '../api/tipos';
+import type { ConteudoQuestionario, FinalidadeQuestionario, ItensDisponiveis, RespostasAtualizacao } from '../api/tipos';
 import { hojeIso } from './formatos';
 import { LIMITES_QUESTIONARIO, validarQuestionario } from './questionario';
-import { avaliarRespostas, errosRespostasAtualizacao } from './respostasAtualizacao';
+import { avaliarRespostas, conferirItens, errosRespostasAtualizacao } from './respostasAtualizacao';
 
 /**
  * Paridade com o Java: lê as mesmas fixtures de `ParidadeQuestionarioTest`
@@ -21,6 +21,10 @@ interface CasoRespostas {
   hoje?: string;
   /** Sem erro: as respostas que sobram depois de descartar as escondidas por condição. */
   chavesAceitas?: string[];
+  /** ITENS_DO_PLANO: a lista de cada fonte que o servidor leu do plano (ausente = sem lista, toda resposta é recusada). */
+  itens?: ItensDisponiveis;
+  /** ITENS_DO_PLANO: o que o servidor grava por pergunta (`[{id, nome, motivo?}]`, com o nome da lista). */
+  respostaLimpa?: Record<string, unknown>;
 }
 
 it('limites iguais aos do Java', () => {
@@ -39,8 +43,13 @@ const respostas = ler<CasoRespostas[]>('respostas.json');
 it('há casos de respostas', () => expect(respostas.length).toBeGreaterThan(25));
 it.each(respostas.map((c) => [c.nome, c] as const))('respostas: %s', (_nome, caso) => {
   const hoje = caso.hoje ?? hojeIso();
-  expect(Object.keys(errosRespostasAtualizacao(caso.modelo, caso.respostas, caso.fotosLigadas ?? true, {}, hoje)).sort()).toEqual([...caso.camposComErro].sort());
+  expect(Object.keys(errosRespostasAtualizacao(caso.modelo, caso.respostas, caso.fotosLigadas ?? true, {}, hoje, caso.itens)).sort()).toEqual([...caso.camposComErro].sort());
   if (caso.chavesAceitas) {
-    expect(Object.keys(avaliarRespostas(caso.modelo, caso.respostas, caso.fotosLigadas ?? true, {}, hoje).aceitas).sort()).toEqual([...caso.chavesAceitas].sort());
+    expect(Object.keys(avaliarRespostas(caso.modelo, caso.respostas, caso.fotosLigadas ?? true, {}, hoje, caso.itens).aceitas).sort()).toEqual([...caso.chavesAceitas].sort());
+  }
+  const perguntas = caso.modelo.secoes.flatMap((s) => s.perguntas);
+  for (const [id, limpa] of Object.entries(caso.respostaLimpa ?? {})) {
+    const pergunta = perguntas.find((p) => p.id === id);
+    expect(pergunta && conferirItens(pergunta, caso.respostas[id], caso.itens)).toEqual({ limpa });
   }
 });

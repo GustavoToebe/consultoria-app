@@ -121,6 +121,8 @@ function sessaoComBiblioteca(): Sessao[] {
 }
 
 test('aluno: demonstração dentro do Como fazer; imagem própria só pela API; sem imagem não sobra espaço', async ({ page }) => {
+  // Celular: na tela larga a demonstração fica na coluna de apoio (e2e/aluno-layout-exercicio), sem a folha "Como fazer".
+  await page.setViewportSize({ width: 390, height: 844 });
   await fixarHoje(page);
   const pedidasDoCatalogo = await servirCatalogo(page);
   const cabecalhos: Record<string, string | undefined>[] = [];

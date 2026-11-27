@@ -1,7 +1,7 @@
 import type { ConquistaDoAluno } from '../api/comunidadeTipos';
 import {
   ALTURA_BASE_DA_FAIXA, alturaDaFaixa, AREA_PARA_A_LATERAL, arranjoDoMural, conquistasRecentes, estadoDosNumeros, LARGURA_DA_LATERAL,
-  LARGURA_DO_FEED, rotuloEmbaixo, textoDaFaixaDosNumeros, TEXTO_NUMEROS_INDISPONIVEIS, TEXTO_SEM_NUMEROS, VAO_DA_LATERAL,
+  LARGURA_DO_BLOCO_DO_MURAL, LARGURA_DO_FEED, rotuloEmbaixo, textoDaFaixaDosNumeros, TEXTO_NUMEROS_INDISPONIVEIS, TEXTO_SEM_NUMEROS, VAO_DA_LATERAL,
 } from './arranjoDoMural';
 
 describe('arranjoDoMural', () => {
@@ -25,6 +25,16 @@ describe('arranjoDoMural', () => {
 
   it('o feed, o vão e a coluna cabem na área em que a coluna abre', () => {
     expect(LARGURA_DO_FEED + VAO_DA_LATERAL + LARGURA_DA_LATERAL).toBeLessThanOrEqual(AREA_PARA_A_LATERAL);
+  });
+
+  it('com o limite do bloco do aluno (1092), a coluna abre assim que o bloco cabe; o padrão continua 1280', () => {
+    expect(LARGURA_DO_BLOCO_DO_MURAL).toBe(1092);
+    expect(arranjoDoMural(1091, true, LARGURA_DO_BLOCO_DO_MURAL)).toBe('topo');
+    expect(arranjoDoMural(1091.6, true, LARGURA_DO_BLOCO_DO_MURAL)).toBe('lado');
+    expect(arranjoDoMural(1092, true, LARGURA_DO_BLOCO_DO_MURAL)).toBe('lado');
+    expect(arranjoDoMural(1092, true)).toBe('topo');
+    expect(arranjoDoMural(null, true, LARGURA_DO_BLOCO_DO_MURAL)).toBe('medindo');
+    expect(arranjoDoMural(1500, false, LARGURA_DO_BLOCO_DO_MURAL)).toBe('sem');
   });
 });
 

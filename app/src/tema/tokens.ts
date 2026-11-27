@@ -800,6 +800,12 @@ export const CAMADA_DA_FOTO = {
   sobre: 'rgba(255,255,255,0.18)',
   icone: '#FFFFFF',
 } as const;
+/**
+ * Mesa da prévia de documento (o "papel sobre a mesa" do editor e da galeria dos PDFs): o mesmo cinza neutro em todos os
+ * temas, porque o papel é sempre branco (exceção ao token por tema, 4.10 de `docs/design-e-front.md`). A folha branca
+ * passa 3:1 sobre ela, e ela passa 3:1 sobre a página de todo tema (`tokens.test.ts`). Só na prévia de documento.
+ */
+export const MESA_DA_PREVIA = '#7A7F87';
 
 export const espaco = (n: number) => n * 8;
 /** Cantos de 20 px nos cartões, folhas e painéis (visual-ponytail, 17/11). */

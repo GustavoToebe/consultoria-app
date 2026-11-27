@@ -65,7 +65,18 @@ public class PushService {
     @Transactional(propagation = Propagation.MANDATORY)
     public void enfileirarParaAlunos(UUID consultoriaId, Collection<UUID> alunoIds) {
         if (propriedades.habilitado() && !alunoIds.isEmpty()) {
-            repositorio.enfileirar(consultoriaId, alunoIds);
+            repositorio.enfileirar(consultoriaId, alunoIds, TipoDePush.COMPROMISSO);
+        }
+    }
+
+    /**
+     * Gancho do plano liberado: na MESMA transação que o libera, deixa um envio {@code PLANO_LIBERADO} na fila (texto fixo, sem
+     * dado pessoal) se o aluno tem token. Chave desligada: não faz nada (fica só o aviso dentro do app).
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void enfileirarPlanoLiberado(UUID consultoriaId, UUID alunoId) {
+        if (propriedades.habilitado()) {
+            repositorio.enfileirar(consultoriaId, List.of(alunoId), TipoDePush.PLANO_LIBERADO);
         }
     }
 
