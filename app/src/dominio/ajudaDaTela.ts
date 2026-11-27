@@ -16,6 +16,7 @@ const SECAO_DA_TELA: Readonly<Record<string, string | null>> = {
   '/treinador/biblioteca': 'biblioteca',
   '/treinador/comunidade': 'comunidade',
   '/treinador/configuracoes': 'consultoria',
+  '/treinador/contratos': 'contratos',
   '/treinador/dietas': 'planos',
   '/treinador/equipe': 'consultoria',
   '/treinador/financeiro': 'financeiro',

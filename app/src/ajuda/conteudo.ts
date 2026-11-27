@@ -43,11 +43,14 @@ export interface SecaoGuia {
   soComVitrine?: boolean;
   /** Só com `lojaHabilitada` (página pública da vitrine): a tela tira a seção com a chave desligada e o PDF nunca a leva. */
   soComLoja?: boolean;
+  /** Só com `contratosHabilitados` (contrato digital): a tela tira a seção com a chave desligada e o PDF nunca a leva. */
+  soComContratos?: boolean;
 }
 
-/** Seções do guia que valem agora: sem as do retorno imediato, da vitrine e da página pública quando as chaves estão desligadas. */
-export function secoesDoGuia(guia: Guia, retornoHabilitado: boolean, vitrineHabilitada: boolean, lojaHabilitada = false): SecaoGuia[] {
-  return guia.secoes.filter((s) => (retornoHabilitado || !s.soComRetorno) && (vitrineHabilitada || !s.soComVitrine) && (lojaHabilitada || !s.soComLoja));
+/** Seções do guia que valem agora: sem as do retorno imediato, da vitrine, da página pública e dos contratos quando as chaves estão desligadas. */
+export function secoesDoGuia(guia: Guia, retornoHabilitado: boolean, vitrineHabilitada: boolean, lojaHabilitada = false, contratosHabilitados = false): SecaoGuia[] {
+  return guia.secoes.filter((s) => (retornoHabilitado || !s.soComRetorno) && (vitrineHabilitada || !s.soComVitrine) && (lojaHabilitada || !s.soComLoja)
+    && (contratosHabilitados || !s.soComContratos));
 }
 
 export interface Guia {
@@ -404,6 +407,18 @@ const TREINADOR: Guia = {
       ],
     },
     {
+      id: 'contratos',
+      titulo: 'Contratos digitais',
+      soComContratos: true,
+      itens: [
+        { titulo: 'Para que serve', texto: 'Em Configurações › Contratos você cria modelos de texto e, na ficha do aluno, gera o contrato para ele assinar pelo app. A assinatura guarda a data, a hora e um código que identifica o texto assinado. Contrato com o prazo vencido pode pausar o acesso do aluno, se você ligar o prazo.' },
+        { titulo: 'Quem assina', texto: 'Ao gerar, escolha "Quem assina": o aluno, no app, ou o responsável, por um link, sem conta. Menor de 16 anos assina só o responsável; de 16 a 17 anos assinam os dois, cada um com o seu contrato. O responsável é o do cadastro financeiro (nome e CPF); sem ele, o app pede para completar antes de gerar. O responsável por link só existe com o Financeiro ligado.' },
+        { titulo: 'O link do responsável', texto: 'Depois de gerar, o app mostra o link uma única vez, com "Copiar link" e "Enviar pelo WhatsApp". O link vale até o prazo do contrato (ou 30 dias, sem prazo) e só funciona uma vez. Para outro link, use "Gerar novo link do responsável" na ficha: o anterior deixa de valer. A página pede o CPF do responsável, mostra o contrato e pede o nome completo e duas confirmações: ler e concordar, e declarar ser o responsável legal do aluno. Depois, o responsável baixa o comprovante.' },
+        { titulo: 'Prazo para assinar', texto: 'Em Configurações › Contratos, "Prazo para assinar": "Não travar o acesso" (o padrão) ou "Travar depois de um prazo", de 1 a 60 dias contados do envio do contrato. Vencido o prazo, o aluno vê só a tela "Assine o contrato" até assinar; os treinos que ele já registrou sem internet continuam sendo enviados. Prorrogar ou cancelar o contrato libera na hora. A mudança vale para os contratos gerados depois, e o prazo de um contrato já gerado muda só em "Prorrogar".' },
+        { titulo: 'Guarda do contrato assinado', texto: 'O contrato assinado fica guardado mesmo se o aluno for anonimizado ou excluir a conta. Cinco anos depois do fim da contratação ligada a ele (ou da assinatura, se não houver contratação), e só para aluno anonimizado, o app apaga o texto, o PDF e as evidências (CPF, IP e aparelho) e mantém só o título, o código e a situação. Pendente e cancelado saem junto com a anonimização.' },
+      ],
+    },
+    {
       id: 'vitrine',
       titulo: 'Vitrine',
       soComVitrine: true,
@@ -607,6 +622,15 @@ const ALUNO: Guia = {
         { titulo: 'Acesso pausado por atraso', texto: 'Cobranças vencidas não bloqueiam o seu acesso sozinhas. Se o seu treinador pausar o seu acesso por causa de cobranças vencidas, você continua entrando no app, mas vê só a tela "Seu acesso está pausado" com as cobranças em aberto. Quando não sobrar nenhuma cobrança vencida, o seu acesso volta sozinho; toque em "Verificar meu acesso" para atualizar na hora.' },
         { titulo: 'Cobrança de saída', texto: 'Se o plano foi encerrado antes do tempo mínimo combinado, pode aparecer uma cobrança com o selo “Saída”. Ela não tem botão de pagar: o app mostra o valor e o vencimento, e você combina o pagamento com o seu treinador.' },
         { titulo: 'Lembretes por e-mail', texto: 'Se o seu treinador usa lembretes de cobrança, você pode desligar o interruptor “Receber lembretes de pagamento por e-mail” no cartão Meu plano, só para você. Precisa de internet. Ligado, você recebe no máximo um e-mail por dia, mesmo com várias cobranças em aberto: ele fala da mais antiga e diz quantas estão em aberto. Desligar não cancela a cobrança nem muda o que você deve; o que já foi enviado não volta.' },
+      ],
+    },
+    {
+      id: 'contrato',
+      titulo: 'Contrato',
+      soComContratos: true,
+      itens: [
+        { titulo: 'Assinar o contrato', texto: 'Quando a consultoria gera um contrato para você, ele aparece em Conta › Contratos. Leia e assine com o seu nome completo e a confirmação de que leu e concorda. A assinatura guarda a data, a hora e um código do texto, e você pode baixar o comprovante.' },
+        { titulo: 'Prazo vencido', texto: 'Se a consultoria definiu um prazo e ele passou, o app mostra só "Assine o contrato para continuar" até você assinar. Os treinos que você já registrou ficam guardados e são enviados quando a conexão voltar. Se o contrato for do seu responsável (menor de 16 anos, ou o dele em paralelo ao seu, de 16 a 17), peça a ele que assine pelo link que a consultoria enviou.' },
       ],
     },
     {
