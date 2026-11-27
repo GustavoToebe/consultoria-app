@@ -17,14 +17,15 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * O aviso de compromisso volta a sair a cada fato novo (reaberto, remarcado de novo, cancelado de novo) mesmo com a chave única
- * (consultoria, tipo, compromisso, aluno) da fila: a linha que já saiu é rearmada, e o mesmo fato repetido antes de sair, ou o
- * job rodando de novo, não duplica. Lembrete de cobrança não é rearmado. Meta de mentira ({@link MetaFalsa}), dados fictícios.
+ * O aviso de compromisso volta a sair a cada fato novo (reaberto, remarcado de novo, cancelado de novo): cada fato é uma linha
+ * nova da fila ({@code ocorrencia} + 1), e o histórico da exportação guarda uma linha por mensagem. O mesmo fato repetido
+ * enquanto o aviso do mesmo tipo está pendente, ou até {@link WhatsAppRepositorio#JANELA_DO_MESMO_FATO_MINUTOS} minutos depois
+ * de sair, não reenvia, e o job rodando de novo também não. Lembrete de cobrança não ganha ocorrência nova. Meta de mentira
+ * ({@link MetaFalsa}), dados fictícios.
  */
 class AvisoDeCompromissoRepetidoIntegrationTest extends WhatsAppIntegrationTestBase {
 
     @Autowired private WhatsAppDaFila fila;
-    @Autowired private FilaDeAvisos filaDeAvisos;
     @Autowired private WhatsAppRepositorio repositorio;
     @Autowired private PlatformTransactionManager transacoes;
 
@@ -65,13 +66,25 @@ class AvisoDeCompromissoRepetidoIntegrationTest extends WhatsAppIntegrationTestB
         return META.enviosDe(token).stream().filter(e -> e.corpo().contains("\"name\":\"" + modelo + "\"")).count();
     }
 
-    private String situacaoDe(UUID alunoId, String tipo) {
-        return jdbc.queryForObject("select situacao from whatsapp_envio where aluno_id = ? and tipo = ?", String.class, alunoId,
+    private int linhas(UUID alunoId, String tipo) {
+        return jdbc.queryForObject("select count(*) from whatsapp_envio where aluno_id = ? and tipo = ?", Integer.class, alunoId,
                 tipo);
     }
 
+    /** Faz de conta que o último aviso do tipo saiu há {@code minutos} minutos (para sair da janela do mesmo fato). */
+    private void saiuHa(UUID alunoId, String tipo, int minutos) {
+        jdbc.update("update whatsapp_envio set enviado_em = now() - make_interval(mins => ?) where aluno_id = ? and tipo = ? "
+                + "and ocorrencia = (select max(ocorrencia) from whatsapp_envio where aluno_id = ? and tipo = ?)",
+                minutos, alunoId, tipo, alunoId, tipo);
+    }
+
+    private boolean enfileirar(UUID consultoria, UUID aluno, TipoDeAviso tipo, UUID referencia) {
+        return Boolean.TRUE.equals(new TransactionTemplate(transacoes)
+                .execute(s -> repositorio.enfileirar(consultoria, aluno, tipo, referencia)));
+    }
+
     @Test
-    void reabrirECancelarDeNovoAvisamOutraVez() throws Exception {
+    void reabrirECancelarDeNovoGanhamLinhaNovaEAvisamOutraVez() throws Exception {
         AlunoDeTeste aluno = alunoPronto();
         JsonNode c = marcar(admin, aluno.id());
         fila.rodar();
@@ -81,26 +94,30 @@ class AvisoDeCompromissoRepetidoIntegrationTest extends WhatsAppIntegrationTestB
         fila.rodar();
         assertThat(envios("compromisso_cancelado")).isEqualTo(1);
 
-        // Reaberto: o NOVO que já saiu é rearmado e sai de novo (era aqui que ficava mudo).
+        // Reaberto: o aluno recebeu "cancelado" no meio, então é fato novo e o NOVO sai de novo (era aqui que ficava mudo).
         c = cancelar(c, false);
-        assertThat(situacaoDe(aluno.id(), "COMPROMISSO_NOVO")).isEqualTo("PENDENTE");
         fila.rodar();
         assertThat(envios("compromisso_novo")).isEqualTo(2);
-        Map<String, Object> novo = jdbc.queryForMap("select situacao, tentativas, id_externo from whatsapp_envio "
-                + "where aluno_id = ? and tipo = 'COMPROMISSO_NOVO'", aluno.id());
-        assertThat(novo.get("situacao")).isEqualTo("ENVIADO");
-        assertThat(novo.get("tentativas")).isEqualTo(1);
-        assertThat(novo.get("id_externo")).isNotNull();
 
-        // Cancelado de novo: o CANCELADO que já saiu também.
+        // Cancelado de novo: o CANCELADO também.
         cancelar(c, true);
         fila.rodar();
         assertThat(envios("compromisso_cancelado")).isEqualTo(2);
-        assertThat(enviosDe(aluno.id())).as("uma linha por tipo, rearmada").isEqualTo(2);
+
+        // Uma linha por mensagem, cada uma com a sua ocorrência, e nenhuma foi reescrita: o histórico da exportação (LGPD) as traz.
+        assertThat(enviosDe(aluno.id())).isEqualTo(4);
+        assertThat(jdbc.queryForList("select ocorrencia from whatsapp_envio where aluno_id = ? and tipo = 'COMPROMISSO_NOVO' "
+                + "order by ocorrencia", Integer.class, aluno.id())).containsExactly(1, 2);
+        assertThat(jdbc.queryForList("select distinct situacao from whatsapp_envio where aluno_id = ?", String.class, aluno.id()))
+                .containsExactly("ENVIADO");
+        JsonNode exportados = api.get("/alunos/" + aluno.id() + "/exportacao", admin, 200).path("avisosPeloWhatsApp")
+                .path("envios");
+        assertThat(exportados).hasSize(4);
+        exportados.forEach(e -> assertThat(e.path("enviadoEm").isNull()).isFalse());
     }
 
     @Test
-    void remarcarDeNovoAvisaOutraVez() throws Exception {
+    void remarcarDeNovoSoReenviaDepoisDaJanelaDoMesmoFato() throws Exception {
         AlunoDeTeste aluno = alunoPronto();
         JsonNode c = marcar(admin, aluno.id());
         fila.rodar();
@@ -108,53 +125,79 @@ class AvisoDeCompromissoRepetidoIntegrationTest extends WhatsAppIntegrationTestB
         fila.rodar();
         assertThat(envios("compromisso_remarcado")).isEqualTo(1);
 
-        mudarHora(c, "06:45");
+        // Minutos depois, o mesmo fato (remarcou de novo): a mensagem que saiu já mandou abrir o app, não reenvia.
+        c = mudarHora(c, "06:45");
         fila.rodar();
+        assertThat(envios("compromisso_remarcado")).isEqualTo(1);
+        assertThat(linhas(aluno.id(), "COMPROMISSO_REMARCADO")).isEqualTo(1);
 
+        // Passada a janela, é uma remarcação nova: linha nova e mensagem nova, com a anterior intacta no histórico.
+        saiuHa(aluno.id(), "COMPROMISSO_REMARCADO", WhatsAppRepositorio.JANELA_DO_MESMO_FATO_MINUTOS + 1);
+        mudarHora(c, "06:30");
+        fila.rodar();
         assertThat(envios("compromisso_remarcado")).isEqualTo(2);
-        assertThat(situacaoDe(aluno.id(), "COMPROMISSO_REMARCADO")).isEqualTo("ENVIADO");
+        assertThat(linhas(aluno.id(), "COMPROMISSO_REMARCADO")).isEqualTo(2);
     }
 
     @Test
-    void mesmoFatoProcessadoDuasVezesEOJobDeNovoNaoDuplicam() throws Exception {
+    void mesmoFatoPendenteOuRecemEnviadoNaoDuplicaEOJobDeNovoTambemNao() throws Exception {
         AlunoDeTeste aluno = alunoPronto();
         JsonNode c = marcar(admin, aluno.id());
         fila.rodar();
         c = cancelar(c, true);
         fila.rodar();
         cancelar(c, false);
-        assertThat(envios("compromisso_novo")).as("o reaberto ainda não saiu").isEqualTo(1);
-
-        // O mesmo fato chega de novo antes de sair: a linha PENDENTE fica como está.
-        UUID compromisso = jdbc.queryForObject(
-                "select referencia_id from whatsapp_envio where aluno_id = ? and tipo = 'COMPROMISSO_NOVO'", UUID.class, aluno.id());
+        UUID compromisso = jdbc.queryForObject("select referencia_id from whatsapp_envio where aluno_id = ? "
+                + "and tipo = 'COMPROMISSO_NOVO' limit 1", UUID.class, aluno.id());
         UUID consultoria = consultoriaDe(admin);
-        new TransactionTemplate(transacoes).executeWithoutResult(s -> filaDeAvisos.enfileirarDeCompromissos(consultoria,
-                List.of(new FilaDeAvisos.AvisoDeCompromisso(aluno.id(), compromisso, TipoDeAviso.COMPROMISSO_NOVO))));
-        assertThat(enviosDe(aluno.id())).isEqualTo(2);
+
+        // O mesmo fato chega de novo com o reaberto ainda pendente: nada novo.
+        assertThat(enfileirar(consultoria, aluno.id(), TipoDeAviso.COMPROMISSO_NOVO, compromisso)).isFalse();
+        assertThat(linhas(aluno.id(), "COMPROMISSO_NOVO")).isEqualTo(2);
 
         fila.rodar();
         fila.rodar();
-        assertThat(envios("compromisso_novo")).as("um só envio para o reaberto, com o fato repetido e o job duas vezes")
-                .isEqualTo(2);
+        assertThat(envios("compromisso_novo")).as("um só envio para o reaberto").isEqualTo(2);
+
+        // E de novo logo depois de sair (dentro da janela): continua sem nada novo.
+        assertThat(enfileirar(consultoria, aluno.id(), TipoDeAviso.COMPROMISSO_NOVO, compromisso)).isFalse();
+        fila.rodar();
+        assertThat(envios("compromisso_novo")).isEqualTo(2);
+        assertThat(linhas(aluno.id(), "COMPROMISSO_NOVO")).isEqualTo(2);
+
+        // Fora da janela vira fato novo.
+        saiuHa(aluno.id(), "COMPROMISSO_NOVO", WhatsAppRepositorio.JANELA_DO_MESMO_FATO_MINUTOS + 1);
+        assertThat(enfileirar(consultoria, aluno.id(), TipoDeAviso.COMPROMISSO_NOVO, compromisso)).isTrue();
+        assertThat(linhas(aluno.id(), "COMPROMISSO_NOVO")).isEqualTo(3);
     }
 
     @Test
-    void lembreteDeCobrancaNuncaEhRearmado() throws Exception {
+    void avisoQueNuncaSaiuNaoImpedeOFatoNovo() throws Exception {
+        AlunoDeTeste aluno = alunoPronto();
+        JsonNode c = marcar(admin, aluno.id());
+        // Falhou de vez (token recusado): nada chegou ao aluno, então o fato novo ganha linha nova.
+        META.modo(MetaFalsa.Modo.TOKEN_INVALIDO);
+        fila.rodar();
+        assertThat(envioDe(aluno.id()).get("situacao")).isEqualTo("FALHOU");
+        META.modo(MetaFalsa.Modo.OK);
+        c = cancelar(c, true);
+        cancelar(c, false);
+        fila.rodar();
+        assertThat(linhas(aluno.id(), "COMPROMISSO_NOVO")).isEqualTo(2);
+        assertThat(envios("compromisso_novo")).as("a primeira falhou na Meta e foi contada; a do reaberto saiu").isEqualTo(2);
+    }
+
+    @Test
+    void lembreteDeCobrancaNuncaGanhaOcorrenciaNova() throws Exception {
         modelo(admin, "ANTES", "lembrete_antes");
         AlunoDeTeste aluno = alunoPronto();
         UUID cobranca = UUID.randomUUID();
         UUID consultoria = consultoriaDe(admin);
-        TransactionTemplate transacao = new TransactionTemplate(transacoes);
-        assertThat(enfileirarLembrete(transacao, consultoria, aluno.id(), cobranca)).isTrue();
-        jdbc.update("update whatsapp_envio set situacao = 'ENVIADO', id_externo = ? where aluno_id = ?",
-                "wamid.so-de-teste-" + cobranca, aluno.id());
+        assertThat(enfileirar(consultoria, aluno.id(), TipoDeAviso.ANTES, cobranca)).isTrue();
+        jdbc.update("update whatsapp_envio set situacao = 'ENVIADO', enviado_em = now() - interval '2 days', id_externo = ? "
+                + "where aluno_id = ?", "wamid.so-de-teste-" + cobranca, aluno.id());
 
-        assertThat(enfileirarLembrete(transacao, consultoria, aluno.id(), cobranca)).isFalse();
-        assertThat(situacaoDe(aluno.id(), "ANTES")).isEqualTo("ENVIADO");
-    }
-
-    private boolean enfileirarLembrete(TransactionTemplate transacao, UUID consultoria, UUID aluno, UUID cobranca) {
-        return Boolean.TRUE.equals(transacao.execute(s -> repositorio.enfileirar(consultoria, aluno, TipoDeAviso.ANTES, cobranca)));
+        assertThat(enfileirar(consultoria, aluno.id(), TipoDeAviso.ANTES, cobranca)).isFalse();
+        assertThat(linhas(aluno.id(), "ANTES")).isEqualTo(1);
     }
 }

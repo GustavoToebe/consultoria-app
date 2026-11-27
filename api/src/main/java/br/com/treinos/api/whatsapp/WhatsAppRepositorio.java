@@ -34,33 +34,47 @@ class WhatsAppRepositorio {
     }
 
     /**
+     * Minutos depois de a mensagem de um tipo sair em que o MESMO fato (mesmo aluno, compromisso e tipo) repetido não é
+     * reenviado: a edição em rajada ("remarquei, errei, remarquei") vira uma mensagem só. Pendente do mesmo tipo também
+     * absorve o fato repetido, sem prazo.
+     */
+    static final int JANELA_DO_MESMO_FATO_MINUTOS = 10;
+
+    private static final String ALUNO_ELEGIVEL = "from aluno a where a.consultoria_id = ? and a.id = ? "
+            + "and a.ativo and a.anonimizado_em is null and a.usuario_id is not null "
+            + "and a.whatsapp_avisos_autorizado_em is not null "
+            + "and (not ? or a.lembretes_cobranca_desligados_em is null) "
+            + "and exists (select 1 from whatsapp_conexao c where c.consultoria_id = a.consultoria_id) "
+            + "and exists (select 1 from whatsapp_modelo m where m.consultoria_id = a.consultoria_id and m.tipo = ?) ";
+    private static final String CHAVE_DO_FATO = "on conflict (consultoria_id, tipo, referencia_id, aluno_id, ocorrencia) do nothing";
+
+    /**
      * Enfileira o aviso se, e só se, o aluno é ativo, não anonimizado, tem acesso e autorizou os avisos, a consultoria tem
-     * conexão e modelo do tipo e (no lembrete) o aluno não desligou os lembretes. A chave única impede o aviso em dobro. No
-     * lembrete, o que já existe fica como está (uma cobrança, um aviso por tipo, para sempre). No compromisso, a mesma chave
-     * (compromisso, tipo, aluno) volta a valer a cada fato novo (reaberto, remarcado de novo, cancelado de novo): a linha que já
-     * saiu, falhou ou foi cancelada é rearmada como PENDENTE (tentativas, id da Meta, erro e datas do envio anterior zerados;
-     * quem pergunta pela mensagem velha na Meta não a acha mais); a que ainda está PENDENTE (inclusive em envio) fica como está,
-     * então o mesmo fato processado duas vezes antes de sair dá um aviso só. Roda na transação de quem gerou o fato (mesma
-     * conexão). Devolve se nasceu ou foi rearmada uma linha.
+     * conexão e modelo do tipo e (no lembrete) o aluno não desligou os lembretes. A chave única inclui a {@code ocorrencia}.
+     * Lembrete: sempre a ocorrência 1 (uma cobrança, um aviso por tipo; o que já existe fica como está). Compromisso: cada fato
+     * ganha uma linha nova (a maior ocorrência do tipo + 1), para o histórico guardar uma linha por mensagem; só não nasce se
+     * a linha mais recente do aluno naquele compromisso (de qualquer tipo) é do MESMO tipo e ainda está pendente ou saiu há
+     * menos de {@link #JANELA_DO_MESMO_FATO_MINUTOS} minutos (o aluno não recebeu nada diferente no meio, então é o mesmo fato).
+     * Roda na transação de quem gerou o fato (mesma conexão). Devolve se nasceu uma linha.
      */
     boolean enfileirar(UUID consultoriaId, UUID alunoId, TipoDeAviso tipo, UUID referenciaId) {
-        // shortcut: o fato repetido DEPOIS de o aviso anterior sair é indistinguível de um fato novo (a chave não tem id do
-        // evento); trocar por uma coluna de evento (migration) se a agenda passar a reprocessar fatos.
-        String conflito = tipo.ehLembrete()
-                ? "on conflict (consultoria_id, tipo, referencia_id, aluno_id) do nothing"
-                : "on conflict (consultoria_id, tipo, referencia_id, aluno_id) do update set situacao = 'PENDENTE', motivo = null, "
-                + "tentativas = 0, proxima_tentativa = now(), reservado_por = null, reserva_ate = null, id_externo = null, "
-                + "codigo_erro = null, enviado_em = null, entregue_em = null, lido_em = null, criado_em = now(), "
-                + "atualizado_em = now() where whatsapp_envio.situacao <> 'PENDENTE'";
-        return jdbc.update("insert into whatsapp_envio (id, consultoria_id, aluno_id, tipo, referencia_id) "
-                + "select ?, a.consultoria_id, a.id, ?, ? from aluno a where a.consultoria_id = ? and a.id = ? "
-                + "and a.ativo and a.anonimizado_em is null and a.usuario_id is not null "
-                + "and a.whatsapp_avisos_autorizado_em is not null "
-                + "and (not ? or a.lembretes_cobranca_desligados_em is null) "
-                + "and exists (select 1 from whatsapp_conexao c where c.consultoria_id = a.consultoria_id) "
-                + "and exists (select 1 from whatsapp_modelo m where m.consultoria_id = a.consultoria_id and m.tipo = ?) "
-                + conflito,
-                UUID.randomUUID(), tipo.name(), referenciaId, consultoriaId, alunoId, tipo.ehLembrete(), tipo.name()) > 0;
+        if (tipo.ehLembrete()) {
+            return jdbc.update("insert into whatsapp_envio (id, consultoria_id, aluno_id, tipo, referencia_id) "
+                    + "select ?, a.consultoria_id, a.id, ?, ? " + ALUNO_ELEGIVEL + CHAVE_DO_FATO,
+                    UUID.randomUUID(), tipo.name(), referenciaId, consultoriaId, alunoId, true, tipo.name()) > 0;
+        }
+        return jdbc.update("insert into whatsapp_envio (id, consultoria_id, aluno_id, tipo, referencia_id, ocorrencia) "
+                + "select ?, a.consultoria_id, a.id, ?, ?, coalesce((select max(e.ocorrencia) from whatsapp_envio e "
+                + "where e.consultoria_id = a.consultoria_id and e.aluno_id = a.id and e.tipo = ? and e.referencia_id = ?), 0) + 1 "
+                + ALUNO_ELEGIVEL
+                + "and not exists (select 1 from (select u.tipo, u.situacao, u.enviado_em from whatsapp_envio u "
+                + "where u.consultoria_id = a.consultoria_id and u.aluno_id = a.id and u.referencia_id = ? "
+                + "order by u.criado_em desc, u.ocorrencia desc limit 1) ult where ult.tipo = ? and (ult.situacao = 'PENDENTE' "
+                + "or (ult.situacao in ('ENVIADO', 'ENTREGUE', 'LIDO') and ult.enviado_em > now() - make_interval(mins => ?)))) "
+                + CHAVE_DO_FATO,
+                UUID.randomUUID(), tipo.name(), referenciaId, tipo.name(), referenciaId,
+                consultoriaId, alunoId, false, tipo.name(),
+                referenciaId, tipo.name(), JANELA_DO_MESMO_FATO_MINUTOS) > 0;
     }
 
     /** Arrenda um lote de pendentes vencidos num comando só ({@code skip locked}); quem não concluir devolve à fila sozinho. */
