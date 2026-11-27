@@ -197,3 +197,14 @@ Registradas pela sessão de 26/11 (nenhuma reabre D1 a D28); a opção escolhida
 - **S19. Ajuda:** seção "Contratos digitais" (treinador) e "Contrato" (aluno), só com a chave ligada (`soComContratos`); os guias em PDF nunca a levam, então não mudam.
 - **Sem sinal na tela do contrato apagado:** a API não expõe `apagadoEm` e a folha do contrato mostra "Assinado" sem texto nem evidências (pendência para a primeira vez que um contrato for apagado, em 5 anos).
 - **Link para o responsável sem telefone:** o WhatsApp abre `wa.me/?text=` sem número (o cartão não tem o telefone do responsável); "Completar o cadastro do responsável" só avisa onde completar.
+
+### Validação dos passos 4 a 6 (nível completo, 26 a 27/11/2026)
+
+Branch `contrato-passos-4-a-6`, `origin/main` = `fef5f250` já contida (`git merge origin/main`: já atualizada, rodado de novo na hora da bateria). Uma verificação pesada por vez; antes de cada uma, conferido que nenhuma outra sessão rodava Maven ou Playwright.
+- `mvn verify` completo (API): 3587 testes, 0 falhas, 0 erros, JaCoCo ≥ 70% atendido, `BUILD SUCCESS`, 24 min.
+- `npm run typecheck`: limpo, 25 s. `npm run lint`: 0 erros, 10 avisos que já existiam, 4 s.
+- `jest` completo: 464 suítes, 11239 testes, todos passam, 33 s.
+- e2e completo (export novo `dist-e2e-8197`, servidor próprio na porta 8197): 3389 passaram, 314 ignorados, 5 falharam, 24,6 min (1480 s). Falhas reexecutadas isoladas: `ajuda-do-cabecalho` × 2 (`/treinador/contratos` agora tem seção de Ajuda) = **do lote**, spec ajustada, passa; `editor-questionario-tela-larga` e `importacao-assistida` × 2 = **carga** (passam isoladas, áreas que o lote não toca). Reexecução das três specs: 139 passaram, 52 s.
+- Provas direcionadas dos passos (antes da bateria): 18 classes da API (113 testes), as specs `contrato-publico`, `contrato-trava`, `contratos` e `acesso-pausado-fase2` (73 testes).
+- Revisão independente (`revisor`, só leitura, sobre `git diff origin/main`): nenhum achado crítico; corrigido o 404 sem contar tentativa quando não há CPF cadastrado (`87f82e8b`); o resto virou S11, S12, S14, S15 e as pendências do README.
+- Não verificado: nativo (Android e iOS), temas e leitor de tela, nenhuma tela vista renderizada (só e2e); IP real atrás do proxy (`forward-headers-strategy`); guias em PDF regenerados só tiveram metadados diferentes.
