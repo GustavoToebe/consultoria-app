@@ -1,18 +1,4 @@
-import { colunasDaGaleria, enderecoDoEditor, larguraMaximaDaGaleria, modoDaEscolha } from './regras';
-
-describe('colunasDaGaleria', () => {
-  it('6, 3, 2 ou 1 por linha (nunca 4 ou 5), com célula de pelo menos 220', () => {
-    expect([0, 358, 455].map((l) => colunasDaGaleria(l, 16))).toEqual([1, 1, 1]);
-    expect([456, 691].map((l) => colunasDaGaleria(l, 16))).toEqual([2, 2]);
-    expect([692, 1000, 1399].map((l) => colunasDaGaleria(l, 16))).toEqual([3, 3, 3]);
-    expect([1400, 2400].map((l) => colunasDaGaleria(l, 16))).toEqual([6, 6]);
-  });
-  it('teto da grade: células de no máximo 320', () => {
-    expect(larguraMaximaDaGaleria(1, 16)).toBe(320);
-    expect(larguraMaximaDaGaleria(3, 16)).toBe(992);
-    expect(larguraMaximaDaGaleria(6, 16)).toBe(2000);
-  });
-});
+import { enderecoDoEditor, modoDaEscolha } from './regras';
 
 describe('modoDaEscolha', () => {
   it('nativo sempre confirma e grava', () => {

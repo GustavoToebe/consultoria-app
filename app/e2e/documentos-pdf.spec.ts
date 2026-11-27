@@ -130,16 +130,28 @@ for (const caso of MATRIZ) {
   });
 }
 
-test('(1280) o modelo em uso e "Personalizar este modelo" abrem o editor sem trocar de modelo', async ({ page }) => {
-  await abrir(page, 1280);
+test('(1280) o modelo em uso e "Personalizar este modelo" abrem o editor na configuração gravada, com as personalizações', async ({ page }) => {
+  // Gravado: Elegante com uma personalização. Sem `?modelo=` o editor abre o gravado; com ele, trocaria de modelo e zeraria as opções.
+  const gravada: ConsultoriaResponse = { ...CONSULTORIA, marca: { ...MARCA, temaPdf: 'ELEGANTE', opcoesPdf: { tabelas: { estilo: 'LISTRADA' } } } };
+  const { pedidos, errosDaPagina } = await abrir(page, 1280, { extra: { 'GET /consultoria': { corpo: gravada } } });
   await galeriaPronta(page);
-  await cartao(page, 'Clássico').click();
-  await expect.poll(() => navegacoes(page)).toContain('/treinador/documentos/personalizar');
-  expect((await navegacoes(page)).some((u) => u.includes('modelo='))).toBe(false);
+  await expect(page.getByText(/personalizado \(1 alteração: estilo das tabelas\)/)).toBeVisible();
+  const noEditorGravado = async () => {
+    await expect(page).toHaveURL(/\/treinador\/documentos\/personalizar$/);
+    await expect(page.getByLabel(/no modelo Elegante, com dados de exemplo/)).toBeVisible();
+    await expect(page.getByText('Elegante · 1 alteração: Estilo das tabelas')).toBeVisible();
+  };
+  await cartao(page, 'Elegante').click();
+  await noEditorGravado();
   await page.goBack();
   await galeriaPronta(page);
   await page.getByRole('link', { name: 'Personalizar este modelo' }).click();
-  await expect.poll(async () => (await navegacoes(page)).filter((u) => u === '/treinador/documentos/personalizar').length).toBeGreaterThanOrEqual(2);
+  await noEditorGravado();
+  const doEditor = (await navegacoes(page)).filter((u) => u.includes('personalizar'));
+  expect(doEditor.length).toBeGreaterThanOrEqual(2);
+  expect(doEditor.every((u) => u === '/treinador/documentos/personalizar')).toBe(true);
+  expect(escritas(pedidos)).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
 });
 
 test('(390) escolher confirma e grava o modelo com as opções zeradas; o "Em uso" passa para ele', async ({ page }) => {
@@ -266,7 +278,7 @@ test('(1280) o hub leva à galeria, que cabe na coluna e também abre o editor a
       await expect(page.getByLabel(/no modelo Compacto, com dados de exemplo/)).toBeVisible();
 });
 
-for (const [largura, tema] of [[1280, 'ESCURO'], [1280, 'CLARO'], [1280, 'AREIA'], [1920, 'ESCURO'], [1920, 'CLARO'], [390, 'AREIA']] as const) {
+for (const [largura, tema] of [[1280, 'ESCURO'], [1280, 'CLARO'], [1280, 'AREIA'], [1920, 'ESCURO'], [1920, 'CLARO'], [390, 'CLARO'], [390, 'ESCURO'], [390, 'AREIA']] as const) {
   test(`tema do app ${tema.toLowerCase()} em ${largura}: papel branco nas miniaturas, sem rolagem lateral`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, largura, { tema });
     await galeriaPronta(page);

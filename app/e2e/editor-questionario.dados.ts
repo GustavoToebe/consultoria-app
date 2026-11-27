@@ -64,14 +64,16 @@ const CONFIG: ConfiguracaoInscricao = {
 };
 
 /** Abre o editor (anamnese ou inscrição) na largura dada, com o tema guardado no aparelho do treinador. */
-export async function abrirEditor(page: Page, { qual, largura, altura = 900, tema = 'ESCURO', extra = {} }: {
+export async function abrirEditor(page: Page, { qual, largura, altura = 900, tema = 'ESCURO', extra = {}, rascunho }: {
   qual: 'anamnese' | 'inscricao' | 'atualizacao'; largura: number; altura?: number; tema?: 'ESCURO' | 'CLARO'; extra?: RespostasApi;
+  /** Rascunho próprio (no lugar da anamnese de 57 perguntas ou das perguntas da inscrição). */
+  rascunho?: ConteudoQuestionario;
 }) {
   await page.setViewportSize({ width: largura, height: altura });
   await page.addInitScript(([u, t]) => localStorage.setItem(`treinos:${u}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema] as const);
   const id = qual === 'anamnese' ? ANAMNESE_ID : qual === 'atualizacao' ? ATUALIZACAO_ID : INSCRICAO_ID;
-  let atual = qual === 'anamnese' ? detalhe(ANAMNESE_ID, 'Anamnese completa', 'ANAMNESE', ANAMNESE)
-    : qual === 'atualizacao' ? detalhe(ATUALIZACAO_ID, 'Atualização completa', 'ATUALIZACAO', ANAMNESE) : detalhe(INSCRICAO_ID, 'Inscrição', 'INSCRICAO', INSCRICAO);
+  let atual = qual === 'anamnese' ? detalhe(ANAMNESE_ID, 'Anamnese completa', 'ANAMNESE', rascunho ?? ANAMNESE)
+    : qual === 'atualizacao' ? detalhe(ATUALIZACAO_ID, 'Atualização completa', 'ATUALIZACAO', rascunho ?? ANAMNESE) : detalhe(INSCRICAO_ID, 'Inscrição', 'INSCRICAO', rascunho ?? INSCRICAO);
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'QUESTIONARIO_LER', 'QUESTIONARIO_ALTERAR', 'INSCRICAO_LER'] })),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },

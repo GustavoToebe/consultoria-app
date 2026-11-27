@@ -9,7 +9,8 @@ import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano, 
 import type { ConteudoDieta, PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
-import { dataParaTela } from '../dominio/formatos';
+import { dataParaTela, hojeIso } from '../dominio/formatos';
+import { linhaDoPlano } from '../dominio/linhaDoPlano';
 import { proximoPeriodo } from '../dominio/periodo';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -20,7 +21,6 @@ import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
 import { ParDeDatas } from '../ui/CamposEmLinha';
-import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { EscolhaEmFolha } from '../ui/EscolhaEmFolha';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -43,7 +43,6 @@ import { CopiarParaAluno } from './CopiarParaAluno';
 import { FolhaDeAcoes, type AcaoDoMenu } from './FolhaDeAcoes';
 import type { CargaDosPlanos } from './usePlanosDaPasta';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
-import { rotuloAgendado } from '../dominio/liberacaoDePlano';
 import { FolhaAlterarLiberacao, PainelLiberarAgora } from './plano/AcoesDaLiberacao';
 
 const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
@@ -65,31 +64,11 @@ export function periodo(p: { inicio: string | null; fim: string | null }): strin
 }
 
 /**
- * Selos do plano: em uso pelo aluno (verde; "ativo" se confundia com pasta aberta, reunião de 29/10), versão, rascunho
- * nunca publicado e "Alterações não publicadas" ao lado do plano que mudou. Rascunho sem erro é neutro (guia premium,
- * pág. 8): a decisão pendente aparece no "Publicar" da pasta, não em âmbar aqui.
- */
-export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
-  return (
-    <View style={estilos.selos}>
-      {plano.ativo ? <Selo texto="Em uso pelo aluno" tipo="sucesso" /> : null}
-      {plano.versaoPublicada === 0 ? (
-        <Selo texto="Rascunho" tipo="neutro" />
-      ) : (
-        <Selo texto={`Publicado v${plano.versaoPublicada}`} tipo="neutro" />
-      )}
-      {plano.versaoPublicada > 0 && plano.rascunhoAlteradoDepoisDePublicar ? (
-        <Selo texto="Alterações não publicadas" tipo="neutro" />
-      ) : null}
-      {/* Neutro, como os outros: é um fato marcado, não um problema (bloco E). */}
-      {plano.liberarEm ? <Selo texto={rotuloAgendado(plano.liberarEm)} tipo="neutro" Icone={CalendarClock} /> : null}
-    </View>
-  );
-}
-
-/**
- * Treinos ou dietas do aluno dentro de uma pasta (o período é o da pasta). Criar (em branco, receita ou cópia),
- * abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
+ * Treinos, dietas ou mobilidades do aluno dentro de uma pasta: o painel da aba do tipo na Folha da pasta (bloco F), sem
+ * cartão próprio (a aba diz o tipo e o cartão "Planos desta pasta" diz que o aluno só vê o publicado). No alto, o "Novo
+ * …"; cada linha tem o título (discreto no rascunho), a versão na segunda linha (o período é o da pasta e fica só no topo
+ * da Folha), um selo só (`linhaDoPlano`), "Editar" e o ⋯. Criar (em branco, receita ou cópia), PDF e replicar.
+ * `geracao` muda quando a pasta muda o período.
  */
 export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, carga, aoMudarLiberacao }: {
   tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void;
@@ -151,32 +130,37 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
     podeAlterar ? { rotulo: 'Excluir plano', Icone: Trash2, perigo: true, aoTocar: () => setExcluir(p) } : null,
   ];
 
+  const hoje = hojeIso();
   return (
-    <Cartao
-      faixa
-      titulo={NOMES[tipo].plural}
-      descricao="O aluno só vê o que está publicado."
-      acoes={escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={NOMES[tipo].novo} tipo="acao" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido> : null}>
+    <View style={estilos.painel}>
+      {escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}>
+        <View style={estilos.topoDoPainel}><Botao rotulo={NOMES[tipo].novo} tipo="acao" Icone={Plus} aoTocar={() => setNovo(true)} /></View>
+      </Permitido> : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (
         <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Os planos deste período aparecerão aqui." />
       ) : null}
-      {dados?.map((p, i) => (
+      {dados?.map((p, i) => {
+        const linha = linhaDoPlano(p, hoje);
+        return (
         <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
+          {/* O rascunho fica em texto normal (não em subtítulo): os repetidos não disputam com o que o aluno usa. */}
           <View style={estilos.dadosPlano}>
-            <Texto variante="subtitulo">{p.titulo}</Texto>
-            <Texto variante="suave" numerico>{periodo(p)}</Texto>
-            <SelosDoPlano plano={p} />
+            <Texto variante={linha.discreto ? undefined : 'subtitulo'}>{p.titulo}</Texto>
+            {linha.meta ? <Texto variante="suave" numerico>{linha.meta}</Texto> : null}
           </View>
+          {/* Um selo só (prioridade da orientação 2.3); o agendado é neutro, um fato marcado, não um problema (bloco E). */}
+          {linha.selo ? <Selo texto={linha.selo.texto} tipo={linha.selo.tipo} Icone={linha.selo.agendado ? CalendarClock : undefined} /> : null}
           {/* "Editar" é o que se faz todo dia e vem primeiro; o resto (PDF, duplicar, copiar, excluir) fica no ⋯.
               `LinhaDeAcoes` nunca passa da largura do cartão (em 390 px os cinco botões estouravam a folha). */}
           <LinhaDeAcoes>
-            {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => confirmar(() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); })} /> : null}
+            {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={`${rotuloEditarPlano(tipo)} “${p.titulo}”`} tipo="secundario" Icone={Pencil} aoTocar={() => confirmar(() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); })} /> : null}
             {acoesDoMenu(p).some(Boolean) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações de ${p.titulo}`} aoTocar={() => setMenu(p)} /> : null}
           </LinhaDeAcoes>
         </EntradaEmCascata>
-      ))}
+        );
+      })}
       {menu ? <FolhaDeAcoes titulo={menu.titulo} acoes={acoesDoMenu(menu)} aoFechar={() => setMenu(null)} /> : null}
       {/* As duas sobem a `versao` do plano: a lista recarrega (é a mesma do "Publicar tudo"). */}
       {alterandoData ? <FolhaAlterarLiberacao tipo={tipo} plano={alterandoData} aoFechar={() => setAlterandoData(null)} aoMudou={liberacaoMudou} /> : null}
@@ -200,7 +184,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
         setCopiando(null);
         avisar(mensagemPlanoCopiado(tipo, nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => confirmar(() => { aoNavegar?.(); router.push(`/treinador/alunos/${destinoId}`); }) });
       }} /> : null}
-    </Cartao>
+    </View>
   );
 }
 
@@ -393,16 +377,20 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar, aoCriar }: {
 }
 
 const estilos = StyleSheet.create({
+  painel: { gap: espaco(1) },
+  topoDoPainel: { flexDirection: 'row', justifyContent: 'flex-end' },
+  // 56 a 64 px de linha (orientação 2.3): respiro vertical de 8; o alvo de 44 dos botões dá a altura.
   plano: {
     borderWidth: 1,
     borderRadius: RAIO,
-    padding: espaco(1.5),
-    gap: espaco(1),
+    paddingHorizontal: espaco(1.5),
+    paddingVertical: espaco(1),
+    columnGap: espaco(1.5),
+    rowGap: espaco(1),
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  dadosPlano: { gap: espaco(0.5), flexShrink: 1, minWidth: 200 },
-  selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap', flexShrink: 1, maxWidth: '100%' },
+  dadosPlano: { gap: 2, flexGrow: 1, flexShrink: 1, flexBasis: 200 },
 });

@@ -122,7 +122,7 @@ export default function Planejamento() {
       : 'Treinos, dietas, pacotes e mobilidade que você reaproveita, organizados em coleções. Crie um modelo e aplique ao aluno, que recebe uma cópia sem ligação com ele.'} />
     <Abas abas={[...(veModelos ? grupos.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? ABAS_DE_QUESTIONARIO.map((r) => ({ valor: r, rotulo: r })) : [])]}
       ativa={aba}
-      aoMudar={(rotulo) => { if (rotulo !== aba) router.push({ pathname: '/treinador/planejamento', params: { aba: slugDaAba(rotulo) } }); }} />
+      aoMudar={(rotulo) => { if (rotulo !== aba) router.push({ pathname: '/treinador/planejamento', params: { aba: slugDaAba(rotulo) } }); }} vao={espaco(3)}>
     {emAtualizacao ? <ListaDeQuestionarios key={aba} finalidade={emInscricao ? 'INSCRICAO' : emAnamnese ? 'ANAMNESE' : 'ATUALIZACAO'} pedirNovo={pedirNovo === '1'} aoConsumirNovo={() => router.setParams({ novo: undefined })} /> : null}
     {!emAtualizacao && grupo.tipos.length > 1 ? (
       <FaixaDeChips quebrar accessibilityLabel={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`}>
@@ -159,6 +159,7 @@ export default function Planejamento() {
           aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</ListaEmColunas> : null}
       </Cartao>;
     })}
+    </Abas>
     {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
       <Botao rotulo="Renomear ou mudar de coleção" tipo="secundario" Icone={Pencil} cheio aoTocar={() => { setFormulario(menu); setMenu(null); }} />
       <Botao rotulo="Duplicar" tipo="acao" Icone={Copy} cheio desabilitado={ocupado !== null} aoTocar={() => duplicar(menu)} />

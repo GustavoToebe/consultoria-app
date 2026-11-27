@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { ConteudoQuestionario, FinalidadeQuestionario, PerguntaAtualizacao, TipoPergunta } from '../../api/tipos';
 import {
   aceitaObrigatoria, adicionarPergunta, adicionarSecao, alterarCondicaoDaSecao, alterarDescricaoDaSecao, alterarPergunta, alterarSecao, duplicarPerguntaNaSecao, moverParaSecao, moverPergunta, moverSecao,
-  gruposParaAdicionar, novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, ROTULO_DO_TIPO, textoDaCondicao,
+  gruposParaAdicionar, novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, resumoDosItens, ROTULO_DO_TIPO, textoDaCondicao,
   type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
 import { escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos } from '../../dominio/questionario';
@@ -171,6 +171,7 @@ function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, probl
 function resumoDoTipo(p: PerguntaAtualizacao): string {
   if (p.tipo === 'NOTA') { const { min, max } = escalaDaNota(p); return `Nota de ${min} a ${max}`; }
   if (p.tipo === 'FOTOS') { const n = maximoDeFotos(p); return `Fotos (até ${n})`; }
+  if (p.tipo === 'ITENS_DO_PLANO') return resumoDosItens(p);
   return ROTULO_DO_TIPO[p.tipo] ?? p.tipo;
 }
 

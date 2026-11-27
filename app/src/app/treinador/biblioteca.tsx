@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { abaInicial, abasDaBiblioteca, type AbaDaBiblioteca } from '../../dominio/abasDaBiblioteca';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { LARGURA_LISTA } from '../../tema/tokens';
+import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { AbaAlimentos } from '../../treinador/biblioteca/AbaAlimentos';
 import { AbaCatalogo } from '../../treinador/biblioteca/AbaCatalogo';
 import { AbaErgogenicos } from '../../treinador/biblioteca/AbaErgogenicos';
@@ -28,7 +28,8 @@ export default function Biblioteca() {
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo="Biblioteca" mostrarMarca="celular"
         descricao="Exercícios, alimentos e suplementos que você usa nos planos: cadastre, copie do catálogo pronto ou importe da sua planilha." />
-      <Abas abas={abas} ativa={aba} aoMudar={setAba} />
+      {/* O conteúdo é o painel da aba (`tabpanel`), com o vão da `Tela`. */}
+      <Abas abas={abas} ativa={aba} aoMudar={setAba} vao={espaco(3)}>
       {aba === 'exercicios' ? <AbaExercicios /> : null}
       {aba === 'alimentos' ? (
         <>
@@ -44,6 +45,7 @@ export default function Biblioteca() {
       ) : null}
       {aba === 'ergogenicos' && pode('ERGOGENICO_LER') ? <AbaErgogenicos /> : null}
       {aba === 'catalogo' ? <AbaCatalogo /> : null}
+      </Abas>
     </Tela>
   );
 }

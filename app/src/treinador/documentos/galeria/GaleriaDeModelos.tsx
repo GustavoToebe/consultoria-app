@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Marca } from '../../../api/tipos';
-import { MODELOS_PDF, type ModeloPdf } from '../../../dominio/configuracaoPdf';
+import { colunasDaGaleria, larguraMaximaDaGaleria, MODELOS_PDF, type ModeloPdf } from '../../../dominio/configuracaoPdf';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../../tema/tokens';
 import { Grade } from '../../../ui/Grade';
@@ -13,7 +13,6 @@ import { Texto } from '../../../ui/Texto';
 import { useFaixaDeLargura } from '../../../ui/useFaixaDeLargura';
 import { PreviaDoDocumento } from '../PreviaDoDocumento';
 import { documentoDaMiniatura } from './documentoDaMiniatura';
-import { colunasDaGaleria, larguraMaximaDaGaleria } from './regras';
 
 type Modelo = (typeof MODELOS_PDF)[number];
 

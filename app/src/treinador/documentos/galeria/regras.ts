@@ -1,28 +1,9 @@
-import { colunasPorCelula } from '../../../dominio/colunasPorCelula';
 import { LARGURA_FAIXA_NORMAL, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL } from '../../../tema/tokens';
 
 /**
- * Regras da galeria de modelos dos PDFs (seção 3.1 de `docs/planos/orientacoes-de-design-26-11.md`). Puras, testadas em
- * `regras.test.ts`.
+ * Regras da galeria de modelos dos PDFs: o que escolher faz e o endereço do editor. Puras, testadas em `regras.test.ts`; as
+ * colunas da grade (seção 3.1 de `docs/planos/orientacoes-de-design-26-11.md`) são `dominio/configuracaoPdf.colunasDaGaleria`.
  */
-
-/** Célula do cartão do modelo: nunca mais estreita que 220 (miniatura ilegível) nem mais larga que 320. */
-export const CELULA_MINIMA = 220;
-export const CELULA_MAXIMA = 320;
-
-/**
- * Cartões por linha: o maior divisor de 6 que cabe (6, 3, 2 ou 1; nunca 4 + 2), como `mesesPorLinhaDoAno`.
- * shortcut: `dominio/configuracaoPdf.colunasDaGaleria` (1 a 3, célula de 200) não segue a 3.1 e não é deste dono; troque-a por esta quando o dono dela puder.
- */
-export function colunasDaGaleria(largura: number, vao: number): number {
-  const cabem = colunasPorCelula(largura, CELULA_MINIMA, vao, 6);
-  return [6, 3, 2].find((n) => n <= cabem) ?? 1;
-}
-
-/** Teto da grade com `colunas` células de no máximo `CELULA_MAXIMA`: a sobra da linha vira margem, nunca cartão esticado. */
-export function larguraMaximaDaGaleria(colunas: number, vao: number): number {
-  return colunas * CELULA_MAXIMA + (colunas - 1) * vao;
-}
 
 /** Menu do treinador na web (o de `ui/Navegacao`): aberto 240 a partir de 1024 de janela, trilho de 88 entre 768 e 1023. */
 const MENU_ABERTO = 240;

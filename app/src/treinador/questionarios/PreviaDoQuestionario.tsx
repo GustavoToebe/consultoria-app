@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import type { ConteudoQuestionario, RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
 import { RodapeDasPaginas, usePaginas } from '../../aluno/atualizacao/PaginasDoQuestionario';
 import { alvoDaPergunta, QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
+import { ITENS_DA_PREVIA } from '../../dominio/editorQuestionario';
 import { hojeIso } from '../../dominio/formatos';
 import { errosDaPagina, primeiraPaginaComErro } from '../../dominio/paginasDoQuestionario';
 import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
@@ -70,8 +71,10 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
     const primeiro = Object.keys(novos)[0];
     if (primeiro) rolagem.rolarAte([alvoDaPergunta(primeiro)]);
   };
+  // Itens do plano: a lista fictícia (o editor não tem o plano de um aluno), a mesma que o campo mostra.
+  const errosDe = () => errosRespostasAtualizacao(conteudo, respostas, false, {}, hojeIso(), ITENS_DA_PREVIA);
   const conferir = () => {
-    const todos = errosRespostasAtualizacao(conteudo, respostas);
+    const todos = errosDe();
     if (!Object.keys(todos).length) {
       aoMudarErros({});
       avisar('Estas respostas seriam aceitas.', 'sucesso');
@@ -84,7 +87,7 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
   };
   const avancar = () => {
     if (paginas.secao === null) return;
-    const daPagina = errosDaPagina(conteudo, paginas.secao, errosRespostasAtualizacao(conteudo, respostas));
+    const daPagina = errosDaPagina(conteudo, paginas.secao, errosDe());
     if (Object.keys(daPagina).length) { mostrar(daPagina, 'O aluno não conseguiria avançar: confira os campos indicados.'); return; }
     aoMudarErros(null);
     irPara(paginas.posicao + 1);
@@ -103,14 +106,14 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
     </AlvoDeRolagem>
     {antes ? <Fragment key={rodada}>{antes}</Fragment> : null}
     {anamnese ? <>
-      {paginas.secao !== null ? <QuestionarioAtualizacao modelo={conteudo} respostas={respostas} erros={erros ?? {}} aoMudar={aoMudar}
+      {paginas.secao !== null ? <QuestionarioAtualizacao modelo={conteudo} respostas={respostas} erros={erros ?? {}} aoMudar={aoMudar} itens={ITENS_DA_PREVIA}
         pagina={{ secao: paginas.secao, posicao: paginas.posicao, total: paginas.total }} />
         : <Texto variante="suave">Nenhuma seção visível ainda. Adicione perguntas no editor.</Texto>}
       {paginas.total > 0 ? <RodapeDasPaginas posicao={paginas.posicao} total={paginas.total} rotuloFinal="Conferir respostas"
         aoVoltar={() => { aoMudarErros(null); irPara(paginas.posicao - 1); }} aoAvancar={avancar} aoConcluir={conferir} /> : null}
       <LinhaDeAcoes>{limpar}</LinhaDeAcoes>
     </> : <>
-      <QuestionarioAtualizacao modelo={conteudo} dataAtualizacao={hojeIso()} respostas={respostas} erros={erros ?? {}} aoMudar={aoMudar} />
+      <QuestionarioAtualizacao modelo={conteudo} dataAtualizacao={hojeIso()} respostas={respostas} erros={erros ?? {}} aoMudar={aoMudar} itens={ITENS_DA_PREVIA} />
       <LinhaDeAcoes>
         <Botao rotulo="Conferir respostas" tipo="secundario" aoTocar={conferir} />
         {limpar}

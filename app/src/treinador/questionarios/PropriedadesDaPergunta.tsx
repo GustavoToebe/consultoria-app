@@ -6,12 +6,14 @@ import type { ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, Opc
 import { ImagemDaPergunta } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { FotoRecusada } from '../../aluno/atualizacao/fotos/prepararFoto';
 import {
-  aceitaAjudaAutomatica, aceitaDestaque, aceitaImagem, aceitaObrigatoria, condicaoPara, controlesAnteriores, datasDaPesagem, destinosPossiveis, novaOpcao,
-  podeDestacar, podeUsarDestino, posicaoDaPergunta,
+  aceitaAjudaAutomatica, aceitaDestaque, aceitaImagem, aceitaObrigatoria, condicaoPara, controlesAnteriores, datasDaPesagem, destinosPossiveis, FONTES_NO_EDITOR,
+  MOTIVOS_NO_EDITOR, mudancaDoMotivo, novaOpcao, podeDestacar, podeUsarDestino, posicaoDaPergunta,
 } from '../../dominio/editorQuestionario';
 import { ROTULO_DO_DESTINO } from '../../dominio/anamnese';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
-import { type DestinoOferecido, errosDosLugares, escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos, temOpcoes } from '../../dominio/questionario';
+import {
+  type DestinoOferecido, errosDosLugares, escalaDaNota, LIMITES_DE_ITENS, LIMITES_QUESTIONARIO as L, maximoDeFotos, modoDoMotivo, temOpcoes,
+} from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -21,6 +23,7 @@ import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { OpcaoCartao } from '../../ui/OpcaoCartao';
 import { SelecaoMultipla } from '../../ui/SelecaoMultipla';
 import { Texto } from '../../ui/Texto';
 import { textoDoErro } from '../../ui/erros';
@@ -65,6 +68,7 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
       <Texto variante="suave">Elas só aparecem para você depois do envio, e só com o envio de fotos ligado no servidor.</Texto>
     </> : null}
     {p.tipo === 'NOTA' ? <EscalaDaNota pergunta={p} aoMudar={aoMudar} /> : null}
+    {p.tipo === 'ITENS_DO_PLANO' ? <ItensDoPlano pergunta={p} aoMudar={aoMudar} /> : null}
     {p.tipo === 'DATA' ? <Interruptor rotulo="Só hoje ou antes (ex.: nascimento, última pesagem)" valor={p.somentePassado === true}
       aoMudar={(somentePassado) => aoMudar({ somentePassado: somentePassado || undefined })} /> : null}
     {p.tipo === 'ACEITE' ? <>
@@ -135,6 +139,32 @@ function EscalaDaNota({ pergunta: p, aoMudar }: { pergunta: PerguntaAtualizacao;
           aoMudar={(rotuloMax) => aoMudar({ rotuloMax })} />
       </View>
     </View>
+  </View>;
+}
+
+const QUANTIDADE_DE_ITENS = [{ valor: 'um', rotulo: 'Um item' }, { valor: 'varios', rotulo: `Vários (até ${LIMITES_DE_ITENS.maximo})` }];
+
+/**
+ * ITENS_DO_PLANO: de onde vêm os itens (o aluno vê a lista do plano dele), quantos ele escolhe e se cada item leva um
+ * motivo. O `paraApi` tira o que não vale (motivo "Sem motivo", pergunta do motivo vazia); a API confere o resto.
+ */
+function ItensDoPlano({ pergunta: p, aoMudar }: { pergunta: PerguntaAtualizacao; aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void }) {
+  const { cores } = useTema();
+  const motivo = modoDoMotivo(p);
+  return <View style={estilos.bloco}>
+    {/* Cartões em coluna (como o "Começar de"): os nomes das fontes são longos para um segmento em 390 px, e cada um traz o que o aluno vê. */}
+    <View style={estilos.bloco} role="radiogroup" aria-label="De onde vêm os itens">
+      <Texto variante="rotulo" cor={cores.texto}>De onde vêm os itens</Texto>
+      {FONTES_NO_EDITOR.map((f) => <OpcaoCartao key={f.valor} titulo={f.rotulo} descricao={f.ajuda} selecionada={p.fonte === f.valor} aoEscolher={() => aoMudar({ fonte: f.valor })} />)}
+    </View>
+    <Escolha rotulo="Quantos o aluno escolhe" opcoes={QUANTIDADE_DE_ITENS} valor={p.max === 1 ? 'um' : 'varios'}
+      aoMudar={(q) => aoMudar({ max: q === 'um' ? 1 : undefined })} />
+    <Escolha rotulo="Motivo de cada item" opcoes={[...MOTIVOS_NO_EDITOR]} valor={motivo} aoMudar={(m) => aoMudar(mudancaDoMotivo(m))} />
+    {motivo !== 'NENHUM' ? <Campo rotulo="Pergunta do motivo (opcional)" placeholder="Motivo" valor={p.rotuloMotivo ?? ''} maxLength={LIMITES_DE_ITENS.rotuloMotivoTamanho}
+      ajuda={motivo === 'OBRIGATORIO' ? 'O aluno escreve um motivo para cada item que marcar. Vazia, ele vê “Motivo”.' : 'O aluno pode escrever um motivo para cada item. Vazia, ele vê “Motivo”.'}
+      aoMudar={(rotuloMotivo) => aoMudar({ rotuloMotivo })} /> : null}
+    {/* A API não tem foto dentro desta pergunta: a foto é uma pergunta de Fotos à parte, com a mesma condição. */}
+    <Texto variante="pequeno">Para pedir uma foto (do aparelho que ele usou, por exemplo), adicione depois uma pergunta de Fotos com até 2 fotos e a mesma condição desta.</Texto>
   </View>;
 }
 

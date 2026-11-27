@@ -4,8 +4,9 @@ import {
   moverParaSecao, moverPergunta, moverSecao, normalizarQuestionario, novaOpcao, novaPergunta, novaSecao, paraApi, podeAdicionar,
   podeAdicionarSecao, podeDestacar, podeDuplicar, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR, tiposParaAdicionar,
   controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinosPossiveis, podeUsarDestino,
-  gruposParaAdicionar, alterarDescricaoDaSecao, aceitaImagem,
+  gruposParaAdicionar, alterarDescricaoDaSecao, aceitaImagem, ITENS_DA_PREVIA, mudancaDoMotivo, resumoDosItens,
 } from './editorQuestionario';
+import { conferirItens } from './respostasAtualizacao';
 import { errosDoQuestionario, errosDosLugares, escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos, TIPOS_FORA_DA_INSCRICAO, validarQuestionario } from './questionario';
 
 let mockContador = 0;
@@ -260,7 +261,7 @@ describe('descrição do local', () => {
 describe('anamnese', () => {
   it('a anamnese não oferece a data da atualização; a atualização oferece tudo, menos o endereço', () => {
     expect(tiposParaAdicionar('ANAMNESE').map((t) => t.tipo)).not.toContain('DATA_AUTOMATICA');
-    expect(tiposParaAdicionar('ATUALIZACAO')).toHaveLength(TODOS.length - 2);
+    expect(tiposParaAdicionar('ATUALIZACAO')).toHaveLength(TODOS.length - 1);
     expect(tiposParaAdicionar('ANAMNESE')).toHaveLength(TODOS.length - 2);
   });
   it('grade nasce com uma linha e duas colunas; aceite obrigatório com a frase pronta', () => {
@@ -414,10 +415,10 @@ describe('ITENS_DO_PLANO no editor', () => {
   });
 
   it('só a atualização oferece o tipo, no grupo Especiais, e ele nasce com a fonte da dieta (publica sem erro)', () => {
-    expect(tiposParaAdicionar('ATUALIZACAO').map((t) => t.tipo)).not.toContain('ITENS_DO_PLANO'); // oculto até a UI do aluno
+    expect(tiposParaAdicionar('ATUALIZACAO').map((t) => t.tipo)).toContain('ITENS_DO_PLANO');
     expect(tiposParaAdicionar('ANAMNESE').map((t) => t.tipo)).not.toContain('ITENS_DO_PLANO');
     expect(tiposParaAdicionar('INSCRICAO').map((t) => t.tipo)).not.toContain('ITENS_DO_PLANO');
-    expect(gruposParaAdicionar('ATUALIZACAO').find((g) => g.rotulo === 'Especiais')?.itens.map((i) => i.tipo)).not.toContain('ITENS_DO_PLANO');
+    expect(gruposParaAdicionar('ATUALIZACAO').find((g) => g.rotulo === 'Especiais')?.itens.map((i) => i.tipo)).toContain('ITENS_DO_PLANO');
     expect(novaPergunta('ITENS_DO_PLANO').fonte).toBe('ALIMENTOS_DA_DIETA');
     expect(errosDoQuestionario(paraApi(comItens({})))).toEqual([]);
   });
@@ -433,5 +434,21 @@ describe('ITENS_DO_PLANO no editor', () => {
     expect(vazia.rotuloMotivo).toBeUndefined();
     const outro = paraApi({ formato: 2, instrucoes: [], secoes: [{ uid: 's', titulo: 'A', perguntas: [{ ...p('t'), fonte: 'DIAS_TREINADOS', motivo: 'OPCIONAL', rotuloMotivo: 'x', max: 2 }] }] });
     expect(outro.secoes[0].perguntas[0]).toMatchObject({ fonte: undefined, motivo: undefined, rotuloMotivo: undefined, max: undefined });
+  });
+
+  it('"Sem motivo" apaga o motivo e a pergunta dele; os outros só trocam o modo', () => {
+    expect(mudancaDoMotivo('NENHUM')).toEqual({ motivo: undefined, rotuloMotivo: undefined });
+    expect(mudancaDoMotivo('OBRIGATORIO')).toEqual({ motivo: 'OBRIGATORIO' });
+    expect(resumoDosItens({ fonte: 'DIAS_TREINADOS' })).toBe('Itens do plano · Dias treinados');
+    expect(resumoDosItens({})).toBe('Itens do plano · sem fonte');
+  });
+
+  it('a lista fictícia da Prévia tem as três fontes e uma escolha dela passa pela conferência do envio', () => {
+    for (const fonte of ['ALIMENTOS_DA_DIETA', 'EXERCICIOS_DO_TREINO', 'DIAS_TREINADOS'] as const) {
+      const lista = ITENS_DA_PREVIA[fonte] ?? [];
+      expect(lista.length).toBeGreaterThan(1);
+      const pergunta = { ...novaPergunta('ITENS_DO_PLANO'), fonte, motivo: 'OBRIGATORIO' as const };
+      expect(conferirItens(pergunta, [{ id: lista[0].id, motivo: 'Enjoei' }], ITENS_DA_PREVIA)).toEqual({ limpa: [{ id: lista[0].id, nome: lista[0].nome, motivo: 'Enjoei' }] });
+    }
   });
 });

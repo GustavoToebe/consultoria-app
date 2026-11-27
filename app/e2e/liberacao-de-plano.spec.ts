@@ -157,10 +157,11 @@ for (const largura of [390, 1280]) {
     await folha.getByRole('radio', { name: 'Agendar para uma data' }).click();
     await folha.getByRole('textbox', { name: 'Liberar em' }).fill('30/11/2026');
     await folha.getByRole('checkbox', { name: 'Avisar o aluno quando liberar' }).click();
-    await folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 18' }).click();
+    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 18' }).click();
     await expect(folha.getByText('Dieta publicada. 1 plano sem alteração. Agendado para 30/11: até lá, o aluno continua com o que já via.')).toBeVisible();
     await expect(folha.getByText(/^“Treino do Plano 18” segue agendado para 01\/12\. Sem alteração, não foi publicado de novo/)).toBeVisible();
-    // A lista recarrega: a dieta passa a ter o selo do dia escolhido.
+    // A lista recarrega: a dieta (na aba dela) passa a ter o selo do dia escolhido.
+    await folha.getByRole('tab', { name: 'Dieta (1)' }).click();
     await expect(folha.getByText('Agendado para 30/11', { exact: true })).toBeVisible();
     expect(pedidos.filter((p) => p.caminho.endsWith('/publicar')).map((p) => p.corpo))
       .toEqual([{ confirmarAvisos: false, versoes: { [DIETA_ID]: 1 }, liberarEm: '2026-11-30', avisarAluno: false }]);

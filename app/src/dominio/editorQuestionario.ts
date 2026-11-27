@@ -1,5 +1,6 @@
 import type {
-  CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, SecaoAtualizacao, TipoPergunta,
+  CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, FonteDeItens, ItensDisponiveis, MotivoDeItens, OpcaoPergunta, PerguntaAtualizacao,
+  SecaoAtualizacao, TipoPergunta,
 } from '../api/tipos';
 import { mover, remover, substituir } from './editorTreino';
 import { controlaCondicao, type DestinoOferecido, LIMITES_QUESTIONARIO as L, temEfeitoNoCadastro, temOpcoes, TIPO_DO_DESTINO, TIPOS_FORA_DA_INSCRICAO, type ProblemaDoQuestionario } from './questionario';
@@ -56,14 +57,11 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
 ];
 
 /**
- * Os tipos que valem para a finalidade (a anamnese não tem data da atualização; o endereço só existe na anamnese; a
- * inscrição fica sem os de `TIPOS_FORA_DA_INSCRICAO`, D5).
+ * Os tipos que valem para a finalidade (a anamnese não tem data da atualização nem itens do plano; o endereço só existe
+ * na anamnese; a inscrição fica sem os de `TIPOS_FORA_DA_INSCRICAO`, D5).
  */
-// shortcut: `ITENS_DO_PLANO` fica fora do menu até existir a UI do aluno para respondê-lo (escopo congelado em 26/11,
-// próximo lote); a API e as regras já aceitam o tipo. Reativar: esvaziar `OCULTOS_NO_MENU`.
-const OCULTOS_NO_MENU: readonly TipoPergunta[] = ['ITENS_DO_PLANO'];
 export const tiposParaAdicionar = (finalidade: FinalidadeQuestionario) =>
-  TIPOS_PARA_ADICIONAR.filter((t) => !OCULTOS_NO_MENU.includes(t.tipo) && (finalidade === 'ATUALIZACAO' || !t.soAtualizacao) && (finalidade === 'ANAMNESE' || !t.soAnamnese)
+  TIPOS_PARA_ADICIONAR.filter((t) => (finalidade === 'ATUALIZACAO' || !t.soAtualizacao) && (finalidade === 'ANAMNESE' || !t.soAnamnese)
     && (finalidade !== 'INSCRICAO' || !TIPOS_FORA_DA_INSCRICAO.includes(t.tipo)));
 
 /** A página pública de inscrição não mostra imagem (D6); atualização e anamnese aceitam na pergunta e na opção. */
@@ -90,6 +88,36 @@ export function gruposParaAdicionar(finalidade: FinalidadeQuestionario): { rotul
       ...(g.rotulo === 'Especiais' ? disponiveis.filter((d) => !agrupados.has(d.tipo)) : [])].map(({ tipo, descricao }) => ({ tipo, descricao })),
   })).filter((g) => g.itens.length > 0);
 }
+
+// ---- ITENS_DO_PLANO no editor ----
+
+/** De onde vêm os itens, com o que o aluno vê (o servidor monta a mesma lista; `dominio/itensDoPlano` no aparelho). */
+export const FONTES_NO_EDITOR: readonly { valor: FonteDeItens; rotulo: string; ajuda: string }[] = [
+  { valor: 'ALIMENTOS_DA_DIETA', rotulo: 'Alimentos da dieta', ajuda: 'Os alimentos da dieta liberada na pasta da atualização, um por nome.' },
+  { valor: 'EXERCICIOS_DO_TREINO', rotulo: 'Exercícios do treino', ajuda: 'Os exercícios do treino liberado na pasta da atualização.' },
+  { valor: 'DIAS_TREINADOS', rotulo: 'Dias treinados', ajuda: 'Os dias com treino registrado no período da pasta. Sem nenhum registro, o aluno vê os dias da semana.' },
+];
+export const MOTIVOS_NO_EDITOR: readonly { valor: MotivoDeItens; rotulo: string }[] = [
+  { valor: 'NENHUM', rotulo: 'Sem motivo' }, { valor: 'OPCIONAL', rotulo: 'Opcional' }, { valor: 'OBRIGATORIO', rotulo: 'Obrigatório' },
+];
+
+/** "Itens do plano · Exercícios do treino" no cartão fechado. */
+export const resumoDosItens = (p: Pick<PerguntaAtualizacao, 'fonte'>) =>
+  `Itens do plano · ${FONTES_NO_EDITOR.find((f) => f.valor === p.fonte)?.rotulo ?? 'sem fonte'}`;
+
+/** Trocar o motivo: "Sem motivo" apaga também a pergunta do motivo, para o rascunho não guardar o que não vale. */
+export const mudancaDoMotivo = (motivo: MotivoDeItens): Partial<PerguntaAtualizacao> =>
+  motivo === 'NENHUM' ? { motivo: undefined, rotuloMotivo: undefined } : { motivo };
+
+/**
+ * Lista fictícia da Prévia do editor: o treinador não tem o plano de um aluno ali, então cada fonte mostra itens de
+ * exemplo (os ids são do formato que o servidor aceita: uid do item ou data ISO).
+ */
+export const ITENS_DA_PREVIA: ItensDisponiveis = {
+  ALIMENTOS_DA_DIETA: [{ id: 'previa-a1', nome: 'Frango grelhado' }, { id: 'previa-a2', nome: 'Batata-doce' }, { id: 'previa-a3', nome: 'Arroz integral' }],
+  EXERCICIOS_DO_TREINO: [{ id: 'previa-e1', nome: 'Supino reto' }, { id: 'previa-e2', nome: 'Agachamento livre' }, { id: 'previa-e3', nome: 'Remada curvada' }],
+  DIAS_TREINADOS: [{ id: '2026-11-17', nome: 'Seg 17/11 · Treino A' }, { id: '2026-11-19', nome: 'Qua 19/11 · Treino B' }, { id: '2026-11-21', nome: 'Sex 21/11 · Treino A' }],
+};
 
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
