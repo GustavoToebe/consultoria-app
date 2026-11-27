@@ -6,6 +6,7 @@ import type { Sessao } from '../api/tipos';
 import { contagem } from '../dominio/contagens';
 import { detalheDaDivisao } from '../dominio/inicioDoAluno';
 import { nomeComDia, rotuloDoTipo } from '../dominio/semana';
+import { contaEmBlocos, quantasSeries } from '../dominio/telaDoExercicio';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { propsDeLink } from '../ui/propsDeLink';
@@ -61,7 +62,7 @@ export function CartaoDivisaoLeitura({ sessao }: { sessao: Sessao }) {
       </View>
       {sessao.exercicios.map((e) => (
         <Texto key={e.uid} numerico variante="suave">
-          {e.nome} · {e.series.length} {e.series.length === 1 ? 'série' : 'séries'}
+          {e.nome} · {quantasSeries(e.series.length, contaEmBlocos(e))}
         </Texto>
       ))}
     </View>

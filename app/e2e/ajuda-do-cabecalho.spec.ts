@@ -180,7 +180,7 @@ const DIETA: PlanoDetalhe<ConteudoDieta> = {
   versoes: [],
 };
 const MODELO: Receita = {
-  id: MODELO_ID, tipo: 'MOBILIDADE', nome: 'Rotina fictícia da manhã', descricao: 'Modelo fictício.', pastaId: null, ordem: 0, versao: 1,
+  id: MODELO_ID, tipo: 'MOBILIDADE', origem: 'CONSULTORIA', nome: 'Rotina fictícia da manhã', descricao: 'Modelo fictício.', pastaId: null, ordem: 0, versao: 1,
   conteudo: { orientacoes: 'Antes do treino.', secoes: [{ uid: 's1', titulo: 'Aquecimento', itens: [{ uid: 'i1', nome: 'Gato-vaca', prescricao: '2 x 10', videoUrl: null }] }] },
 };
 const ATUALIZACAO: Atualizacao = {

@@ -25,7 +25,7 @@ const seriesDoAgachamento: Serie[] = [
 ];
 
 const receita = (id: string, nome: string, series: Serie[], extra: Partial<Receita> = {}): Receita => ({
-  id, tipo: 'SERIES', nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series }, ...extra,
+  id, tipo: 'SERIES', origem: 'CONSULTORIA', nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series }, ...extra,
 });
 
 const receitas: Receita[] = [
@@ -42,7 +42,7 @@ const receitas: Receita[] = [
 
 async function planoComDoisExercicios(page: Page, listaDeReceitas: Receita[] = receitas, seriesDaRemada: Serie[] = [serie('ws-r', 'WORKING', { repsMin: 8, repsMax: 12 })]) {
   const plano: Receita = {
-    id: ID_PLANO, tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
+    id: ID_PLANO, tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
     conteudo: {
       objetivo: null, orientacoes: null,
       metodologia: { id: null, nome: 'Metodologia fictícia', configuracao: structuredClone(CONFIGURACAO_PADRAO) },

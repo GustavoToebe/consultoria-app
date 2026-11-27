@@ -64,6 +64,9 @@ treinos:
   # Regras de atenção ligadas na suíte; o modo desligado tem a sua classe (RegrasDeAtencaoDesligadasIntegrationTest).
   regras-atencao:
     habilitado: true
+  # Cardio intervalado ligado na suíte; o modo desligado tem a sua classe (CardioIntervaladoDesligadoIntegrationTest).
+  cardio:
+    intervalado-habilitado: true
   # Vitrine ligada na suíte; o modo desligado tem a sua classe (VitrineDesligadaIntegrationTest).
   vitrine:
     habilitada: true

@@ -1,8 +1,8 @@
 import type { Receita, Serie } from '../api/tipos';
 import { serie } from './exemplosDeTreino.apoioTeste';
 import {
-  abaDaReceita, avisoDasSeriesAtuais, contagemPorAba, filtroEfetivo, filtrosDasReceitas, idDaTecla, receitaEscolhida, receitasDaLista,
-  rotuloDeSubstituir, SEM_FILTRO,
+  abaDaReceita, abaInicial, avisoDasSeriesAtuais, contagemPorAba, estaNaAba, filtroEfetivo, filtrosDasReceitas, idDaTecla, receitaEscolhida, receitasDaLista,
+  receitasDaAba, rotuloDeSubstituir, SEM_FILTRO, type AbaDeReceitas,
 } from './listaDeReceitas';
 import { CONFIGURACAO_PADRAO as config } from './metodologiaPadrao';
 import { trechosDaComposicao } from './receitasDeSeries';
@@ -10,15 +10,15 @@ import { trechosDaComposicao } from './receitasDeSeries';
 const cluster = { tipo: 'CLUSTER' as const, pausaSegundos: 15, blocos: [4, 4] };
 
 const receita = (id: string, nome: string, series: Partial<Serie>[], extra: Partial<Receita> = {}): Receita => ({
-  id, tipo: 'SERIES', nome, descricao: null, ordem: 0, pastaId: null, versao: 0,
+  id, tipo: 'SERIES', origem: 'PADRAO', nome, descricao: null, ordem: 0, pastaId: null, versao: 0,
   conteudo: { series: series.map((s, i) => { const { uid: _uid, ...resto } = serie(`s${i}`, s); return resto; }) }, ...extra,
 });
 
 const forca = receita('forca', 'Força com preparação', [{ tipo: 'WARM_UP' }, { tipo: 'FEEDER' }, { tipo: 'FEEDER' }, { tipo: 'WORKING' }]);
-const volume = receita('volume', 'Volume', [{ tipo: 'WORKING' }, { tipo: 'BACK_OFF' }, { tipo: 'BACK_OFF' }], { descricao: 'Para hipertrofia' });
+const volume = receita('volume', 'Volume', [{ tipo: 'WORKING' }, { tipo: 'BACK_OFF' }, { tipo: 'BACK_OFF' }], { descricao: 'Para hipertrofia', origem: 'CONSULTORIA' });
 const backOff = receita('backoff', 'Back off solto', [{ tipo: 'BACK_OFF' }]);
-const clusterSo = receita('cluster', 'Cluster', [{ tipo: 'WORKING', tecnica: cluster }]);
-const todas = [forca, volume, backOff, clusterSo, receita('sessao', 'Outra', [{ tipo: 'WORKING' }], { tipo: 'SESSAO_TREINO' })];
+const clusterSo = receita('cluster', 'Cluster', [{ tipo: 'WORKING', tecnica: cluster }], { origem: 'CONSULTORIA' });
+const todas = [forca, volume, backOff, clusterSo, receita('sessao', 'Outra', [{ tipo: 'WORKING' }], { tipo: 'SESSAO_TREINO', origem: 'CONSULTORIA' })];
 
 describe('abas da folha "Usar receita"', () => {
   it('completas = mais de um papel; o resto são partes', () => {
@@ -30,9 +30,34 @@ describe('abas da folha "Usar receita"', () => {
   });
 
   it('a contagem segue a busca e ignora o que não é receita de séries', () => {
-    expect(contagemPorAba(todas, '', config)).toEqual({ COMPLETAS: 2, PARTES: 2 });
-    expect(contagemPorAba(todas, 'back off', config)).toEqual({ COMPLETAS: 1, PARTES: 1 });
-    expect(contagemPorAba(todas, 'nada assim', config)).toEqual({ COMPLETAS: 0, PARTES: 0 });
+    expect(contagemPorAba(todas, '', config)).toEqual({ COMPLETAS: 2, PARTES: 2, MINHAS: 2 });
+    expect(contagemPorAba(todas, 'back off', config)).toEqual({ COMPLETAS: 1, PARTES: 1, MINHAS: 1 });
+    expect(contagemPorAba(todas, 'nada assim', config)).toEqual({ COMPLETAS: 0, PARTES: 0, MINHAS: 0 });
+  });
+});
+
+describe('aba "Minhas"', () => {
+  it('só as de séries que a equipe criou (origem CONSULTORIA), completas ou partes; elas seguem nas outras abas', () => {
+    expect(receitasDaAba(todas, 'MINHAS', config).map((r) => r.id)).toEqual(['volume', 'cluster']);
+    expect(receitasDaAba(todas, 'COMPLETAS', config).map((r) => r.id)).toEqual(['forca', 'volume']);
+    expect(estaNaAba(volume, 'MINHAS', config)).toBe(true);
+    expect(estaNaAba(forca, 'MINHAS', config)).toBe(false);
+  });
+
+  it('busca e chip valem dentro dela; chip que ela não tem vale como "Todos"', () => {
+    const ids = (busca: string, filtro: string) => receitasDaLista(todas, { aba: 'MINHAS', busca, filtro }, config).map((r) => r.id);
+    expect(ids('', SEM_FILTRO)).toEqual(['volume', 'cluster']);
+    expect(ids('cluster', SEM_FILTRO)).toEqual(['cluster']);
+    expect(ids('', 'TECNICA:CLUSTER')).toEqual(['cluster']);
+    expect(ids('', 'TIPO:WARM_UP')).toEqual(['volume', 'cluster']);
+    expect(receitasDaLista([forca, backOff], { aba: 'MINHAS', busca: '', filtro: SEM_FILTRO }, config)).toEqual([]);
+  });
+
+  it('a folha nunca abre nela: Completas, ou Partes quando só há partes', () => {
+    const abre = (rs: Receita[]): AbaDeReceitas => abaInicial(rs, config);
+    expect(abre(todas)).toBe('COMPLETAS');
+    expect(abre([backOff, clusterSo])).toBe('PARTES');
+    expect(abre([])).toBe('COMPLETAS');
   });
 });
 

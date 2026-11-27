@@ -25,6 +25,7 @@ export function CartaoSerieDeCardio({
   feita,
   ativa = false,
   ultimaDoExercicio,
+  emBlocos = false,
   aoMarcar,
 }: {
   serie: Serie;
@@ -32,6 +33,8 @@ export function CartaoSerieDeCardio({
   feita: boolean;
   ativa?: boolean;
   ultimaDoExercicio: boolean;
+  /** O exercício conta em blocos (`contaEmBlocos`): o ✓ é "Marcar bloco N como feito"; o cardio antigo segue "cardio da série N". */
+  emBlocos?: boolean;
   aoMarcar: (concluida: boolean) => void;
 }) {
   const { cores, variante, bordas } = useTema();
@@ -58,7 +61,7 @@ export function CartaoSerieDeCardio({
           estado={feita ? 'FEITA' : 'PRONTA'}
           numero={numero}
           ultimaDoExercicio={ultimaDoExercicio}
-          rotulo={`Marcar cardio da série ${numero} como feito`}
+          rotulo={emBlocos ? `Marcar bloco ${numero} como feito` : `Marcar cardio da série ${numero} como feito`}
           aoTocar={() => aoMarcar(!feita)}
         />
       </View>

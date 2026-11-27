@@ -5,9 +5,9 @@ import { Platform, Pressable, StyleSheet, View, type NativeSyntheticEvent, type 
 import { listarExercicios } from '../../api/rotas';
 import type { Exercicio, ExercicioPlano } from '../../api/tipos';
 import { podeSerAlternativa } from '../../dominio/alternativasDoExercicio';
-import { filtrosAoAbrir, grupoDoAtual, linhaDoManual, linhaVizinha } from '../../dominio/escolhaDoExercicio';
+import { filtrosAoAbrir, linhaDoManual, linhaVizinha, preFiltroDaTroca } from '../../dominio/escolhaDoExercicio';
 import {
-  chipsDosExercicios, coincideComABusca, contagemDosGrupos, detalheDoExercicio, modalidadesExistentes, nomeDaModalidade, opcoesDeModalidade,
+  chipsDosExercicios, coincideComABusca, contagemDosGrupos, contagemDosTipos, detalheDoExercicio, modalidadesExistentes, nomeDaModalidade, opcoesDeModalidade,
   passaNosFiltros, rotuloDoMostrar, SEM_FILTROS_DE_EXERCICIOS, semOFiltro, type FiltrosDeExercicios,
 } from '../../dominio/exerciciosDaBiblioteca';
 import { selecaoDepoisDoGrupo } from '../../dominio/filtrosDosCartoes';
@@ -25,6 +25,7 @@ import { MostrarMais, useMostrarMais } from '../../ui/MostrarMais';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { LADO_DA_MINIATURA, LegendaDasModalidades, LinhaDoExercicio, PainelDeExercicios } from '../biblioteca/ModalidadeDoExercicio';
+import { FiltroDoTipoDeCardio } from './FiltroDoTipoDeCardio';
 
 /** Compara sem acento e sem caixa ("rosca" acha "Rosca Direta"). */
 export function normalizar(texto: string): string {
@@ -32,7 +33,7 @@ export function normalizar(texto: string): string {
 }
 
 /** Chave estável dos filtros (os conjuntos em ordem): o "Mostrar mais" e a linha ativa recomeçam quando ela muda. */
-const chaveDosFiltros = (f: FiltrosDeExercicios) => JSON.stringify([[...f.grupos].sort(), [...f.modalidades].sort(), f.video, f.imagem]);
+const chaveDosFiltros = (f: FiltrosDeExercicios) => JSON.stringify([[...f.grupos].sort(), [...f.modalidades].sort(), f.video, f.imagem, [...f.tiposDeCardio].sort()]);
 
 type Linha = { tipo: 'exercicio'; exercicio: Exercicio } | { tipo: 'manual'; nome: string; texto: string; rotulo: string };
 
@@ -41,12 +42,15 @@ type Linha = { tipo: 'exercicio'; exercicio: Exercicio } | { tipo: 'manual'; nom
  * Biblioteca › Exercícios). Também dá para usar só o nome digitado, sem ligar à biblioteca: com a busca preenchida, a última
  * linha da lista é "Usar “texto” como exercício manual" (aí o progresso desse exercício não junta com outros planos). Com
  * `multiplo` (exercício novo) dá para marcar vários e adicionar de uma vez; sem ele (trocar um exercício) a escolha é uma só.
- * `aoEscolher` recebe sempre a lista, na ordem em que foram marcados. Com `cardio` ("+ Adicionar cardio") a lista traz só
- * os exercícios de cardio da biblioteca (sem o filtro de modalidade). Os filtros (grupo muscular em vários, modalidade, vídeo
+ * `aoEscolher` recebe sempre a lista, na ordem em que foram marcados. Com `cardio` ("+ Adicionar cardio", trocar um cardio
+ * ou a alternativa de um cardio) a folha é "Escolher cardio": só os cardios da biblioteca, sem o filtro de modalidade, com
+ * o "Tipo de cardio" no lugar do grupo muscular (que o cardio não tem, D13 de docs/planos/cardio-e-hiit.md) e a linha
+ * "● Cardio · Escada". Os filtros (grupo muscular ou tipo de cardio em vários, modalidade, vídeo
  * e imagem) são uma etapa da mesma folha (`ui/EtapaDeFiltros`, sem painel por cima) e Aplicar/Cancelar/Esc voltam à lista com
  * a busca e as marcações (aplicar outros filtros tira só o que não passa neles, com aviso: `selecaoDepoisDoGrupo`).
  *
- * `atual` (trocar): a folha abre filtrada pelo grupo dele (um chip que se tira) e com a linha dele marcada "Atual".
+ * `atual` (trocar): a folha abre filtrada pelo grupo dele (no cardio, pelo tipo; um chip que se tira) e com a linha dele
+ * marcada "Atual".
  * A lista é um `listbox` controlado pela busca (combobox da WAI-ARIA, como o `CampoDeTags`): ↑↓ andam pelas linhas à vista
  * (e a do manual), Enter escolhe (ou marca, em `multiplo`) e o foco fica na busca.
  *
@@ -81,9 +85,11 @@ export function FolhaBiblioteca({
   const [destaque, setDestaque] = useState<{ chave: string; indice: number } | null>(null);
   const { dados, erro, carregando, recarregar } = useCarregar(visivel ? 'biblioteca-exercicios' : null, () => listarExercicios());
   const daFolha = (dados ?? []).filter((e) => (alternativaDe ? podeSerAlternativa(alternativaDe, e) : !cardio || e.modalidade === 'CARDIO'));
-  const grupos = contagemDosGrupos(daFolha);
-  const filtros = escolhidos ?? filtrosAoAbrir(grupoDoAtual(atual, daFolha));
-  const passam = (f: FiltrosDeExercicios) => daFolha.filter((e) => passaNosFiltros(e, f) && coincideComABusca(e, busca));
+  // O cardio não tem grupo muscular: o painel troca os grupos pelos tipos de cardio.
+  const grupos = cardio ? [] : contagemDosGrupos(daFolha);
+  const tipos = cardio ? contagemDosTipos(daFolha) : [];
+  const filtros = escolhidos ?? filtrosAoAbrir(preFiltroDaTroca(atual, daFolha, cardio));
+  const passam = (f: FiltrosDeExercicios) => daFolha.filter((e) => passaNosFiltros(e, f) && coincideComABusca(e, busca, true));
   const aplicarFiltros = (f: FiltrosDeExercicios) => {
     if (chaveDosFiltros(f) === chaveDosFiltros(filtros)) return;
     setEscolhidos(f);
@@ -94,7 +100,7 @@ export function FolhaBiblioteca({
     setMarcados(r.marcados);
     setAvisoDoGrupo(r.aviso);
   };
-  const etapa = useEtapaDeFiltros({ valor: filtros, limpo: SEM_FILTROS_DE_EXERCICIOS, aoAplicar: aplicarFiltros, rotuloDoAplicar: (f) => rotuloDoMostrar(passam(f).length) });
+  const etapa = useEtapaDeFiltros({ valor: filtros, limpo: SEM_FILTROS_DE_EXERCICIOS, aoAplicar: aplicarFiltros, rotuloDoAplicar: (f) => rotuloDoMostrar(passam(f).length, cardio) });
   // Cada abertura começa na lista, sem busca, sem nada marcado e com os filtros de abrir (estado derivado da prop, o padrão do React).
   const [estavaVisivel, setEstavaVisivel] = useState(visivel);
   if (visivel !== estavaVisivel) {
@@ -171,8 +177,14 @@ export function FolhaBiblioteca({
     return (
       <Folha visivel={visivel} titulo={`Filtros de ${assunto}`} aoFechar={etapa.fechar} rodape={etapa.rodape} largura={LARGURA_FOLHA_LARGA}>
         {etapa.corpo(
-          <PainelDeExercicios atual={etapa.rascunho} mudar={etapa.mudar} grupos={grupos} comModalidade={!cardio}
-            opcoesDeModalidades={opcoesDeModalidade(modalidadesExistentes(daFolha), etapa.rascunho.modalidades)} />,
+          <>
+            {cardio ? (
+              <FiltroDoTipoDeCardio opcoes={tipos} marcados={etapa.rascunho.tiposDeCardio}
+                aoMudar={(m) => etapa.mudar({ ...etapa.rascunho, tiposDeCardio: m })} />
+            ) : null}
+            <PainelDeExercicios atual={etapa.rascunho} mudar={etapa.mudar} grupos={grupos} comModalidade={!cardio}
+              opcoesDeModalidades={opcoesDeModalidade(modalidadesExistentes(daFolha), etapa.rascunho.modalidades)} />
+          </>,
         )}
         {multiplo && marcados.size > 0 ? (
           <Texto variante="pequeno">
@@ -229,7 +241,8 @@ export function FolhaBiblioteca({
       {multiplo && visiveis.length > 1 ? (
         <Botao rotulo={todosMarcados ? (cortada ? 'Desmarcar os exibidos' : 'Desmarcar todos os exercícios da lista') : cortada ? `Marcar os ${visiveis.length} exibidos` : `Marcar todos os ${visiveis.length} da lista`} tipo="fantasma" aoTocar={marcarOsVisiveis} />
       ) : null}
-      {visiveis.length ? <LegendaDasModalidades modalidades={modalidadesExistentes(visiveis)} /> : null}
+      {/* Na folha do cardio todas as linhas são Cardio: a legenda só repetiria isso. */}
+      {visiveis.length && !cardio ? <LegendaDasModalidades modalidades={modalidadesExistentes(visiveis)} /> : null}
       {linhas.length ? (
         <View nativeID={`${prefixo}-lista`} {...({ role: 'listbox', 'aria-multiselectable': multiplo || undefined } as object)}
           aria-label={alternativaDe ? 'Exercícios para alternativa' : cardio ? 'Cardios da biblioteca' : 'Exercícios da biblioteca'}>

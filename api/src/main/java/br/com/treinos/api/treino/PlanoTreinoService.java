@@ -7,11 +7,13 @@ import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.planos.PlanoServiceBase;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.treinos.api.receitas.ReceitaService;
+import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -27,13 +29,55 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
     private final ValidadorTreino validador;
     private final ExercicioRepository exercicios;
 
+    /** Mensagem fixa do 422 do cardio intervalado com a chave desligada (D16); nunca repete o que veio no bloco. */
+    static final String INTERVALADO_DESLIGADO = "O cardio intervalado ainda não está liberado nesta consultoria.";
+
+    private final CardioProperties cardio;
+
     public PlanoTreinoService(PlanoTreinoRepository planos, PlanoTreinoVersaoRepository versoes,
                               AlunoRepository alunos, PastaRepository pastas, JsonMapper json, ReceitaService receitas,
-                              ValidadorTreino validador, ExercicioRepository exercicios) {
+                              ValidadorTreino validador, ExercicioRepository exercicios, CardioProperties cardio) {
         super(planos, versoes, alunos, pastas, json, ConteudoTreino.class, "Plano de treino");
         this.receitas = receitas;
         this.validador = validador;
         this.exercicios = exercicios;
+        this.cardio = cardio;
+    }
+
+    /**
+     * Com {@code TREINOS_CARDIO_INTERVALADO_HABILITADO} desligado, o rascunho não grava bloco de cardio com chave nova
+     * (422 {@code PLANO_INVALIDO} no caminho do bloco): o app do aluno das lojas recusaria o pacote. Copiar, replicar e
+     * aplicar modelo não passam aqui; a publicação recusa pelo {@link #validar}.
+     */
+    @Override
+    protected ConteudoTreino paraGravarRascunho(ConteudoTreino novo, ConteudoTreino atual, PlanoTreino plano) {
+        List<ResultadoValidacao.Problema> bloqueados = intervaladoBloqueado(novo);
+        if (!bloqueados.isEmpty()) {
+            throw new ValidacaoException(INTERVALADO_DESLIGADO, "PLANO_INVALIDO", ResultadoValidacao.comoCampos(bloqueados));
+        }
+        return novo;
+    }
+
+    /** Blocos de cardio com chave nova, um por caminho ({@code sessoes[i].exercicios[j].series[k].cardio}); vazio com a chave ligada. */
+    private List<ResultadoValidacao.Problema> intervaladoBloqueado(ConteudoTreino conteudo) {
+        if (cardio.intervaladoHabilitado() || conteudo == null) {
+            return List.of();
+        }
+        List<ResultadoValidacao.Problema> p = new ArrayList<>();
+        List<ConteudoTreino.Sessao> sessoes = conteudo.sessoesOuVazio();
+        for (int i = 0; i < sessoes.size(); i++) {
+            List<ConteudoTreino.ExercicioPlano> exs = sessoes.get(i).exerciciosOuVazio();
+            for (int j = 0; j < exs.size(); j++) {
+                List<ConteudoTreino.Serie> series = exs.get(j).seriesOuVazio();
+                for (int k = 0; k < series.size(); k++) {
+                    if (series.get(k).cardio() != null && series.get(k).cardio().temChaveNova()) {
+                        p.add(new ResultadoValidacao.Problema(
+                                "sessoes[" + i + "].exercicios[" + j + "].series[" + k + "].cardio", INTERVALADO_DESLIGADO));
+                    }
+                }
+            }
+        }
+        return p;
     }
 
     @Override
@@ -153,6 +197,13 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
                 }
             });
         }
-        return validador.validar(conteudo, inicio, fim, ativos, arquivados);
+        ResultadoValidacao r = validador.validar(conteudo, inicio, fim, ativos, arquivados);
+        List<ResultadoValidacao.Problema> bloqueados = intervaladoBloqueado(conteudo);
+        if (bloqueados.isEmpty()) {
+            return r;
+        }
+        List<ResultadoValidacao.Problema> erros = new ArrayList<>(r.erros());
+        erros.addAll(bloqueados);
+        return new ResultadoValidacao(List.copyOf(erros), r.avisos());
     }
 }

@@ -86,6 +86,8 @@ export interface EuResponse {
   contratosHabilitados?: boolean;
   /** Regras de atenção do treinador ligadas na plataforma (`TREINOS_REGRAS_ATENCAO_HABILITADO`); falso ou ausente = o app esconde tudo e não consulta. */
   regrasAtencaoHabilitada?: boolean;
+  /** Cardio intervalado novo liberado (`TREINOS_CARDIO_INTERVALADO_HABILITADO`, D16); falso ou ausente = o editor só oferece o contínuo. */
+  cardioIntervaladoHabilitado?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
   /** Só do aluno: links das redes da consultoria que estão preenchidas (a API só manda as preenchidas); ausente = nenhuma. */
@@ -775,9 +777,13 @@ export interface ImportacaoDesfeita {
 
 export type TipoReceita = 'SERIES' | 'PLANO_TREINO' | 'PLANO_DIETA' | 'METODOLOGIA' | 'SESSAO_TREINO' | 'REFEICAO' | 'PASTA_PLANO' | 'MOBILIDADE';
 
+/** Quem criou a receita (V115): `PADRAO` do sistema, `CONSULTORIA` da equipe (aba "Minhas"). Só o servidor decide. */
+export type OrigemReceita = 'PADRAO' | 'CONSULTORIA';
+
 export interface Receita {
   id: string;
   tipo: TipoReceita;
+  origem: OrigemReceita;
   nome: string;
   descricao: string | null;
   conteudo: unknown;

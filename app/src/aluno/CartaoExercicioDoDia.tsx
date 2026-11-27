@@ -6,6 +6,7 @@ import type { Configuracao, ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { resumoTecnicasEDescanso, textoCardio } from '../dominio/agrupamento';
 import { usaCargaDeTrabalho } from '../dominio/cargas';
 import { MODALIDADES } from '../dominio/modalidades';
+import { contaEmBlocos, quantasSeries } from '../dominio/telaDoExercicio';
 import { textoDaCarga } from '../dominio/unidadeDeCarga';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
@@ -52,6 +53,7 @@ export function CartaoExercicioDoDia({
   // Só aquecimento: nada entra na contagem, mas as séries continuam planejadas.
   const planejadas = total || e.series.length;
   const cardio = ehExercicioDeCardio(e);
+  const emBlocos = contaEmBlocos(e);
   const resumo = cardio
     ? null
     : resumoTecnicasEDescanso(descansoNaSerie ? e.series : e.series.map((s) => ({ ...s, descansoSegundos: null })), metodologia);
@@ -66,7 +68,7 @@ export function CartaoExercicioDoDia({
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`Abrir ${e.nome}, ${feitas} de ${total} séries feitas`}
+      accessibilityLabel={`Abrir ${e.nome}, ${feitas} de ${total} ${emBlocos ? 'blocos feitos' : 'séries feitas'}`}
       {...(href ? propsDeLink(href, aoAbrir) : { onPress: aoAbrir })}
       style={({ pressed }) => [
         estilos.cartao,
@@ -97,11 +99,11 @@ export function CartaoExercicioDoDia({
           </Texto>
         ) : (
           <Texto numerico variante="suave" style={estilos.carga}>
-            {planejadas} {planejadas === 1 ? 'série planejada' : 'séries planejadas'}
+            {quantasSeries(planejadas, emBlocos)} {emBlocos ? (planejadas === 1 ? 'planejado' : 'planejados') : planejadas === 1 ? 'planejada' : 'planejadas'}
           </Texto>
         )}
         {total > 0 ? (
-          <Selo texto={`${feitas}/${total} séries`} tipo="neutro" />
+          <Selo texto={`${feitas}/${total} ${emBlocos ? 'blocos' : 'séries'}`} tipo="neutro" />
         ) : null}
       </View>
     </Pressable>

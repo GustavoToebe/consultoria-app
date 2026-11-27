@@ -65,6 +65,8 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrir(page, 'CLARO');
     await expect(page.getByText('Bloco 1 · Intervalado', { exact: true })).toBeVisible();
+    await expect(page.getByText('Cardio · 3 blocos', { exact: true })).toBeVisible();
+    await expect(page.getByText('Blocos 0 de 3 feitos', { exact: true })).toBeVisible();
     // O contínuo de antes (sem modo) segue com as linhas de sempre e sem timer.
     await expect(page.getByText('Bloco 3 · Contínuo', { exact: true })).toBeVisible();
     await expect(page.getByText('Duração: 10 min', { exact: true })).toBeVisible();
@@ -106,7 +108,9 @@ for (const largura of [390, 1280]) {
     await page.clock.fastForward('20:00');
     await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'esteira-intervalado').length).toBe(1);
     expect(api.enviados[0]).toMatchObject({ serieUid: 'esteira-intervalado', exercicioUid: 'esteira', carga: null, repeticoes: null, concluida: true });
-    await expect(page.getByRole('checkbox', { name: 'Marcar cardio da série 1 como feito', exact: true })).toBeChecked();
+    // Com um bloco novo (com modo) o exercício conta em blocos: o ✓ é do bloco.
+    await expect(page.getByRole('checkbox', { name: 'Marcar bloco 1 como feito', exact: true })).toBeChecked();
+    await expect(page.getByText('Blocos 1 de 3 feitos', { exact: true })).toBeVisible();
     await expect(page.getByRole('timer')).toHaveCount(0);
     await capturar(page, `cardio-bloco-feito-claro-${largura}`);
     expect(api.errosDaPagina).toEqual([]);

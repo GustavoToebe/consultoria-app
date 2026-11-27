@@ -42,7 +42,7 @@ test('conteúdos iniciais não inventam prescrições e modelos avulsos têm exa
 });
 
 test('adapter conserva revisão otimista sem simular publicação nem associar aluno', () => {
-  const detalhe = detalheDoModelo({ id: 'modelo', tipo: 'PLANO_TREINO', nome: 'Semana', descricao: null, pastaId: null, ordem: 1, versao: 7, conteudo: normalizarTreino(null) });
+  const detalhe = detalheDoModelo({ id: 'modelo', tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana', descricao: null, pastaId: null, ordem: 1, versao: 7, conteudo: normalizarTreino(null) });
   expect(detalhe.plano).toMatchObject({ titulo: 'Semana', versao: 7, versaoPublicada: 0, ativo: false, alunoId: '', inicio: null, fim: null });
   expect(detalhe.versoes).toEqual([]);
 });

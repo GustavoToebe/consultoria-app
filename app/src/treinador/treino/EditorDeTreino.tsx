@@ -149,7 +149,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const [selecionadaUid, setSelecionadaUid] = useState<string | null>(null);
   // Miniatura da demonstração: vem da biblioteca, pelo vínculo `exercicioId`. Sem permissão ou sem internet, fica sem miniatura.
   const biblioteca = useCarregar('biblioteca-exercicios', () => listarExercicios());
-  const demonstracoes = new Map((biblioteca.dados ?? []).map((x) => [x.id, { imagens: x.imagens, imagemPropriaEm: x.imagemPropriaEm, grupoMuscular: x.grupoMuscular }]));
+  const demonstracoes = new Map((biblioteca.dados ?? []).map((x) => [x.id, { imagens: x.imagens, imagemPropriaEm: x.imagemPropriaEm, grupoMuscular: x.grupoMuscular, medidasDeCardio: x.medidasDeCardio ?? null }]));
 
   const conteudoDaTela = editor.estado?.conteudo ?? null;
   // A validação local roda sempre para o estado das pendências ("Sem pendências" certo antes do 1º salvar); as marcas
@@ -307,6 +307,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     descansoPorSerie,
     demonstracao: e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null,
     grupoMuscular: e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null,
+    medidasDeCardio: e.exercicioId ? demonstracoes.get(e.exercicioId)?.medidasDeCardio ?? null : null,
     aoMudar: (novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo)),
     aoMover: (d) => mudarGrupos((s) => moverExercicio(s, ei, d)),
     aoRemover: () => {

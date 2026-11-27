@@ -11,7 +11,7 @@ const serieInicial: Serie = {
 };
 
 async function modelo(page: Page, tipo: Receita['tipo'], metodologia: Configuracao = CONFIGURACAO_PADRAO) {
-  let atual: Receita = { id: 'm0000000-0000-4000-8000-000000000001', tipo, nome: 'Modelo de teste', descricao: null, pastaId: null, ordem: 1, versao: 1,
+  let atual: Receita = { id: 'm0000000-0000-4000-8000-000000000001', tipo, origem: 'CONSULTORIA', nome: 'Modelo de teste', descricao: null, pastaId: null, ordem: 1, versao: 1,
     conteudo: tipo === 'METODOLOGIA' ? structuredClone(metodologia) : { series: [serieInicial] } };
   const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
@@ -26,7 +26,7 @@ async function modelo(page: Page, tipo: Receita['tipo'], metodologia: Configurac
 }
 
 async function modeloDeSeries(page: Page, series: Serie[]) {
-  let atual: Receita = { id: 'm0000000-0000-4000-8000-000000000001', tipo: 'SERIES', nome: 'Modelo de teste', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series } };
+  let atual: Receita = { id: 'm0000000-0000-4000-8000-000000000001', tipo: 'SERIES', origem: 'CONSULTORIA', nome: 'Modelo de teste', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series } };
   const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
@@ -90,7 +90,7 @@ const ID_PLANO = 'm0000000-0000-4000-8000-000000000020';
 
 /** Receita de séries "Exemplo: FS e Cluster", no formato em que a API a entrega (só estrutura, com os padrões do tipo). */
 const receitaFsECluster: Receita = {
-  id: 'm0000000-0000-4000-8000-000000000021', tipo: 'SERIES', nome: 'Exemplo: FS e Cluster', descricao: 'FS 1x10-15 e WS com Cluster 4×4 (pausa de 15 s).', pastaId: null, ordem: 1, versao: 1,
+  id: 'm0000000-0000-4000-8000-000000000021', tipo: 'SERIES', origem: 'CONSULTORIA', nome: 'Exemplo: FS e Cluster', descricao: 'FS 1x10-15 e WS com Cluster 4×4 (pausa de 15 s).', pastaId: null, ordem: 1, versao: 1,
   conteudo: {
     series: [
       { uid: 'r-fs', tipo: 'FEEDER', repsMin: 10, repsMax: 15, carga: { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: 85 }, esforco: null, descansoSegundos: null, tecnica: null },
@@ -102,7 +102,7 @@ const receitaFsECluster: Receita = {
 
 async function planoComUmExercicio(page: Page, series: Serie[] = [serieInicial]) {
   const plano: Receita = {
-    id: ID_PLANO, tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
+    id: ID_PLANO, tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
     conteudo: {
       objetivo: null, orientacoes: null,
       metodologia: { id: null, nome: 'Metodologia fictícia', configuracao: structuredClone(CONFIGURACAO_PADRAO) },

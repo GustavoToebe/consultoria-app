@@ -143,6 +143,14 @@ class CardioIntegrationTest extends AbstractIntegrationTest {
         assertThat(erro.get("fieldErrors").get(0).get("message").asString()).isEqualTo("Estímulo de 1 s a 60 min.");
     }
 
+    /** A suíte liga {@code TREINOS_CARDIO_INTERVALADO_HABILITADO}; o modo desligado é o {@code CardioIntervaladoDesligadoIntegrationTest}. */
+    @Test
+    void euDizQueOIntervaladoEstaLiberado() throws Exception {
+        JsonNode login = api.convidarEEntrar(treinador, aluno);
+        assertThat(api.get("/eu", treinador, 200).get("cardioIntervaladoHabilitado").asBoolean()).isTrue();
+        assertThat(api.get("/eu", login, 200).get("cardioIntervaladoHabilitado").asBoolean()).isTrue();
+    }
+
     // ---- Aceite comum: o bloco intervalado não se perde ----
 
     @Test

@@ -37,6 +37,7 @@ jest.mock('../FolhaDeAcoes', () => {
     acoes.map((a) => <Pressable key={a.rotulo} accessibilityLabel={`${a.rotulo}, ${a.detalhe}`} onPress={a.aoTocar} />) };
 });
 jest.mock('./EditorSeries', () => ({ EditorSeries: () => null, BotaoDeMover: () => null }));
+jest.mock('./EditorDoCardio', () => ({ EditorDoCardio: () => null }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');

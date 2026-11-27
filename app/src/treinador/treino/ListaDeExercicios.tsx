@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
+import { blocoContinuo, resumoDaLista } from '../../dominio/cardio';
 import { linhaDoExercicio } from '../../dominio/inspetorDoTreino';
 import { espaco } from '../../tema/tokens';
 import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
@@ -53,7 +54,10 @@ interface PropsDoItem {
 /** Item da lista: o `ItemDaListaDoEditor` com o selo de situação (`estadoDoExercicio`) e a linha das séries (`linhaDoExercicio`). */
 export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, escolhido, comProblema, aoEscolher, alca }: PropsDoItem) {
   const estado = useMemo(() => estadoDoExercicio(e, config), [e, config]);
-  const linha = useMemo(() => linhaDoExercicio(e, config), [e, config]);
+  // Cardio: o resumo dos blocos ("SIT · 6 × 30 s · ~25 min", "2 blocos · ~30 min"), o mesmo do cabeçalho do inspetor.
+  const linha = useMemo(() => (e.modalidade === 'CARDIO' && e.series.length
+    ? `Cardio · ${resumoDaLista(e.series.map((s) => s.cardio ?? blocoContinuo()))}`
+    : linhaDoExercicio(e, config)), [e, config]);
   const nome = e.nome || 'sem nome';
   // Só a pendência ganha selo: "Pronto" em todo item virava ruído (10/11).
   const pendente = estado.tipo !== 'sucesso';

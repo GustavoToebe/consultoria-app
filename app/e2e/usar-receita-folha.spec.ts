@@ -6,7 +6,7 @@ import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } fr
 import { linhaDaSerie } from './linhaDaSerie';
 
 /*
- * Folha "Usar receita" do editor de treino (27/11): no PC, lista (busca, abas Completas e Partes, chips de tipo e
+ * Folha "Usar receita" do editor de treino (27/11): no PC, lista (busca, abas Completas, Partes e Minhas, chips de tipo e
  * técnica, uma linha por receita com os selos) e prévia fixa lado a lado, rodapé fixo com substituir e acrescentar; no
  * celular, a lista e a prévia em passos, com "Voltar". Só dados fictícios; nada chega ao banco. Capturas com
  * `E2E_CAPTURAS`: `<base>/usar-receita-<caso>-<largura>-<tema>.png`.
@@ -21,7 +21,7 @@ const serie = (uid: string, tipo: string, extra: Partial<Serie> = {}): Serie => 
   uid, tipo, repsMin: 8, repsMax: 10, carga: semCarga, esforco: null, descansoSegundos: null, tecnica: null, ...extra,
 });
 const receita = (id: string, nome: string, series: Serie[], extra: Partial<Receita> = {}): Receita => ({
-  id, tipo: 'SERIES', nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series }, ...extra,
+  id, tipo: 'SERIES', origem: 'PADRAO', nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series }, ...extra,
 });
 const cluster = { tipo: 'CLUSTER' as const, pausaSegundos: 15, blocos: [4, 4] };
 
@@ -56,7 +56,7 @@ async function abrir(page: Page, { largura, tema = 'ESCURO', series = seriesDaRe
   await page.setViewportSize({ width: largura, height: largura >= 1280 ? 1080 : 844 });
   await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema]);
   const plano: Receita = {
-    id: ID_PLANO, tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
+    id: ID_PLANO, tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
     conteudo: {
       objetivo: null, orientacoes: null,
       metodologia: { id: null, nome: 'Metodologia fictícia', configuracao: structuredClone(CONFIGURACAO_PADRAO) },
@@ -259,4 +259,55 @@ for (const largura of [1024, 1280]) {
     await expect(f.getByRole('button', { name: 'Substituir as 29 séries por Força com preparação', exact: true })).toBeInViewport();
     await capturar(page, 'janela-baixa', largura, 'ESCURO');
   });
+}
+
+// Aba "Minhas" (V115): as receitas que a equipe criou ou salvou (`origem` CONSULTORIA), completas ou partes; seguem
+// também em Completas e Partes. A folha nunca abre nela, a busca vale ao trocar de aba e, vazia, diz como criar uma.
+const COM_MINHAS: Receita[] = RECEITAS.map((r) => (['Volume fictício', 'Cluster fictício'].includes(r.nome) ? { ...r, origem: 'CONSULTORIA' } : r));
+for (const tema of ['ESCURO', 'CLARO'] as const) {
+  for (const largura of [1280, 390]) {
+    test(`usar receita: aba Minhas com contagem, busca preservada, setas e estado vazio (${largura}px, ${tema.toLowerCase()})`, async ({ page }) => {
+      const api = await abrir(page, { largura, tema, receitas: COM_MINHAS });
+      const f = folha(page);
+      await expect(f.getByRole('tab', { name: 'Completas (3)', exact: true })).toHaveAttribute('aria-selected', 'true');
+      await expect(f.getByRole('tab', { name: 'Partes (2)', exact: true })).toBeVisible();
+      const minhas = f.getByRole('tab', { name: 'Minhas (2)', exact: true });
+      await minhas.click();
+      await expect(minhas).toHaveAttribute('aria-selected', 'true');
+      await expect(f.getByRole('option')).toHaveCount(2);
+      await expect(opcao(page, 'Volume fictício')).toBeVisible();
+      await expect(opcao(page, 'Cluster fictício')).toBeVisible();
+      expect(await semRolagemDeLado(page)).toBe(true);
+      await capturar(page, 'minhas', largura, tema);
+      if (largura >= 1280) {
+        await expect(opcao(page, 'Volume fictício')).toHaveAttribute('aria-selected', 'true');
+        await expect(f.getByRole('region', { name: 'Prévia da receita' }).getByRole('heading', { name: 'Volume fictício' })).toBeVisible();
+        await opcao(page, 'Volume fictício').focus();
+        await page.keyboard.press('ArrowDown');
+        await expect(opcao(page, 'Cluster fictício')).toHaveAttribute('aria-selected', 'true');
+        await expect(opcao(page, 'Cluster fictício')).toBeFocused();
+      }
+      // A busca fica ao trocar de aba e as contagens a seguem.
+      await f.getByRole('textbox', { name: 'Buscar receita', exact: true }).fill('cluster');
+      await expect(f.getByRole('tab', { name: 'Minhas (1)', exact: true })).toBeVisible();
+      await expect(f.getByRole('option')).toHaveCount(1);
+      await f.getByRole('tab', { name: 'Completas (0)', exact: true }).click();
+      await expect(f.getByText('Nenhuma receita com essa busca.', { exact: true })).toBeVisible();
+      await f.getByRole('tab', { name: 'Partes (1)', exact: true }).click();
+      await expect(opcao(page, 'Cluster fictício')).toBeVisible();
+      expect(api.errosDaPagina).toEqual([]);
+      expect(api.naoTratadas).toEqual([]);
+
+      // Sem nenhuma receita da equipe: o estado vazio da aba, com a dica de "Salvar como receita".
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      const outra = await page.context().newPage();
+      await abrir(outra, { largura, tema });
+      const g = folha(outra);
+      await g.getByRole('tab', { name: 'Minhas (0)', exact: true }).click();
+      await expect(g.getByText('Você ainda não tem receitas suas', { exact: true })).toBeVisible();
+      await expect(g.getByText('Num exercício com séries, toque em “Salvar como receita” para guardar a estrutura; ela aparece aqui.', { exact: true })).toBeVisible();
+      await expect(g.getByRole('option')).toHaveCount(0);
+      await capturar(outra, 'minhas-vazia', largura, tema);
+    });
+  }
 }

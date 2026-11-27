@@ -40,7 +40,7 @@ const conteudoDo = (sessoes: Sessao[]): ConteudoTreino => ({
 } as unknown as ConteudoTreino);
 
 async function abrirEditor(page: Page, sessoes: Sessao[]) {
-  let plano: Receita = { id: ID_PLANO, tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: conteudoDo(sessoes) };
+  let plano: Receita = { id: ID_PLANO, tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: conteudoDo(sessoes) };
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },

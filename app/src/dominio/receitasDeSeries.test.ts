@@ -6,7 +6,7 @@ import { agruparReceitasDeSeries, composicaoDaReceita, composicaoDasSeries, filt
 const tipos = (...codigos: (string | null)[]): Serie[] => codigos.map((tipo, i) => serie(`s${i}`, { tipo }));
 
 const receita = (id: string, nome: string, codigos: string[], extra: Partial<Receita> = {}): Receita => ({
-  id, tipo: 'SERIES', nome, descricao: null, ordem: 0, pastaId: null, versao: 0,
+  id, tipo: 'SERIES', origem: 'CONSULTORIA', nome, descricao: null, ordem: 0, pastaId: null, versao: 0,
   conteudo: { series: tipos(...codigos).map(({ uid: _uid, ...resto }) => resto) }, ...extra,
 });
 

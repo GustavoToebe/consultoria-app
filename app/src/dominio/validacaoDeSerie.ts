@@ -1,5 +1,6 @@
 import type { Cardio, Carga, CargaDaEtapa, Esforco, ModoDeCarga, Retomada, Serie, Tecnica } from '../api/tipos';
 import { somaDosBlocos } from './blocos';
+import { erroDoBloco } from './cardio';
 import { tecnicaDescritiva, TIPOS_DE_TECNICA } from './metodologia';
 import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
@@ -233,7 +234,8 @@ function problemasDasRepeticoes(p: Problemas, s: Pick<Serie, 'repsMin' | 'repsMa
 /** Série de exercício de cardio: só `cardio`; tipo, carga, esforço, repetições e técnica não existem. */
 function problemasDaSerieDeCardio(p: Problemas, s: Serie): void {
   if (!s.cardio) p.cardio = 'Série de cardio sem prescrição (duração, distância ou intervalos).';
-  else for (const [campo, mensagem] of Object.entries(problemasDoCardio(s.cardio))) p[`cardio.${campo}`] = mensagem;
+  // Bloco novo (com `modo`) segue `erroDoBloco`; o legado cai em `problemasDoCardio` dentro dele (import circular só em chamada, nunca na carga).
+  else for (const [campo, mensagem] of Object.entries(erroDoBloco(s.cardio))) p[`cardio.${campo}`] = mensagem;
   if (s.tipo?.trim()) p.tipo = 'Série de cardio não tem tipo.';
   if (s.carga && (s.carga.modo ?? 'NENHUMA') !== 'NENHUMA') p.carga = 'Série de cardio não tem carga.';
   if (s.carga?.valorKg != null) p['carga.valorKg'] = 'Série de cardio não tem carga em kg.';

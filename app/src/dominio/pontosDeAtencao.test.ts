@@ -74,9 +74,9 @@ describe('pontosDeAtencao', () => {
     expect(porChave.sono).toEqual({ chave: 'sono', rotulo: 'Sono', anterior: '7', atual: '4' });
     expect(porChave['p-peso']).toEqual({ chave: 'p-peso', rotulo: 'Peso em jejum', anterior: '70,0 kg', atual: '72,5 kg' });
     expect(porChave[CHAVE_DIAS_COM_TREINO]).toEqual({ chave: CHAVE_DIAS_COM_TREINO, rotulo: 'Dias com treino registrado', anterior: '5', atual: '2' });
-    // Sim repetido e item marcado não têm linha.
+    // Sim repetido não tem linha; o item marcado tem (a onda 2 da rodada de 28/11 compara os itens com a anterior).
     expect(porChave.dor).toBeNull();
-    expect(porChave.trocar).toBeNull();
+    expect(porChave.trocar).toEqual({ chave: 'trocar', rotulo: 'Quer trocar', anterior: 'Nenhum', atual: 'Batata-doce, Arroz branco' });
   });
 
   test('fato sem linha: valor igual ao anterior e primeira atualização', () => {

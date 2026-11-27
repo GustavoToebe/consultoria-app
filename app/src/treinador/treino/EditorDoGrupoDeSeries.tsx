@@ -54,7 +54,7 @@ export function faltaCargaNoGrupo(porSerie: ReturnType<typeof problemasPorSerie>
 }
 
 /** O ícone da prévia "Para o aluno" pela validação (a mesma da publicação): a forma diz o estado, não só a cor. */
-const ICONE_DO_NIVEL: Record<Nivel, LucideIcon> = { sucesso: Check, atencao: TriangleAlert, perigo: CircleAlert };
+export const ICONE_DO_NIVEL: Record<Nivel, LucideIcon> = { sucesso: Check, atencao: TriangleAlert, perigo: CircleAlert };
 
 /** Tipo e Técnica (27/11): o mesmo select, até 320 px cada, lado a lado; encolhem juntos até 200 antes de empilhar. */
 const LARGURA_DO_SELECT = 320;
@@ -66,7 +66,7 @@ const LARGURA_DO_DESCANSO = 124;
  * Uma seção da série aberta: o fio `divisor` em cima e o título (h3), com o ⓘ ao lado quando há explicação. Sem caixa
  * (séries no padrão da dieta, 19/11): as seções só se separam por fios, sem cartão aninhado.
  */
-function Faixa({ titulo, info, children }: { titulo?: string; info?: { rotulo: string; texto: string } | null; children: ReactNode }) {
+export function Faixa({ titulo, info, children }: { titulo?: string; info?: { rotulo: string; texto: string } | null; children: ReactNode }) {
   const { cores } = useTema();
   const [aberta, setAberta] = useState(false);
   return <View style={estilos.faixa}>
@@ -243,7 +243,9 @@ function Observacao({ valor, erro, aoMudar }: { valor: string; erro?: string | n
  * "Cor das séries" (`ui/CamadaDaSerie`, a peça das linhas das séries: faixa reta e fundo), com a leitura numa linha
  * ("1×AMRAP · Aquecimento · RIR 2") e o descanso embaixo. O estado fica no ícone da cor dele (✓ pronta, ⚠ aviso, ⊗ erro).
  */
-function ParaOAluno({ nivel, cor, texto, descanso }: { nivel: Nivel; cor: string | null; texto: string; descanso: string | null }) {
+export function ParaOAluno({ nivel, cor, texto, descanso, extra }: { nivel: Nivel; cor: string | null; texto: string; descanso: string | null;
+  /** Uma linha a mais, já pronta (o aquecimento e o desaquecimento do bloco de cardio). */
+  extra?: string | null }) {
   const { cores } = useTema();
   const pintura = usePinturaDaSerie(cor, 'CHEIA');
   const Icone = ICONE_DO_NIVEL[nivel];
@@ -255,6 +257,7 @@ function ParaOAluno({ nivel, cor, texto, descanso }: { nivel: Nivel; cor: string
           <Texto variante="rotulo" cor={cores.texto}>Para o aluno: </Texto>{texto}
         </Texto>
         {descanso ? <Texto variante="pequeno" numerico>{`Descanso ${descanso}`}</Texto> : null}
+        {extra ? <Texto variante="pequeno" numerico>{extra}</Texto> : null}
       </View>
       <CamadaDaSerie pintura={pintura} ativa={false} raio={RAIO_DA_PREVIA} />
     </View>

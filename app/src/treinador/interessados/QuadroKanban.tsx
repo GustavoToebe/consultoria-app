@@ -6,6 +6,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import type { ContagensInscricoes, FiltroDaFila, InscricaoResumo, SituacaoInscricao } from '../../api/inscricoesTipos';
 import { etapaDaInscricao, listarInscricoes } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
+import { podeConfirmarPagamento } from '../../dominio/cobrancaDoInteressado';
 import { instanteRelativo } from '../../dominio/datasRelativas';
 import { dataParaTela, inteiroComMilhar } from '../../dominio/formatos';
 import {
@@ -23,6 +24,7 @@ import {
   type DestinoDoCartao,
 } from '../../dominio/inscricoes';
 import { alvoSobOPonteiro } from '../../dominio/reordenar';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
 import { ItemArrastavel, useArraste, type Arraste } from '../../ui/ArrasteDaLista';
@@ -71,6 +73,7 @@ export function QuadroKanban({ filtros, contagens, rodada, etapas, aoAbrir, aoMu
   aoMudou: () => void;
 }) {
   const { avisar } = useAviso();
+  const { pode } = useSessao();
   const [largura, setLargura] = useState(0);
   const [encerradas, setEncerradas] = useState(false);
   const [ativa, setAtiva] = useState<SituacaoInscricao>('NOVA');
@@ -90,7 +93,8 @@ export function QuadroKanban({ filtros, contagens, rodada, etapas, aoAbrir, aoMu
     if (destino.tipo === 'aceitar') {
       if (podeAceitarPago(item.situacao, item.pagamento)) return aoAbrir(item.id, { tipo: 'aceitar' });
       avisar('Confirme o pagamento na inscrição antes de aceitar, ou use Aceitar sem cobrança.', 'neutro');
-      return aoAbrir(item.id);
+      // Já abre o "Confirmar pagamento?" com o plano escolhido; depois dele, o Aceitar da folha fica liberado.
+      return aoAbrir(item.id, pode('INSCRICAO_ALTERAR') && podeConfirmarPagamento(item.situacao, item.pagamento) ? { tipo: 'confirmar_pagamento' } : undefined);
     }
     if (destino.tipo === 'encerrar') return aoAbrir(item.id, { tipo: 'encerrar', situacao: destino.situacao });
     if (destino.tipo === 'reabrir') return aoAbrir(item.id, { tipo: 'reabrir' });

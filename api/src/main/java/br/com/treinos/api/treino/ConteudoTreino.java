@@ -509,6 +509,12 @@ public record ConteudoTreino(
             this(duracaoMin, distanciaKm, ritmo, zona, intervalos, null, null, null, null, null, null);
         }
 
+        /** Usa alguma chave nova ({@code modo} em diante), que o app antigo do aluno recusa no pacote offline (D16). */
+        public boolean temChaveNova() {
+            return modo != null || protocolo != null || aquecimentoSeg != null || desaquecimentoSeg != null
+                    || recuperacaoTipo != null || esforcoMaximo != null;
+        }
+
         /** Intervalado: {@code voltas} de {@code trabalhoSeg} de estímulo e {@code descansoSeg} de recuperação. */
         public record Intervalos(Integer trabalhoSeg, Integer descansoSeg, Integer voltas) {
         }

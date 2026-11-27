@@ -26,7 +26,7 @@ async function novaSerie(page: Page, botao: string) {
 for (const largura of [390, 1280]) {
   test(`FS por quantidade e técnica dentro da série WS persistidas (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
-    let modelo: Receita = { id: 'm0000000-0000-4000-8000-000000000003', tipo: 'SERIES', nome: 'Séries fictícias', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series: [] } };
+    let modelo: Receita = { id: 'm0000000-0000-4000-8000-000000000003', tipo: 'SERIES', origem: 'CONSULTORIA', nome: 'Séries fictícias', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series: [] } };
     const api = await simularApi(page, {
       ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
       'GET /inscricoes': { corpo: { itens: [], total: 0 } },
@@ -87,7 +87,7 @@ for (const largura of [390, 1280]) {
 for (const largura of [390, 1280]) {
   test(`Cluster com carga por bloco e Rest-pause com meta das retomadas, salvos e na prévia (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
-    let modelo: Receita = { id: 'm0000000-0000-4000-8000-000000000004', tipo: 'SERIES', nome: 'Etapas fictícias', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series: [] } };
+    let modelo: Receita = { id: 'm0000000-0000-4000-8000-000000000004', tipo: 'SERIES', origem: 'CONSULTORIA', nome: 'Etapas fictícias', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series: [] } };
     const api = await simularApi(page, {
       ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
       'GET /inscricoes': { corpo: { itens: [], total: 0 } },

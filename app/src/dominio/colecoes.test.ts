@@ -5,7 +5,7 @@ import {
 } from './colecoes';
 
 const m = (nome: string, pastaId: string | null, extra: Partial<Receita> = {}): Receita => ({
-  id: nome, tipo: 'PLANO_TREINO', nome, descricao: null, conteudo: null, ordem: 0, pastaId, versao: 1, ...extra,
+  id: nome, tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome, descricao: null, conteudo: null, ordem: 0, pastaId, versao: 1, ...extra,
 });
 const c = (id: string, nome: string): PastaModelo => ({ id, nome, versao: 1 });
 const nomes = (lista: readonly Receita[]) => lista.map((r) => r.nome);

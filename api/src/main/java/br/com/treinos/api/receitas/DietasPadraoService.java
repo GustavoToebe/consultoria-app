@@ -68,7 +68,7 @@ public class DietasPadraoService {
                 continue;
             }
             ConteudoDieta conteudo = DietasPadrao.comAlimentoIds(modelo.conteudo(), nutrientes);
-            receitas.save(new Receita(Receita.Tipo.PLANO_DIETA, modelo.nome(), modelo.descricao(),
+            receitas.save(new Receita(Receita.Origem.PADRAO, Receita.Tipo.PLANO_DIETA, modelo.nome(), modelo.descricao(),
                     json.writeValueAsString(conteudo), ++ordem));
         }
     }

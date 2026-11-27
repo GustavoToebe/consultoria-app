@@ -6,8 +6,8 @@ import { listarPastasModelos, listarReceitas } from '../../api/rotas';
 import type { Configuracao, Receita } from '../../api/tipos';
 import { motivoParaAcrescentar, seriesDaReceita, type ModoDaReceita } from '../../dominio/editorTreino';
 import {
-  ABAS_DE_RECEITAS, abaDaReceita, avisoDasSeriesAtuais, contagemPorAba, filtroEfetivo, filtrosDasReceitas, idDaTecla, receitaEscolhida, receitasDaLista,
-  rotuloDeSubstituir, SEM_FILTRO, type AbaDeReceitas,
+  ABAS_DE_RECEITAS, abaInicial, avisoDasSeriesAtuais, contagemPorAba, filtroEfetivo, filtrosDasReceitas, idDaTecla, receitaEscolhida, receitasDaAba,
+  receitasDaLista, rotuloDeSubstituir, SEM_FILTRO, type AbaDeReceitas,
 } from '../../dominio/listaDeReceitas';
 import { trechosDaComposicao } from '../../dominio/receitasDeSeries';
 import { useTema } from '../../tema/TemaProvider';
@@ -44,7 +44,7 @@ const ALTURA_MINIMA_DAS_PARTES = 320;
 
 /**
  * "Usar receita" do editor de treino (27/11, pedido do Gustavo): no PC uma folha larga em duas partes, a lista à esquerda
- * (busca, abas Completas e Partes com a contagem, chips de tipo e técnica e uma linha por receita com os selos da
+ * (busca, abas Completas, Partes e Minhas com a contagem, chips de tipo e técnica e uma linha por receita com os selos da
  * composição) e a prévia fixa à direita; o rodapé fixo aplica a escolhida ("Substituir as N séries" ou "Acrescentar ao
  * fim"; sem séries, só "Usar receita"). A lista é um `listbox` (APG): só a escolhida entra no Tab, setas, Home e End trocam
  * a escolha e Enter aplica. No celular é um passo de cada vez: a lista e, ao tocar, a prévia com "Voltar"; o X, o voltar
@@ -74,9 +74,9 @@ export function FolhaUsarReceita({ config, seriesAtuais, aoUsar, aoFechar }: {
 
   const receitas = useMemo(() => (dados ?? []).filter((r) => r.tipo === 'SERIES'), [dados]);
   const contagem = contagemPorAba(receitas, busca, config);
-  // Sem aba escolhida, abre na primeira que tem receita (Completas, senão Partes).
-  const aba: AbaDeReceitas = abaEscolhida ?? (receitas.length && !receitas.some((r) => abaDaReceita(r.conteudo, config) === 'COMPLETAS') ? 'PARTES' : 'COMPLETAS');
-  const daAba = useMemo(() => receitas.filter((r) => abaDaReceita(r.conteudo, config) === aba), [receitas, aba, config]);
+  // Sem aba escolhida, abre na primeira que tem receita (Completas, senão Partes; "Minhas" só se tocada).
+  const aba: AbaDeReceitas = abaEscolhida ?? abaInicial(receitas, config);
+  const daAba = useMemo(() => receitasDaAba(receitas, aba, config), [receitas, aba, config]);
   const filtros = useMemo(() => filtrosDasReceitas(daAba, config), [daAba, config]);
   const chip = filtroEfetivo(daAba, filtro, config);
   const lista = receitasDaLista(receitas, { aba, busca, filtro }, config);
@@ -154,7 +154,9 @@ export function FolhaUsarReceita({ config, seriesAtuais, aoUsar, aoFechar }: {
       ? <Vazio texto={`Nenhuma receita com ${rotuloDoChip} nessa busca.`} acao={{ rotulo: 'Mostrar todos os tipos', aoTocar: () => setFiltro(SEM_FILTRO) }} />
       : busca.trim()
         ? <Vazio texto="Nenhuma receita com essa busca." acao={{ rotulo: 'Limpar busca', aoTocar: () => setBusca('') }} />
-        : <Vazio texto={aba === 'COMPLETAS' ? 'Nenhuma receita completa ainda.' : 'Nenhuma receita de partes ainda.'} />
+        : aba === 'MINHAS'
+          ? <Vazio titulo="Você ainda não tem receitas suas" texto="Num exercício com séries, toque em “Salvar como receita” para guardar a estrutura; ela aparece aqui." />
+          : <Vazio texto={aba === 'COMPLETAS' ? 'Nenhuma receita completa ainda.' : 'Nenhuma receita de partes ainda.'} />
   ) : null;
 
   const listaDeReceitas = (

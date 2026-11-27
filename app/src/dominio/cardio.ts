@@ -390,6 +390,114 @@ export function segundosDoTexto(texto: string, unidadePadrao: 's' | 'min'): numb
   return Math.round(Number(simples[1]) * (emMinutos ? 60 : 1));
 }
 
+// ---- Editor do bloco (passo P2: o inspetor do exercício de cardio no editor de treino) ----
+
+/**
+ * Troca Contínuo ⇄ Intervalado. O contínuo volta vazio, sem `modo` (sai com as chaves de sempre, D3), e guarda só a zona
+ * (o esforço máximo não existe no contínuo, D5). O intervalado nasce Personalizado, sem número nenhum: os valores típicos
+ * só entram quando o treinador escolhe um protocolo (o app não sugere tempo de estímulo por conta própria).
+ */
+export function trocarModoDoBloco(c: Cardio, modo: ModoDeCardio): Cardio {
+  if (modoDoBloco(c) === modo) return c;
+  if (modo === 'CONTINUO') return { ...blocoContinuo(), zona: c.esforcoMaximo ? null : (c.zona ?? null) };
+  return padraoDoProtocolo('PERSONALIZADO', { ...c, intervalos: null });
+}
+
+type ParteDoIntervalado = Omit<Partial<Cardio>, 'intervalos'> & { intervalos?: Partial<NonNullable<Cardio['intervalos']>> };
+
+/**
+ * Uma mudança no intervalado: o bloco passa a `modo: "INTERVALADO"` (também o antigo, sem `modo`, que só muda de regra
+ * quando o treinador mexe nele, D3) e perde duração, distância e ritmo, que o intervalado novo não aceita.
+ */
+export function alterarIntervalado(c: Cardio, parte: ParteDoIntervalado): Cardio {
+  const { intervalos, ...resto } = parte;
+  const i = c.intervalos;
+  return {
+    ...c, modo: 'INTERVALADO', duracaoMin: null, distanciaKm: null, ritmo: null, ...resto,
+    intervalos: { trabalhoSeg: i?.trabalhoSeg ?? null, descansoSeg: i?.descansoSeg ?? null, voltas: i?.voltas ?? null, ...intervalos },
+  };
+}
+
+const emLista = (partes: string[]) => (partes.length < 2 ? partes.join('') : `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`);
+
+/**
+ * Intervalado antigo (sem `modo`) que ainda guarda duração, distância ou ritmo: o aviso que o editor mostra ANTES de o
+ * treinador mexer, porque a primeira mudança tira esses valores. Nulo quando não há nada a perder.
+ */
+export function avisoDoIntervaladoAntigo(c: Cardio): string | null {
+  if (c.modo != null || !c.intervalos) return null;
+  const partes = [c.duracaoMin != null ? 'a duração' : null, c.distanciaKm != null ? 'a distância' : null, c.ritmo?.trim() ? 'o ritmo' : null]
+    .filter((p): p is string => !!p);
+  if (!partes.length) return null;
+  return `Este bloco veio do formato antigo. Ao mudar qualquer campo, ${emLista(partes)} ${partes.length > 1 ? 'saem' : 'sai'}: o intervalado não usa.`;
+}
+
+/** O bloco usa alguma chave nova (`modo` em diante), que o app do aluno das lojas recusa no pacote offline (D16). Espelho de `Cardio.temChaveNova` na API. */
+export const temChaveNovaDoCardio = (c: Cardio): boolean =>
+  c.modo != null || c.protocolo != null || c.aquecimentoSeg != null || c.desaquecimentoSeg != null || c.recuperacaoTipo != null || c.esforcoMaximo != null;
+
+export const AVISO_DO_INTERVALADO_DESLIGADO = 'Cardio intervalado ainda não liberado: este bloco só pode ser salvo depois da liberação.';
+export const AVISO_DO_INTERVALADO_ANTIGO_DESLIGADO = 'Cardio intervalado ainda não liberado: este bloco fica como está e só pode ser alterado depois da liberação.';
+
+/**
+ * Com `cardioIntervaladoHabilitado` desligado (D16), o intervalado (novo ou antigo) fica só para leitura no editor: mexer
+ * nele grava `modo` e o servidor recusa. Nulo = editável. O novo não salva; o antigo, sem chave nova, salva como está.
+ */
+export function avisoDoIntervaladoDesligado(c: Cardio, liberado: boolean): string | null {
+  if (liberado) return null;
+  if (temChaveNovaDoCardio(c)) return AVISO_DO_INTERVALADO_DESLIGADO;
+  return modoDoBloco(c) === 'INTERVALADO' ? AVISO_DO_INTERVALADO_ANTIGO_DESLIGADO : null;
+}
+
+/** O esforço do bloco numa escolha só: zona de 1 a 5 ou "Máximo (all-out)"; nunca os dois (D5). */
+export type EsforcoDoBloco = number | 'MAXIMO' | null;
+export const esforcoDoBloco = (c: Cardio): EsforcoDoBloco => (c.esforcoMaximo ? 'MAXIMO' : (c.zona ?? null));
+export const comEsforco = (v: EsforcoDoBloco): Pick<Cardio, 'zona' | 'esforcoMaximo'> =>
+  v === 'MAXIMO' ? { zona: null, esforcoMaximo: true } : { zona: v, esforcoMaximo: null };
+
+/** As opções do esforço: as zonas e, só no intervalado, o máximo. */
+export function opcoesDeEsforco(modo: ModoDeCardio): { valor: EsforcoDoBloco; rotulo: string }[] {
+  const zonas = [1, 2, 3, 4, 5].map((z) => ({ valor: z as EsforcoDoBloco, rotulo: textoDaZona(z) }));
+  return modo === 'INTERVALADO' ? [...zonas, { valor: 'MAXIMO', rotulo: 'Máximo (all-out)' }] : zonas;
+}
+
+export type CampoDeTempo = 'aquecimento' | 'estimulo' | 'recuperacao' | 'desaquecimento';
+
+/** Unidade do número digitado sem unidade (D10): segundos no estímulo e na recuperação, minutos nas pontas. */
+export const UNIDADE_DO_TEMPO: Record<CampoDeTempo, 's' | 'min'> = { aquecimento: 'min', estimulo: 's', recuperacao: 's', desaquecimento: 'min' };
+
+/**
+ * Atalhos da lista "Digite ou escolha" de cada tempo, como os do descanso da série: só um atalho de digitação, não uma
+ * sugestão de prescrição (os valores de cada protocolo vêm só de `padraoDoProtocolo`, quando o treinador o escolhe).
+ */
+const ATALHOS_DE_TEMPO: Record<CampoDeTempo, readonly number[]> = {
+  aquecimento: [120, 180, 300, 600],
+  estimulo: [10, 15, 20, 30, 45, 60, 120, 180, 240],
+  recuperacao: [10, 15, 20, 30, 45, 60, 90, 120, 180, 240],
+  desaquecimento: [120, 180, 300, 600],
+};
+
+/** O texto da opção vazia: o estímulo é obrigatório; os outros, opcionais. */
+const SEM_TEMPO: Record<CampoDeTempo, string | null> = { aquecimento: 'Sem aquecimento', estimulo: null, recuperacao: 'Sem recuperação', desaquecimento: 'Sem desaquecimento' };
+
+/** As opções do tempo, com o valor gravado entre elas quando não é um atalho (nunca some) e a opção vazia dos opcionais. */
+export function opcoesDeTempo(campo: CampoDeTempo, atual: number | null | undefined): { valor: number | null; rotulo: string }[] {
+  const base = ATALHOS_DE_TEMPO[campo];
+  const lista = atual != null && !base.includes(atual) ? [...base, atual].sort((a, b) => a - b) : [...base];
+  const vazio = SEM_TEMPO[campo];
+  return [...(vazio ? [{ valor: null, rotulo: vazio }] : []), ...lista.map((s) => ({ valor: s as number | null, rotulo: tempoCurto(s) }))];
+}
+
+/**
+ * O tempo digitado (`segundosDoTexto`) dentro do limite do contrato: estímulo de 1 s a 60 min, os outros de 0 a 60 min.
+ * Fora disso, ilegível ou vazio, nulo (a lista não oferece nada e diz o formato).
+ */
+export function lerTempo(campo: CampoDeTempo, texto: string): number | null {
+  const s = segundosDoTexto(texto, UNIDADE_DO_TEMPO[campo]);
+  if (s == null || s > 3600 || s < (campo === 'estimulo' ? 1 : 0)) return null;
+  return s;
+}
+
 /** Ritmo como o aluno lê: "6" ou "5:30" ganham " min/km"; texto já escrito fica como está; vazio = nulo. */
 export function ritmoTexto(entrada: string | null | undefined): string | null {
   const t = entrada?.trim() ?? '';

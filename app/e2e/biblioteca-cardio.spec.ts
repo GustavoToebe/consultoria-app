@@ -142,6 +142,16 @@ test('editar: o cardio salvo abre com o tipo e as medidas dele; o antigo avisa q
 });
 
 for (const largura of [390, 1280]) {
+  test(`a linha do cardio mostra o tipo ("Cardio · Escada"); o antigo, o equipamento, sem o grupo "Cardio" (${largura} px)`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina } = await abrir(page, largura);
+    await expect(page.getByText('Cardio · Escada', { exact: true })).toBeVisible();
+    await expect(page.getByText('Cardio · Esteira', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Cardio · Cardio/)).toHaveCount(0);
+    await page.screenshot({ path: captura(`lista-cardio-${largura}-claro.png`) });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
   test(`422 no tipo de cardio aparece junto do campo e a folha continua aberta (${largura} px)`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrir(page, largura, { salvar: '422' });
     await page.getByRole('button', { name: 'Novo exercício' }).click();

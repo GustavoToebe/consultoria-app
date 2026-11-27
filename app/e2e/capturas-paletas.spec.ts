@@ -94,7 +94,7 @@ const DIETA: PlanoDetalhe<ConteudoDieta> = {
 };
 
 const METODOLOGIA_ID = 'm0000000-0000-4000-8000-000000000010';
-const METODOLOGIA: Receita = { id: METODOLOGIA_ID, tipo: 'METODOLOGIA', nome: 'Metodologia fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: CONFIGURACAO_PADRAO };
+const METODOLOGIA: Receita = { id: METODOLOGIA_ID, tipo: 'METODOLOGIA', origem: 'CONSULTORIA', nome: 'Metodologia fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: CONFIGURACAO_PADRAO };
 
 const TELAS: Tela[] = [
   {

@@ -12,7 +12,7 @@ import { aplicarRascunho, type MudancaDoRascunho, type RascunhoDaSerie, type Ras
 import type { Recorde } from '../dominio/recordesPessoais';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
 import { anteriorDaSerie, textoDoAnterior } from '../dominio/seriesAnteriores';
-import { cabecalhoDoExercicio, indiceDaSerieAtiva, melhorWsDeHoje, recordeDaWs, textoDasSeriesFeitas, textoDoRecordeDaWs } from '../dominio/telaDoExercicio';
+import { cabecalhoDoExercicio, contaEmBlocos, indiceDaSerieAtiva, melhorWsDeHoje, recordeDaWs, textoDasSeriesFeitas, textoDoRecordeDaWs } from '../dominio/telaDoExercicio';
 import { acompanharPendente, digitarPendente, type ValorPendente } from '../dominio/valorPendente';
 import { videoValido } from '../dominio/video';
 import type { RegistroLocal } from '../offline/repositorioLocal';
@@ -198,6 +198,7 @@ function CorpoDoExercicio(p: Props) {
   if (p.acaoDescanso) acoes.push({ chave: 'descanso', peca: p.acaoDescanso });
 
   const meta = <Texto variante="suave">{cabecalhoDoExercicio(e, p.config.tipoTrabalho, p.config.metodologia)}</Texto>;
+  const emBlocos = contaEmBlocos(e);
   const conteudoDoComoFazer = (
     <View style={estilos.comoFazer}>
       {p.demonstracao ? (
@@ -221,7 +222,7 @@ function CorpoDoExercicio(p: Props) {
   ) : null;
   const tituloDasSeries = (historico: ReactNode) => (
     <View style={estilos.tituloSeries}>
-      <Texto variante="bloco" nivel={2} numerico>{contagem.total > 0 ? textoDasSeriesFeitas(contagem) : 'Séries'}</Texto>
+      <Texto variante="bloco" nivel={2} numerico>{contagem.total > 0 ? textoDasSeriesFeitas(contagem, emBlocos) : emBlocos ? 'Blocos' : 'Séries'}</Texto>
       {historico}
     </View>
   );
@@ -234,6 +235,7 @@ function CorpoDoExercicio(p: Props) {
         feita={feita(c.serie.uid)}
         ativa={i === ativa}
         ultimaDoExercicio={feitas === e.series.length - 1}
+        emBlocos={emBlocos}
         aoMarcar={(concluida) => p.aoRegistrar(c.serie.uid, { carga: null, repeticoes: null, concluida })}
       />
     ) : etapasDaSerie(c.serie) ? (

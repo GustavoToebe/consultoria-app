@@ -12,7 +12,7 @@ const ws = (uid: string): Serie => ({
 
 async function planoEmLibra(page: Page, preferencia: 'kg' | 'lb' | null, { chave = true, ir = true }: { chave?: boolean; ir?: boolean } = {}) {
   const plano: Receita = {
-    id: ID_PLANO, tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
+    id: ID_PLANO, tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
     conteudo: {
       objetivo: null, orientacoes: null,
       metodologia: { id: null, nome: 'Metodologia fictícia', configuracao: structuredClone(CONFIGURACAO_PADRAO) },

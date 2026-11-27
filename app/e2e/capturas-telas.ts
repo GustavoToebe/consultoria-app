@@ -33,7 +33,7 @@ const serie = (uid: string, tipo: string, extra: Partial<Serie> = {}): Serie => 
 const daWs = (percentualMin: number) => ({ modo: 'PERCENTUAL_WS' as const, percentualMin, percentualMax: null });
 const PASTA_FORCA = 'p0000000-0000-4000-8000-000000000031';
 const receita = (id: string, nome: string, series: Serie[], extra: Partial<Receita> = {}): Receita => ({
-  id, tipo: 'SERIES', nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series }, ...extra,
+  id, tipo: 'SERIES', origem: 'CONSULTORIA', nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: { series }, ...extra,
 });
 const RECEITAS: Receita[] = [
   receita('m0000000-0000-4000-8000-000000000032', 'Força com preparação', [

@@ -36,6 +36,8 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          boolean contratosHabilitados,
                          /* Regras de atenção do treinador ligadas ({@code TREINOS_REGRAS_ATENCAO_HABILITADO}); desligadas, o app esconde tudo delas. */
                          boolean regrasAtencaoHabilitada,
+                         /* Cardio intervalado novo liberado ({@code TREINOS_CARDIO_INTERVALADO_HABILITADO}); desligado, o editor só oferece o contínuo. */
+                         boolean cardioIntervaladoHabilitado,
                          /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
                          String whatsappDaConsultoria,
                          /* Só para o aluno: as redes sociais da consultoria que estão preenchidas (links https por chave); some se nenhuma. */

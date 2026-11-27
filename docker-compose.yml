@@ -105,6 +105,8 @@ services:
       TREINOS_LOJA_HABILITADA: ${TREINOS_LOJA_HABILITADA:-true}
       TREINOS_MARKETPLACE_HABILITADO: ${TREINOS_MARKETPLACE_HABILITADO:-true}
       TREINOS_REGRAS_ATENCAO_HABILITADO: ${TREINOS_REGRAS_ATENCAO_HABILITADO:-true}
+      # Cardio intervalado: desligado por padrão (decisão de lançamento: só depois do APK com o timer nas lojas).
+      TREINOS_CARDIO_INTERVALADO_HABILITADO: ${TREINOS_CARDIO_INTERVALADO_HABILITADO:-false}
       # Ciclo menstrual, unidade da carga (libras) e migração assistida: ligados por padrão (sem segredo).
       TREINOS_CICLO_HABILITADO: ${TREINOS_CICLO_HABILITADO:-true}
       TREINOS_UNIDADE_CARGA_HABILITADA: ${TREINOS_UNIDADE_CARGA_HABILITADA:-true}

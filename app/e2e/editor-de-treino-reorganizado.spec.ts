@@ -44,7 +44,7 @@ const muitos = (d: ReturnType<typeof planoDetalhe>) => {
 
 const MODELO_ID = 'm0000000-0000-4000-8000-0000000000e7';
 async function abrirModelo(page: Page) {
-  const modelo: Receita = { id: MODELO_ID, tipo: 'PLANO_TREINO', nome: 'Semana fictícia de força', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: conteudoDoPlano(false) };
+  const modelo: Receita = { id: MODELO_ID, tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana fictícia de força', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: conteudoDoPlano(false) };
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR', 'MODELO_APLICAR', 'ALUNO_LER', 'TREINO_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },

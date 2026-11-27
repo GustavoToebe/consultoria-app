@@ -44,7 +44,7 @@ public class ReceitaService {
         }
     }
 
-    public record ReceitaResponse(UUID id, String tipo, String nome, String descricao, JsonNode conteudo, int ordem, UUID pastaId, Long versao) {
+    public record ReceitaResponse(UUID id, String tipo, String origem, String nome, String descricao, JsonNode conteudo, int ordem, UUID pastaId, Long versao) {
     }
 
     private final ReceitaRepository receitas;
@@ -86,7 +86,7 @@ public class ReceitaService {
     public ReceitaResponse criar(ReceitaRequest r) {
         exigirPlano(r.tipo());
         String conteudo = conteudoValidado(r.tipo(), r.conteudo());
-        Receita receita = new Receita(r.tipo(), r.nome().trim(), Buscas.opcional(r.descricao()), conteudo,
+        Receita receita = new Receita(Receita.Origem.CONSULTORIA, r.tipo(), r.nome().trim(), Buscas.opcional(r.descricao()), conteudo,
                 receitas.maiorOrdem(r.tipo()) + 1);
         receita.definirPasta(exigirPasta(r.pastaId()));
         return resposta(receitas.saveAndFlush(receita));
@@ -135,7 +135,7 @@ public class ReceitaService {
         for (ReceitasPadrao.Padrao p : ReceitasPadrao.todas()) {
             ordem++;
             if (existentes.add(p.tipo() + "/" + p.nome())) {
-                receitas.save(new Receita(p.tipo(), p.nome(), p.descricao(), json.writeValueAsString(p.conteudo()), ordem));
+                receitas.save(new Receita(Receita.Origem.PADRAO, p.tipo(), p.nome(), p.descricao(), json.writeValueAsString(p.conteudo()), ordem));
             }
         }
         biblioteca.garantirSuplementosPadrao();
@@ -304,7 +304,7 @@ public class ReceitaService {
     }
 
     private ReceitaResponse resposta(Receita r) {
-        return new ReceitaResponse(r.getId(), r.getTipo().name(), r.getNome(), r.getDescricao(),
+        return new ReceitaResponse(r.getId(), r.getTipo().name(), r.getOrigem().name(), r.getNome(), r.getDescricao(),
                 json.readTree(r.getConteudo()), r.getOrdem(), r.getPastaId(), r.getVersao());
     }
 }

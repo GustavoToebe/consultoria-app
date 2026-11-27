@@ -59,7 +59,7 @@ const ID_SERIES = 'm0000000-0000-4000-8000-000000000011';
 const ID_PLANO = 'm0000000-0000-4000-8000-000000000012';
 
 function receita(id: string, tipo: Receita['tipo'], nome: string, conteudo: unknown): Receita {
-  return { id, tipo, nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo };
+  return { id, tipo, origem: 'CONSULTORIA', nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo };
 }
 
 function serieDaPiramide(uid: string, reps: number): Serie {

@@ -1,7 +1,7 @@
 import type { ExercicioPlano, Serie, Sessao, UltimaCarga } from '../api/tipos';
 import {
-  cabecalhoDoExercicio, indiceDaSerieAtiva, melhorWsDeHoje, metaDaLinhaDaSerie, metaDaWsDoExercicio, progressoDosExercicios,
-  recordeDaWs, textoDasSeriesFeitas, textoDoRecordeDaWs, textoDoUltimoRegistro, topoDoExercicio, type RegistroDaWs,
+  cabecalhoDoExercicio, contaEmBlocos, indiceDaSerieAtiva, melhorWsDeHoje, metaDaLinhaDaSerie, metaDaWsDoExercicio, progressoDosExercicios,
+  quantasSeries, recordeDaWs, textoDasSeriesFeitas, textoDoRecordeDaWs, textoDoUltimoRegistro, topoDoExercicio, type RegistroDaWs,
 } from './telaDoExercicio';
 
 const ws = (uid: string, repsMin: number | null = 6, repsMax: number | null = 8, extra: Partial<Serie> = {}): Serie =>
@@ -59,6 +59,29 @@ describe('séries feitas e série ativa', () => {
   it('"Séries 0 de 3 feitas"', () => {
     expect(textoDasSeriesFeitas({ feitas: 0, total: 3 })).toBe('Séries 0 de 3 feitas');
     expect(textoDasSeriesFeitas({ feitas: 1, total: 1 })).toBe('Série 1 de 1 feita');
+  });
+});
+
+describe('cardio novo conta em blocos', () => {
+  const bloco = (uid: string, cardio: Serie['cardio']): Serie =>
+    ({ uid, tipo: null, repsMin: null, repsMax: null, carga: null, esforco: null, descansoSegundos: null, cardio }) as Serie;
+  const continuoAntigo = { duracaoMin: 30, distanciaKm: null, ritmo: null, zona: 2, intervalos: null };
+  const sit = { modo: 'INTERVALADO' as const, protocolo: 'SIT' as const, duracaoMin: null, distanciaKm: null, ritmo: null, zona: null, esforcoMaximo: true,
+    aquecimentoSeg: 240, desaquecimentoSeg: 180, intervalos: { trabalhoSeg: 30, descansoSeg: 180, voltas: 6 } };
+  const novo = exercicio([bloco('c1', continuoAntigo), bloco('c2', sit)], { modalidade: 'CARDIO', unidade: 'nenhuma' });
+  const antigo = exercicio([bloco('c1', continuoAntigo), bloco('c2', continuoAntigo)], { modalidade: 'CARDIO', unidade: 'nenhuma' });
+  it('basta um bloco com modo; o cardio antigo (sem modo) continua em séries', () => {
+    expect(contaEmBlocos(novo)).toBe(true);
+    expect(contaEmBlocos(antigo)).toBe(false);
+    expect(contaEmBlocos(exercicio([ws('a')]))).toBe(false);
+  });
+  it('"Cardio · 2 blocos" e "Blocos 0 de 2 feitos"; o antigo como antes', () => {
+    expect(cabecalhoDoExercicio(novo, 'WS')).toBe('Cardio · 2 blocos');
+    expect(cabecalhoDoExercicio(antigo, 'WS')).toBe('Cardio · 2 séries');
+    expect(textoDasSeriesFeitas({ feitas: 0, total: 2 }, true)).toBe('Blocos 0 de 2 feitos');
+    expect(textoDasSeriesFeitas({ feitas: 1, total: 1 }, true)).toBe('Bloco 1 de 1 feito');
+    expect(quantasSeries(1, true)).toBe('1 bloco');
+    expect(quantasSeries(3, false)).toBe('3 séries');
   });
 });
 

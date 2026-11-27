@@ -7,6 +7,7 @@ import { localizar, uidsComProblema } from './caminhos';
 import { carga, exercicio, grupo, rir, serie as serieDeTeste, sessao as sessaoDeTeste } from './exemplosDeTreino.apoioTeste';
 import {
   adicionarSerie,
+  alterarBlocoDeCardio,
   alterarGrupo,
   alterarGrupoComANova,
   alterarPercentuais,
@@ -15,6 +16,7 @@ import {
   cargaDoModo,
   comModalidade,
   comUidsNovos,
+  duplicarSerie,
   exercicioComUidsNovos,
   LIMITE_SERIES,
   modosDeCarga,
@@ -839,5 +841,35 @@ describe('normalizarTreino e o cardio intervalado', () => {
   it('o contínuo e o legado saem sem nenhuma chave nova (o app antigo recusa chave desconhecida)', () => {
     const c = lido(comCardio({ duracaoMin: 30, zona: 2 }));
     expect(Object.keys(c ?? {}).sort()).toEqual(['distanciaKm', 'duracaoMin', 'intervalos', 'ritmo', 'zona']);
+  });
+});
+
+describe('duplicar um bloco de cardio (duplicarSerie)', () => {
+  it('copia logo depois, com uid novo e os campos do intervalado; o contínuo segue sem chave nova', () => {
+    const sit = novaSerieDeCardio({ modo: 'INTERVALADO', protocolo: 'SIT', esforcoMaximo: true, aquecimentoSeg: 240, desaquecimentoSeg: 180, recuperacaoTipo: 'PASSIVA', intervalos: { trabalhoSeg: 30, descansoSeg: 180, voltas: 6 } });
+    const continuo = novaSerieDeCardio({ duracaoMin: 10, zona: 2 });
+    const r = duplicarSerie([continuo, sit], 1);
+    expect(r).toHaveLength(3);
+    expect(r[2].uid).not.toBe(sit.uid);
+    expect(r[2].cardio).toEqual(sit.cardio);
+    const c2 = duplicarSerie([continuo], 0)[1].cardio!;
+    expect(Object.keys(c2).sort()).toEqual(['distanciaKm', 'duracaoMin', 'intervalos', 'ritmo', 'zona']);
+  });
+
+  it('no limite de séries ou fora da lista, nada muda', () => {
+    const cheio = Array.from({ length: LIMITE_SERIES }, () => novaSerieDeCardio());
+    expect(duplicarSerie(cheio, 0)).toBe(cheio);
+    expect(duplicarSerie([], 0)).toEqual([]);
+  });
+});
+
+describe('alterar um bloco de cardio (alterarBlocoDeCardio)', () => {
+  it('campo nulo do intervalado não vira chave no contínuo; o intervalado leva os seus', () => {
+    const series = [novaSerieDeCardio(), novaSerieDeCardio()];
+    const r = alterarBlocoDeCardio(series, 1, { duracaoMin: 20, distanciaKm: null, ritmo: null, zona: 2, intervalos: null, esforcoMaximo: null, protocolo: null, recuperacaoTipo: null });
+    expect(r[0]).toBe(series[0]);
+    expect(r[1].cardio).toEqual({ duracaoMin: 20, distanciaKm: null, ritmo: null, zona: 2, intervalos: null });
+    const i = alterarBlocoDeCardio(series, 0, { modo: 'INTERVALADO', protocolo: 'RST', esforcoMaximo: true, intervalos: { trabalhoSeg: 6, descansoSeg: 30, voltas: 10 } });
+    expect(i[0].cardio).toMatchObject({ modo: 'INTERVALADO', protocolo: 'RST', esforcoMaximo: true });
   });
 });

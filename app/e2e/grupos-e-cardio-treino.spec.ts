@@ -10,7 +10,7 @@ async function abrirDiaDeTreino(page: Page, observacaoDaRemada: string | null = 
   const dia = sessaoFalsa('dia', 'Dia de teste', 1, 2);
   dia.exercicios = dia.exercicios.map((e, i) => ({ ...e, nome: ['Supino de teste', 'Remada de teste'][i], modalidade: 'LIVRE', progressao: true, observacao: i === 1 ? observacaoDaRemada : null }));
   const conteudo: ConteudoTreino = { objetivo: null, orientacoes: null, sessoes: [dia] };
-  let atual: Receita = { id: ID, tipo: 'SESSAO_TREINO', nome: 'Dia de treino fictício', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo };
+  let atual: Receita = { id: ID, tipo: 'SESSAO_TREINO', origem: 'CONSULTORIA', nome: 'Dia de treino fictício', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo };
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
@@ -68,11 +68,11 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Escolher cardio', { exact: true })).toHaveCount(0);
     // O novo fica escolhido: no estreito o cartão dele já nasce aberto.
     if (largura < 960) await expect(page.getByRole('button', { name: 'Fechar Esteira de teste', exact: true })).toBeVisible();
-    await expect(page.getByText(/Cardio tem prescrição própria/)).toBeVisible();
-    // Sem séries de força: só a prescrição de cardio.
+    // Sem séries de força: a prescrição do cardio, em blocos (docs/planos/cardio-e-hiit.md, P2).
+    await expect(page.getByText('Prescrição do cardio', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Adicionar série', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Nova série', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Novo cardio', exact: true }).click();
+    await page.getByRole('button', { name: 'Novo bloco de cardio', exact: true }).click();
     await page.getByRole('textbox', { name: 'Duração (min)', exact: true }).fill('40');
     await page.getByRole('radio', { name: 'Zona 2', exact: true }).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

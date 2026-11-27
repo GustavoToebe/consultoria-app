@@ -7,15 +7,25 @@ import { semAcento } from './telas';
  * exercício manual e a navegação pelo teclado (↑↓ na lista, a partir da busca). Funções puras.
  */
 
-/** O grupo do exercício que está sendo trocado, lido da biblioteca pelo id; manual ou que saiu da biblioteca = nenhum. */
-export function grupoDoAtual(atual: { exercicioId: string | null } | undefined, biblioteca: readonly Pick<Exercicio, 'id' | 'grupoMuscular'>[]): string | null {
-  if (!atual?.exercicioId) return null;
-  return biblioteca.find((e) => e.id === atual.exercicioId)?.grupoMuscular?.trim() || null;
+type DaBiblioteca = Pick<Exercicio, 'id' | 'grupoMuscular'> & Partial<Pick<Exercicio, 'tipoDeCardio'>>;
+export interface PreFiltroDaTroca { grupo: string | null; tipoDeCardio: string | null }
+
+/**
+ * O que pré-filtra a troca, lido da biblioteca pelo id do exercício trocado: o grupo muscular e, no cardio, o tipo de
+ * cardio, nunca o grupo (o cardio antigo do catálogo tem o grupo "Cardio" e o novo não tem grupo, D13: filtrar por ele
+ * esconderia os cardios novos). Manual, que saiu da biblioteca ou sem o dado = nenhum.
+ */
+export function preFiltroDaTroca(atual: { exercicioId: string | null } | undefined, biblioteca: readonly DaBiblioteca[], cardio: boolean): PreFiltroDaTroca {
+  const e = atual?.exercicioId ? biblioteca.find((x) => x.id === atual.exercicioId) : undefined;
+  if (!e) return { grupo: null, tipoDeCardio: null };
+  return cardio ? { grupo: null, tipoDeCardio: e.tipoDeCardio ?? null } : { grupo: e.grupoMuscular?.trim() || null, tipoDeCardio: null };
 }
 
-/** Ao abrir: trocar vem filtrado pelo grupo do exercício atual (um chip que se tira); o resto abre sem filtro. */
-export function filtrosAoAbrir(grupo: string | null): FiltrosDeExercicios {
-  return grupo ? { ...SEM_FILTROS_DE_EXERCICIOS, grupos: new Set([grupo]) } : SEM_FILTROS_DE_EXERCICIOS;
+/** Ao abrir: trocar vem filtrado pelo grupo (ou pelo tipo de cardio) do exercício atual, um chip que se tira; o resto abre sem filtro. */
+export function filtrosAoAbrir({ grupo, tipoDeCardio }: PreFiltroDaTroca): FiltrosDeExercicios {
+  if (grupo) return { ...SEM_FILTROS_DE_EXERCICIOS, grupos: new Set([grupo]) };
+  if (tipoDeCardio) return { ...SEM_FILTROS_DE_EXERCICIOS, tiposDeCardio: new Set([tipoDeCardio]) };
+  return SEM_FILTROS_DE_EXERCICIOS;
 }
 
 /**

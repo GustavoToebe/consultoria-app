@@ -47,7 +47,7 @@ public class SemanasPadraoService {
                 continue;
             }
             Modelo resolvido = SemanasPadrao.comExercicios(modelo, biblioteca);
-            receitas.save(new Receita(resolvido.tipo(), resolvido.nome(), resolvido.descricao(),
+            receitas.save(new Receita(Receita.Origem.PADRAO, resolvido.tipo(), resolvido.nome(), resolvido.descricao(),
                     json.writeValueAsString(resolvido.conteudo()), ++ordem));
         }
     }

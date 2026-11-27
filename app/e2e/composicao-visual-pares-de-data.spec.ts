@@ -37,7 +37,7 @@ const DESTINO: AlunoResumo = {
   id: 'a0000000-0000-4000-8000-0000000000b1', nome: 'Aluna Destino', ativo: true, temAcesso: true, planoAtivo: null, ultimoRegistro: null,
 };
 const MODELO: Receita = {
-  id: 'r0000000-0000-4000-8000-000000000001', tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, conteudo: null, ordem: 1, pastaId: null, versao: 1,
+  id: 'r0000000-0000-4000-8000-000000000001', tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana fictícia', descricao: null, conteudo: null, ordem: 1, pastaId: null, versao: 1,
 };
 const PERMISSOES = [...PERMISSOES_TREINADOR, 'PASTA_ALTERAR', 'TREINO_LER', 'TREINO_ALTERAR', 'DIETA_LER', 'DIETA_ALTERAR', 'MODELO_LER', 'MODELO_APLICAR', 'AUDITORIA_LER'];
 

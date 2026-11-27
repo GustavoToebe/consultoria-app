@@ -10,6 +10,15 @@ describe('seção Cardio e HIIT', () => {
       expect(item?.texto.startsWith(p.definicao)).toBe(true);
     }
   });
+
+  it('os guias explicam a folha "Escolher cardio", os blocos, o all-out e o timer do aluno, sem calcular nada de saúde', () => {
+    const treinador = textoDoGuia('treinador');
+    for (const termo of ['Escolher cardio', 'Cardio · Escada', 'cardio manual', '+ Novo bloco de cardio', 'all-out', 'Timer do aluno']) expect(treinador).toContain(termo);
+    const aluno = textoDoGuia('aluno');
+    for (const termo of ['Iniciar timer', 'Volta 3 de 10', 'all-out', 'marcar como feito', 'só o "feito" é registrado']) expect(aluno).toContain(termo);
+    // O cardio não tem mais a série de antes ("tempo de esforço", "a quantidade" do cardio).
+    expect(treinador).not.toMatch(/tempo de esforço|no cardio, a quantidade/);
+  });
 });
 
 /** Todo o texto de um guia, num bloco só, para procurar termos. */

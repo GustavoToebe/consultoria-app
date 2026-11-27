@@ -27,6 +27,7 @@ import {
 } from '../../api/rotas';
 import type { OpcaoQuestionario } from '../../api/tipos';
 import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
+import { corpoDaConfirmacao, planoDoInteressado, podeConfirmarPagamento, podeGerarCobranca } from '../../dominio/cobrancaDoInteressado';
 import { centavosParaTela, dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
 import { linkDoPerfilDoAluno } from '../../dominio/redesSociais';
 import { rotuloDoSexo } from '../../dominio/sexo';
@@ -86,6 +87,7 @@ import { Texto } from '../../ui/Texto';
 import { useAvisoDoPlano } from '../../ui/useAvisoDoPlano';
 import { useCarregar } from '../../ui/useCarregar';
 import type { Executar } from './executar';
+import { GerarCobrancaDoInteressado } from './GerarCobrancaDoInteressado';
 import { HistoricoDaInscricao } from './HistoricoDaInscricao';
 import { PropostaDaInscricao } from './PropostaDaInscricao';
 import { RespostaComModelo } from './RespostaComModelo';
@@ -99,6 +101,7 @@ const SEM_ORIGEM = '';
 export type PedidoDaFolha =
   | { tipo: 'aceitar' }
   | { tipo: 'aceitar_cortesia' }
+  | { tipo: 'confirmar_pagamento' }
   | { tipo: 'encerrar'; situacao: Encerramento }
   | { tipo: 'reabrir' };
 
@@ -141,13 +144,15 @@ export function FolhaDaInscricao({ id, pedidoInicial, responsaveis, aoFechar, ao
   const podeAceitarAqui = decide && !!dados && pode('ALUNO_ALTERAR') && podeAceitar(dados.situacao);
   const podeAceitarPagoAqui = podeAceitarAqui && !!dados && podeAceitarPago(dados.situacao, dados.pagamento);
   const podeAceitarSemCobrancaAqui = podeAceitarAqui && !!dados && podeAceitarSemCobranca(dados.situacao, dados.pagamento);
+  const podeConfirmarAqui = decide && !!dados && podeConfirmarPagamento(dados.situacao, dados.pagamento);
   const podeEncerrarAqui = decide && !!dados && podeEncerrar(dados.situacao);
   const podeReabrirAqui = decide && !!dados && podeReabrir(dados.situacao);
-  const rodape = podeAceitarAqui || podeEncerrarAqui || podeReabrirAqui ? (
+  const rodape = podeAceitarAqui || podeConfirmarAqui || podeEncerrarAqui || podeReabrirAqui ? (
     <>
       {podeEncerrarAqui ? <Botao rotulo="Encerrar" tipo="perigoTexto" aoTocar={() => setPedido({ tipo: 'encerrar', situacao: 'RECUSADA' })} carregando={decidindo === 'encerrar'} desabilitado={!!decidindo} /> : null}
       {podeReabrirAqui ? <Botao rotulo="Reabrir atendimento" aoTocar={() => setPedido({ tipo: 'reabrir' })} carregando={decidindo === 'reabrir'} desabilitado={!!decidindo} /> : null}
       {podeAceitarSemCobrancaAqui ? <Botao rotulo="Aceitar sem cobrança" tipo="secundario" aoTocar={() => setPedido({ tipo: 'aceitar_cortesia' })} carregando={decidindo === 'aceitar_cortesia'} desabilitado={!!decidindo} /> : null}
+      {podeConfirmarAqui ? <Botao rotulo="Confirmar pagamento" tipo="secundario" aoTocar={() => setPedido({ tipo: 'confirmar_pagamento' })} carregando={decidindo === 'confirmar_pagamento'} desabilitado={!!decidindo} /> : null}
       {podeAceitarAqui ? (
         <Botao
           rotulo="Aceitar"
@@ -345,6 +350,13 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       () => setMotivoReabertura(''));
   };
 
+  // Registro manual (o app não confere): vai com o gravado, não com o andamento ainda não salvo da folha.
+  const confirmarPagamento = () => {
+    aoFecharPedido();
+    aoDecidindo('confirmar_pagamento');
+    executar('confirmar_pagamento', () => alterarInscricao(dados.id, corpoDaConfirmacao(dados)), 'Pagamento confirmado. Agora dá para aceitar.');
+  };
+
   const aceitar = (semCobranca = false) => {
     ultimoAceiteSemCobranca.current = semCobranca;
     aoFecharPedido();
@@ -404,6 +416,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
   }
 
   const proposta = dados.proposta;
+  const planoDaPessoa = planoDoInteressado(dados);
   const resumoDaProposta = temProposta(proposta)
     ? [proposta.planoNome, proposta.valorCentavos !== null ? centavosParaTela(proposta.valorCentavos) : null,
         proposta.periodicidade ? PERIODICIDADES[proposta.periodicidade] : null].filter(Boolean).join(' · ')
@@ -527,6 +540,10 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
           titulo="Aluno cadastrado"
           descricao={`Esta inscrição já virou aluno${dados.aceitaEm ? ` em ${dataHoraParaTela(dados.aceitaEm)}` : ''}.${dados.aceitaSemCobranca ? ' Aceita sem cobrança (cortesia).' : ''}`}
         >
+          {dados.alunoId && podeGerarCobranca(dados) ? (
+            <GerarCobrancaDoInteressado alunoId={dados.alunoId} nomeDoAluno={dados.nome} plano={planoDaPessoa}
+              valorDaProposta={proposta.valorCentavos} pagamentoConfirmado={dados.pagamento === 'CONFIRMADO_MANUAL'} />
+          ) : null}
           {dados.alunoId && podeVerAluno ? (
             <LinhaDeAcoes><Botao rotulo="Abrir ficha" aoTocar={() => abrirFicha(dados.alunoId ?? '')} /></LinhaDeAcoes>
           ) : null}
@@ -560,6 +577,17 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
             valor={anamneseDoAceite} aoMudar={setAnamneseEscolhida}
             avisoDoAcesso={!(convidar && podeConvidar) && anamneseDoAceite !== null} />
         ) : null}
+      </PainelConfirmacao>
+      <PainelConfirmacao visivel={pedido?.tipo === 'confirmar_pagamento' && podeAlterar && podeConfirmarPagamento(dados.situacao, dados.pagamento)}
+        titulo="Confirmar pagamento?"
+        mensagem={`Registra que ${dados.nome} pagou. O app não confere pagamento: confira no seu banco antes.`}
+        rotuloConfirmar="Confirmar pagamento" aoConfirmar={confirmarPagamento} aoCancelar={aoFecharPedido}>
+        <View style={estilos.conferir}>
+          <Texto variante="secao">Conferir antes de confirmar</Texto>
+          <Texto variante="pequeno">Plano: {planoDaPessoa.nome ?? 'Não escolhido'}</Texto>
+          {proposta.valorCentavos !== null ? <Texto variante="pequeno">Valor proposto: {centavosParaTela(proposta.valorCentavos)}</Texto> : null}
+          <Texto variante="pequeno">Depois, use Aceitar para cadastrar o aluno.</Texto>
+        </View>
       </PainelConfirmacao>
       <PainelConfirmacao visivel={pedido?.tipo === 'aceitar_cortesia' && podeCadastrar && podeAceitarSemCobranca(dados.situacao, dados.pagamento)}
         titulo="Aceitar sem cobrança?"
@@ -679,10 +707,14 @@ function ResultadoDoAceite({ aceite, dados, podeVerAluno, pagamentosHabilitados,
         <Passo feito={temProposta(proposta)} texto={temProposta(proposta)
           ? `Proposta: ${[proposta.planoNome, centavosParaTela(proposta.valorCentavos)].filter((x) => x && x !== SEM_DADO).join(' · ') || 'registrada'}`
           : 'Sem proposta registrada'} />
-        {pagamentosHabilitados ? (
+        {pagamentosHabilitados && cortesia ? (
           <Texto variante="pequeno">
             Para cobrar pelo app, cadastre a contratação no Financeiro, na ficha do aluno{dados.planoComercialNome ? ` (plano escolhido na página: ${dados.planoComercialNome})` : ''}.
           </Texto>
+        ) : null}
+        {!cortesia ? (
+          <GerarCobrancaDoInteressado alunoId={aceite.alunoId} nomeDoAluno={dados.nome} plano={planoDoInteressado(dados)}
+            valorDaProposta={proposta.valorCentavos} pagamentoConfirmado={dados.pagamento === 'CONFIRMADO_MANUAL'} />
         ) : null}
         {podeVerAluno ? (
           <LinhaDeAcoes><Botao rotulo="Abrir ficha" aoTocar={() => aoAbrirFicha(aceite.alunoId)} /></LinhaDeAcoes>

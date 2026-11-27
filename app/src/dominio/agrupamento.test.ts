@@ -115,6 +115,12 @@ describe('carga e esforço em texto', () => {
     expect(textoCardio({ intervalos: { trabalhoSeg: 30, descansoSeg: 60, voltas: 8 } })).toBe('8× 30 s / 60 s de descanso');
     expect(textoCardio(null)).toBe('—');
   });
+
+  it('cardio novo (com modo): a prévia do aluno; o contínuo e o legado seguem o texto de sempre', () => {
+    const sit = { modo: 'INTERVALADO' as const, protocolo: 'SIT' as const, esforcoMaximo: true, aquecimentoSeg: 240, desaquecimentoSeg: 180, intervalos: { trabalhoSeg: 30, descansoSeg: 180, voltas: 6 } };
+    expect(textoCardio(sit)).toBe('SIT · 6 × 30 s all-out / 3 min · ~25 min');
+    expect(textoCardio({ duracaoMin: 30, zona: 2 })).toBe('30 min · zona 2');
+  });
 });
 
 describe('resumo de técnicas e descanso na lista do dia', () => {

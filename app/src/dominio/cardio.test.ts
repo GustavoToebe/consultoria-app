@@ -4,6 +4,8 @@ import {
   modoDoBloco, mostraMedida, nomeDaFase, padraoDoProtocolo, partesDaPrevia, pausarTimer, previaDoBloco, previaParaOAluno,
   PROTOCOLOS, pularFase, relogioDoTimer, resumoDaLista, resumoDoBloco, retomarTimer, ritmoTexto, segundosDoTexto, tempoCurto,
   tempoTotalDoBloco, tempoTotalDoCardio, textoDoAquecimento, voltaDaFase,
+  alterarIntervalado, avisoDoIntervaladoAntigo, comEsforco, esforcoDoBloco, lerTempo, opcoesDeEsforco, opcoesDeTempo, trocarModoDoBloco,
+  AVISO_DO_INTERVALADO_ANTIGO_DESLIGADO, AVISO_DO_INTERVALADO_DESLIGADO, avisoDoIntervaladoDesligado, temChaveNovaDoCardio,
 } from './cardio';
 
 const continuo = (parte: Partial<Cardio> = {}): Cardio => ({ ...blocoContinuo(), ...parte });
@@ -291,5 +293,82 @@ describe('timer do intervalado', () => {
     const antigo: Cardio = { duracaoMin: null, distanciaKm: null, ritmo: null, zona: null, intervalos: { trabalhoSeg: 30, descansoSeg: 60, voltas: 2 } };
     expect(fasesDoBloco(antigo).map((f) => f.fase)).toEqual(['ESTIMULO', 'RECUPERACAO', 'ESTIMULO']);
     expect(nomeDaFase(fasesDoBloco(antigo)[1], antigo)).toBe('Recuperação');
+  });
+});
+
+describe('editor do bloco (P2)', () => {
+  it('trocar o modo: o intervalado nasce Personalizado e vazio; o contínuo volta sem modo, com a zona', () => {
+    const i = trocarModoDoBloco(continuo({ duracaoMin: 30, zona: 2 }), 'INTERVALADO');
+    expect(i).toMatchObject({ modo: 'INTERVALADO', protocolo: 'PERSONALIZADO', duracaoMin: null, zona: 2, intervalos: { trabalhoSeg: null, descansoSeg: null, voltas: null } });
+    expect(i.aquecimentoSeg ?? null).toBeNull();
+    const c = trocarModoDoBloco(padraoDoProtocolo('SIT'), 'CONTINUO');
+    expect(c).toEqual({ ...blocoContinuo(), zona: null });
+    expect('modo' in c).toBe(false);
+    expect(trocarModoDoBloco(padraoDoProtocolo('CURTO'), 'CONTINUO').zona).toBe(5);
+    const mesmo = continuo();
+    expect(trocarModoDoBloco(mesmo, 'CONTINUO')).toBe(mesmo);
+  });
+
+  it('mexer no intervalado antigo grava o modo e tira duração, distância e ritmo; o aviso vem antes', () => {
+    const antigo: Cardio = { duracaoMin: 20, distanciaKm: null, ritmo: '6:00', zona: null, intervalos: { trabalhoSeg: 30, descansoSeg: 60, voltas: 8 } };
+    expect(avisoDoIntervaladoAntigo(antigo)).toBe('Este bloco veio do formato antigo. Ao mudar qualquer campo, a duração e o ritmo saem: o intervalado não usa.');
+    const novo = alterarIntervalado(antigo, { intervalos: { voltas: 6 } });
+    expect(novo).toMatchObject({ modo: 'INTERVALADO', duracaoMin: null, ritmo: null, intervalos: { trabalhoSeg: 30, descansoSeg: 60, voltas: 6 } });
+    expect(avisoDoIntervaladoAntigo(novo)).toBeNull();
+    expect(avisoDoIntervaladoAntigo({ ...antigo, duracaoMin: null, ritmo: null })).toBeNull();
+    expect(avisoDoIntervaladoAntigo(continuo({ duracaoMin: 20 }))).toBeNull();
+  });
+
+  it('esforço: zona ou máximo, nunca os dois; o máximo só no intervalado', () => {
+    expect(comEsforco('MAXIMO')).toEqual({ zona: null, esforcoMaximo: true });
+    expect(comEsforco(3)).toEqual({ zona: 3, esforcoMaximo: null });
+    expect(comEsforco(null)).toEqual({ zona: null, esforcoMaximo: null });
+    expect(esforcoDoBloco(padraoDoProtocolo('SIT'))).toBe('MAXIMO');
+    expect(esforcoDoBloco(continuo({ zona: 2 }))).toBe(2);
+    expect(opcoesDeEsforco('CONTINUO').map((o) => o.rotulo)).toEqual(['Zona 1', 'Zona 2', 'Zona 3', 'Zona 4', 'Zona 5']);
+    expect(opcoesDeEsforco('INTERVALADO').at(-1)).toEqual({ valor: 'MAXIMO', rotulo: 'Máximo (all-out)' });
+  });
+
+  it('tempos: unidade do campo, limite do contrato e o valor gravado sempre entre as opções', () => {
+    expect(lerTempo('estimulo', '30')).toBe(30);
+    expect(lerTempo('aquecimento', '4')).toBe(240);
+    expect(lerTempo('recuperacao', '1:30')).toBe(90);
+    expect(lerTempo('estimulo', '0')).toBeNull();
+    expect(lerTempo('recuperacao', '0')).toBe(0);
+    expect(lerTempo('aquecimento', '90')).toBeNull();
+    expect(lerTempo('estimulo', 'abc')).toBeNull();
+    expect(opcoesDeTempo('recuperacao', null)[0]).toEqual({ valor: null, rotulo: 'Sem recuperação' });
+    expect(opcoesDeTempo('estimulo', null)[0].valor).toBe(10);
+    expect(opcoesDeTempo('estimulo', 75).map((o) => o.rotulo)).toContain('1 min 15 s');
+  });
+});
+
+describe('cardio intervalado com a chave desligada (D16)', () => {
+  const sit = padraoDoProtocolo('SIT');
+  const antigo: Cardio = { ...blocoContinuo(), zona: 3, intervalos: { trabalhoSeg: 30, descansoSeg: 60, voltas: 8 } };
+
+  it('o contínuo e o intervalado antigo não têm chave nova; qualquer campo novo tem', () => {
+    expect(temChaveNovaDoCardio(continuo({ duracaoMin: 20, zona: 2 }))).toBe(false);
+    expect(temChaveNovaDoCardio(antigo)).toBe(false);
+    expect(temChaveNovaDoCardio(sit)).toBe(true);
+    expect(temChaveNovaDoCardio(continuo({ modo: 'CONTINUO' }))).toBe(true);
+    expect(temChaveNovaDoCardio(continuo({ esforcoMaximo: true }))).toBe(true);
+    // O contínuo do editor manda `esforcoMaximo: null` e `protocolo: null`: nulo não conta.
+    expect(temChaveNovaDoCardio(continuo({ esforcoMaximo: null, protocolo: null, recuperacaoTipo: null }))).toBe(false);
+  });
+
+  it('liberado, nada a avisar; desligado, o intervalado (novo ou antigo) fica só para leitura', () => {
+    expect(avisoDoIntervaladoDesligado(sit, true)).toBeNull();
+    expect(avisoDoIntervaladoDesligado(sit, false)).toBe(AVISO_DO_INTERVALADO_DESLIGADO);
+    expect(avisoDoIntervaladoDesligado(antigo, false)).toBe(AVISO_DO_INTERVALADO_ANTIGO_DESLIGADO);
+    expect(avisoDoIntervaladoDesligado(continuo({ duracaoMin: 20 }), false)).toBeNull();
+  });
+
+  it('a saída do bloco travado, "Contínuo", nunca grava modo', () => {
+    for (const c of [sit, antigo]) {
+      const r = trocarModoDoBloco(c, 'CONTINUO');
+      expect(temChaveNovaDoCardio(r)).toBe(false);
+      expect('modo' in r).toBe(false);
+    }
   });
 });

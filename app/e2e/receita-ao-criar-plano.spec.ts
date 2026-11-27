@@ -19,7 +19,7 @@ const FICHA: AlunoDetalhe = {
 const PASTA: PastaResumo = { id: PASTA_ID, alunoId: ALUNO_ID, titulo: 'Plano 17', inicio: '2026-10-16', fim: '2026-10-30', concluidaEm: null };
 
 function receita(n: number, tipo: Receita['tipo'], nome: string): Receita {
-  return { id: `c0000000-0000-4000-8000-${String(n).padStart(12, '0')}`, tipo, nome, descricao: null, conteudo: {}, ordem: n, pastaId: null, versao: 1 };
+  return { id: `c0000000-0000-4000-8000-${String(n).padStart(12, '0')}`, tipo, origem: 'PADRAO', nome, descricao: null, conteudo: {}, ordem: n, pastaId: null, versao: 1 };
 }
 
 const NOMES = ['Semana ABC', 'Semana ABCD', 'Wellness 1', 'Wellness 2', 'Wellness 3', 'Wellness 4', 'Torso e Limbs', 'Plano 10', 'Plano 2.1', 'Plano 16'];
@@ -97,10 +97,12 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
     const pasta = page.getByRole('dialog', { name: 'Plano 17' });
 
-    for (const [botaoNovo, titulo, nome] of [
-      ['Nova dieta', /^Nova dieta em/, 'Dieta de teste'],
-      ['Nova mobilidade', /^Nova mobilidade em/, 'Mobilidade de teste'],
+    // Cada tipo é uma aba da pasta: o "Nova …" mora na aba do tipo.
+    for (const [aba, botaoNovo, titulo, nome] of [
+      [/^Dieta/, 'Nova dieta', /^Nova dieta em/, 'Dieta de teste'],
+      [/^Mobilidade/, 'Nova mobilidade', /^Nova mobilidade em/, 'Mobilidade de teste'],
     ] as const) {
+      await pasta.getByRole('tab', { name: aba }).click();
       await pasta.getByRole('button', { name: botaoNovo, exact: true }).click();
       const novo = page.getByRole('dialog', { name: titulo });
       await novo.getByRole('radio', { name: 'De um modelo', exact: true }).click();

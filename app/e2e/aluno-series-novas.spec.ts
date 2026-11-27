@@ -70,6 +70,8 @@ for (const largura of [390, 1280]) {
     const api = await abrir(page, sessaoComCardio(), '/aluno/sessao/cardio/esteira?data=2026-10-19');
     await expect(page.getByText('Duração: 30 min', { exact: false })).toBeVisible();
     await expect(page.getByText('Zona: 2', { exact: false })).toBeVisible();
+    // O cardio antigo (sem `modo`) segue contado em séries; só o novo conta em blocos (aluno-cardio-timer.spec.ts).
+    await expect(page.getByText('Séries 0 de 2 feitas', { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /Carga da série|Repetições da série/ })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('cardio-aluno.png'), fullPage: true });

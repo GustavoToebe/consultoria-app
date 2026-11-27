@@ -35,7 +35,21 @@ export function metaDaWsDoExercicio(e: Pick<ExercicioPlano, 'series'>, tipoTraba
   return metas.length > 0 && metas.every((m) => m !== null && m === metas[0]) ? `meta da ${tipoTrabalho}: ${metas[0]}` : null;
 }
 
-/** "Peso livre · 3 séries · meta da WS: 6 a 8 reps": cada parte some quando não existe. As séries são as da contagem "N de M feitas". */
+/**
+ * O cardio novo conta em blocos, não em séries (cada série de um exercício `CARDIO` é um bloco, D1 de
+ * docs/planos/cardio-e-hiit.md): basta um bloco com `modo`. O cardio antigo (sem `modo`) continua em séries, como antes.
+ * Limite: o contínuo novo também não grava `modo` (D3), então um cardio só com blocos contínuos ainda conta em séries.
+ */
+export const contaEmBlocos = (e: Pick<ExercicioPlano, 'series'>): boolean => e.series.some((s) => s.cardio?.modo != null);
+
+/** "3 séries", "1 série" ou, no cardio novo, "3 blocos", "1 bloco". */
+export const quantasSeries = (n: number, blocos: boolean): string =>
+  `${n} ${blocos ? (n === 1 ? 'bloco' : 'blocos') : n === 1 ? 'série' : 'séries'}`;
+
+/**
+ * "Peso livre · 3 séries · meta da WS: 6 a 8 reps" (no cardio novo, "Cardio · 2 blocos"): cada parte some quando não
+ * existe. As séries são as da contagem "N de M feitas".
+ */
 export function cabecalhoDoExercicio(
   e: Pick<ExercicioPlano, 'modalidade' | 'series'>,
   tipoTrabalho: string,
@@ -44,7 +58,7 @@ export function cabecalhoDoExercicio(
   const total = contagemDoExercicio(e, () => false, metodologia).total || e.series.length;
   return [
     e.modalidade ? (MODALIDADES[e.modalidade] ?? e.modalidade) : null,
-    `${total} ${total === 1 ? 'série' : 'séries'}`,
+    quantasSeries(total, contaEmBlocos(e)),
     metaDaWsDoExercicio(e, tipoTrabalho),
   ].filter(Boolean).join(' · ');
 }
@@ -63,8 +77,12 @@ export function indiceDaSerieAtiva(series: readonly Pick<Serie, 'uid'>[], feita:
   return series.findIndex((s) => !feita(s.uid));
 }
 
-/** "Séries 0 de 3 feitas" (a contagem de `contagemDoExercicio`, a mesma da lista do dia e do "Bom trabalho"). */
-export function textoDasSeriesFeitas({ feitas, total }: { feitas: number; total: number }): string {
+/**
+ * "Séries 0 de 3 feitas" (a contagem de `contagemDoExercicio`, a mesma da lista do dia e do "Bom trabalho"); no cardio
+ * novo (`contaEmBlocos`), "Blocos 0 de 3 feitos".
+ */
+export function textoDasSeriesFeitas({ feitas, total }: { feitas: number; total: number }, blocos = false): string {
+  if (blocos) return total === 1 ? `Bloco ${feitas} de 1 feito` : `Blocos ${feitas} de ${total} feitos`;
   return total === 1 ? `Série ${feitas} de 1 feita` : `Séries ${feitas} de ${total} feitas`;
 }
 

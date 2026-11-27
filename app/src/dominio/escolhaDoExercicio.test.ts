@@ -1,19 +1,31 @@
-import { filtrosAoAbrir, grupoDoAtual, linhaDoManual, linhaVizinha } from './escolhaDoExercicio';
+import { filtrosAoAbrir, linhaDoManual, linhaVizinha, preFiltroDaTroca } from './escolhaDoExercicio';
 import { SEM_FILTROS_DE_EXERCICIOS } from './exerciciosDaBiblioteca';
 
-const biblioteca = [{ id: 'a', grupoMuscular: ' Peito ' }, { id: 'b', grupoMuscular: null }];
+const biblioteca = [
+  { id: 'a', grupoMuscular: ' Peito ' }, { id: 'b', grupoMuscular: null },
+  // Cardio antigo do catálogo (grupo "Cardio", sem tipo) e o novo (sem grupo, com tipo; D13).
+  { id: 'esteira-antiga', grupoMuscular: 'Cardio', tipoDeCardio: null }, { id: 'escada', grupoMuscular: null, tipoDeCardio: 'ESCADA' as const },
+];
+const nada = { grupo: null, tipoDeCardio: null };
 
 describe('pré-filtro da troca', () => {
   it('o grupo vem da biblioteca pelo id do exercício atual', () => {
-    expect(grupoDoAtual({ exercicioId: 'a' }, biblioteca)).toBe('Peito');
-    expect(grupoDoAtual({ exercicioId: 'b' }, biblioteca)).toBeNull();
-    expect(grupoDoAtual({ exercicioId: 'saiu' }, biblioteca)).toBeNull();
-    expect(grupoDoAtual({ exercicioId: null }, biblioteca)).toBeNull();
-    expect(grupoDoAtual(undefined, biblioteca)).toBeNull();
+    expect(preFiltroDaTroca({ exercicioId: 'a' }, biblioteca, false)).toEqual({ grupo: 'Peito', tipoDeCardio: null });
+    expect(preFiltroDaTroca({ exercicioId: 'b' }, biblioteca, false)).toEqual(nada);
+    expect(preFiltroDaTroca({ exercicioId: 'saiu' }, biblioteca, false)).toEqual(nada);
+    expect(preFiltroDaTroca({ exercicioId: null }, biblioteca, false)).toEqual(nada);
+    expect(preFiltroDaTroca(undefined, biblioteca, false)).toEqual(nada);
   });
-  it('com grupo abre filtrado por ele; sem grupo, sem filtro', () => {
-    expect([...filtrosAoAbrir('Peito').grupos]).toEqual(['Peito']);
-    expect(filtrosAoAbrir(null)).toBe(SEM_FILTROS_DE_EXERCICIOS);
+  it('no cardio vale o tipo, nunca o grupo "Cardio" do catálogo (esconderia os cardios novos, sem grupo)', () => {
+    expect(preFiltroDaTroca({ exercicioId: 'escada' }, biblioteca, true)).toEqual({ grupo: null, tipoDeCardio: 'ESCADA' });
+    expect(preFiltroDaTroca({ exercicioId: 'esteira-antiga' }, biblioteca, true)).toEqual(nada);
+  });
+  it('com grupo ou tipo abre filtrado por ele; sem nenhum, sem filtro', () => {
+    expect([...filtrosAoAbrir({ grupo: 'Peito', tipoDeCardio: null }).grupos]).toEqual(['Peito']);
+    const doCardio = filtrosAoAbrir({ grupo: null, tipoDeCardio: 'ESCADA' });
+    expect([...doCardio.tiposDeCardio]).toEqual(['ESCADA']);
+    expect(doCardio.grupos.size).toBe(0);
+    expect(filtrosAoAbrir(nada)).toBe(SEM_FILTROS_DE_EXERCICIOS);
   });
 });
 

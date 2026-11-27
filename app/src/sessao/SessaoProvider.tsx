@@ -96,6 +96,8 @@ interface ValorSessao {
   contratosHabilitados: boolean;
   /** Regras de atenção do treinador ligadas? Desligado ou desconhecido, o app esconde tudo delas e não as consulta. */
   regrasAtencaoHabilitada: boolean;
+  /** Cardio intervalado novo liberado? Desligado ou desconhecido, o editor de cardio só oferece o contínuo (D16). */
+  cardioIntervaladoHabilitado: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos; nulo = sem "Falar com o treinador". */
   whatsappDaConsultoria: string | null;
   /** Só do aluno: links das redes preenchidas da consultoria; nulo = nenhuma (a fileira não aparece). */
@@ -499,6 +501,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       whatsappHabilitado:perfil?.whatsappHabilitado===true,
       contratosHabilitados:perfil?.contratosHabilitados===true,
       regrasAtencaoHabilitada:perfil?.regrasAtencaoHabilitada===true,
+      cardioIntervaladoHabilitado:perfil?.cardioIntervaladoHabilitado===true,
       whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
       redesSociaisDaConsultoria:perfil?.redesSociaisDaConsultoria??null,
       acessoPausado:perfil?.acessoPausado===true,

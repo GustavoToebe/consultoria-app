@@ -443,6 +443,24 @@ export function alterarPercentuais(series: Serie[], indice: number, min: number 
   });
 }
 
+/**
+ * Duplica UMA série logo depois dela, com uid novo e cópia profunda (o bloco de cardio duplicado leva protocolo,
+ * aquecimento e esforço, pelo `copiarCardio`). No limite de séries do exercício, nada muda.
+ */
+export function duplicarSerie(series: Serie[], indice: number): Serie[] {
+  const original = series[indice];
+  if (!original || series.length >= LIMITE_SERIES) return series;
+  return [...series.slice(0, indice + 1), serieNormalizada(original, novoUid()), ...series.slice(indice + 1)];
+}
+
+/**
+ * Troca a prescrição de UM bloco de cardio pelo `copiarCardio`: os campos do intervalado só entram quando preenchidos, para
+ * o contínuo sair com as chaves de sempre (D16: um `esforcoMaximo: null` a mais faria o app antigo recusar o pacote).
+ */
+export function alterarBlocoDeCardio(series: Serie[], indice: number, cardio: Cardio): Serie[] {
+  return series.map((s, i) => (i === indice ? { ...s, cardio: copiarCardio(cardio) } : s));
+}
+
 export function removerGrupo(series: Serie[], grupo: GrupoDeSeries): Serie[] {
   return trocarGrupo(series, grupo, []);
 }

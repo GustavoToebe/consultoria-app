@@ -62,7 +62,7 @@ const COLECOES: PastaModelo[] = [
 ];
 let seq = 0;
 const modelo = (tipo: TipoReceita, nome: string, pastaId: string | null, conteudo: unknown = null, descricao: string | null = 'Modelo fictício para a revisão da tela larga.'): Receita =>
-  ({ id: `r0000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`, tipo, nome, descricao, conteudo, ordem: seq, pastaId, versao: 1 });
+  ({ id: `r0000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`, tipo, origem: 'CONSULTORIA', nome, descricao, conteudo, ordem: seq, pastaId, versao: 1 });
 
 const ARROZ: Alimento = alimento(900, 'Arroz fictício', 128, 2.5, 28, 0.2);
 const PAO: Alimento = alimento(901, 'Pão fictício', 266, 8.4, 49.6, 3.2);

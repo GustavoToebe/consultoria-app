@@ -143,7 +143,7 @@ const exercicio = (uid: string, nome: string, series: Serie[]): ExercicioPlano =
 async function abrirTreino(page: Page, escuro = false) {
   if (escuro) await page.addInitScript(([id]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'ESCURO' })), [TREINADOR.id]);
   const modelo: Receita = {
-    id: ID_MODELO, tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
+    id: ID_MODELO, tipo: 'PLANO_TREINO', origem: 'CONSULTORIA', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
     conteudo: {
       objetivo: null, orientacoes: null,
       metodologia: { id: null, nome: 'Metodologia fictícia', configuracao: structuredClone(CONFIGURACAO_PADRAO) },

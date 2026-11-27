@@ -1,5 +1,6 @@
 import type { Cardio, Carga, CargaDaEtapa, Configuracao, Esforco, ModoDeCarga, Serie, Tecnica } from '../api/tipos';
 import { blocosValidos, somaDosBlocos, textoDeBlocos } from './blocos';
+import { previaDoBloco } from './cardio';
 import { numeroParaTela } from './formatos';
 import { explicacaoDoCatalogo } from './catalogoMetodologia';
 import { cargaIlegivel, TEXTO_CARGA_ILEGIVEL } from './modoDeCarga';
@@ -200,6 +201,8 @@ export function textoCargaEEsforco(s: Pick<Serie, 'carga' | 'esforco'>, nomeDaWs
 /** Cardio em texto curto: "30 min · 5 km · ritmo 6:00 · zona 2 · 8× 30 s / 60 s de descanso"; "—" sem nada. */
 export function textoCardio(c: Cardio | null | undefined): string {
   if (!c) return '—';
+  // O bloco novo (com `modo`) sai como o aluno lê na prévia ("SIT · 6 × 30 s all-out / 3 min · ~25 min"); o legado, igual.
+  if (c.modo) return previaDoBloco(c);
   const partes: string[] = [];
   if (c.duracaoMin != null) partes.push(`${c.duracaoMin} min`);
   if (c.distanciaKm != null) partes.push(`${numeroParaTela(c.distanciaKm)} km`);

@@ -26,6 +26,9 @@ public class Receita {
 
     public enum Tipo { SERIES, PLANO_TREINO, PLANO_DIETA, METODOLOGIA, SESSAO_TREINO, REFEICAO, PASTA_PLANO, MOBILIDADE }
 
+    /** {@code PADRAO}: do sistema (receitas padrão); {@code CONSULTORIA}: criada pela equipe (aba "Minhas"). Só o servidor decide (V115). */
+    public enum Origem { PADRAO, CONSULTORIA }
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -37,6 +40,10 @@ public class Receita {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false)
     private Tipo tipo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false)
+    private Origem origem;
 
     @Column(nullable = false)
     private String nome;
@@ -65,7 +72,8 @@ public class Receita {
     protected Receita() {
     }
 
-    public Receita(Tipo tipo, String nome, String descricao, String conteudo, int ordem) {
+    public Receita(Origem origem, Tipo tipo, String nome, String descricao, String conteudo, int ordem) {
+        this.origem = origem;
         this.tipo = tipo;
         this.nome = nome;
         this.descricao = descricao;
@@ -89,6 +97,10 @@ public class Receita {
 
     public Tipo getTipo() {
         return tipo;
+    }
+
+    public Origem getOrigem() {
+        return origem;
     }
 
     public String getNome() {

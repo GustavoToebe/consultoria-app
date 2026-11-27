@@ -15,7 +15,7 @@ const COLECOES: PastaModelo[] = [
 const [HIPERTROFIA, AVANCADOS] = COLECOES;
 
 function modelo(n: number, tipo: TipoReceita, nome: string, pastaId: string | null, descricao: string | null = null): Receita {
-  return { id: `r0000000-0000-4000-8000-00000000000${n}`, tipo, nome, descricao, conteudo: null, ordem: n, pastaId, versao: 1 };
+  return { id: `r0000000-0000-4000-8000-00000000000${n}`, tipo, origem: 'CONSULTORIA', nome, descricao, conteudo: null, ordem: n, pastaId, versao: 1 };
 }
 
 const MODELOS: Receita[] = [

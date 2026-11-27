@@ -56,7 +56,7 @@ const detalhe = (conteudo: ConteudoMobilidadeApi, publicado: boolean): PlanoDeta
 });
 
 const MODELO: Receita = {
-  id: 'r0000000-0000-4000-8000-0000000000m1', tipo: 'MOBILIDADE', nome: 'Mobilidade de quadril', descricao: 'Modelo fictício.',
+  id: 'r0000000-0000-4000-8000-0000000000m1', tipo: 'MOBILIDADE', origem: 'CONSULTORIA', nome: 'Mobilidade de quadril', descricao: 'Modelo fictício.',
   conteudo: { orientacoes: 'Do modelo', secoes: [{ uid: 'm1', titulo: 'Quadril', itens: [{ uid: 'm2', nome: 'Noventa-noventa', prescricao: '3 x 30s', videoUrl: null }] }] },
   ordem: 0, pastaId: null, versao: 1,
 };
@@ -88,7 +88,7 @@ async function abrir(page: Page, largura: number, { escuro = false, conteudo = M
 async function abrirModelo(page: Page, largura: number, { escuro = false, conteudo = COM_VIDEOS, salvar }: { escuro?: boolean; conteudo?: ConteudoMobilidadeApi; salvar?: unknown[] } = {}) {
   await page.setViewportSize({ width: largura, height: 1000 });
   await tema(page, escuro);
-  const modelo: Receita = { id: MODELO_ID, tipo: 'MOBILIDADE', nome: 'Rotina fictícia da manhã', descricao: 'Para os dias de treino de pernas.', conteudo, ordem: 0, pastaId: null, versao: 1 };
+  const modelo: Receita = { id: MODELO_ID, tipo: 'MOBILIDADE', origem: 'CONSULTORIA', nome: 'Rotina fictícia da manhã', descricao: 'Para os dias de treino de pernas.', conteudo, ordem: 0, pastaId: null, versao: 1 };
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },

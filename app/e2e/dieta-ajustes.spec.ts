@@ -181,7 +181,7 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
 }
 
 const MODELO: Receita = {
-  id: MODELO_ID, tipo: 'REFEICAO', nome: 'Lanche fictício', descricao: null, pastaId: null, ordem: 1, versao: 1,
+  id: MODELO_ID, tipo: 'REFEICAO', origem: 'CONSULTORIA', nome: 'Lanche fictício', descricao: null, pastaId: null, ordem: 1, versao: 1,
   conteudo: { ...CONTEUDO, suplementacao: [], ergogenicos: null, refeicoes: [CONTEUDO.refeicoes[0]] },
 };
 
@@ -218,7 +218,7 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
 // ---- C59: "Data de início" fora do modelo de dieta; a dieta do aluno mantém o campo ----
 
 const MODELO_DIETA: Receita = {
-  id: MODELO_ID, tipo: 'PLANO_DIETA', nome: 'Dieta fictícia padrão', descricao: null, pastaId: null, ordem: 1, versao: 1,
+  id: MODELO_ID, tipo: 'PLANO_DIETA', origem: 'CONSULTORIA', nome: 'Dieta fictícia padrão', descricao: null, pastaId: null, ordem: 1, versao: 1,
   // Data antiga no modelo gravado: ao salvar de novo ela sai (o modelo aplicado não a leva para o aluno).
   conteudo: { ...CONTEUDO, dataInicio: '2026-10-01', suplementacao: [], ergogenicos: null },
 };

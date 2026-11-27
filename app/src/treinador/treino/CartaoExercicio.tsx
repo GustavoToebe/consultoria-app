@@ -2,8 +2,9 @@ import { ArrowLeftRight, ChevronDown, ChevronUp, Ellipsis, NotebookTabs, Save, T
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import type { AlternativaDeExercicio, Configuracao, ExercicioPlano } from '../../api/tipos';
+import type { AlternativaDeExercicio, Configuracao, ExercicioPlano, MedidaDeCardio } from '../../api/tipos';
 import { descreverSeries } from '../../dominio/agrupamento';
+import { blocoContinuo, resumoDaLista } from '../../dominio/cardio';
 import { resumoDosExtras } from '../../dominio/camposDaSerie';
 import { erroDaCadencia, erroDaIsometria, normalizarCadencia, textoExecucao } from '../../dominio/execucaoDoExercicio';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
@@ -25,6 +26,7 @@ import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { AlternativasDoExercicio } from './AlternativasDoExercicio';
 import { SecaoRecolhivel } from '../../ui/SecaoRecolhivel';
 import { BotaoDeInfo, Explicacao } from './BotaoDeAbrir';
+import { EditorDoCardio } from './EditorDoCardio';
 import { EditorSeries } from './EditorSeries';
 import { estadoDoExercicio } from './estadoDoExercicio';
 
@@ -60,6 +62,8 @@ export interface PropsDoCartaoExercicio {
   demonstracao?: { imagens: string[]; imagemPropriaEm: string | null } | null;
   /** Grupo muscular do exercício na biblioteca (etiqueta ao lado do nome); nulo fora dela. */
   grupoMuscular?: string | null;
+  /** Cardio: as medidas que a biblioteca marcou (D12); nulo = cardio manual ou exercício antigo, mostra as duas. */
+  medidasDeCardio?: MedidaDeCardio[] | null;
   /** Alça de arrastar (`ui/ArrasteDaLista`) no começo do topo, no cartão empilhado. */
   alca?: ReactNode;
 }
@@ -79,7 +83,9 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const erros = p.erros ?? {};
   const cardio = e.modalidade === 'CARDIO';
   const unidade = useUnidadeDeCarga();
-  const resumo = descreverSeries(e.series, p.config, unidade);
+  // Cardio: um resumo só, o da lista ("SIT · 6 × 30 s · ~25 min", "2 blocos · ~30 min"); cada série é um bloco (D1).
+  const resumoDoCardio = cardio ? resumoDaLista(e.series.map((s) => s.cardio ?? blocoContinuo())) : null;
+  const resumo = resumoDoCardio ? [resumoDoCardio] : descreverSeries(e.series, p.config, unidade);
   const execucao = textoExecucao(e);
   const mudar = (parcial: Partial<ExercicioPlano>) => p.aoMudar({ ...e, ...parcial });
   // Estado do exercício na faixa, pela mesma validação da publicação, ao vivo (protótipo de 30/10).
@@ -160,7 +166,6 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
     {p.aoAdicionarAlternativa && p.aoTrocarEmTodas ? (
       <AlternativasDoExercicio exercicio={e} erros={erros} aoMudar={p.aoMudar} aoAdicionar={p.aoAdicionarAlternativa} aoTrocarEmTodas={p.aoTrocarEmTodas} />
     ) : null}
-    {cardio ? <Texto variante="pequeno">Cardio tem prescrição própria: duração, distância, ritmo, zona e intervalos.</Texto> : null}
     {p.noGrupo && p.aoTirarDoGrupo ? (
       <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
     ) : null}
@@ -170,8 +175,8 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const series = <>
     <View style={estilos.tituloDasSeries}>
       <View style={estilos.tituloETotal}>
-        <Texto variante="secao" nivel={3}>{cardio ? 'Cardio' : 'Séries'}</Texto>
-        {total ? <Texto variante="pequeno" numerico>{`· ${total} no total`}</Texto> : null}
+        <Texto variante="secao" nivel={3}>{cardio ? 'Prescrição do cardio' : 'Séries'}</Texto>
+        {total ? <Texto variante="pequeno" numerico>{cardio ? `· ${resumoDoCardio}` : `· ${total} no total`}</Texto> : null}
       </View>
       {/* Sem séries, "Usar receita" fica no estado vazio do `EditorSeries` (D13), não duas vezes. */}
       {cardio || !total ? null : <View style={estilos.acoesDasSeries}>
@@ -179,10 +184,13 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         <Botao rotulo="Salvar como receita" rotuloAcessivel="Salvar como receita de séries" tipo="secundario" Icone={Save} aoTocar={p.aoSalvarReceita} />
       </View>}
     </View>
-    <EditorSeries cardio={cardio} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
-      aoUsarReceita={cardio ? undefined : p.aoUsarReceita}
-      descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })}
-      grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo} />
+    {cardio
+      ? <EditorDoCardio series={e.series} medidas={p.medidasDeCardio} aoMudar={(series) => mudar({ series })}
+        blocoAbertoUid={p.grupoAbertoUid} aoAbrirBloco={p.aoAbrirGrupo} />
+      : <EditorSeries cardio={false} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
+        aoUsarReceita={p.aoUsarReceita}
+        descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })}
+        grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo} />}
   </>;
 
   return (
