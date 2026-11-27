@@ -23,8 +23,9 @@ public class Auditoria {
     private final AuditoriaRepository eventos;
     private final UsuarioRepository usuarios;
     private final ConsultoriaRepository consultorias;
-    public Auditoria(AuditoriaGravacao gravacao,AuditoriaRepository eventos,UsuarioRepository usuarios,ConsultoriaRepository consultorias) {
-        this.gravacao=gravacao;this.eventos=eventos;this.usuarios=usuarios;this.consultorias=consultorias;
+    private final ObjetoDaAuditoria objetos;
+    public Auditoria(AuditoriaGravacao gravacao,AuditoriaRepository eventos,UsuarioRepository usuarios,ConsultoriaRepository consultorias,ObjetoDaAuditoria objetos) {
+        this.gravacao=gravacao;this.eventos=eventos;this.usuarios=usuarios;this.consultorias=consultorias;this.objetos=objetos;
     }
     /** Não lê texto de argumentos nem DTOs: resumo é literal fixo da anotação. */
     public void registrar(Auditar evento,Object resultado,Object[] argumentos) {
@@ -106,7 +107,11 @@ public class Auditoria {
         }
         return null;
     }
-    public record Evento(UUID id,UUID usuarioId,String nomeUsuario,String acao,String entidade,UUID entidadeId,String resumo,Instant criadoEm) { }
+    /**
+     * {@code usuarioPerfil}: nome do perfil de acesso atual do autor (membro desativado mantém o perfil; a equipe não apaga
+     * usuários); nulo para o Sistema, autor sem perfil (aluno) ou não encontrado nesta consultoria.
+     */
+    public record Evento(UUID id,UUID usuarioId,String nomeUsuario,String usuarioPerfil,String acao,String entidade,UUID entidadeId,String resumo,Instant criadoEm,String objetoNome,String origem) { }
     public record Pagina(List<Evento> itens,long total,int pagina) { }
     public record Pessoa(UUID id,String nome) { }
     @Transactional(readOnly=true)
@@ -117,15 +122,18 @@ public class Auditoria {
     /** {@code usuarioId=sistema}: os eventos sem autor (do sistema, como a baixa confirmada pela InfinitePay). */
     public static final String SISTEMA = "sistema";
     private static final java.util.regex.Pattern ACAO = java.util.regex.Pattern.compile("[A-Z][A-Z0-9_]{0,79}");
+    /** Teto de {@code acao} neste endpoint (os atalhos do app mandam até 62 códigos); {@code acaoExceto} usa o teto padrão (50). */
+    private static final int MAXIMO_ACOES = 100;
     private static final UUID NINGUEM = new UUID(0L, 0L);
 
     /**
      * Lista paginada, mais recentes primeiro. Filtros opcionais e combinados com E: período (dias de Brasília),
      * {@code usuarioId} repetível (ids de usuários desta consultoria, senão 404, e/ou {@value #SISTEMA}) e {@code acao}
-     * repetível (códigos em maiúsculas; outro formato = 400 {@code FILTRO_INVALIDO}, sem repetir o valor).
+     * repetível (códigos em maiúsculas; outro formato = 400 {@code FILTRO_INVALIDO}, sem repetir o valor; até 100) e
+     * {@code acaoExceto} repetível (mesmo formato, até 50): exclui essas ações, combinada com os demais filtros.
      */
     @Transactional(readOnly=true)
-    public Pagina listar(LocalDate de,LocalDate ate,List<String> usuarioId,List<String> acao,int pagina) {
+    public Pagina listar(LocalDate de,LocalDate ate,List<String> usuarioId,List<String> acao,List<String> acaoExceto,int pagina) {
         FiltrosDeLista.exigirPeriodoNaFaixa(de,ate,0,"PERIODO_INVALIDO");
         java.util.Set<UUID> ids=new java.util.LinkedHashSet<>();
         boolean sistema=false;
@@ -133,9 +141,14 @@ public class Auditoria {
             if(SISTEMA.equalsIgnoreCase(v)) sistema=true; else ids.add(FiltrosDeLista.uuid(v,"usuarioId"));
         }
         java.util.Set<String> acoes=new java.util.LinkedHashSet<>();
-        for(String v:FiltrosDeLista.valores(acao,"acao")) {
+        for(String v:FiltrosDeLista.valores(acao,"acao",MAXIMO_ACOES)) {
             if(!ACAO.matcher(v).matches()) throw FiltrosDeLista.invalido("acao");
             acoes.add(v);
+        }
+        java.util.Set<String> exceto=new java.util.LinkedHashSet<>();
+        for(String v:FiltrosDeLista.valores(acaoExceto,"acaoExceto")) {
+            if(!ACAO.matcher(v).matches()) throw FiltrosDeLista.invalido("acaoExceto");
+            exceto.add(v);
         }
         if(!ids.isEmpty()) {
             long daConsultoria=usuarios.findAllById(ids).stream().filter(u -> TenantContext.get().equals(u.getConsultoriaId())).count();
@@ -146,14 +159,27 @@ public class Auditoria {
         boolean filtraUsuarios=!ids.isEmpty()||sistema;
         // As coleções nunca vão vazias à consulta: sem filtro a flag desliga o trecho.
         var lista=eventos.buscar(inicio,fim,filtraUsuarios,ids.isEmpty()?java.util.Set.of(NINGUEM):ids,sistema,
-                !acoes.isEmpty(),acoes.isEmpty()?java.util.Set.of(""):acoes,PageRequest.of(Math.max(0,pagina),50));
-        return new Pagina(lista.stream().map(a -> new Evento(a.getId(),a.getUsuarioId(),nomeDoAutor(a.getUsuarioId()),
-                a.getAcao(),a.getEntidade(),a.getEntidadeId(),a.getResumo(),a.getCriadoEm())).toList(),lista.getTotalElements(),Math.max(0,pagina));
+                !acoes.isEmpty(),acoes.isEmpty()?java.util.Set.of(""):acoes,
+                !exceto.isEmpty(),exceto.isEmpty()?java.util.Set.of(""):exceto,PageRequest.of(Math.max(0,pagina),50));
+        var registros=lista.getContent();
+        var nomes=objetos.nomes(registros);
+        var itens=new java.util.ArrayList<Evento>(registros.size());
+        var autores=new java.util.HashMap<UUID,Autor>();
+        for(int i=0;i<registros.size();i++) {
+            var a=registros.get(i);
+            Autor autor=a.getUsuarioId()==null?Autor.SISTEMA:autores.computeIfAbsent(a.getUsuarioId(),this::autor);
+            itens.add(new Evento(a.getId(),a.getUsuarioId(),autor.nome(),autor.perfil(),a.getAcao(),a.getEntidade(),a.getEntidadeId(),
+                    a.getResumo(),a.getCriadoEm(),nomes.get(i),OrigemDoAcesso.de(a.getUserAgent())));
+        }
+        return new Pagina(itens,lista.getTotalElements(),Math.max(0,pagina));
     }
     /** Sem usuário é evento do sistema (ver {@link #registrarDoSistema}). */
-    private String nomeDoAutor(UUID usuarioId) {
-        if(usuarioId==null) return "Sistema";
-        return usuarios.findById(usuarioId).filter(u -> u.getConsultoriaId().equals(TenantContext.get())).map(Usuario::getNome).orElse("—");
+    private record Autor(String nome,String perfil) { static final Autor SISTEMA=new Autor("Sistema",null); }
+    private Autor autor(UUID usuarioId) {
+        UUID consultoria=TenantContext.get();
+        return usuarios.findById(usuarioId).filter(u -> u.getConsultoriaId().equals(consultoria))
+                .map(u -> new Autor(u.getNome(),u.getPerfilId()==null?null:eventos.nomeDoPerfil(u.getPerfilId(),consultoria).orElse(null)))
+                .orElse(new Autor("—",null));
     }
     @Scheduled(cron="0 20 3 * * *",zone="America/Sao_Paulo") @Transactional
     public void limparAntigos() {

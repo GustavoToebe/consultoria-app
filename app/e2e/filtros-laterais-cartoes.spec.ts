@@ -259,8 +259,10 @@ for (const largura of [390, 1280]) {
       await page.goto(`/treinador/planejamento/modelo/${ID}`);
       await page.getByRole('button', { name: 'Adicionar exercício' }).first().click();
       const lista = page.getByRole('dialog', { name: 'Escolher exercício' });
-      await lista.getByRole('checkbox', { name: 'Supino reto' }).click();
-      await lista.getByRole('checkbox', { name: 'Remada baixa' }).click();
+      // Linhas da lista (listbox, várias escolhas): marcada = `aria-selected`.
+      const opcao = (nome: string) => lista.getByRole('option', { name: new RegExp(`^${nome},`) });
+      await opcao('Supino reto').click();
+      await opcao('Remada baixa').click();
       const busca = lista.getByRole('textbox', { name: 'Buscar na biblioteca' });
       await busca.fill('re');
       const botao = filtros(lista);
@@ -268,8 +270,8 @@ for (const largura of [390, 1280]) {
       const conferirLista = async () => {
         await expect(lista).toBeVisible();
         await expect(busca).toHaveValue('re');
-        await expect(lista.getByRole('checkbox', { name: 'Supino reto' })).toBeChecked();
-        await expect(lista.getByRole('checkbox', { name: 'Remada baixa' })).toBeChecked();
+        await expect(opcao('Supino reto')).toHaveAttribute('aria-selected', 'true');
+        await expect(opcao('Remada baixa')).toHaveAttribute('aria-selected', 'true');
         await expect(lista.getByRole('button', { name: 'Adicionar 2 exercícios' })).toBeEnabled();
       };
 
@@ -278,9 +280,10 @@ for (const largura of [390, 1280]) {
       await expect(etapa).toBeVisible();
       await expect(lista).toHaveCount(0);
       await expect(page.getByRole('dialog')).toHaveCount(1);
-      await expect(etapa.getByRole('radio', { name: 'Glúteos', exact: true })).toBeVisible();
-      await expect(etapa.getByRole('radio', { name: 'Todos', exact: true })).toBeFocused();
-      await expect(etapa.getByText('2 exercícios marcados. Ao aplicar outro grupo, sai da seleção o que não for dele.')).toBeVisible();
+      // Os grupos em chips de várias escolhas, com a contagem; o foco vai ao primeiro (ordem alfabética).
+      await expect(etapa.getByRole('checkbox', { name: 'Glúteos, 1 exercício', exact: true })).toBeVisible();
+      await expect(etapa.getByRole('checkbox', { name: 'Bíceps, 1 exercício', exact: true })).toBeFocused();
+      await expect(etapa.getByText('2 exercícios marcados. Ao aplicar outros filtros, sai da seleção o que não passar neles.')).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`biblioteca-etapa-${largura}.png`) });
       await page.keyboard.press('Escape');
       await conferirLista();
@@ -288,7 +291,7 @@ for (const largura of [390, 1280]) {
 
       // Cancelar descarta o rascunho.
       await botao.click();
-      await etapa.getByRole('radio', { name: 'Peito', exact: true }).click();
+      await etapa.getByRole('checkbox', { name: 'Peito, 2 exercícios', exact: true }).click();
       await etapa.getByRole('button', { name: 'Cancelar' }).click();
       await conferirLista();
       await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
@@ -301,19 +304,19 @@ for (const largura of [390, 1280]) {
 
       // Aplicar outro grupo tira só o que não é dele, com aviso no rodapé.
       await botao.click();
-      await etapa.getByRole('radio', { name: 'Peito', exact: true }).click();
-      await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await etapa.getByRole('checkbox', { name: 'Peito, 2 exercícios', exact: true }).click();
+      await etapa.getByRole('button', { name: /^Mostrar \d+ exercício/ }).click();
       await expect(lista).toBeVisible();
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(lista.getByRole('button', { name: 'Tirar filtro: Grupo muscular: Peito' })).toBeVisible();
       await expect(lista.getByRole('status').filter({ hasText: '1 exercício marcado saiu da seleção porque não é do grupo Peito.' })).toBeVisible();
-      await expect(lista.getByRole('checkbox', { name: 'Supino reto' })).toBeChecked();
+      await expect(opcao('Supino reto')).toHaveAttribute('aria-selected', 'true');
       await expect(lista.getByRole('button', { name: 'Adicionar exercício' })).toBeEnabled();
       await page.screenshot({ path: testInfo.outputPath(`biblioteca-aplicado-${largura}.png`) });
       // O ✕ da etiqueta tira na hora e a folha continua aberta.
       await lista.getByRole('button', { name: 'Tirar filtro: Grupo muscular: Peito' }).click();
       await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
-      await expect(lista.getByRole('checkbox', { name: 'Remada baixa' })).not.toBeChecked();
+      await expect(opcao('Remada baixa')).toHaveAttribute('aria-selected', 'false');
       // Fechar e abrir de novo começa na lista, com o foco de sempre (a busca no PC; o X na folha de baixo do celular).
       await lista.getByRole('button', { name: 'Cancelar' }).click();
       await expect(lista).toHaveCount(0);

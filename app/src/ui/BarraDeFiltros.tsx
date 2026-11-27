@@ -1,5 +1,5 @@
 import { SlidersHorizontal, X } from 'lucide-react-native';
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { type ComponentProps, createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, type TextInputProps } from 'react-native';
 
 import { resultadoDoAplicar } from '../dominio/painelDeFiltros';
@@ -25,7 +25,11 @@ interface Props<T> {
    * Campo de busca (sempre à vista). Sem ele, a barra é só o botão "Filtros" (lista sem busca útil na API). `inputMode`
    * "search" faz dele um `searchbox` para o leitor de tela (o mural, que já era assim).
    */
-  busca?: { valor: string; aoMudar: (texto: string) => void; rotulo?: string; placeholder?: string; inputMode?: TextInputProps['inputMode'] };
+  busca?: {
+    valor: string; aoMudar: (texto: string) => void; rotulo?: string; placeholder?: string; inputMode?: TextInputProps['inputMode'];
+    /** Mais propriedades do campo (a folha "Escolher exercício": teclas ↑↓ e Enter, `aria-activedescendant`, foco ao abrir). */
+    campo?: Omit<ComponentProps<typeof Campo>, 'rotulo' | 'valor' | 'aoMudar' | 'placeholder' | 'inputMode'>;
+  };
   /** Os filtros em vigor. */
   valor: T;
   /** Grava os filtros aplicados (ex.: no endereço), depois que o painel fecha e o histórico assenta. */
@@ -51,6 +55,10 @@ interface Props<T> {
    */
   antes?: ReactNode;
   depois?: ReactNode;
+  /** Texto do botão principal do painel a partir do rascunho ("Mostrar 18 exercícios"); sem ele, "Aplicar filtros". */
+  rotuloDoAplicar?: (rascunho: T) => string;
+  /** O painel lateral abriu (a Biblioteca só busca a lista inteira, para as contagens, quando alguém abre os filtros). */
+  aoAbrirPainel?: () => void;
 }
 
 /** Campos com problema dentro do painel lateral: quem tem erro se registra, o "Aplicar filtros" soma. */
@@ -98,7 +106,7 @@ export function rotuloDoBotaoDeFiltros(quantos: number, rotulo = 'Filtros'): str
  * (B3): o rascunho copiaria o valor antigo e a gravação atrasada cairia na entrada da folha nova. Se a tela sai antes de a
  * gravação correr (saída confirmada de um editor com a guarda ativa), ela é descartada: o `setParams` cairia na rota nova.
  */
-export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral, naFolha, antes, depois }: Props<T>) {
+export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral, naFolha, antes, depois, rotuloDoAplicar, aoAbrirPainel }: Props<T>) {
   const { cores } = useTema();
   // O que foi escolhido e ainda não foi aplicado; `null` = painel fechado.
   const [rascunho, setRascunho] = useState<{ filtros: T } | null>(null);
@@ -116,6 +124,7 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
     if (aplicando.current) return;
     if (naFolha) { naFolha.abrir(); return; }
     setRascunho({ filtros: valor });
+    aoAbrirPainel?.();
   };
   const aplicar = (filtros: T) => {
     setRascunho(null);
@@ -132,7 +141,7 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
         {busca ? (
           <View style={estilos.busca}>
             <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder} inputMode={busca.inputMode}
-              autoCapitalize="none" autoCorrect={false} spellCheck={false} autoComplete="off" enterKeyHint="search" />
+              autoCapitalize="none" autoCorrect={false} spellCheck={false} autoComplete="off" enterKeyHint="search" {...busca.campo} />
           </View>
         ) : null}
         <Pressable
@@ -157,7 +166,7 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
       {/* Montado só aberto: cada abertura começa sem erro à vista. */}
       {rascunho ? (
         <PainelLateral titulo={painelLateral.titulo} rascunho={rascunho.filtros} limpo={limpo}
-          aoMudar={(filtros) => setRascunho({ filtros })} seletores={seletores}
+          aoMudar={(filtros) => setRascunho({ filtros })} seletores={seletores} rotuloDoAplicar={rotuloDoAplicar}
           aoDescartar={() => setRascunho(null)} aoAplicar={aplicar} />
       ) : null}
       {quantos > 0 ? (
@@ -189,8 +198,8 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
  * voltar do navegador descartam (`aoFechar` da Folha); "Limpar filtros" só volta o rascunho ao limpo; "Aplicar filtros"
  * confere os campos e, sem problema, aplica tudo de uma vez.
  */
-function PainelLateral<T>({ titulo, rascunho, limpo, aoMudar, seletores, aoDescartar, aoAplicar }: {
-  titulo: string; rascunho: T; limpo: T; aoMudar: (filtros: T) => void;
+function PainelLateral<T>({ titulo, rascunho, limpo, aoMudar, seletores, aoDescartar, aoAplicar, rotuloDoAplicar }: {
+  titulo: string; rascunho: T; limpo: T; aoMudar: (filtros: T) => void; rotuloDoAplicar?: (rascunho: T) => string;
   seletores: (filtros: T, aoMudar: (filtros: T) => void) => ReactNode; aoDescartar: () => void; aoAplicar: (filtros: T) => void;
 }) {
   // Trocar a chave remonta os seletores: o "Limpar filtros" também apaga a data digitada pela metade e o modo escolhido.
@@ -229,7 +238,7 @@ function PainelLateral<T>({ titulo, rascunho, limpo, aoMudar, seletores, aoDesca
       rodape={<>
         <Botao rotulo="Limpar filtros" tipo="fantasma" Icone={X} aoTocar={limpar} />
         <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoDescartar} />
-        <Botao rotulo="Aplicar filtros" aoTocar={aplicar} />
+        <Botao rotulo={rotuloDoAplicar?.(rascunho) ?? 'Aplicar filtros'} aoTocar={aplicar} />
       </>}>
       <ProblemasDoPainel.Provider value={contexto}>
         <View key={versao} style={estilos.coluna}>{seletores(rascunho, aoMudar)}</View>

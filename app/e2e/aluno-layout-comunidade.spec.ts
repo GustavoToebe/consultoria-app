@@ -4,52 +4,48 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AulaDaComunidade, ColegaDaLista, ConquistaDoAluno, PaginaDoMural, PodDoAluno, PosicaoNoRanking, PostDoMural } from '../src/api/comunidadeTipos';
 import { fixarHoje, sessaoDeAluno } from './aluno';
-import { ALUNO, erroApi, json, simularApi } from './api-falsa';
+import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * App do aluno na web, Comunidade (`docs/planos/aluno-web-layout.md`, seção 6, e `orientacoes-de-design-26-11.md`, 1.6, 26/11):
- * o bloco feed (720) + coluna (340) = 1092 a partir da borda esquerda do contêiner de 1312 das telas do aluno, com o título, as abas e as abas Vídeos, Conquistas e Colegas
- * na mesma largura; o "Qual mural" em cima e Avisos/Alunos, a busca, os Filtros e "Nova publicação" (à direita) numa linha
- * só, na largura do feed. O celular (390) não muda. Relógio fixo; API simulada, só dados fictícios. Capturas só com
- * `CAPTURAS_ALUNO_LAYOUT` (pasta fora do git) e `CAPTURAS_FASE` (`antes` ou `depois`): `<base>/<fase>/<nome>-<largura>-<tema>.png`.
+ * App do aluno na web, Comunidade (27/11, contêiner do treinador): título e abas na largura do contêiner, ao lado do menu; o
+ * mural no padrão do treinador, feed de 720 + coluna de 340 (vão 32) alinhados à esquerda, com a coluna dos números ao lado
+ * assim que o bloco de 1092 cabe na área do mural (abaixo, a faixa dos números no topo do feed); a linha de controles
+ * (Avisos/Alunos, busca, Filtros e "Nova publicação") na largura do feed; Vídeos e Colegas medem a própria largura; em
+ * Conquistas a posição vai no apoio da `PrincipalComApoio`. O celular (390) não muda. Relógio fixo; API simulada, só dados
+ * fictícios. Capturas com `E2E_CAPTURAS` (ou `CAPTURAS_ALUNO_LAYOUT`): `<base>/comunidade-<nome>-<largura>-<tema>.png`, mais
+ * o Mural do treinador na mesma largura, para comparar.
  */
 
-const BASE = process.env.CAPTURAS_ALUNO_LAYOUT;
-const FASE = process.env.CAPTURAS_FASE ?? 'depois';
+const BASE = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS_ALUNO_LAYOUT;
 type Tema = 'ESCURO' | 'CLARO';
-/** A matriz da 0.5 de `orientacoes-de-design-26-11.md`: claro e escuro em 390, 1280 e 1920; 1024 também com o menu minimizado. */
+/** Menu aberto (240 px) e minimizado em 1024; 1536 é o notebook a 125%. */
 const MATRIZ: { largura: number; altura: number; recolhido?: boolean; temas: Tema[] }[] = [
   { largura: 390, altura: 844, temas: ['ESCURO', 'CLARO'] },
-  { largura: 1024, altura: 768, temas: ['ESCURO'] },
   { largura: 1024, altura: 768, recolhido: true, temas: ['ESCURO'] },
   { largura: 1280, altura: 720, temas: ['ESCURO', 'CLARO'] },
   { largura: 1536, altura: 864, temas: ['ESCURO'] },
   { largura: 1920, altura: 1080, temas: ['ESCURO', 'CLARO'] },
-  { largura: 2560, altura: 1440, temas: ['ESCURO'] },
-  { largura: 3440, altura: 1440, temas: ['ESCURO'] },
+  { largura: 3440, altura: 1440, temas: ['ESCURO', 'CLARO'] },
 ];
 const nomeDa = (m: { largura: number; recolhido?: boolean }) => `${m.largura}${m.recolhido ? '-minimizado' : ''}`;
-/** O bloco de 1092 cabe na área (menu aberto a partir de 1536 de janela): a coluna dos números vai ao lado. */
-const comColuna = (largura: number) => largura >= 1536;
 
 async function capturar(page: Page, nome: string, largura: string, tema: string) {
   if (!BASE) return;
-  const pasta = path.join(BASE, FASE);
-  fs.mkdirSync(pasta, { recursive: true });
+  fs.mkdirSync(BASE, { recursive: true });
   await page.waitForTimeout(400);
-  await page.screenshot({ path: path.join(pasta, `${nome}-${largura}-${tema.toLowerCase()}.png`), fullPage: false });
+  await page.screenshot({ path: path.join(BASE, `${nome}-${largura}-${tema.toLowerCase()}.png`) });
 }
 
-async function preparar(page: Page, largura: number, altura: number, tema: Tema = 'ESCURO', recolhido = false) {
+async function preparar(page: Page, largura: number, altura: number, tema: Tema = 'ESCURO', recolhido = false, id = ALUNO.id) {
   await page.setViewportSize({ width: largura, height: altura });
   await fixarHoje(page);
-  await page.addInitScript(([id, prefs, minimizado]) => {
+  await page.addInitScript(([usuario, prefs, minimizado]) => {
     try {
       if (minimizado) localStorage.setItem('menu-lateral-recolhido', '1');
       else localStorage.removeItem('menu-lateral-recolhido');
-      localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify(prefs));
+      localStorage.setItem(`treinos:${usuario}:preferencias`, JSON.stringify(prefs));
     } catch { /* quadro sem armazenamento */ }
-  }, [ALUNO.id, { tema, contraste: 'PADRAO', larguraConteudo: 'AUTOMATICA' }, recolhido] as const);
+  }, [id, { tema, contraste: 'PADRAO', larguraConteudo: 'AUTOMATICA' }, recolhido] as const);
 }
 
 const caixa = async (l: Locator) => {
@@ -60,19 +56,8 @@ const caixa = async (l: Locator) => {
 const assentado = (conferir: () => Promise<void>) => expect(conferir).toPass({ timeout: 10_000 });
 const semRolagemHorizontal = async (page: Page) =>
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-/**
- * Borda esquerda do contêiner das telas do aluno (1312, centralizado; decisão do Gustavo de 26/11): com espaço, centrado na
- * área ao lado do menu (a barra de rolagem da tela, até ~15 px, desloca a conta em até ~8 px); sem espaço, a borda da área
- * com o recuo de 16 da `Tela`. O título de todas as telas do aluno cai nesse x.
- */
-async function bordaDoContainer(page: Page): Promise<number> {
-  const { menu, janela } = await page.evaluate(() => ({
-    menu: document.querySelector('[role="menubar"]')?.getBoundingClientRect().right ?? 0,
-    janela: document.documentElement.clientWidth,
-  }));
-  const area = janela - menu;
-  return area >= 1312 + 2 * 16 + 15 ? menu + (area - 1312) / 2 : menu + 16;
-}
+/** Borda direita do menu lateral (0 sem menu): o contêiner começa logo depois dele, com o recuo da `Tela`. */
+const fimDoMenu = (page: Page) => page.evaluate(() => document.querySelector('[role="menubar"]')?.getBoundingClientRect().right ?? 0);
 
 const POST: PostDoMural = {
   id: 'x', autorId: 'u1', autorNome: 'Aluno Fictício', autorApelido: null, autorEhAluno: true, autorFotoUrl: null, texto: '',
@@ -83,6 +68,7 @@ const POSTS: PostDoMural[] = Array.from({ length: 6 }, (_, i) => ({
   ...POST, id: `a${i}`, autorId: `u${i + 2}`, totalComentarios: i,
   texto: `Publicação fictícia ${i + 1}: treino de teste concluído, cargas registradas e a semana fechada com constância.`,
 }));
+const AVISO: PostDoMural = { ...POST, id: 'av', autorEhAluno: false, autorNome: 'Treinadora Teste', tipo: 'AVISO', fixado: true, texto: 'Aviso fictício fixado: a academia fecha mais cedo na sexta.' };
 const CONQUISTAS: ConquistaDoAluno[] = ['Primeiro treino', 'Dez treinos', 'Semana completa', 'Novo recorde'].map((titulo, i) => ({
   id: `c${i}`, tipo: `T${i}`, titulo, descricao: `Conquista fictícia ${i + 1}.`, icone: 'award', conquistadaEm: `2026-10-1${i}T12:00:00-03:00`,
 }));
@@ -112,10 +98,10 @@ async function abrir(page: Page, { aba = '', pod = null as PodDoAluno | null, pu
   return api;
 }
 
-// ---------------------------------------------------------------- Capturas (antes e depois)
+// ---------------------------------------------------------------- Capturas
 
 test.describe('capturas da Comunidade do aluno', () => {
-  test.skip(!BASE, 'só com CAPTURAS_ALUNO_LAYOUT');
+  test.skip(!BASE, 'só com E2E_CAPTURAS');
   for (const m of MATRIZ) {
     for (const tema of m.temas) {
       const largura = nomeDa(m);
@@ -124,35 +110,52 @@ test.describe('capturas da Comunidade do aluno', () => {
         await preparar(page, m.largura, m.altura, tema, m.recolhido);
         await abrir(page);
         await expect(page.getByText(POSTS[0].texto)).toBeVisible();
-        await capturar(page, 'mural', largura, tema);
+        await capturar(page, 'comunidade-mural', largura, tema);
         await abrir(page, { pod: POD });
         await expect(page.getByText(POSTS[0].texto)).toBeVisible();
-        await capturar(page, 'mural-com-grupo', largura, tema);
+        await capturar(page, 'comunidade-mural-com-grupo', largura, tema);
         await abrir(page, { aba: 'auloes' });
         await expect(page.getByText('Vídeo fictício 1', { exact: true }).first()).toBeVisible();
-        await capturar(page, 'videos', largura, tema);
+        await capturar(page, 'comunidade-videos', largura, tema);
         await abrir(page, { aba: 'ranking' });
         await expect(page.getByRole('heading', { name: 'Suas conquistas' })).toBeVisible();
-        await capturar(page, 'conquistas', largura, tema);
+        await capturar(page, 'comunidade-conquistas', largura, tema);
         await abrir(page, { aba: 'colegas' });
         await expect(page.getByText('Colega Fictício 1', { exact: true })).toBeVisible();
-        await capturar(page, 'colegas', largura, tema);
+        await capturar(page, 'comunidade-colegas', largura, tema);
         await abrir(page, { mural: 'erro', publica: false });
         await expect(page.getByRole('button', { name: /Tentar de novo/ }).first()).toBeVisible();
-        await capturar(page, 'mural-erro', largura, tema);
+        await capturar(page, 'comunidade-mural-erro', largura, tema);
       });
     }
+  }
+
+  // Comparação: o Mural do treinador (o mesmo `MuralComLateral`) nas mesmas larguras e temas.
+  for (const largura of [1280, 1920, 3440]) for (const tema of ['ESCURO', 'CLARO'] as const) {
+    test(`Mural do treinador em ${largura} px, ${tema}`, async ({ page }) => {
+      await preparar(page, largura, largura === 3440 ? 1440 : largura === 1920 ? 1080 : 720, tema, false, TREINADOR.id);
+      await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR'] })),
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        'GET /comunidade/aulas': { corpo: [] },
+        'GET /comunidade/configuracao': { corpo: { alunosPublicam: true, alunosAnexamFotos: false } },
+        'GET /comunidade/pods': { corpo: [] },
+        'GET /comunidade/mural': (p, route) => json(route, pagina([AVISO, ...POSTS].filter((x) => x.tipo === p.busca.get('tipo')))),
+      });
+      await page.goto('/treinador/comunidade?aba=mural');
+      await expect(page.getByText(AVISO.texto).first()).toBeVisible();
+      await capturar(page, 'treinador-mural', String(largura), tema);
+    });
   }
 });
 
 // ---------------------------------------------------------------- Arranjo
 
-/** O bloco da tela inteira (título, abas e as quatro abas). */
 const bloco = async (page: Page) => caixa(page.getByTestId('bloco-da-comunidade'));
 
 for (const { largura, altura, recolhido } of MATRIZ.filter((m) => m.largura >= 1024)) {
   test.describe(`Comunidade do aluno em ${largura} px (menu ${recolhido ? 'minimizado' : 'aberto'})`, () => {
-    test('o bloco começa na borda esquerda do contêiner do aluno, com o título, o feed e a coluna dentro dele', async ({ page }) => {
+    test('título e bloco na borda do contêiner, ao lado do menu; feed de 720 à esquerda e a coluna de 340 ao lado quando cabe', async ({ page }) => {
       await preparar(page, largura, altura, 'ESCURO', recolhido);
       const { errosDaPagina } = await abrir(page);
       const feed = page.getByTestId('coluna-das-publicacoes');
@@ -161,15 +164,18 @@ for (const { largura, altura, recolhido } of MATRIZ.filter((m) => m.largura >= 1
         const b = await bloco(page);
         const f = await caixa(feed);
         const titulo = await caixa(page.getByRole('heading', { name: 'Comunidade', level: 1 }));
-        // Título, abas e feed na mesma borda esquerda: a do bloco.
+        const menu = await fimDoMenu(page);
         expect(Math.abs(titulo.x - b.x)).toBeLessThan(2);
         expect(Math.abs(f.x - b.x)).toBeLessThan(2);
-        // O bloco começa na borda esquerda do contêiner de 1312 (o mesmo x do título das outras telas do aluno) e termina antes.
-        expect(Math.abs(b.x - (await bordaDoContainer(page)))).toBeLessThan(10);
-        if (comColuna(largura)) {
-          expect(Math.abs(b.width - 1092)).toBeLessThan(2);
+        // O contêiner começa logo depois do menu (o recuo da `Tela`), sem centralizar nem faixa vazia à esquerda.
+        expect(b.x - menu).toBeLessThan(64);
+        // O bloco ocupa a largura do contêiner (não para em 1092 nem em 1312).
+        expect(largura - (b.x + b.width)).toBeLessThan(64);
+        expect(Math.abs(f.width - Math.min(720, b.width))).toBeLessThan(2);
+        if (b.width >= 1092) {
           const c = await caixa(page.getByTestId('coluna-dos-numeros'));
-          expect(Math.abs(c.x + c.width - (b.x + b.width))).toBeLessThan(2);
+          expect(Math.abs(c.x - (f.x + f.width + 32))).toBeLessThan(2);
+          expect(Math.abs(c.width - 340)).toBeLessThan(2);
           expect(Math.abs(c.y - f.y)).toBeLessThan(4);
         } else {
           await expect(page.getByTestId('coluna-dos-numeros')).toHaveCount(0);
@@ -193,7 +199,6 @@ for (const { largura, altura, recolhido } of MATRIZ.filter((m) => m.largura >= 1
         const [q, p, bu, fi, f] = await Promise.all([caixa(qual), caixa(publicacoes), caixa(busca), caixa(filtros), caixa(feed)]);
         const base = (c: { y: number; height: number }) => c.y + c.height;
         expect(base(q)).toBeLessThan(p.y);
-        // O segmento (com a trilha de 3 px em volta) e o campo começam na mesma altura; Filtros com a base do campo.
         expect(Math.abs(p.y - bu.y)).toBeLessThan(6);
         expect(Math.abs(base(fi) - base(bu))).toBeLessThan(2);
         expect(p.x).toBeLessThan(bu.x);
@@ -223,48 +228,63 @@ for (const { largura, altura, recolhido } of MATRIZ.filter((m) => m.largura >= 1
       expect(errosDaPagina).toEqual([]);
     });
 
-    for (const aba of ['auloes', 'ranking', 'colegas'] as const) {
-      test(`aba ${aba}: na largura e na borda do bloco`, async ({ page }) => {
-        await preparar(page, largura, altura, 'ESCURO', recolhido);
-        const { errosDaPagina } = await abrir(page, { aba });
-        const alvo = aba === 'auloes' ? page.getByText('Vídeo fictício 1', { exact: true }).first()
-          : aba === 'ranking' ? page.getByRole('heading', { name: 'Suas conquistas' }) : page.getByText('Colega Fictício 1', { exact: true });
-        await expect(alvo).toBeVisible();
-        await assentado(async () => {
-          const b = await bloco(page);
-          if (comColuna(largura)) expect(Math.abs(b.width - 1092)).toBeLessThan(2);
-          const a = await caixa(alvo);
-          expect(a.x).toBeGreaterThanOrEqual(b.x - 1);
-          expect(a.x + a.width).toBeLessThanOrEqual(b.x + b.width + 1);
-        });
-        if (aba === 'auloes' && comColuna(largura)) {
-          // 7 vídeos em 3 colunas no bloco de 1092: 3 + 2 + 2, nenhum cartão sozinho na última linha; cartões da mesma largura.
-          const titulo = (n: number) => caixa(page.getByRole('heading', { name: `Vídeo fictício ${n}`, exact: true }));
-          await assentado(async () => {
-            const [t1, t3, t4, t5, t6, t7] = await Promise.all([titulo(1), titulo(3), titulo(4), titulo(5), titulo(6), titulo(7)]);
-            expect(Math.abs(t3.y - t1.y)).toBeLessThan(2);
-            expect(t4.y).toBeGreaterThan(t3.y + 10);
-            expect(Math.abs(t5.y - t4.y)).toBeLessThan(2);
-            expect(t6.y).toBeGreaterThan(t5.y + 10);
-            expect(Math.abs(t7.y - t6.y)).toBeLessThan(2);
-            expect(Math.abs(t6.x - t1.x)).toBeLessThan(2);
-          });
+    test('Vídeos: grade na largura do contêiner, linhas equilibradas, nenhum vídeo sozinho na última linha', async ({ page }) => {
+      await preparar(page, largura, altura, 'ESCURO', recolhido);
+      const { errosDaPagina } = await abrir(page, { aba: 'auloes' });
+      await expect(page.getByText('Vídeo fictício 1', { exact: true }).first()).toBeVisible();
+      await assentado(async () => {
+        const ys = await Promise.all(AULAS.map((_, i) => caixa(page.getByRole('heading', { name: `Vídeo fictício ${i + 1}`, exact: true })).then((c) => Math.round(c.y))));
+        const linhas = [...new Set(ys)].map((y) => ys.filter((v) => Math.abs(v - y) < 2).length);
+        // Em 2 colunas, 7 vídeos sempre deixam um sozinho (2 + 2 + 2 + 1, a regra da grade); a partir de 3, nunca.
+        if (linhas.length > 1 && linhas[0] >= 3) {
+          expect(linhas[linhas.length - 1]).toBeGreaterThanOrEqual(2);
+          expect(Math.max(...linhas) - Math.min(...linhas)).toBeLessThanOrEqual(1);
         }
-        if (aba === 'colegas' && largura >= 1280) {
-          // Duas colunas de cima para baixo (1 a 4 e 5 a 8): o nome fica perto do "Ver perfil", a linha não cruza o bloco.
-          const nome = (n: number) => caixa(page.getByText(`Colega Fictício ${n}`, { exact: true }));
-          await assentado(async () => {
-            const [c1, c5] = await Promise.all([nome(1), nome(5)]);
-            const ver = await caixa(page.getByRole('button', { name: 'Ver perfil de Colega Fictício 1', exact: true }));
-            expect(Math.abs(c5.y - c1.y)).toBeLessThan(2);
-            expect(c5.x).toBeGreaterThan(c1.x + 300);
-            expect(ver.x + ver.width - c1.x).toBeLessThan(560);
-          });
-        }
-        await semRolagemHorizontal(page);
-        expect(errosDaPagina).toEqual([]);
       });
-    }
+      await semRolagemHorizontal(page);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('Conquistas na principal e a posição no apoio ao lado, no topo das duas', async ({ page }) => {
+      await preparar(page, largura, altura, 'ESCURO', recolhido);
+      const { errosDaPagina } = await abrir(page, { aba: 'ranking' });
+      const conquistas = page.getByRole('heading', { name: 'Suas conquistas' });
+      await expect(conquistas).toBeVisible();
+      await assentado(async () => {
+        const b = await bloco(page);
+        const apoio = await caixa(page.getByTestId('apoio-da-posicao'));
+        const c = await caixa(conquistas);
+        if (b.width >= 972) {
+          // Lado a lado: o apoio à direita, de 380 a 440 pela faixa, encostado na borda direita do bloco.
+          expect(apoio.x).toBeGreaterThan(c.x + 300);
+          expect(apoio.width).toBeGreaterThanOrEqual(379);
+          expect(apoio.width).toBeLessThanOrEqual(441);
+          expect(Math.abs(apoio.x + apoio.width - (b.x + b.width))).toBeLessThan(2);
+        } else {
+          expect(apoio.y).toBeGreaterThan(c.y);
+        }
+      });
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('Colegas: colunas de cima para baixo, o nome perto do "Ver perfil"', async ({ page }) => {
+      await preparar(page, largura, altura, 'ESCURO', recolhido);
+      const { errosDaPagina } = await abrir(page, { aba: 'colegas' });
+      await expect(page.getByText('Colega Fictício 1', { exact: true })).toBeVisible();
+      await assentado(async () => {
+        const c1 = await caixa(page.getByText('Colega Fictício 1', { exact: true }));
+        const ver = await caixa(page.getByRole('button', { name: 'Ver perfil de Colega Fictício 1', exact: true }));
+        expect(ver.x + ver.width - c1.x).toBeLessThan(640);
+        if (largura >= 1280) {
+          const c2 = await caixa(page.getByText('Colega Fictício 2', { exact: true }));
+          const c8 = await caixa(page.getByText('Colega Fictício 8', { exact: true }));
+          expect(c2.y).toBeGreaterThan(c1.y);
+          expect(c8.x).toBeGreaterThan(c1.x + 300);
+        }
+      });
+      await semRolagemHorizontal(page);
+      expect(errosDaPagina).toEqual([]);
+    });
 
     test('sem permissão para publicar e com o mural vazio: o texto da equipe acima do feed e o vazio no feed', async ({ page }) => {
       await preparar(page, largura, altura, 'ESCURO', recolhido);
@@ -290,7 +310,6 @@ test.describe('390 px: o celular como antes', () => {
       const [bt, p, bu, f] = await Promise.all([caixa(botao), caixa(publicacoes), caixa(busca), caixa(feed)]);
       expect(bt.y).toBeLessThan(p.y);
       expect(p.y + p.height).toBeLessThanOrEqual(bu.y);
-      // O botão na largura toda, como antes.
       expect(Math.abs(bt.width - f.width)).toBeLessThan(2);
       const faixa = await caixa(page.getByTestId('faixa-dos-numeros'));
       expect(faixa.y - f.y).toBeLessThan(2);

@@ -24,27 +24,43 @@ public final class BibliotecaDtos {
 
     private BibliotecaDtos() { }
 
+    /**
+     * {@code tipoDeCardio} e {@code medidasDeCardio} só contam em {@code CARDIO} (fora dele são ignorados). Medidas
+     * ausentes: na criação, as duas; na edição, as gravadas. Com {@code CARDIO}, grupo e equipamento do corpo são
+     * ignorados e gravados nulos (docs/planos/cardio-e-hiit.md, D12 e D13).
+     */
     public record ExercicioRequest(
             @NotBlank @Size(max = 120) String nome,
             @Size(max = 60) String grupoMuscular,
             @Size(max = 60) String equipamento,
             @NotNull Exercicio.Modalidade modalidade,
             @Size(max = 500) String videoUrl,
-            @Size(max = 4000) String observacoes) {
+            @Size(max = 4000) String observacoes,
+            Exercicio.TipoDeCardio tipoDeCardio,
+            @Size(max = 2) List<Exercicio.@NotNull MedidaDeCardio> medidasDeCardio) {
+
+        /** Sem os campos do cardio (seed e exercício que não é cardio). */
+        public ExercicioRequest(String nome, String grupoMuscular, String equipamento, Exercicio.Modalidade modalidade,
+                                String videoUrl, String observacoes) {
+            this(nome, grupoMuscular, equipamento, modalidade, videoUrl, observacoes, null, null);
+        }
     }
 
     /**
      * {@code imagens}: caminhos relativos das fotos do exercício do catálogo de onde este veio (vazio = nenhuma); o app
      * as pede ao proxy da web, a API nunca as serve. {@code imagemPropriaEm}: quando o treinador enviou imagem ou GIF
-     * próprio (nulo = não há; serve também para o app renovar a imagem trocada).
+     * próprio (nulo = não há; serve também para o app renovar a imagem trocada). {@code tipoDeCardio} nulo = não
+     * informado; {@code medidasDeCardio} vazia fora do {@code CARDIO}.
      */
     public record ExercicioResponse(UUID id, String nome, String grupoMuscular, String equipamento,
                                     String modalidade, String videoUrl, String observacoes, String origem,
-                                    List<String> imagens, Instant imagemPropriaEm) {
+                                    List<String> imagens, Instant imagemPropriaEm, String tipoDeCardio,
+                                    List<String> medidasDeCardio) {
         public static ExercicioResponse de(Exercicio e, List<String> imagens, Instant imagemPropriaEm) {
             return new ExercicioResponse(e.getId(), e.getNome(), e.getGrupoMuscular(), e.getEquipamento(),
                     e.getModalidade().name(), e.getVideoUrl(), e.getObservacoes(), e.getOrigem().name(),
-                    imagens, imagemPropriaEm);
+                    imagens, imagemPropriaEm, e.getTipoDeCardio() == null ? null : e.getTipoDeCardio().name(),
+                    e.getMedidasDeCardio().stream().map(Enum::name).toList());
         }
     }
 

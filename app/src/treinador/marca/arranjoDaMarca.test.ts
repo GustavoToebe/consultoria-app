@@ -1,4 +1,4 @@
-import { arranjoDaMarca, FORMULARIO_E_PREVIA, PREVIA_AO_LADO } from './arranjoDaMarca';
+import { arranjoDaMarca, FORMULARIO_E_PREVIA, PREVIA_DUPLA_MINIMA } from './arranjoDaMarca';
 
 describe('arranjoDaMarca', () => {
   it('sem medida não decide (nenhuma prévia pisca)', () => {
@@ -8,20 +8,17 @@ describe('arranjoDaMarca', () => {
     expect(arranjoDaMarca(Number.NaN)).toBeNull();
   });
 
-  it('celular e telas estreitas: prévia compacta acima', () => {
-    expect(arranjoDaMarca(358)).toBe('acima');
-    expect(arranjoDaMarca(PREVIA_AO_LADO - 1)).toBe('acima');
+  it('celular, 1280 dentro de Configurações e telas médias: um celular só, embaixo do formulário', () => {
+    expect(arranjoDaMarca(358)).toBe('empilhado');
+    expect(arranjoDaMarca(708)).toBe('empilhado');
+    expect(arranjoDaMarca(FORMULARIO_E_PREVIA - 1)).toBe('empilhado');
   });
 
-  it('a partir de 880: prévia de 320 ao lado dos ajustes', () => {
-    expect(PREVIA_AO_LADO).toBe(880);
-    expect(arranjoDaMarca(PREVIA_AO_LADO)).toBe('lado');
-    expect(arranjoDaMarca(FORMULARIO_E_PREVIA - 1)).toBe('lado');
-  });
-
-  it('a partir de 1104 (640 + 24 + 440): formulário de 640 e a prévia no resto', () => {
-    expect(FORMULARIO_E_PREVIA).toBe(1104);
-    expect(arranjoDaMarca(FORMULARIO_E_PREVIA)).toBe('larga');
-    expect(arranjoDaMarca(2760)).toBe('larga');
+  it('a partir de 1280 (720 + 24 + dois celulares de 240, o vão e o recuo): formulário e a prévia dupla ao lado', () => {
+    expect(PREVIA_DUPLA_MINIMA).toBe(536);
+    expect(FORMULARIO_E_PREVIA).toBe(1280);
+    // 1920 de janela dentro de Configurações: 1920 - 240 (menu) - 300 (coluna) - 32 (recuo da Tela).
+    expect(arranjoDaMarca(1348)).toBe('larga');
+    expect(arranjoDaMarca(2836)).toBe('larga');
   });
 });

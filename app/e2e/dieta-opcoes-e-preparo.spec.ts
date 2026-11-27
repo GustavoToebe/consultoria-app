@@ -156,10 +156,14 @@ for (const [largura, inspetor] of [[390, false], [1280, true]] as const) {
     const textosB = inspetor ? ['170', '4,0', '30,0', '—'] : ['170 kcal', 'P 4,0 g', 'C 30,0 g', 'G —'];
     for (const texto of textosB) await expect(totalB.getByText(texto, { exact: true }).first()).toBeVisible();
     await expect(totalA).toHaveCount(0);
-    // O modo de preparo gravado também fica atrás do link (18/11): o toque abre os campos e o texto está lá.
-    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' }).click();
-    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveValue(PREPARO);
+    // Com o modo de preparo gravado, a seção "Observação e modo de preparo" nasce aberta (27/11), com o texto e o contador.
+    const preparo = page.getByRole('textbox', { name: 'Modo de preparo', exact: true });
+    await expect(preparo).toHaveValue(PREPARO);
+    await expect(page.getByText(`${PREPARO.length}/2.000`, { exact: true })).toBeVisible();
+    // Fechada, o resumo conta as linhas do preparo.
+    await page.getByRole('button', { name: 'Observação e modo de preparo', exact: true }).click();
+    await expect(preparo).toHaveCount(0);
+    await expect(page.getByText('Modo de preparo: 2 linhas', { exact: true })).toBeVisible();
     await expect(page.getByText(/equivalente/i)).toHaveCount(0);
     // Excluir a opção (no ⋯ da aba aberta, 25/11; com itens, pede confirmação) leva os itens junto: dá para desfazer (04/11).
     await excluirPeloMenu(page, 'B');

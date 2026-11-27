@@ -12,8 +12,10 @@ export const ROTA_INTEIRA_DO_ITEM = {
   ajustes: '/treinador/ajustes',
   'minha-conta': '/treinador/minha-conta',
   marca: '/treinador/marca',
-  // O bloco Contato mora na tela da Marca: abre a Marca, rolada até ele.
+  // Contato e Padrões do acompanhamento (27/11) são telas só de Configurações, sem rota inteira: o caminho aqui é a da Marca,
+  // de quem herdam a guarda (gravam o mesmo `PUT /consultoria/marca`) e o "Saiba mais"; no celular abrem no próprio endereço.
   contato: '/treinador/marca',
+  'padroes-do-acompanhamento': '/treinador/marca',
   'whatsapp-oficial': '/treinador/whatsapp',
   'documentos-pdf': '/treinador/documentos',
   'tags-dos-alunos': '/treinador/alunos/tags',

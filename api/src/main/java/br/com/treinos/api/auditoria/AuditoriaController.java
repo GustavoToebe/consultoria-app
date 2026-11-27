@@ -13,5 +13,5 @@ public class AuditoriaController {
     public Auditoria.Pagina listar(@RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate de,
                                   @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate ate,
                                   @RequestParam(required=false) java.util.List<String> usuarioId,@RequestParam(required=false) java.util.List<String> acao,
-                                  @RequestParam(defaultValue="0") int pagina) { return auditoria.listar(de,ate,usuarioId,acao,pagina); }
+                                  @RequestParam(required=false) java.util.List<String> acaoExceto,@RequestParam(defaultValue="0") int pagina) { return auditoria.listar(de,ate,usuarioId,acao,acaoExceto,pagina); }
 }

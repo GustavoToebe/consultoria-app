@@ -1,10 +1,13 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { aguaDoAlunoParaTreinador, listarPlanos, versaoPlano } from '../api/rotas';
 import type { ConteudoDieta } from '../api/tipos';
-import { DIAS_DA_AGUA, graficoDaAgua, resumoDaAgua, ultimosDiasDeAgua } from '../dominio/aguaDoDia';
+import { DIAS_DA_AGUA, resumoDaAgua, ultimosDiasDeAgua } from '../dominio/aguaDoDia';
 import { hojeDoCiclo } from '../dominio/cicloMenstrual';
 import { somarDias } from '../dominio/formatos';
+import { barrasDaAgua } from '../dominio/graficoDaAgua';
+import { useTema } from '../tema/TemaProvider';
+import { espaco } from '../tema/tokens';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
@@ -14,14 +17,16 @@ import { useCarregar } from '../ui/useCarregar';
 import { GraficoDaAgua } from './GraficoDaAgua';
 
 /**
- * Água na ficha (docs/planos/agua-do-aluno.md; 24/11): a linha "Registrou 5 de 7 dias · média 1,5 L por dia · meta 3,0 L"
- * e o mini gráfico dos últimos 7 dias (`GraficoDaAgua`, do mais antigo a "Hoje"), com a "Água por dia" da dieta publicada
- * em uso como linha da meta. Dia sem registro é coluna vazia, nunca zero; nenhum registro na semana fica só na frase (sete
- * colunas vazias não dizem nada, guia de 11/11, pág. 33). Só mostra: não compara nem diz se "bateu a meta". Quem renderiza
+ * Água na ficha (docs/planos/agua-do-aluno.md; 24/11): a linha "● Registrou 5 de 7 dias · média 1,5 L por dia · meta 3,0 L"
+ * (a bolinha em azul-água, `identificacao.AGUA`, só para ver) e o gráfico dos últimos 7 dias (`GraficoDaAgua`, do mais
+ * antigo a "Hoje"), com a "Água por dia" da dieta publicada em uso como linha da meta. Dia sem registro é coluna vazia,
+ * nunca zero; nenhum registro na semana fica só na frase (sete colunas vazias não dizem nada, guia de 11/11, pág. 33). O
+ * dia que chegou à meta leva o ✓ (27/11, pedido do Gustavo); o resto só mostra, sem frase de "não cumpriu". Quem renderiza
  * já checou `REGISTRO_LER` e `ALUNO_SENSIVEL_LER` (dado de dieta); a meta só vem com `DIETA_LER` (`comDieta`).
  */
 export function CartaoAgua({ alunoId, comDieta }: { alunoId: string; comDieta: boolean }) {
   const hoje = hojeDoCiclo();
+  const { identificacao } = useTema();
   const { dados, erro, recarregar } = useCarregar(`agua:${alunoId}:${hoje}:${comDieta}`, async () => {
     const [registros, meta] = await Promise.all([
       aguaDoAlunoParaTreinador(alunoId, somarDias(hoje, -(DIAS_DA_AGUA - 1)), hoje),
@@ -35,16 +40,19 @@ export function CartaoAgua({ alunoId, comDieta }: { alunoId: string; comDieta: b
   const notaDaMeta = !dados ? null
     : dados.meta === 'sem-dieta' ? 'Sem dieta publicada em uso: o aluno só vê a marcação com a “Água por dia” da dieta.'
       : dados.meta === null ? 'A dieta em uso não tem “Água por dia”: o aluno só vê a marcação com a meta.' : null;
-  const grafico = dados && !semRegistro ? graficoDaAgua(dados.dias, hoje, meta) : null;
+  const grafico = dados && !semRegistro ? barrasDaAgua(dados.dias, hoje, meta) : null;
   return (
     <Cartao titulo="Água" descricao="O que o aluno marcou nos últimos 7 dias, em copos de 250 ml." style={estilos.esticar}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {dados === undefined && !erro ? <Esqueleto cartoes={1} /> : null}
       {dados ? (
         <>
-          <Texto>{resumoDaAgua(dados.dias, meta)}</Texto>
+          <View style={estilos.resumo}>
+            {semRegistro ? null : <View aria-hidden style={[estilos.bolinha, { backgroundColor: identificacao.AGUA.cor }]} />}
+            <Texto style={estilos.frase}>{resumoDaAgua(dados.dias, meta)}</Texto>
+          </View>
           {notaDaMeta ? <Texto variante="suave">{notaDaMeta}</Texto> : null}
-          {grafico ? <GraficoDaAgua colunas={grafico.colunas} metaFracao={grafico.metaFracao} /> : null}
+          {grafico ? <GraficoDaAgua grafico={grafico} /> : null}
         </>
       ) : null}
     </Cartao>
@@ -66,4 +74,8 @@ async function metaDaDietaEmUso(alunoId: string): Promise<number | null | 'sem-d
 const estilos = StyleSheet.create({
   // Na linha das contagens os dois cartões têm a mesma altura (a ficha estica a linha).
   esticar: { flexGrow: 1 },
+  // Bolinha na altura da primeira linha (corpo 15/21), para a frase que quebra em 390 px.
+  resumo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
+  bolinha: { width: 10, height: 10, borderRadius: 5, marginTop: 5.5 },
+  frase: { flexShrink: 1 },
 });

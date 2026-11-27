@@ -78,9 +78,13 @@ services:
       TREINOS_FOTOS_CHAVE: ${TREINOS_FOTOS_CHAVE:-}
       TREINOS_FOTOS_SEGREDO: ${TREINOS_FOTOS_SEGREDO:-}
       TREINOS_FOTOS_REGIAO: ${TREINOS_FOTOS_REGIAO:-auto}
-      # Retorno imediato (Concluir treino, recordes, treino ao vivo, "Bom trabalho!", Visto, mapa de treinos): desligado por padrão.
-      TREINOS_RETORNO_HABILITADO: ${TREINOS_RETORNO_HABILITADO:-false}
-      TREINOS_PAGAMENTOS_HABILITADO: ${TREINOS_PAGAMENTOS_HABILITADO:-false}
+      # Recursos que sobem sem segredo: ligados por padrão, como na API (false no .env desliga).
+      # Retorno imediato (Concluir treino, recordes, treino ao vivo, "Bom trabalho!", Visto, mapa de treinos).
+      TREINOS_RETORNO_HABILITADO: ${TREINOS_RETORNO_HABILITADO:-true}
+      TREINOS_PAGAMENTOS_HABILITADO: ${TREINOS_PAGAMENTOS_HABILITADO:-true}
+      # Push do Expo (compromisso marcado, remarcado ou cancelado). O token do Expo é opcional e só vem do .env.
+      TREINOS_PUSH_HABILITADO: ${TREINOS_PUSH_HABILITADO:-true}
+      TREINOS_PUSH_EXPO_TOKEN: ${TREINOS_PUSH_EXPO_TOKEN:-}
       # Recebimento online (InfinitePay): desligado por padrão; ligado, exige as três variáveis seguintes (ver .env.example).
       TREINOS_PAGAMENTOS_INFINITEPAY_HABILITADO: ${TREINOS_PAGAMENTOS_INFINITEPAY_HABILITADO:-false}
       TREINOS_PAGAMENTOS_CHAVES: ${TREINOS_PAGAMENTOS_CHAVES:-}
@@ -95,14 +99,15 @@ services:
       TREINOS_WHATSAPP_META_APP_SECRET: ${TREINOS_WHATSAPP_META_APP_SECRET:-}
       TREINOS_WHATSAPP_META_VERIFY_TOKEN: ${TREINOS_WHATSAPP_META_VERIFY_TOKEN:-}
       TREINOS_WHATSAPP_META_URL: ${TREINOS_WHATSAPP_META_URL:-}
-      TREINOS_CONTRATOS_HABILITADO: ${TREINOS_CONTRATOS_HABILITADO:-false}
-      TREINOS_VITRINE_HABILITADA: ${TREINOS_VITRINE_HABILITADA:-false}
-      TREINOS_LOJA_HABILITADA: ${TREINOS_LOJA_HABILITADA:-false}
-      TREINOS_MARKETPLACE_HABILITADO: ${TREINOS_MARKETPLACE_HABILITADO:-false}
-      # Ciclo menstrual, unidade da carga (libras) e importação assistida: desligados por padrão.
-      TREINOS_CICLO_HABILITADO: ${TREINOS_CICLO_HABILITADO:-false}
-      TREINOS_UNIDADE_CARGA_HABILITADA: ${TREINOS_UNIDADE_CARGA_HABILITADA:-false}
-      TREINOS_MIGRACAO_ASSISTIDA_HABILITADA: ${TREINOS_MIGRACAO_ASSISTIDA_HABILITADA:-false}
+      # Contrato digital, vitrine, loja e marketplace: ligados por padrão (sem segredo).
+      TREINOS_CONTRATOS_HABILITADO: ${TREINOS_CONTRATOS_HABILITADO:-true}
+      TREINOS_VITRINE_HABILITADA: ${TREINOS_VITRINE_HABILITADA:-true}
+      TREINOS_LOJA_HABILITADA: ${TREINOS_LOJA_HABILITADA:-true}
+      TREINOS_MARKETPLACE_HABILITADO: ${TREINOS_MARKETPLACE_HABILITADO:-true}
+      # Ciclo menstrual, unidade da carga (libras) e migração assistida: ligados por padrão (sem segredo).
+      TREINOS_CICLO_HABILITADO: ${TREINOS_CICLO_HABILITADO:-true}
+      TREINOS_UNIDADE_CARGA_HABILITADA: ${TREINOS_UNIDADE_CARGA_HABILITADA:-true}
+      TREINOS_MIGRACAO_ASSISTIDA_HABILITADA: ${TREINOS_MIGRACAO_ASSISTIDA_HABILITADA:-true}
       # E-mail de acesso e lembretes: desligado por padrão. O provedor "log" só registra que houve envio; o Resend pede a chave no .env.
       TREINOS_EMAIL_HABILITADO: ${TREINOS_EMAIL_HABILITADO:-false}
       TREINOS_EMAIL_PROVEDOR: ${TREINOS_EMAIL_PROVEDOR:-log}

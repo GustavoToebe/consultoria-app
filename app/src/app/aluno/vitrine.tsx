@@ -5,13 +5,15 @@ import { StyleSheet, View } from 'react-native';
 
 import { CartaoDoItem } from '../../aluno/vitrine/CartaoDoItem';
 import { useVitrineDoAluno } from '../../aluno/vitrine/useVitrineDoAluno';
+import { colunasDaGradeDoAluno } from '../../dominio/telaLargaDoAluno';
 import { agruparPorCategoria } from '../../dominio/vitrineCategorias';
 import { espaco } from '../../tema/tokens';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
+import { Grade } from '../../ui/Grade';
 import { textoDoErro } from '../../ui/erros';
-import { Tela } from '../../ui/Tela';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { Texto } from '../../ui/Texto';
 
 /**
@@ -23,7 +25,7 @@ export default function VitrineDoAluno() {
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
   if (!vitrineHabilitada) return <Redirect href="/aluno" />;
   return (
-    <Tela largura={1120}>
+    <TelaDoAluno>
       <Cabecalho titulo="Vitrine" subtitulo="Produtos e serviços da sua consultoria." voltar="/aluno" />
       {!online ? <Vazio Icone={WifiOff} titulo="Sem conexão" texto="A vitrine precisa de internet. Conecte-se e volte aqui." /> : null}
       {online && erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -34,14 +36,17 @@ export default function VitrineDoAluno() {
           {agruparPorCategoria(dados, (i) => i.categoria).map((g) => (
             <View key={g.chave ?? 'sem-categoria'} style={estilos.lista}>
               {g.titulo ? <Texto variante="subtitulo" nivel={2}>{g.titulo}</Texto> : null}
-              <View style={estilos.lista} accessibilityRole="list" aria-label={g.titulo ?? undefined}>
-                {g.itens.map((item) => <CartaoDoItem key={item.id} item={item} nivel={g.titulo ? 3 : 2} />)}
+              <View accessibilityRole="list" aria-label={g.titulo ?? undefined}>
+                {/* Computador (27/11, sem o teto de 1120): grade de cartões de pelo menos 360 (`colunasDaGradeDoAluno`); celular, uma coluna. */}
+                <Grade gap={espaco(1.5)} alinhar="inicio" colunas={(l) => colunasDaGradeDoAluno(l, g.itens.length, espaco(1.5))}>
+                  {g.itens.map((item) => <CartaoDoItem key={item.id} item={item} nivel={g.titulo ? 3 : 2} />)}
+                </Grade>
               </View>
             </View>
           ))}
         </View>
       ) : null}
-    </Tela>
+    </TelaDoAluno>
   );
 }
 

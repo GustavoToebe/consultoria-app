@@ -7,7 +7,10 @@ import {
   CODIGOS_DA_COR_DE_ACAO,
   ESCURO,
   PALETA_DA_AGENDA,
+  PALETA_DA_AGUA,
   PALETA_DA_FIBRA,
+  PALETA_DE_DESTAQUE,
+  corDaAgua,
   PALETA_SO_DO_PERFIL,
   PALETAS,
   corDoTomDoPerfil,
@@ -389,6 +392,46 @@ describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, c
         expect(Math.abs(lab(fibra)[0] - lab(identificacao[chave].cor)[0])).toBeGreaterThanOrEqual(10);
       }
       for (const chave of CHAVES_DE_IDENTIFICACAO) expect(distanciaDeCor(fibra, identificacao[chave].cor)).toBeGreaterThanOrEqual(DISTANCIA_ENTRE_AGENDAS);
+    });
+  });
+
+  // Água (27/11, Gustavo: azul-água no gráfico da ficha): categoria fora das cinco, como a fibra, mas serve de texto.
+  describe('cor da água', () => {
+    const agua = corDaAgua(cores, variante);
+
+    it('vem da paleta do modo, #RRGGBB, com o fundo tingido sobre o cartão', () => {
+      expect(agua.cor).toBe(PALETA_DA_AGUA[variante]);
+      expect(agua.cor).toMatch(/^#[0-9A-F]{6}$/);
+      expect(agua.fundo).toBe(tingido(agua.cor, cores.superficie));
+    });
+
+    it('serve de texto (4,5:1) sobre cartão, poço, faixa, hover e o próprio fundo; a barra aparece (3:1) na faixa forte', () => {
+      for (const base of [cores.superficie, cores.superficie2, cores.superficie3, cores.sobre, agua.fundo]) {
+        expect(contraste(agua.cor, base)).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(contraste(agua.cor, cores.faixaForte)).toBeGreaterThanOrEqual(3);
+    });
+
+    it('o topo do degradê da barra (70% da cor sobre o cartão) ainda aparece (3:1)', () => {
+      expect(contraste(misturar(cores.superficie, agua.cor, 0.7), cores.superficie)).toBeGreaterThanOrEqual(3);
+    });
+
+    it('não se parece com sucesso, atenção, perigo nem com o cinza neutro', () => {
+      for (const status of [cores.sucesso, cores.atencao, cores.perigo, cores.perigoFundo]) {
+        expect(distanciaDeCor(agua.cor, status)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_STATUS);
+      }
+      expect(distanciaDeCor(agua.cor, cores.neutro)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_NEUTRO);
+      expect(distanciaDeCor(agua.cor, cores.textoSuave)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_NEUTRO);
+    });
+
+    it('fica longe do azul do peso e do AZUL de identificação', () => {
+      // Mínimos medidos em 27/11 nas 27 combinações: peso (destaque azul) 38,5 (escuro), AZUL 25,7 (areia).
+      expect(distanciaDeCor(agua.cor, PALETA_DE_DESTAQUE[variante].azul)).toBeGreaterThanOrEqual(38);
+      expect(distanciaDeCor(agua.cor, identificacao.AZUL.cor)).toBeGreaterThanOrEqual(25);
+      // shortcut: o CIANO (proteína, tags) fica a ΔE 8,95 a 15,3 e o ciano de destaque (atualização no Resumo) a 12,3 a 20,7:
+      // a água é da mesma família e não divide cartão com eles; se um dia dividir, afastar a água e subir estes pisos.
+      expect(distanciaDeCor(agua.cor, identificacao.CIANO.cor)).toBeGreaterThanOrEqual(8.9);
+      expect(distanciaDeCor(agua.cor, PALETA_DE_DESTAQUE[variante].ciano)).toBeGreaterThanOrEqual(12);
     });
   });
 });

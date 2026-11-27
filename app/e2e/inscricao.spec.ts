@@ -33,7 +33,9 @@ for (const largura of [390, 1440]) {
     });
     await page.goto(`/inscricao/${CODIGO}`);
     await expect(page.getByRole('heading', { name: 'Quero ser aluno', level: 1 })).toBeVisible();
-    await expect(page.getByText('Parte 1 de 2')).toBeVisible();
+    // A barrinha de passos (27/11) se chama "Parte 1 de 2"; a atual leva aria-current="step".
+    await expect(page.getByRole('list', { name: 'Parte 1 de 2', exact: true })).toBeVisible();
+    await expect(page.locator('[aria-current="step"]')).toHaveAttribute('aria-label', 'Parte 1 de 2: Seu contato, atual');
     await expect(page.getByRole('heading', { name: 'Seu contato', level: 2 })).toBeVisible();
     // A parte 1 é só o contato: o resto e o envio ficam para a parte 2.
     await expect(page.getByLabel('Objetivo (opcional)')).toHaveCount(0);
@@ -58,10 +60,10 @@ for (const largura of [390, 1440]) {
     await page.getByRole('button', { name: 'Continuar' }).click();
 
     // Parte 2: o topo recebe o foco, o contato aparece resumido e o texto da consultoria está antes do envio.
-    await expect(page.getByText('Parte 2 de 2')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Parte 2 de 2', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Sobre você', level: 2 })).toBeVisible();
     // O foco vai para o bloco do topo da parte (o texto é filho dele).
-    await expect(page.locator(':focus')).toContainText('Parte 2 de 2');
+    await expect(page.locator(':focus')).toHaveAttribute('aria-label', 'Parte 2 de 2: Sobre você');
     await expect(page.getByText('Pessoa Fictícia · (11) 98765-4321')).toBeVisible();
     await expect(page.getByText('Usamos seus dados só para falar com você.')).toBeVisible();
     await expect(page.getByLabel('Nome')).toHaveCount(0);
@@ -119,7 +121,7 @@ for (const largura of [390, 1440]) {
 
     await page.getByRole('button', { name: 'Voltar ao contato' }).click();
     await expect(page.getByRole('heading', { name: 'Seu contato', level: 2 })).toBeVisible();
-    await expect(page.locator(':focus')).toContainText('Parte 1 de 2');
+    await expect(page.locator(':focus')).toHaveAttribute('aria-label', 'Parte 1 de 2: Seu contato');
     await expect(page.getByLabel('Nome')).toHaveValue('Pessoa Fictícia');
     await expect(page.getByLabel('WhatsApp com DDD')).toHaveValue('(11) 98765-4321');
     await expect(page.getByLabel('E-mail (opcional)')).toHaveValue('pessoa@exemplo.test');
@@ -239,7 +241,7 @@ for (const largura of [390, 1440]) {
       [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição.' } },
     });
     await page.goto(`/inscricao/${CODIGO}`);
-    await expect(page.getByText('Parte 1 de 2')).toHaveCount(0);
+    await expect(page.getByRole('list', { name: 'Parte 1 de 2', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Continuar' })).toHaveCount(0);
     await expect(page.getByText('Texto fictício.')).toBeVisible();
     await page.getByLabel('Nome').fill('Pessoa Fictícia');

@@ -22,7 +22,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * A API subindo como na produção ANTES de existir qualquer variável do recebimento online: as quatro variáveis vazias
+ * A API subindo com o financeiro desligado ({@code TREINOS_PAGAMENTOS_HABILITADO=false}; o padrão ligado sem variáveis é o
+ * {@link PagamentosLigadosSemVariaveisIntegrationTest}) e sem nenhuma variável do recebimento online: as quatro variáveis vazias
  * ({@code TREINOS_PAGAMENTOS_CHAVES}, {@code _CHAVE_ATIVA}, {@code _URL_PUBLICA}) e as duas flags desligadas. O
  * {@code application-test.yml} liga tudo com chaves de teste; aqui as propriedades dinâmicas esvaziam cada uma, então
  * este contexto não herda nada. Prova que a subida não exige nada, que nada do recebimento online responde e que uma

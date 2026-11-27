@@ -2,15 +2,18 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { ConteudoDieta, ItemDieta, VersaoDetalhe } from '../src/api/tipos';
 import { fixarHoje, sessaoDeAluno } from './aluno';
+import { colunasEstaveis, conferirAlturasDeColunas, maiorVazioDentroDosCartoes } from './alturasDeColunas';
 import { ALUNO, erroApi, simularApi, type RespostasApi } from './api-falsa';
 
 /**
- * Dieta do aluno na web (26/11, `docs/planos/aluno-web-layout.md` seção 5 e `orientacoes-de-design-26-11.md` 1.5): com
- * espaço na área (952 px), as refeições numa coluna só, na ordem do dia, com o nome no título e "Horário: 07:00" embaixo (A12), e a coluna
- * de apoio fixa ao rolar com Total do dia, Água de hoje, Suplementação, Medicação e ergogênicos, Lista de compras, Baixar PDF
- * e Observações; a composição fica no teto de 1312 (880 + 32 + 400), no meio, com o título na mesma borda. O total da
- * refeição ganha respiro (kcal em destaque, P · C · G · Fibra numa linha menor embaixo) com os mesmos textos. No celular nada
- * muda. Só dados fictícios. Com `CAPTURAS=<pasta>`, guarda as telas (nunca no git).
+ * Dieta do aluno na web (27/11, contêiner do treinador: começa ao lado do menu e preenche a área, sem o teto de 1312): com
+ * espaço na área (972 px), as refeições com o nome no título e "Horário: 07:00" embaixo (A12) e, à direita, a coluna de
+ * apoio (380 na faixa normal, 420 na larga, 440 na ultralarga) com Total do dia, Água de hoje, Suplementação, Medicação e
+ * ergogênicos, Lista de compras, Baixar PDF e Observações. Refeições numa coluna até a faixa `normal`; duas na `larga` e na
+ * `ultralarga`, empilhadas pela altura medida (27/11: as duas primeiras abrem as colunas, o topo de cada uma nunca acima do da
+ * anterior, nenhum cartão esticado com vazio por dentro e o fim das duas colunas a menos de 80 px). O total da refeição ganha respiro
+ * (kcal em destaque, P · C · G · Fibra numa linha menor embaixo) com os mesmos textos. No celular nada muda. Só dados
+ * fictícios. Com `E2E_CAPTURAS=<pasta>` (ou `CAPTURAS`), guarda as telas (nunca no git).
  */
 const item = (uid: string, nome: string, fibra: number | null): ItemDieta => ({
   uid, alimentoId: null, nome, quantidade: 100, unidade: 'g', kcal: 100, proteina: 5, carboidrato: 10, gordura: 2, fibra, manual: true,
@@ -81,16 +84,17 @@ const apoio = (page: Page) => page.getByRole('complementary', { name: 'Resumo da
 const semRolagemDeLado = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 const cartao = (page: Page, nome: string) => page.getByTestId('cartao').filter({ has: nomeDaRefeicao(page, nome) });
 
-// A matriz das orientações de 26/11 (0.5): escuro e claro em 390, 1280 e 1920; as outras larguras no escuro.
-const MATRIZ: (Janela & { temas: boolean[]; lado: boolean })[] = [
+// A matriz das orientações de 26/11 (0.5): escuro e claro em 390, 1280, 1920 e 3440; as outras larguras no escuro. `apoio`
+// e `duas`: a faixa da área com o menu aberto (1280 e 1536 normal, 1920 e 2560 larga, 3440 ultralarga).
+const MATRIZ: (Janela & { temas: boolean[]; lado: boolean; apoio?: number; duas?: boolean })[] = [
   { largura: 390, altura: 844, temas: [true, false], lado: false },
   { largura: 1024, altura: 768, temas: [true], lado: false },
   { largura: 1024, altura: 768, recolhido: true, temas: [true], lado: false },
-  { largura: 1280, altura: 720, temas: [true, false], lado: true },
-  { largura: 1536, altura: 864, temas: [true], lado: true },
-  { largura: 1920, temas: [true, false], lado: true },
-  { largura: 2560, altura: 1440, temas: [true], lado: true },
-  { largura: 3440, altura: 1440, temas: [true], lado: true },
+  { largura: 1280, altura: 720, temas: [true, false], lado: true, apoio: 380, duas: false },
+  { largura: 1536, altura: 864, temas: [true], lado: true, apoio: 380, duas: false },
+  { largura: 1920, temas: [true, false], lado: true, apoio: 420, duas: true },
+  { largura: 2560, altura: 1440, temas: [true], lado: true, apoio: 420, duas: true },
+  { largura: 3440, altura: 1440, temas: [true, false], lado: true, apoio: 440, duas: true },
 ];
 
 for (const janela of MATRIZ) {
@@ -109,13 +113,36 @@ for (const janela of MATRIZ) {
           return t && r ? t.x - r.x : 0;
         }).toBeGreaterThan(400);
       }
-      const pasta = process.env.CAPTURAS;
+      if (janela.lado) {
+        // O apoio começa na mesma linha das refeições (grudado ou não): espera a medida dele assentar antes da captura.
+        await expect.poll(async () => {
+          const [t, r] = await Promise.all([apoio(page).boundingBox(), cartao(page, NOMES[0]).boundingBox()]);
+          return t && r ? Math.abs(t.y - r.y) : 99;
+        }).toBeLessThan(2);
+      }
+      // Duas colunas medidas: espera o arranjo assentar (as medidas chegam em mais de um quadro) antes da captura.
+      const colunas = janela.duas ? await conferirAlturasDeColunas(page, { prefixo: 'dieta-coluna', colunasEsperadas: 2 }) : null;
+      const pasta = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS;
       if (pasta) await page.screenshot({ path: `${pasta}/dieta-${nome}.png`, fullPage: true });
 
-      // Refeições numa coluna só (mesma borda), na ordem do dia, em qualquer largura.
       const rs = await Promise.all(refeicoes(page).map(caixa));
-      for (const r of rs) expect(Math.abs(r.x - rs[0].x)).toBeLessThan(2);
-      expect(rs.map((r) => r.y)).toEqual([...rs.map((r) => r.y)].sort((a, b) => a - b));
+      if (janela.duas && colunas) {
+        test.info().annotations.push({ type: 'fim das colunas', description: colunas.map((c) => `${c.pecas.join('+')}: ${Math.round(c.fim)}`).join(' | ') });
+        // As duas primeiras abrem as colunas, lado a lado; as outras na ordem do dia (o topo nunca acima do da anterior).
+        expect(Math.abs(rs[1].y - rs[0].y)).toBeLessThan(2);
+        expect(rs[1].x).toBeGreaterThan(rs[0].x + 300);
+        for (let i = 2; i < rs.length; i++) {
+          expect(rs[i].y).toBeGreaterThanOrEqual(rs[i - 1].y - 1);
+          expect([rs[0].x, rs[1].x].some((x) => Math.abs(rs[i].x - x) < 2)).toBe(true);
+        }
+        // Nenhum cartão esticado para acompanhar o vizinho (o "Lanche da tarde" tinha ~110 px vazios por dentro).
+        const vazio = await maiorVazioDentroDosCartoes(page, 'dieta-coluna');
+        expect(vazio.vazio, `vazio dentro de "${vazio.cartao}"`).toBeLessThan(48);
+      } else {
+        // Refeições numa coluna só (mesma borda), na ordem do dia.
+        for (const r of rs) expect(Math.abs(r.x - rs[0].x)).toBeLessThan(2);
+        expect(rs.map((r) => r.y)).toEqual([...rs.map((r) => r.y)].sort((a, b) => a - b));
+      }
       // Os textos da fibra continuam os mesmos (itens, total da refeição e total do dia).
       await expect(page.getByText('Fibra 2,4 g (parcial)', { exact: true })).toBeVisible();
       await expect(page.getByText('10,4 g de fibra (parcial)', { exact: true })).toBeVisible();
@@ -130,24 +157,36 @@ for (const janela of MATRIZ) {
           page.getByRole('button', { name: 'Baixar PDF da dieta' })].map(caixa));
         expect(ordem.map((c) => c.y)).toEqual([...ordem.map((c) => c.y)].sort((a, b) => a - b));
       } else {
-        // Apoio à direita das refeições, na ordem pedida.
+        // Apoio à direita das refeições, na ordem pedida: só resumo e ações (Total, Água, Suplementação, Lista, PDF).
         await expect(apoio(page)).toBeVisible();
         expect(total.x).toBeGreaterThan(rs[0].x + 400);
-        const ordem = await Promise.all([titulo(page, 'Total do dia'), titulo(page, 'Água de hoje'), titulo(page, 'Suplementação'), titulo(page, 'Medicação e ergogênicos'),
-          page.getByRole('button', { name: 'Lista de compras' }), page.getByRole('button', { name: 'Baixar PDF da dieta' }), page.getByText('Observações', { exact: true })]
+        const ordem = await Promise.all([titulo(page, 'Total do dia'), titulo(page, 'Água de hoje'), titulo(page, 'Suplementação'),
+          page.getByRole('button', { name: 'Lista de compras' }), page.getByRole('button', { name: 'Baixar PDF da dieta' })]
           .map((l) => l.boundingBox()));
         const ys = ordem.map((c) => c!.y);
         expect(ys).toEqual([...ys].sort((a, b) => a - b));
         for (const c of ordem) expect(Math.abs(c!.x - ordem[0]!.x)).toBeLessThan(30);
+        // Medicação e Observações na principal, depois das refeições (conteúdo, não resumo): numa coluna, abaixo da última; em
+        // duas, abaixo da refeição da própria coluna (fecham a coluna mais curta).
+        const ultima = Math.max(...rs.map((r) => r.y));
+        for (const l of [titulo(page, 'Medicação e ergogênicos'), page.getByText('Observações', { exact: true })]) {
+          const c = await caixa(l);
+          expect(c.x).toBeLessThan(total.x);
+          const acima = rs.filter((r) => Math.abs(r.x - c.x) < 200);
+          expect(c.y).toBeGreaterThan(janela.duas ? Math.max(...acima.map((r) => r.y)) : ultima - 5);
+        }
+        await expect(apoio(page).getByText('Observações', { exact: true })).toHaveCount(0);
         // A12 também com o apoio ao lado: o nome é o título e o horário vem embaixo.
         await expect(page.getByText('Horário: 07:00', { exact: true })).toBeVisible();
         await expect(page.getByText('07:00 · Café da manhã', { exact: true })).toHaveCount(0);
         // O Total do dia é o primeiro do apoio e aparece sem rolar, também com 720 de altura.
         await expect(titulo(page, 'Total do dia')).toBeInViewport();
-        // Composição no teto de 1312 (refeições até 880), no meio, com o título "Dieta" na borda das refeições.
+        // Contêiner do treinador: o apoio tem a largura da faixa e termina no recuo da direita (sem faixa vazia), e o título
+        // "Dieta" fica na borda das refeições.
         const apoioCaixa = await caixa(apoio(page));
-        expect(apoioCaixa.x + apoioCaixa.width - rs[0].x).toBeLessThanOrEqual(1312 + 1);
-        expect((await caixa(cartao(page, NOMES[0]))).width).toBeLessThanOrEqual(880 + 1);
+        expect(Math.abs(apoioCaixa.width - janela.apoio!)).toBeLessThan(2);
+        // Recuo da `Tela`: 16 (+ 48 de respiro lateral na ultralarga).
+        expect(largura - (apoioCaixa.x + apoioCaixa.width)).toBeLessThanOrEqual(64 + 1);
         expect(Math.abs((await caixa(page.getByRole('heading', { name: 'Dieta', level: 1 }))).x - rs[0].x)).toBeLessThan(30);
         // Respiro: no total do café, P/C/G/Fibra numa linha abaixo da kcal.
         const cafe = cartao(page, NOMES[0]);
@@ -167,26 +206,59 @@ const LONGA: ConteudoDieta = {
   suplementacao: Array.from({ length: 10 }, (_, i) => ({ uid: `sl${i}`, nome: `Suplemento fictício ${i + 1}`, dose: '1 cápsula', horario: `${String(6 + i).padStart(2, '0')}:00`, observacao: '', link: null })),
 };
 
-test('1280 × 720: o apoio fica fixo ao rolar e, mais alto que a janela, rola por dentro até as Observações', async ({ page }) => {
+test('1280 × 720: o apoio mais alto que a janela não gruda, rola com a página e o PDF no fim dele se alcança', async ({ page }) => {
   await abrir(page, { largura: 1280, altura: 720 }, true, {}, LONGA);
   await expect(apoio(page)).toBeVisible();
-  await nomeDaRefeicao(page, NOMES[4]).scrollIntoViewIfNeeded();
-  // A primeira refeição saiu de cima da tela, o Total do dia continua à vista.
-  await expect.poll(async () => (await nomeDaRefeicao(page, NOMES[0]).boundingBox())!.y).toBeLessThan(0);
-  const total = (await titulo(page, 'Total do dia').boundingBox())!;
-  expect(total.y).toBeGreaterThanOrEqual(0);
-  expect(total.y).toBeLessThan(200);
-  await apoio(page).evaluate((el) => { el.scrollTop = el.scrollHeight; });
-  await expect(page.getByText('Observações', { exact: true })).toBeInViewport();
-  const pasta = process.env.CAPTURAS;
+  // O Total do dia é o primeiro do apoio e aparece sem rolar.
+  await expect(titulo(page, 'Total do dia')).toBeInViewport();
+  const pdf = page.getByRole('button', { name: 'Baixar PDF da dieta' });
+  await pdf.scrollIntoViewIfNeeded();
+  await expect(pdf).toBeInViewport();
+  // Rolou com a página: o Total do dia saiu por cima (não ficou grudado cobrindo o fim do apoio).
+  await expect.poll(async () => (await titulo(page, 'Total do dia').boundingBox())!.y).toBeLessThan(0);
+  const pasta = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS;
   if (pasta) await page.screenshot({ path: `${pasta}/dieta-1280x720-apoio-rolado.png` });
+});
+
+test('1920 × 1080: o apoio que cabe na janela fica grudado no topo ao rolar até as Observações', async ({ page }) => {
+  const curto: ConteudoDieta = { ...CONTEUDO, suplementacao: CONTEUDO.suplementacao.slice(0, 1) };
+  await abrir(page, { largura: 1920 }, true, {}, curto);
+  await expect(apoio(page)).toBeVisible();
+  // As colunas só ficam no lugar depois de medir as peças: rolar antes disso não leva as Observações até a vista.
+  await colunasEstaveis(page, 'dieta-coluna');
+  const obs = page.getByText('Observações', { exact: true });
+  await obs.scrollIntoViewIfNeeded();
+  await expect.poll(async () => (await nomeDaRefeicao(page, NOMES[0]).boundingBox())!.y).toBeLessThan(0);
+  // Grudado a 16 px do topo da área de rolagem (o cabeçalho rola com a página no PC).
+  await expect.poll(async () => Math.round((await apoio(page).boundingBox())!.y)).toBe(16);
+  await expect(titulo(page, 'Total do dia')).toBeInViewport();
+  const pasta = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS;
+  if (pasta) await page.screenshot({ path: `${pasta}/dieta-1920-apoio-grudado.png` });
+});
+
+test('3440 com a Largura do conteúdo Limitada: tudo dentro de 1800, duas colunas e o apoio de 440', async ({ page }) => {
+  await page.setViewportSize({ width: 3440, height: 1440 });
+  await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'ESCURO', larguraConteudo: 'LIMITADA' })), ALUNO.id);
+  await fixarHoje(page);
+  await simularApi(page, { ...(await sessaoDeAluno(page)), 'GET /aluno/dieta': { corpo: { dieta: versao(CONTEUDO) } }, 'GET /aluno/pesos': { corpo: [] } });
+  await page.goto('/aluno/dieta');
+  await expect(apoio(page)).toBeVisible();
+  await expect.poll(async () => {
+    const [a, b] = await Promise.all([nomeDaRefeicao(page, NOMES[0]).boundingBox(), nomeDaRefeicao(page, NOMES[1]).boundingBox()]);
+    return a && b ? Math.abs(a.y - b.y) : 99;
+  }).toBeLessThan(2);
+  const [cafe, ap] = await Promise.all([caixa(cartao(page, NOMES[0])), caixa(apoio(page))]);
+  expect(ap.x + ap.width - cafe.x).toBeLessThanOrEqual(1800 + 1);
+  expect(Math.abs(ap.width - 440)).toBeLessThan(2);
+  const pasta = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS;
+  if (pasta) await page.screenshot({ path: `${pasta}/dieta-3440-limitada-escuro.png` });
 });
 
 test('1920: sem dieta publicada, o vazio de sempre e sem coluna de apoio', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await abrir(page, { largura: 1920 }, true, { 'GET /aluno/dieta': { corpo: { dieta: null } } });
   await expect(page.getByText('Sem plano de dieta', { exact: true })).toBeVisible();
   await expect(apoio(page)).toHaveCount(0);
-  const pasta = process.env.CAPTURAS;
+  const pasta = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS;
   if (pasta) await page.screenshot({ path: `${pasta}/dieta-1920-vazio.png` });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
@@ -196,7 +268,7 @@ test('1920: erro da API mostra a mensagem com "Tentar de novo"', async ({ page }
   await abrir(page, { largura: 1920 }, false, { 'GET /aluno/dieta': erroApi(500, 'Erro fictício.', 'ERRO_INTERNO') });
   await expect(page.getByRole('button', { name: /Tentar de novo/ })).toBeVisible();
   await expect(apoio(page)).toHaveCount(0);
-  const pasta = process.env.CAPTURAS;
+  const pasta = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS;
   if (pasta) await page.screenshot({ path: `${pasta}/dieta-1920-erro.png` });
 });
 
@@ -209,5 +281,27 @@ test('1920: dia sem dieta marcada mostra o aviso no topo e o apoio sem o total',
   await expect(nomeDaRefeicao(page, NOMES[0])).toHaveCount(0);
   await expect(apoio(page)).toBeVisible();
   expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('1280: orientações e observações com o formato do treinador aplicado (sem asteriscos nem traços crus)', async ({ page }) => {
+  const formatado: ConteudoDieta = {
+    ...CONTEUDO,
+    orientacoes: [{ titulo: 'Hidratação', texto: 'Beba **3 litros** por dia.' }],
+    observacoes: '__Sem açúcar__ no café.',
+  };
+  const { errosDaPagina } = await abrir(page, { largura: 1280, altura: 720 }, true, {}, formatado);
+  // O primeiro desenho é o do celular e a troca de arranjo remonta os cartões (fechando o que foi aberto): espera o apoio.
+  await expect(apoio(page)).toBeVisible();
+  await expect.poll(async () => {
+    const [t, r] = await Promise.all([titulo(page, 'Total do dia').boundingBox(), refeicoes(page)[0].boundingBox()]);
+    return t && r ? t.x - r.x : 0;
+  }).toBeGreaterThan(400);
+  await page.getByRole('button', { name: /^Orientações/ }).click();
+  await page.getByRole('button', { name: /^Observações/ }).click();
+  await expect(page.getByText('Beba 3 litros por dia.', { exact: true })).toBeVisible();
+  await expect(page.getByText('3 litros', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sem açúcar no café.', { exact: true })).toBeVisible();
+  await expect(page.getByText(/\*\*|__/)).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });

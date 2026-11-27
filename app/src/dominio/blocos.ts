@@ -111,3 +111,53 @@ export function blocosValidos(blocos: readonly number[] | null | undefined): boo
     blocos.every((b) => Number.isInteger(b) && b >= 1 && b <= MAXIMO_REPS_POR_BLOCO)
   );
 }
+
+// ---- Edição dos blocos no editor (27/11) ----
+
+/** Como os blocos aparecem: um campo só (todos com as mesmas repetições) ou um campo por bloco. */
+export type ModoDosBlocos = 'iguais' | 'diferentes';
+
+/** "Adicionar um bloco": entra no fim, com as repetições do último (a lista segue gravável); no máximo 10. */
+export function maisUmBloco(blocos: readonly (number | null)[]): (number | null)[] {
+  if (blocos.length >= MAXIMO_DE_BLOCOS) return [...blocos];
+  return [...blocos, blocos.length ? blocos[blocos.length - 1] : null];
+}
+
+/** "Remover um bloco": sai o último; no mínimo 2. */
+export function menosUmBloco(blocos: readonly (number | null)[]): (number | null)[] {
+  return blocos.length <= MINIMO_DE_BLOCOS ? [...blocos] : blocos.slice(0, -1);
+}
+
+/** "Blocos iguais": as repetições do campo único valem para todos os blocos (a quantidade fica). */
+export function comRepsIguais(blocos: readonly (number | null)[], reps: number | null): (number | null)[] {
+  return blocos.map(() => reps);
+}
+
+/** Os campos dos blocos ao abrir: a lista gravada, ou dois blocos vazios (o mínimo) quando não há. */
+export function rascunhoInicialDosBlocos(valor: readonly number[] | null | undefined): (number | null)[] {
+  const lista: (number | null)[] = valor ? [...valor] : [];
+  while (lista.length < MINIMO_DE_BLOCOS) lista.push(null);
+  return lista;
+}
+
+/** O modo com que os blocos abrem: iguais com a lista toda igual (ou vazia), diferentes com repetições distintas. */
+export function modoInicialDosBlocos(valor: readonly number[] | null | undefined): ModoDosBlocos {
+  return !valor?.length || blocosIguais(valor) ? 'iguais' : 'diferentes';
+}
+
+/**
+ * A lista que chegou de fora (desfazer, receita, notação digitada) no modo em que a pessoa está. A causa do defeito de
+ * 27/11 era refazer o modo pelo formato da lista a cada mudança, inclusive as que o próprio campo gravou: "Adicionar um
+ * bloco" em "Blocos diferentes" com 5+5+5+5 dava 5×5, o campo voltava para "Blocos iguais" e os blocos sumiam. Agora o
+ * eco do que o campo gravou não mexe em nada (`publicado`), e lista de fora só sai de "iguais" quando não cabe nele.
+ */
+export function blocosQueChegaram(
+  valor: readonly number[] | null | undefined,
+  publicado: readonly number[] | null | undefined,
+  modo: ModoDosBlocos,
+): { mudou: false } | { mudou: true; rascunho: (number | null)[]; modo: ModoDosBlocos } {
+  if (JSON.stringify(valor ?? null) === JSON.stringify(publicado ?? null)) return { mudou: false };
+  // Lista vazia ou inválida vinda de fora não apaga o que a pessoa está digitando.
+  if (!valor || !blocosValidos(valor)) return { mudou: false };
+  return { mudou: true, rascunho: [...valor], modo: modo === 'iguais' && !blocosIguais(valor) ? 'diferentes' : modo };
+}

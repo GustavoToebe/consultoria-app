@@ -40,31 +40,50 @@ export function HistoricoDoExercicio(p: {
   cardio: boolean;
 }) {
   const [aberta, setAberta] = useState(false);
-  if (!p.exercicio.exercicioId || p.cardio) return null;
+  if (!temHistorico(p.exercicio, p.cardio)) return null;
   return (
     <>
       <Botao rotulo="Histórico" rotuloAcessivel={`Histórico de ${p.exercicio.nome}`} tipo="fantasma" Icone={History} aoTocar={() => setAberta(true)} />
       {aberta ? (
         <Folha visivel titulo="Histórico" aoFechar={() => setAberta(false)}>
-          <ConteudoDoHistorico {...p} exercicioId={p.exercicio.exercicioId} />
+          <ConteudoDoHistorico {...p} />
         </Folha>
       ) : null}
     </>
   );
 }
 
-function ConteudoDoHistorico({ exercicio: e, exercicioId, ultimaVez, ultima }: { exercicio: ExercicioPlano; exercicioId: string; ultimaVez: AnteriorDoExercicio | null; ultima: UltimaCarga | null }) {
+/** Há histórico para mostrar: exercício da biblioteca e com carga (cardio não tem). */
+export const temHistorico = (e: ExercicioPlano, cardio: boolean) => !!e.exercicioId && !cardio;
+
+interface DadosDoHistorico { exercicio: ExercicioPlano; ultimaVez: AnteriorDoExercicio | null; ultima: UltimaCarga | null }
+
+function ConteudoDoHistorico(p: DadosDoHistorico) {
+  return (
+    <View style={estilos.secoes}>
+      <Texto variante="bloco" numerico>{p.exercicio.nome}</Texto>
+      <RecentesDoHistorico {...p} />
+      <PorDataDoHistorico exercicio={p.exercicio} />
+    </View>
+  );
+}
+
+/**
+ * A última vez e os recordes (do pacote: funcionam sem internet). Na folha do Histórico e, na web larga, aberto na coluna do
+ * próximo exercício (`ExercicioAluno`), sem folha.
+ */
+export function RecentesDoHistorico({ exercicio: e, ultimaVez, ultima }: DadosDoHistorico) {
   const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
-  const { online, pacote } = useAluno();
+  const { pacote } = useAluno();
   const { retornoHabilitado } = useSessao();
   const semCarga = e.unidade === 'nenhuma';
   // O pacote só traz os recordes com "Concluir treino" ligado; a seção some sem ele (como a medalha das séries).
   const recordes = retornoHabilitado ? pacote?.pacote.recordes : undefined;
+  const exercicioId = e.exercicioId;
 
   return (
-    <View style={estilos.secoes}>
-      <Texto variante="bloco" numerico>{e.nome}</Texto>
+    <>
       <View style={estilos.secao}>
         <Texto variante="rotulo" cor={cores.texto}>{ultimaVez ? `Última vez · ${dataParaTela(ultimaVez.data)}` : 'Última vez'}</Texto>
         {ultimaVez ? (
@@ -84,7 +103,7 @@ function ConteudoDoHistorico({ exercicio: e, exercicioId, ultimaVez, ultima }: {
           <Texto variante="suave">Sem registro anterior deste exercício.</Texto>
         )}
       </View>
-      {recordes ? (
+      {recordes && exercicioId ? (
         <View style={estilos.secao}>
           <Texto variante="rotulo" cor={cores.texto}>Recordes</Texto>
           <Texto variante="pequeno">Séries sem técnica, feitas antes de {dataParaTela(recordes.ate)}.</Texto>
@@ -98,12 +117,21 @@ function ConteudoDoHistorico({ exercicio: e, exercicioId, ultimaVez, ultima }: {
           </View>
         </View>
       ) : null}
-      <View style={estilos.secao}>
-        <Texto variante="rotulo" cor={cores.texto}>Por data</Texto>
-        {online ? <PorData exercicioId={exercicioId} nome={e.nome} /> : (
-          <Texto variante="suave">Sem conexão. A carga por data aparece quando você estiver conectado à internet.</Texto>
-        )}
-      </View>
+    </>
+  );
+}
+
+/** A carga por data (com internet, da API). `rotulo` falso quando quem monta já pôs o título (a coluna da web larga). */
+export function PorDataDoHistorico({ exercicio: e, rotulo = true }: { exercicio: ExercicioPlano; rotulo?: boolean }) {
+  const { cores } = useTema();
+  const { online } = useAluno();
+  if (!e.exercicioId) return null;
+  return (
+    <View style={estilos.secao}>
+      {rotulo ? <Texto variante="rotulo" cor={cores.texto}>Por data</Texto> : null}
+      {online ? <PorData exercicioId={e.exercicioId} nome={e.nome} /> : (
+        <Texto variante="suave">Sem conexão. A carga por data aparece quando você estiver conectado à internet.</Texto>
+      )}
     </View>
   );
 }

@@ -78,6 +78,79 @@ class AuditoriaFiltrosIntegrationTest extends AbstractIntegrationTest {
         assertThat(pares("usuarioId=" + id(membro) + "&acao=PERFIL_CRIADO")).isEmpty();
     }
 
+    private static String lista(String nome, int de, int ate) {
+        StringBuilder s = new StringBuilder();
+        for (int i = de; i < ate; i++) s.append(s.isEmpty() ? "" : "&").append(nome).append("=ACAO_").append(i);
+        return s.toString();
+    }
+
+    @Test
+    void acaoExcetoExcluiECombinaETetoDeAcaoEDe100() throws Exception {
+        api.post("/alunos", admin, Map.of("nome", "Aluno do admin"), 200);
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class, id(admin));
+        new TransactionTemplate(transacoes).executeWithoutResult(s -> auditoria.registrarDoSistema(consultoria,
+                "LOGIN_BLOQUEADO", "USUARIO", UUID.randomUUID(), "Login bloqueado por excesso de tentativas."));
+        int total = api.get("/auditoria", admin, 200).path("total").asInt();
+        int logins = jdbc.queryForObject("select count(*) from auditoria where consultoria_id = ? and acao in ('LOGIN_SUCESSO','LOGIN_BLOQUEADO')",
+                Integer.class, consultoria);
+        assertThat(logins).isGreaterThanOrEqualTo(2);
+
+        JsonNode sem = api.get("/auditoria?acaoExceto=LOGIN_SUCESSO&acaoExceto=LOGIN_BLOQUEADO", admin, 200);
+        assertThat(sem.path("total").asInt()).isEqualTo(total - logins).isPositive();
+        assertThat(sem.path("itens")).hasSize(total - logins);
+        sem.path("itens").forEach(e -> assertThat(e.path("acao").asString()).doesNotStartWith("LOGIN_"));
+        // Lista separada por vírgula, vazia e combinação com os outros filtros.
+        assertThat(api.get("/auditoria?acaoExceto=LOGIN_SUCESSO,LOGIN_BLOQUEADO", admin, 200).path("total").asInt()).isEqualTo(total - logins);
+        assertThat(api.get("/auditoria?acaoExceto=", admin, 200).path("total").asInt()).isEqualTo(total);
+        assertThat(pares("acao=ALUNO_CRIADO&acaoExceto=ALUNO_CRIADO")).isEmpty();
+        assertThat(pares("acao=ALUNO_CRIADO,LOGIN_SUCESSO&acaoExceto=LOGIN_SUCESSO&usuarioId=" + id(admin))).containsExactly("ALUNO_CRIADO|" + id(admin));
+        String hoje = java.time.LocalDate.now(br.com.treinos.api.web.Fuso.BRASILIA).toString();
+        assertThat(pares("acaoExceto=LOGIN_SUCESSO&usuarioId=sistema&de=" + hoje + "&ate=" + hoje)).containsExactly("LOGIN_BLOQUEADO|sistema");
+
+        // Teto de acao neste endpoint: 62 passa, 100 passa, 101 recusa; acaoExceto segue com 50.
+        assertThat(pares(lista("acao", 0, 61) + "&acao=ALUNO_CRIADO")).containsExactly("ALUNO_CRIADO|" + id(admin));
+        api.get("/auditoria?" + lista("acao", 0, 99) + "&acao=ALUNO_CRIADO", admin, 200);
+        assertThat(api.get("/auditoria?" + lista("acao", 0, 101), admin, 400).path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        api.get("/auditoria?" + lista("acaoExceto", 0, 50), admin, 200);
+        assertThat(api.get("/auditoria?" + lista("acaoExceto", 0, 51), admin, 400).path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        JsonNode invalido = api.get("/auditoria?acaoExceto=drop_table", admin, 400);
+        assertThat(invalido.path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        assertThat(invalido.toString()).doesNotContain("drop");
+    }
+
+    private String perfilDe(JsonNode login) {
+        return jdbc.queryForObject("select p.nome from perfil p join usuario u on u.perfil_id = p.id and u.consultoria_id = p.consultoria_id where u.id = ?::uuid",
+                String.class, id(login));
+    }
+
+    @Test
+    void eventoTrazOPerfilDoAutorNuloParaOSistemaESemVazar() throws Exception {
+        api.post("/alunos", admin, Map.of("nome", "Aluno do admin"), 200);
+        api.post("/alunos", membro, Map.of("nome", "Aluno do membro"), 200);
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class, id(admin));
+        new TransactionTemplate(transacoes).executeWithoutResult(s -> auditoria.registrarDoSistema(consultoria,
+                "PAGAMENTO_ONLINE_CONFIRMADO", "COBRANCA", UUID.randomUUID(), "Confirmou um pagamento online."));
+
+        Map<String, String> perfis = new java.util.HashMap<>();
+        api.get("/auditoria?acao=ALUNO_CRIADO&acao=PAGAMENTO_ONLINE_CONFIRMADO", admin, 200).path("itens").forEach(e ->
+                perfis.put(e.path("usuarioId").isNull() ? "sistema" : e.path("usuarioId").asString(),
+                        e.path("usuarioPerfil").isNull() ? null : e.path("usuarioPerfil").asString()));
+        assertThat(perfis).containsOnlyKeys(id(admin), id(membro), "sistema");
+        assertThat(perfis.get(id(admin))).isEqualTo(perfilDe(admin)).isNotBlank();
+        assertThat(perfis.get(id(membro))).isEqualTo("Cadastro fictício");
+        assertThat(perfis.get("sistema")).isNull();
+
+        // Outra consultoria só vê os próprios autores e o próprio perfil; nada do perfil criado aqui.
+        JsonNode outro = api.novoTreinador();
+        JsonNode lista = api.get("/auditoria", outro, 200).path("itens");
+        assertThat(lista).isNotEmpty();
+        lista.forEach(e -> {
+            assertThat(e.path("usuarioId").asString()).isEqualTo(id(outro));
+            assertThat(e.path("usuarioPerfil").asString()).isEqualTo(perfilDe(outro));
+        });
+        assertThat(lista.toString()).doesNotContain("Cadastro fictício");
+    }
+
     @Test
     void recusasEOutraConsultoria() throws Exception {
         JsonNode r = api.get("/auditoria?acao=drop_table", admin, 400);
@@ -85,7 +158,7 @@ class AuditoriaFiltrosIntegrationTest extends AbstractIntegrationTest {
         assertThat(r.toString()).doesNotContain("drop");
         assertThat(api.get("/auditoria?usuarioId=fulano", admin, 400).path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
         StringBuilder muitas = new StringBuilder("acao=");
-        for (int i = 0; i < 51; i++) muitas.append(i == 0 ? "" : ",").append("ACAO_").append(i);
+        for (int i = 0; i < 101; i++) muitas.append(i == 0 ? "" : ",").append("ACAO_").append(i);
         assertThat(api.get("/auditoria?" + muitas, admin, 400).path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
         api.get("/auditoria?usuarioId=" + UUID.randomUUID(), admin, 404);
 

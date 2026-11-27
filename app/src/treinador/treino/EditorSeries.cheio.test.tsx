@@ -26,12 +26,14 @@ jest.mock('../../ui/Botao', () => ({
     require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotuloAcessivel ?? rotulo, accessibilityHint: motivo, accessibilityState: { disabled: !!desabilitado }, onPress: aoTocar }),
 }));
 jest.mock('./TabelaDeBlocos', () => ({
-  TabelaDeBlocos: ({ linhas: abas, ativa, aoMudar, depois, detalhe }: { linhas: { valor: string; rotulo: string }[]; ativa: string; aoMudar: (v: string) => void; depois?: unknown; detalhe?: unknown }) => {
+  TabelaDeBlocos: ({ linhas: abas, ativa, aoMudar, depois, nova, detalhe }: { linhas: { valor: string; rotulo: string }[]; ativa: string; aoMudar: (v: string) => void; depois?: unknown; nova?: { rotulo: string; aoTocar: () => void }; detalhe?: unknown }) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createElement } = require('react'); const { Pressable, View } = require('react-native');
-    return createElement(View, { testID: 'faixa' }, ...abas.map((a) => createElement(Pressable, { key: a.valor, accessibilityRole: 'tab', accessibilityLabel: a.rotulo, accessibilityState: { selected: a.valor === ativa }, onPress: () => aoMudar(a.valor) })), detalhe, depois);
+    return createElement(View, { testID: 'faixa' }, ...abas.map((a) => createElement(Pressable, { key: a.valor, accessibilityRole: 'tab', accessibilityLabel: a.rotulo, accessibilityState: { selected: a.valor === ativa }, onPress: () => aoMudar(a.valor) })), detalhe, depois,
+      nova ? createElement(Pressable, { key: 'nova', accessibilityLabel: nova.rotulo, accessibilityState: { disabled: false }, onPress: nova.aoTocar }) : null);
   },
 }));
+jest.mock('../../ui/EscolhaSuspensa', () => ({ EscolhaSuspensa: () => null }));
 jest.mock('../../ui/Escolha', () => ({
   Escolha: ({ rotulo, opcoes, aoMudar }: { rotulo: string; opcoes: { valor: unknown; rotulo: string }[]; aoMudar: (v: unknown) => void }) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -61,7 +63,7 @@ function montar(series: Serie[], cardio = false, aoMudar: (s: Serie[]) => void =
 const novas = (raiz: No) => raiz.findAll((n) => n.props.accessibilityLabel === 'Nova série' && typeof n.props.onPress === 'function' && typeof n.type !== 'string');
 
 describe('"Nova série" com o exercício cheio', () => {
-  it('com espaço, fica no fim da faixa das abas e liberado', () => {
+  it('com espaço, é a última linha da tabela e liberado', () => {
     const arvore = montar([serie('a1', { tipo: 'WORKING' }), serie('a2', { tipo: 'WORKING' })]);
     const faixa = arvore.root.findByProps({ testID: 'faixa' });
     expect(novas(faixa)).toHaveLength(1);

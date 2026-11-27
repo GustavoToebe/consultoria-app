@@ -1,15 +1,6 @@
-import { colunasDaGradeDoAluno, larguraDaTelaDoAluno, TETO_DA_TELA_DO_ALUNO, telaLargaDoAluno } from './telaLargaDoAluno';
+import { colunasDaGradeDoAluno, telaLargaDoAluno } from './telaLargaDoAluno';
 
-// tela larga: revisão (24/11)
-describe('larguraDaTelaDoAluno', () => {
-  it('teto único de 1312 (880 + 32 + 400), igual em todas as faixas, sem coluna nova na ultralarga', () => {
-    expect(TETO_DA_TELA_DO_ALUNO).toBe(1312);
-    for (const faixa of ['compacta', 'normal', 'larga', 'ultralarga'] as const) {
-      expect(larguraDaTelaDoAluno(faixa)).toBe(1312);
-      expect(larguraDaTelaDoAluno(faixa, 2)).toBe(1312);
-    }
-  });
-
+describe('telaLargaDoAluno', () => {
   it('só a larga e a ultralarga contam como tela larga', () => {
     expect(['compacta', 'normal', 'larga', 'ultralarga'].map((f) => telaLargaDoAluno(f as never))).toEqual([false, false, true, true]);
   });

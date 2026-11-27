@@ -78,7 +78,7 @@ test('menu lateral: o clique simples navega dentro do app e, com alteração pen
   await page.getByRole('button', { name: 'Adicionar exercício' }).first().click();
   const folha = page.getByRole('dialog', { name: 'Escolher exercício' });
   await folha.getByRole('textbox', { name: 'Buscar na biblioteca' }).fill('Flexão diamante');
-  await folha.getByRole('button', { name: /Usar só o nome Flexão diamante/ }).click();
+  await folha.getByRole('option', { name: /Usar só o nome Flexão diamante/ }).click();
   await expect(folha).toHaveCount(0);
 
   await page.getByRole('link', { name: 'Biblioteca', exact: true }).click();

@@ -1,7 +1,11 @@
 import type { Exercicio, Modalidade } from '../api/tipos';
 import type { ChaveDeIdentificacao } from '../tema/tokens';
 import { chipDeUmaOpcao, chipDeVarias } from './filtrosDaBiblioteca';
+import { inteiroComMilhar } from './formatos';
 import { MODALIDADES } from './modalidades';
+import { filtrarOpcoes } from './selecaoMultiplaSuspensa';
+import { semAcento } from './telas';
+import { coincideComBuscaExercicio } from './termosExerciciosIngles';
 
 /**
  * Biblioteca › Exercícios: cor da modalidade, o que o exercício tem (vídeo, imagem) e os filtros da aba. Funções puras.
@@ -80,6 +84,62 @@ export function semOFiltro(f: FiltrosDeExercicios, chave: string): FiltrosDeExer
     case 'imagem': return { ...f, imagem: 'TODOS' };
     default: return f;
   }
+}
+
+/** Vídeo e Imagem no painel, em segmento: o nome do grupo ("Vídeo") já está no rótulo acima, o chip continua "Com vídeo". */
+export const OPCOES_CURTAS_DE_MIDIA: { valor: FiltroDeMidia; rotulo: string }[] = [
+  { valor: 'TODOS', rotulo: 'Todos' }, { valor: 'COM', rotulo: 'Com' }, { valor: 'SEM', rotulo: 'Sem' },
+];
+
+const passaNaMidia = (filtro: FiltroDeMidia, tem: boolean): boolean => filtro === 'TODOS' || (filtro === 'COM') === tem;
+
+/**
+ * O exercício passa nos filtros do painel: grupos (OU, nome sem espaço nas pontas), modalidades (OU), vídeo e imagem; tudo
+ * em E. A mesma regra da API (`BibliotecaService.paginaDeExercicios`), para a folha "Escolher exercício" filtrar a lista
+ * que já tem e para o "Mostrar N exercícios" do painel contar sem ir ao servidor.
+ */
+export function passaNosFiltros(e: Pick<Exercicio, 'grupoMuscular' | 'modalidade' | 'videoUrl' | 'imagemPropriaEm' | 'imagens'>, f: FiltrosDeExercicios): boolean {
+  return (f.grupos.size === 0 || f.grupos.has(e.grupoMuscular?.trim() ?? ''))
+    && (f.modalidades.size === 0 || f.modalidades.has(e.modalidade))
+    && passaNaMidia(f.video, temVideo(e))
+    && passaNaMidia(f.imagem, temImagem(e));
+}
+
+/** Busca da folha e do painel: nome, grupo e equipamento, sem acento, com os termos em inglês (`coincideComBuscaExercicio`). */
+export function coincideComABusca(e: Pick<Exercicio, 'nome' | 'grupoMuscular' | 'equipamento'>, busca: string): boolean {
+  const termo = semAcento(busca);
+  return !termo || coincideComBuscaExercicio(semAcento(`${e.nome} ${e.grupoMuscular ?? ''} ${e.equipamento ?? ''}`), termo);
+}
+
+export interface OpcaoDeGrupo { valor: string; rotulo: string; contagem: number }
+
+/**
+ * Os grupos do painel com quantos exercícios cada um tem ("Peito 18"), em ordem alfabética do português. A contagem é sobre
+ * a lista inteira (a biblioteca, ou o que a folha oferece), sem os outros filtros: o número de um chip não pula enquanto se
+ * marca outro filtro (o resultado da combinação está no "Mostrar N exercícios"). Sem grupo não vira opção.
+ */
+export function contagemDosGrupos(lista: readonly Pick<Exercicio, 'grupoMuscular'>[]): OpcaoDeGrupo[] {
+  const contagem = new Map<string, number>();
+  for (const e of lista) {
+    const g = e.grupoMuscular?.trim();
+    if (g) contagem.set(g, (contagem.get(g) ?? 0) + 1);
+  }
+  return [...contagem].sort(([a], [b]) => a.localeCompare(b, 'pt-BR')).map(([g, n]) => ({ valor: g, rotulo: g, contagem: n }));
+}
+
+/** Acima de tantos grupos o painel ganha a busca "Buscar grupo" no topo dos chips. */
+export const GRUPOS_SEM_BUSCA = 12;
+
+/** Os chips de grupo à vista com a busca: os que casam com o texto e, sempre, os marcados (dá para desmarcar sem apagar a busca). */
+export function gruposDaBusca(opcoes: readonly OpcaoDeGrupo[], busca: string, marcados: ReadonlySet<string>): OpcaoDeGrupo[] {
+  const casam = new Set(filtrarOpcoes(opcoes, busca).map((o) => o.valor));
+  return opcoes.filter((o) => casam.has(o.valor) || marcados.has(o.valor));
+}
+
+/** O botão principal do painel: "Mostrar 18 exercícios" (`null` = a contagem ainda não chegou ou falhou: sem número). */
+export function rotuloDoMostrar(quantos: number | null): string {
+  if (quantos === null) return 'Mostrar exercícios';
+  return quantos === 1 ? 'Mostrar 1 exercício' : `Mostrar ${inteiroComMilhar(quantos)} exercícios`;
 }
 
 /** Vídeo ou imagem do filtro no formato da API: `COM` = `true`, `SEM` = `false`, `TODOS` = ausente (não filtra). */

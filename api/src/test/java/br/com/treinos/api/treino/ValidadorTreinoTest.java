@@ -8,6 +8,9 @@ import br.com.treinos.api.treino.ConteudoTreino.Cardio;
 import br.com.treinos.api.treino.ConteudoTreino.Esforco;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
 import br.com.treinos.api.treino.ConteudoTreino.Grupo;
+import br.com.treinos.api.treino.ConteudoTreino.ModoDeCardio;
+import br.com.treinos.api.treino.ConteudoTreino.ProtocoloDeCardio;
+import br.com.treinos.api.treino.ConteudoTreino.TipoDeRecuperacao;
 import br.com.treinos.api.treino.ConteudoTreino.Retomada;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ConteudoTreino.Sessao;
@@ -17,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -324,6 +328,101 @@ class ValidadorTreinoTest {
                 cardio(new Cardio(30, null, null, null, null))))), null, null);
         assertThat(r.erros()).isEmpty();
         assertThat(r.avisos()).noneMatch(a -> a.caminho().endsWith(".tipo"));
+    }
+
+    // ---- Cardio contínuo e intervalado (espelho de dominio/cardio.erroDoBloco; docs/planos/cardio-e-hiit.md) ----
+
+    private static final String CARDIO0 = SERIE0 + ".cardio.";
+
+    @Test
+    void padraoDeCadaProtocoloNaoTemErro() {
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.CURTO, 300, 30, 30, 10, 300, 5, null))).isEmpty();
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.LONGO, 300, 180, 120, 5, 300, 4, null))).isEmpty();
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.SIT, 240, 30, 180, 6, 180, null, true))).isEmpty();
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.RST, 300, 6, 30, 10, 300, null, true))).isEmpty();
+        // Protocolo nulo vale como personalizado; recuperação, aquecimento e desaquecimento nulos valem.
+        assertThat(errosDoCardio(intervalado(null, null, 30, null, 8, null, null, null))).isEmpty();
+    }
+
+    @Test
+    void intervaladoAntigoSegueAsRegrasAntigasESemIntervalosEOContinuo() {
+        assertThat(errosDoCardio(new Cardio(30, null, null, 4, new Cardio.Intervalos(0, null, 8))))
+                .containsExactly(Map.entry("intervalos.trabalhoSeg", "Tempo de esforço de 1 a 3600 segundos."));
+        assertThat(errosDoCardio(new Cardio(null, null, null, 4, new Cardio.Intervalos(30, 60, 8)))).isEmpty();
+        assertThat(errosDoCardio(new Cardio(null, null, null, null, null)))
+                .containsExactly(Map.entry("duracaoMin", "Informe a duração ou a distância."));
+        assertThat(errosDoCardio(new Cardio(0, null, null, null, null)))
+                .containsExactly(Map.entry("duracaoMin", "Duração de 1 a 600 minutos."));
+    }
+
+    @Test
+    void continuoRecusaCampoDoIntervalado() {
+        assertThat(errosDoCardio(new Cardio(20, null, null, 4, new Cardio.Intervalos(30, 60, 8),
+                ModoDeCardio.CONTINUO, null, null, null, null, null)))
+                .containsExactly(Map.entry("intervalos", "Só vale no intervalado."));
+        Map<String, String> erros = errosDoCardio(new Cardio(30, null, null, null, null, null, ProtocoloDeCardio.SIT,
+                60, 60, TipoDeRecuperacao.PASSIVA, true));
+        assertThat(erros.keySet()).containsExactlyInAnyOrder("protocolo", "aquecimentoSeg", "desaquecimentoSeg",
+                "recuperacaoTipo", "esforcoMaximo");
+        assertThat(erros.values()).containsOnly("Só vale no intervalado.");
+    }
+
+    @Test
+    void intervaladoRecusaCampoDoContinuoEPedeEstimuloEVoltas() {
+        Map<String, String> erros = errosDoCardio(new Cardio(30, new BigDecimal("5"), "6 min/km", null,
+                new Cardio.Intervalos(30, 30, 10), ModoDeCardio.INTERVALADO, null, null, null, null, null));
+        assertThat(erros.keySet()).containsExactlyInAnyOrder("duracaoMin", "distanciaKm", "ritmo");
+        assertThat(erros.values()).containsOnly("Só vale no contínuo.");
+
+        assertThat(errosDoCardio(new Cardio(null, null, null, null, null, ModoDeCardio.INTERVALADO, null, null, null,
+                null, null))).containsExactly(Map.entry("intervalos.trabalhoSeg", "Estímulo de 1 s a 60 min."),
+                Map.entry("intervalos.voltas", "Voltas de 1 a 100."));
+    }
+
+    @Test
+    void intervaladoConfereOsLimitesSemRepetirOValor() {
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.CURTO, 3601, 3601, -1, 101, -1, 6, null)))
+                .containsExactly(Map.entry("zona", "Zona de 1 a 5."),
+                        Map.entry("intervalos.trabalhoSeg", "Estímulo de 1 s a 60 min."),
+                        Map.entry("intervalos.descansoSeg", "Recuperação de 0 a 60 min."),
+                        Map.entry("intervalos.voltas", "Voltas de 1 a 100."),
+                        Map.entry("aquecimentoSeg", "Aquecimento de 0 a 60 min."),
+                        Map.entry("desaquecimentoSeg", "Desaquecimento de 0 a 60 min."));
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.SIT, 0, 3600, 3601, 1, 3600, null, null)))
+                .containsExactly(Map.entry("intervalos.descansoSeg", "Recuperação de 0 a 60 min."));
+    }
+
+    @Test
+    void zonaEEsforcoMaximoNaoVaoJuntosEFalseViraNulo() {
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.SIT, 240, 30, 180, 6, 180, 5, true)))
+                .containsExactly(Map.entry("esforcoMaximo", "Use a zona ou o esforço máximo, não os dois."));
+        Cardio comFalse = intervalado(ProtocoloDeCardio.CURTO, 300, 30, 30, 10, 300, 5, false);
+        assertThat(comFalse.esforcoMaximo()).isNull();
+        assertThat(errosDoCardio(comFalse)).isEmpty();
+    }
+
+    @Test
+    void foraDaFaixaDoProtocoloNaoERecusado() {
+        // SIT com estímulo de 45 s e RST sem esforço máximo: só o aviso do app, nunca erro do servidor.
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.SIT, 240, 45, 180, 6, 180, null, true))).isEmpty();
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.RST, 300, 15, 90, 10, 300, 5, null))).isEmpty();
+        assertThat(errosDoCardio(intervalado(ProtocoloDeCardio.CURTO, 300, 90, 30, 10, 300, 5, null))).isEmpty();
+    }
+
+    private Map<String, String> errosDoCardio(Cardio c) {
+        Map<String, String> erros = new LinkedHashMap<>();
+        validador.validar(conteudo(List.of(exercicioDeCardio(cardio(c)))), null, null).erros().forEach(e -> {
+            assertThat(e.caminho()).startsWith(CARDIO0);
+            erros.put(e.caminho().substring(CARDIO0.length()), e.mensagem());
+        });
+        return erros;
+    }
+
+    private static Cardio intervalado(ProtocoloDeCardio protocolo, Integer aquecimento, Integer estimulo,
+                                      Integer recuperacao, Integer voltas, Integer desaquecimento, Integer zona,
+                                      Boolean maximo) {
+        return new Cardio(null, null, null, zona, new Cardio.Intervalos(estimulo, recuperacao, voltas),
+                ModoDeCardio.INTERVALADO, protocolo, aquecimento, desaquecimento, null, maximo);
     }
 
     // ---- Execução ----

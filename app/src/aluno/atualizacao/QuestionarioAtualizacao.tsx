@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type RefObject } from 'react';
+import { Fragment, useState, type ReactNode, type RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type {
@@ -59,6 +59,12 @@ interface Props {
   progresso?: boolean;
   /** Formulário ainda não liberado ("Até lá você pode consultar as perguntas"): fica no desenho do formulário, sem "Não respondeu" em tudo. */
   travado?: boolean;
+  /**
+   * Casca de cada seção na rolagem única (sem `pagina`); sem ela, um `Cartao` com `CabecalhoDeGrupo` (aluno e treinador). A
+   * inscrição pública passa a dela: subtítulo e divisória, sem cartão dentro do cartão do formulário. `posicao` conta só as
+   * seções mostradas (a primeira é 0).
+   */
+  cascaDaSecao?: (secao: { titulo: string; posicao: number; conteudo: ReactNode }) => ReactNode;
 }
 
 const SIM_NAO = [{ valor: 'sim' as SimNao, rotulo: 'Sim' }, { valor: 'nao' as SimNao, rotulo: 'Não' }];
@@ -74,7 +80,7 @@ export const alvoDaPergunta = (id: string) => `pergunta:${id}`;
  * `progresso` é o formulário travado durante o envio: fica no desenho do formulário, com o valor em texto, para a tela
  * não trocar de forma por um instante.
  */
-export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}, campos, dataAtualizacao, resumo, carregarFotoDaEquipe, pagina, progresso, travado }: Props) {
+export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}, campos, dataAtualizacao, resumo, carregarFotoDaEquipe, pagina, progresso, travado, cascaDaSecao }: Props) {
   const { cores, marcaPeca } = useTema();
   const fotos = useControleDeFotos();
   const rolagem = useRolagem();
@@ -123,6 +129,7 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
 
   const total = contagens.reduce((n, c) => n + (c?.total ?? 0), 0);
   const feitas = contagens.reduce((n, c) => n + (c?.respondidas ?? 0), 0);
+  let mostradas = 0;
   return <>
     {progresso && total > 0 ? <View style={estilos.parte}>
       <Texto variante="pequeno" numerico>{`${feitas} de ${total} respondidas`}</Texto>
@@ -131,12 +138,15 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
     {modelo.secoes.map((secao, si) => {
       const escondida = secoesEscondidas.has(si);
       if (escondida && !leitura) return null;
-      return <Cartao key={secao.uid ?? `${si}:${secao.titulo}`}
+      const chave = secao.uid ?? `${si}:${secao.titulo}`;
+      const conteudo = escondida ? <Texto variante="suave">Seção que não se aplica, pelas respostas anteriores.</Texto> : <>
+        <TextoFormatado texto={secao.descricao} />
+        {perguntas(secao)}
+      </>;
+      if (cascaDaSecao) return <Fragment key={chave}>{cascaDaSecao({ titulo: secao.titulo, posicao: mostradas++, conteudo })}</Fragment>;
+      return <Cartao key={chave}
         cabecalho={<CabecalhoDeGrupo titulo={secao.titulo} resumo={escondida ? NAO_SE_APLICA : progresso ? textoDoProgresso(contagens[si] ?? null) : undefined} />}>
-        {escondida ? <Texto variante="suave">Seção que não se aplica, pelas respostas anteriores.</Texto> : <>
-          <TextoFormatado texto={secao.descricao} />
-          {perguntas(secao)}
-        </>}
+        {conteudo}
       </Cartao>;
     })}
   </>;

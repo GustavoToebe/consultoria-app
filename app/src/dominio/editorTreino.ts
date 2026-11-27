@@ -404,6 +404,28 @@ export function alterarGrupo(
 }
 
 /**
+ * O `alterarGrupo` do editor aberto quando o "+ Nova série" (27/11) acabou de somar uma série ao fim de um bloco igual:
+ * trocar o tipo ou a técnica vale só para essa série nova, que sai do bloco; as que já estavam não mudam (antes, a escolha
+ * feita depois de adicionar reescrevia o bloco inteiro). Repetições, descanso e o resto seguem valendo para o bloco.
+ * Devolve também o uid a abrir: o primeiro do bloco em que a série alterada ficou.
+ */
+export function alterarGrupoComANova(
+  series: Serie[],
+  grupo: GrupoDeSeries,
+  mudanca: AlteracaoDeGrupo,
+  config: Configuracao | null | undefined,
+  uidDaNova: string | null,
+): { series: Serie[]; abrir: string | null; separou: boolean } {
+  const ultima = grupo.series[grupo.series.length - 1];
+  const separa = uidDaNova != null && grupo.series.length > 1 && ultima.uid === uidDaNova
+    && (mudanca.tipo !== undefined || mudanca.tecnica !== undefined);
+  const alvo = separa ? { inicio: grupo.inicio + grupo.series.length - 1, series: [ultima] } : grupo;
+  const novas = alterarGrupo(series, alvo, mudanca, config);
+  const uid = alvo.series[0].uid;
+  return { series: novas, abrir: agrupar(novas).find((g) => g.series.some((s) => s.uid === uid))?.series[0].uid ?? null, separou: separa };
+}
+
+/**
  * RIR de UMA série (a coluna RIR ao lado do % ou do kg): de 0 (até a falha) a 10, ou `null` para "não prescrito". Vale para
  * qualquer série, tenha ou não esforço antes; troca o RPE que houvesse (RIR e RPE nunca juntos). Índice fora da lista ou
  * série de cardio não mudam. O número não é validado aqui (a validação mostra o erro no campo).
@@ -432,6 +454,14 @@ function copiarCardio(c: Cardio): Cardio {
     ritmo: c.ritmo ?? null,
     zona: c.zona ?? null,
     intervalos: c.intervalos ? { trabalhoSeg: c.intervalos.trabalhoSeg ?? null, descansoSeg: c.intervalos.descansoSeg ?? null, voltas: c.intervalos.voltas ?? null } : null,
+    // Campos do cardio intervalado (docs/planos/cardio-e-hiit.md): só entram quando preenchidos, para o contínuo e o legado saírem
+    // com as mesmas chaves de sempre (o app antigo recusa o pacote offline com chave desconhecida, D16).
+    ...(c.modo ? { modo: c.modo } : {}),
+    ...(c.protocolo ? { protocolo: c.protocolo } : {}),
+    ...(c.aquecimentoSeg != null ? { aquecimentoSeg: c.aquecimentoSeg } : {}),
+    ...(c.desaquecimentoSeg != null ? { desaquecimentoSeg: c.desaquecimentoSeg } : {}),
+    ...(c.recuperacaoTipo ? { recuperacaoTipo: c.recuperacaoTipo } : {}),
+    ...(c.esforcoMaximo ? { esforcoMaximo: true } : {}),
   };
 }
 

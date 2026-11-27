@@ -192,19 +192,28 @@ public class BibliotecaService {
     public ExercicioResponse criarExercicio(ExercicioRequest r) {
         String nome = r.nome().trim();
         exigirNomeLivreExercicio(nome, NENHUM);
-        Exercicio e = new Exercicio(nome, Buscas.opcional(r.grupoMuscular()), Buscas.opcional(r.equipamento()),
-                r.modalidade(), videoUrls.normalizar(r.videoUrl()), Buscas.opcional(r.observacoes()),
-                Exercicio.Origem.MANUAL);
+        boolean cardio = r.modalidade() == Exercicio.Modalidade.CARDIO;
+        Exercicio e = new Exercicio(nome, cardio ? null : Buscas.opcional(r.grupoMuscular()),
+                cardio ? null : Buscas.opcional(r.equipamento()), r.modalidade(), videoUrls.normalizar(r.videoUrl()),
+                Buscas.opcional(r.observacoes()), Exercicio.Origem.MANUAL);
+        e.definirCardio(r.tipoDeCardio(), r.medidasDeCardio());
         return responder(exercicios.saveAndFlush(e));
     }
 
+    /**
+     * Com {@code CARDIO}, grupo e equipamento ficam nulos (o formulário não os mostra; D13 do plano do cardio). Trocar a
+     * modalidade para fora do cardio zera o tipo antes de gravar (o CHECK da V199 recusaria).
+     */
     @Transactional
     public ExercicioResponse alterarExercicio(UUID id, ExercicioRequest r) {
         Exercicio e = exercicioAtivo(id);
         String nome = r.nome().trim();
         exigirNomeLivreExercicio(nome, id);
-        e.alterar(nome, Buscas.opcional(r.grupoMuscular()), Buscas.opcional(r.equipamento()), r.modalidade(),
-                videoUrls.normalizar(r.videoUrl()), Buscas.opcional(r.observacoes()));
+        boolean cardio = r.modalidade() == Exercicio.Modalidade.CARDIO;
+        e.alterar(nome, cardio ? null : Buscas.opcional(r.grupoMuscular()),
+                cardio ? null : Buscas.opcional(r.equipamento()), r.modalidade(), videoUrls.normalizar(r.videoUrl()),
+                Buscas.opcional(r.observacoes()));
+        e.definirCardio(r.tipoDeCardio(), r.medidasDeCardio());
         return responder(exercicios.saveAndFlush(e));
     }
 

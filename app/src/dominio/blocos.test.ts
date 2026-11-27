@@ -1,4 +1,4 @@
-import { blocosGravados, blocosIguais, blocosSeValidos, blocosValidos, lerBlocos, listaDeBlocosIguais, listaDeBlocosIguaisSeValidos, rascunhoDoModoDiferente, resumoDosBlocos, somaDosBlocos, textoDeBlocos } from './blocos';
+import { blocosGravados, blocosIguais, blocosQueChegaram, blocosSeValidos, blocosValidos, comRepsIguais, lerBlocos, listaDeBlocosIguais, listaDeBlocosIguaisSeValidos, maisUmBloco, menosUmBloco, modoInicialDosBlocos, rascunhoDoModoDiferente, rascunhoInicialDosBlocos, resumoDosBlocos, somaDosBlocos, textoDeBlocos } from './blocos';
 
 test.each([['4+2', [4, 2]], ['3×4', [4, 4, 4]], ['3 x 4', [4, 4, 4]], [' 4 + 2 ', [4, 2]]])('lê blocos %s', (texto, esperado) => {
   expect(lerBlocos(texto as string)).toEqual(esperado);
@@ -45,4 +45,41 @@ test('texto inválido num campo não reaproveita o número que ficou por baixo',
 test('voltar para blocos diferentes mostra a lista gravada, não a distribuição anterior', () => {
   expect(rascunhoDoModoDiferente([4, 4], [4, 2])).toEqual([4, 4]);
   expect(rascunhoDoModoDiferente(null, [4, 2])).toEqual([4, 2]);
+});
+
+describe('edição dos blocos (defeito de 27/11: mais e menos um bloco)', () => {
+  test('adicionar entra no fim com as repetições do último, até 10; remover tira o último, até 2', () => {
+    expect(maisUmBloco([5, 5, 4])).toEqual([5, 5, 4, 4]);
+    expect(maisUmBloco([5, null])).toEqual([5, null, null]);
+    expect(maisUmBloco(Array(10).fill(3))).toHaveLength(10);
+    expect(menosUmBloco([5, 5, 4])).toEqual([5, 5]);
+    expect(menosUmBloco([5, 4])).toEqual([5, 4]);
+  });
+
+  test('blocos iguais trocam as repetições de todos e mantêm a quantidade', () => {
+    expect(comRepsIguais([5, 5, 5], 6)).toEqual([6, 6, 6]);
+    expect(comRepsIguais([5, 5], null)).toEqual([null, null]);
+  });
+
+  test('abre com a lista gravada ou com dois blocos vazios; o modo sai do formato só na abertura', () => {
+    expect(rascunhoInicialDosBlocos(null)).toEqual([null, null]);
+    expect(rascunhoInicialDosBlocos([4, 2])).toEqual([4, 2]);
+    expect(modoInicialDosBlocos([4, 4, 4])).toBe('iguais');
+    expect(modoInicialDosBlocos(null)).toBe('iguais');
+    expect(modoInicialDosBlocos([4, 2])).toBe('diferentes');
+  });
+
+  test('o eco do que o campo gravou não troca o modo: 5+5+5+5 + 1 bloco continua em "diferentes"', () => {
+    const lista = maisUmBloco([5, 5, 5, 5]) as number[];
+    expect(blocosQueChegaram(lista, lista, 'diferentes')).toEqual({ mudou: false });
+    const menos = menosUmBloco([5, 5, 4]) as number[];
+    expect(blocosQueChegaram(menos, menos, 'diferentes')).toEqual({ mudou: false });
+  });
+
+  test('lista de fora entra no modo atual; só sai de "iguais" quando não é toda igual', () => {
+    expect(blocosQueChegaram([6, 6, 6], [5, 5], 'iguais')).toEqual({ mudou: true, rascunho: [6, 6, 6], modo: 'iguais' });
+    expect(blocosQueChegaram([6, 6, 6], [5, 4], 'diferentes')).toEqual({ mudou: true, rascunho: [6, 6, 6], modo: 'diferentes' });
+    expect(blocosQueChegaram([4, 2], [5, 5], 'iguais')).toEqual({ mudou: true, rascunho: [4, 2], modo: 'diferentes' });
+    expect(blocosQueChegaram(null, [5, 5], 'iguais')).toEqual({ mudou: false });
+  });
 });

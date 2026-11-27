@@ -1,4 +1,3 @@
-import type { Href } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -6,27 +5,29 @@ import type { Sessao } from '../../api/tipos';
 import { detalheDaDivisao } from '../../dominio/inicioDoAluno';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
-import { propsDeLink } from '../../ui/propsDeLink';
+import { coresDaSelecao } from '../../ui/selecao';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import type { LinhaDaSemana } from './arranjoDoTreino';
 
 /**
- * Uma divisão na lista da semana da web (`docs/planos/orientacoes-de-design-26-11.md`, 1.2). `treino`: linha de 64 a 72 px
- * com a letra, o nome, "Segunda · 5 exercícios" e a seta. `hoje`: o mesmo, no poço (`superficie2`) com a barrinha da marca à
- * esquerda e o selo "Hoje". `descanso` (sem exercício): 48 a 56 px, tudo suave numa linha, sem seta e sem toque. O nome
- * acessível é o da `LinhaDaDivisao` do celular ("Divisão A, nome, detalhe[, hoje]").
+ * Uma divisão na lista da semana do computador (pedido de 27/11: lista à esquerda, o treino da escolhida à direita).
+ * `treino`: linha de 64 a 72 px com a letra, o nome, "Segunda · 5 exercícios" e a seta; tocar ESCOLHE a divisão (o treino
+ * aparece ao lado), não navega. `hoje`: o mesmo, no poço (`superficie2`) com a barrinha da marca à esquerda e o selo "Hoje".
+ * A escolhida tem a seleção neutra (`coresDaSelecao`: `sobre` + contorno `bordaCampo`, seta forte): a marca nunca diz
+ * "escolhido". `descanso` (sem exercício): 48 a 56 px, tudo suave numa linha, sem seta e sem toque. O nome acessível é o da
+ * `LinhaDaDivisao` do celular ("Divisão A, nome, detalhe[, hoje]").
  */
-export function DivisaoDaSemana({ tipo, sessao, letra, href, aoAbrir }: {
+export function DivisaoDaSemana({ tipo, sessao, letra, selecionada = false, aoEscolher }: {
   tipo: LinhaDaSemana;
   sessao: Sessao;
   letra: string;
-  href?: Href;
+  selecionada?: boolean;
   /** Sem ele (sem exercício) a linha só informa. */
-  aoAbrir?: () => void;
+  aoEscolher?: () => void;
 }) {
-  const { cores, marcaPeca } = useTema();
+  const { cores, marcaPeca, bordas } = useTema();
   const detalhe = detalheDaDivisao(sessao);
   const hoje = tipo === 'hoje';
   const nome = `Divisão ${letra}, ${sessao.nome}, ${detalhe}${hoje ? ', hoje' : ''}`;
@@ -43,11 +44,12 @@ export function DivisaoDaSemana({ tipo, sessao, letra, href, aoAbrir }: {
     );
   }
 
+  const selecao = coresDaSelecao(cores, selecionada);
   const conteudo = (
     <>
       {/* Hoje: a barrinha da marca, como no cartão Hoje do Início (decorativa: o selo e o nome acessível dizem "hoje"). */}
       {hoje ? <View aria-hidden style={[estilos.barrinha, { backgroundColor: marcaPeca }]} /> : null}
-      <View style={[estilos.letra, { backgroundColor: hoje ? cores.superficie : cores.superficie2, borderColor: cores.divisor }]}>
+      <View style={[estilos.letra, { backgroundColor: hoje || selecionada ? cores.superficie : cores.superficie2, borderColor: cores.divisor }]}>
         <Texto style={estilos.letraTexto}>{letra}</Texto>
       </View>
       <View style={estilos.textos}>
@@ -55,18 +57,22 @@ export function DivisaoDaSemana({ tipo, sessao, letra, href, aoAbrir }: {
         <Texto variante="suave" numerico>{detalhe}</Texto>
       </View>
       {hoje ? <Selo texto="Hoje" tipo="neutro" /> : null}
-      {aoAbrir ? <ChevronRight size={20} color={cores.textoSuave} aria-hidden /> : null}
+      {aoEscolher ? <ChevronRight size={20} color={selecionada ? cores.texto : cores.textoSuave} aria-hidden /> : null}
     </>
   );
-  const fundo = hoje ? cores.superficie2 : cores.superficie;
-  const estilo = [estilos.linha, estilos.treino, hoje ? estilos.deHoje : null, { borderColor: cores.divisor }];
-  if (!aoAbrir) return <View accessible accessibilityLabel={nome} style={[estilo, { backgroundColor: fundo }]}>{conteudo}</View>;
+  const fundo = selecionada ? selecao.fundo : hoje ? cores.superficie2 : cores.superficie;
+  // Contorno forte só na escolhida (o mesmo peso da preferência "bordas reforçadas" que os outros contêineres seguem).
+  const contorno = selecionada ? { borderColor: selecao.borda, borderWidth: bordas.bloco } : { borderColor: cores.divisor };
+  const estilo = [estilos.linha, estilos.treino, contorno];
+  if (!aoEscolher) return <View accessible accessibilityLabel={nome} style={[estilo, { backgroundColor: fundo }]}>{conteudo}</View>;
   return (
     <Pressable
-      accessibilityRole={href ? 'link' : 'button'}
+      accessibilityRole="button"
       accessibilityLabel={nome}
-      {...(href ? propsDeLink(href, aoAbrir) : { onPress: aoAbrir })}
-      style={(estado) => [estilo, { backgroundColor: sobre(estado) ? cores.sobre : fundo }]}>
+      accessibilityState={{ selected: selecionada }}
+      aria-current={selecionada ? 'true' : undefined}
+      onPress={aoEscolher}
+      style={(estado) => [estilo, { backgroundColor: !selecionada && sobre(estado) ? cores.sobre : fundo }]}>
       {conteudo}
     </Pressable>
   );
@@ -76,8 +82,6 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   // 40 da letra + 2 × 12 = 64; com o nome em duas linhas, até ~72.
   treino: { gap: espaco(1.5), minHeight: 64, paddingVertical: espaco(1.5), paddingHorizontal: espaco(2) },
-  // A barrinha ocupa o lugar do recuo esquerdo: o texto de hoje fica alinhado com o das outras linhas.
-  deHoje: { paddingLeft: espaco(2) },
   barrinha: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
   // 32 da letra + 2 × 8 = 48, sem fundo: o dia sem exercício recua.
   descanso: { gap: espaco(1.5), minHeight: 48, paddingVertical: espaco(1), paddingHorizontal: espaco(2), backgroundColor: 'transparent' },

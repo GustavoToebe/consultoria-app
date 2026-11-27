@@ -12,6 +12,7 @@ import { Grade } from '../ui/Grade';
 import { ItemDeLista } from '../ui/ItemDeLista';
 import { LinkTexto } from '../ui/LinkTexto';
 import { useRolagem } from '../ui/RolagemComTopo';
+import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { useAnamnese } from './anamnese/useAnamnese';
 import { PermissaoLembrete } from './atualizacao/PermissaoLembrete';
@@ -30,7 +31,13 @@ import { SecaoDoInicio } from './SecaoDoInicio';
  * tocar num aviso o marca como visto e rola até o cartão "Seus compromissos" do mesmo Início. A contagem fica à direita
  * do título. Sem nada pendente, o bloco some.
  */
-export function ParaFazer() {
+export function ParaFazer({ estreito = false }: {
+  /**
+   * Coluna de apoio da web larga (380 a 440 px, 27/11): o selo desce para baixo do detalhe, em vez de disputar a linha com o
+   * título (ao lado, título e detalhe quebravam em 3 ou 4 linhas). O celular continua com o selo à direita.
+   */
+  estreito?: boolean;
+} = {}) {
   const anamnese = useAnamnese().dados;
   const atualizacao = useAtualizacao().dados;
   const comAnamnese = !!anamnese && mostrarCartaoAnamnese(anamnese);
@@ -45,29 +52,38 @@ export function ParaFazer() {
   const { itens: avisosVisiveis, ocultos, total: totalDeAvisos } = avisosDoInicio(avisos, hojeEmBrasilia());
   if (!contrato && !comAnamnese && !comAtualizacao && !pagamento && totalDeAvisos === 0) return null;
   const item = comAtualizacao ? itemDaAtualizacao(atualizacao) : null;
+  // Estreito: o selo vai como filho do item (embaixo do detalhe); senão, à direita, como sempre.
+  // O nome acessível do item continua com o selo ("…, Atrasada"), como no desenho de sempre.
+  type Selado = { titulo: string; detalhe?: string | null; selo?: Parameters<typeof ItemDeLista>[0]['selo'] | null };
+  const comSelo = ({ titulo, detalhe, selo }: Selado) => (estreito
+    ? {
+        rotulo: [titulo, detalhe, selo?.texto].filter(Boolean).join(', '),
+        children: selo ? <View style={estilos.seloEmbaixo}><Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /></View> : null,
+      }
+    : { selo: selo ?? undefined });
   const total = (contrato ? 1 : 0) + (comAnamnese ? 1 : 0) + (item ? 1 : 0) + (pagamento ? 1 : 0) + totalDeAvisos;
   return (
     <SecaoDoInicio titulo="Suas pendências" direita={<Contador total={total} />}>
       <Grade>
-        {contrato ? <ItemDeLista titulo={contrato.titulo} detalhe={contrato.detalhe} Icone={FileSignature} selo={contrato.selo ?? undefined} href={contrato.href} /> : null}
+        {contrato ? <ItemDeLista titulo={contrato.titulo} detalhe={contrato.detalhe} Icone={FileSignature} {...comSelo(contrato)} href={contrato.href} /> : null}
         {comAnamnese ? (
           <ItemDeLista
             titulo={ITEM_ANAMNESE.titulo}
             detalhe={ITEM_ANAMNESE.detalhe}
             Icone={ClipboardList}
-            selo={ITEM_ANAMNESE.selo ?? undefined}
+            {...comSelo(ITEM_ANAMNESE)}
             href="/aluno/anamnese"
           />
         ) : null}
-        {item ? <ItemDeLista titulo={item.titulo} detalhe={item.detalhe} Icone={FileText} selo={item.selo ?? undefined} href="/aluno/atualizacao" /> : null}
-        {pagamento ? <ItemDeLista titulo={pagamento.titulo} detalhe={pagamento.detalhe} Icone={Wallet} selo={pagamento.selo ?? undefined} href="/aluno/conta" /> : null}
+        {item ? <ItemDeLista titulo={item.titulo} detalhe={item.detalhe} Icone={FileText} {...comSelo(item)} href="/aluno/atualizacao" /> : null}
+        {pagamento ? <ItemDeLista titulo={pagamento.titulo} detalhe={pagamento.detalhe} Icone={Wallet} {...comSelo(pagamento)} href="/aluno/conta" /> : null}
         {avisosVisiveis.map((aviso) => (
           <ItemDeLista
             key={aviso.id}
             titulo={aviso.titulo}
             detalhe={aviso.detalhe}
             Icone={CalendarDays}
-            selo={aviso.selo ?? undefined}
+            {...comSelo(aviso)}
             aoTocar={() => { aviso.ids.forEach(marcarVisto); rolarAte([CHAVE_DOS_COMPROMISSOS]); }}
           />
         ))}
@@ -91,6 +107,7 @@ function Contador({ total }: { total: number }) {
 }
 
 const estilos = StyleSheet.create({
+  seloEmbaixo: { flexDirection: 'row', marginTop: espaco(0.5) },
   contador: { minWidth: 28, height: 28, paddingHorizontal: espaco(0.75), borderRadius: RAIO, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   numero: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 20 },
 });

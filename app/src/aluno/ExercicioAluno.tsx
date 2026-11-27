@@ -25,11 +25,12 @@ import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
 import { Folha } from '../ui/Folha';
 import { PrincipalComApoio } from '../ui/PrincipalComApoio';
 import { ProvedorDaPrevia } from '../ui/emPrevia';
+import { useAreaDaTela } from '../ui/useAreaDaTela';
 import { fundoPintado, superficiePintada } from '../ui/superficiePintada';
 import { Texto } from '../ui/Texto';
 import { BlocoDaCargaDeTrabalho } from './BlocoDaCargaDeTrabalho';
 import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
-import { LARGURA_DA_COLUNA_DO_EXERCICIO, LARGURA_DAS_SERIES, TOPO_DA_COLUNA_DO_EXERCICIO } from './exercicio/colunasDoExercicio';
+import { colunasDoExercicio, TOPO_DA_COLUNA_DO_EXERCICIO } from './exercicio/colunasDoExercicio';
 import { VideoDoExercicio } from './exercicio/VideoDoExercicio';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
 import { ESTREITO } from './PartesDaSerie';
@@ -91,16 +92,20 @@ interface Props {
    */
   previa?: boolean;
   /**
-   * Web larga (`docs/planos/aluno-web-layout.md`, seção 4), decidida pela rota: o exercício numa coluna de apoio à esquerda,
-   * fixa ao rolar (`topo` da rota, meta com o Histórico e as seções Descanso, Vídeo embutido e "Como fazer" aberto), e a
-   * carga de trabalho com as séries numa coluna só à direita, até 720, com o `fim` da rota embaixo. Sem ele (celular,
-   * prévia do treinador), o desenho de sempre.
+   * Web larga, decidida pela rota com a mesma régua (`exercicio/colunasDoExercicio`): o exercício numa coluna de apoio à
+   * esquerda, fixa ao rolar (`topo` da rota, meta com o Histórico e as seções Descanso, Vídeo embutido e "Como fazer"
+   * aberto), a carga de trabalho com as séries numa coluna só (com o `fim` da rota embaixo) e, na faixa larga em diante, a
+   * 3ª coluna com o próximo exercício e o histórico aberto. Sem ele (celular, prévia do treinador), o desenho de sempre.
    */
   emColunas?: {
     topo: ReactNode;
     fim: ReactNode;
     /** Altura das barras da rota fora da rolagem (topo e rodapé), medida: a coluna do exercício não passa da área que rola. */
     alturaForaDaRolagem: number;
+    /** O cartão do próximo exercício (nulo no último). */
+    proximo?: ReactNode;
+    /** O histórico aberto, sem folha (`RecentesDoHistorico` e `PorDataDoHistorico`); nulo em cardio e exercício livre. */
+    historico?: { recentes: ReactNode; porData: (comRotulo: boolean) => ReactNode } | null;
   };
 }
 
@@ -138,6 +143,7 @@ function CorpoDoExercicio(p: Props) {
   const unidade = useUnidadeDeCarga();
   const { avisar } = useAviso();
   const { cores, variante } = useTema();
+  const area = useAreaDaTela();
   const e = p.exercicio;
   const [comoFazerAberto, abrirComoFazer] = useState(false);
   const base = p.cargaDoDia ?? p.ultima?.carga ?? null;
@@ -298,37 +304,67 @@ function CorpoDoExercicio(p: Props) {
         {conteudo}
       </View>
     );
+    const { proximo = null, historico = null, alturaForaDaRolagem } = p.emColunas;
+    const c = colunasDoExercicio(area.largura || null, area.faixa, { proximo: !!proximo, historico: !!historico });
+    const extras = c?.colunasDosExtras ?? 0;
+    const series = (
+      <View testID="coluna-das-series" style={estilos.colunaDasSeries}>
+        <View style={estilos.exercicio}>
+          {blocoDaCarga ? <View style={estilos.carga}>{blocoDaCarga}</View> : null}
+          {tituloDasSeries(null)}
+          <View style={estilos.series}>{cartoes}</View>
+          {avisoDeRecorde}
+        </View>
+        {p.emColunas.fim}
+      </View>
+    );
+    // 3ª coluna (larga e ultralarga): o próximo e o histórico aberto; com espaço para duas, a carga por data vai para a segunda.
+    const secaoDoProximo = proximo ? secao('Próximo exercício', proximo) : null;
+    const terceira = !c || !extras ? null : extras === 2 && historico ? (
+      <View style={estilos.extrasEmDuas}>
+        <View style={estilos.colunaDosExtras}>
+          {secaoDoProximo}
+          {secao('Histórico', <View style={estilos.secoesDoHistorico}>{historico.recentes}</View>)}
+        </View>
+        <View style={estilos.colunaDosExtras}>{secao('Carga por data', historico.porData(false))}</View>
+      </View>
+    ) : (
+      <>
+        {secaoDoProximo}
+        {historico ? secao('Histórico', <View style={estilos.secoesDoHistorico}>{historico.recentes}{historico.porData(true)}</View>) : null}
+      </>
+    );
     return (
       <PrincipalComApoio
         apoioAEsquerda
-        larguraDoApoio={LARGURA_DA_COLUNA_DO_EXERCICIO}
+        larguraDoApoio={c?.apoio}
         topoDoApoio={TOPO_DA_COLUNA_DO_EXERCICIO}
-        alturaForaDaRolagem={p.emColunas.alturaForaDaRolagem}
+        alturaForaDaRolagem={alturaForaDaRolagem}
         rotuloDoApoio="Sobre o exercício"
-        testID="coluna-das-series"
         apoio={
           <>
             {p.emColunas.topo}
             <View style={estilos.tituloSeries}>
               <View style={estilos.meta}>{meta}</View>
-              {p.acaoHistorico}
+              {/* Com o histórico aberto na 3ª coluna, o botão que abria a folha sairia repetido. */}
+              {terceira && historico ? null : p.acaoHistorico}
             </View>
             {p.acaoDescanso ? secao('Descanso', p.acaoDescanso) : null}
             {video && e.videoUrl ? secao('Vídeo', <VideoDoExercicio videoUrl={e.videoUrl} nome={e.nome} aoAbrirFora={abrirFora} />) : null}
             {temComoFazer ? secao('Como fazer', conteudoDoComoFazer) : null}
           </>
         }
-        principal={
-          <View style={estilos.colunaDasSeries}>
-            <View style={estilos.exercicio}>
-              {blocoDaCarga ? <View style={estilos.carga}>{blocoDaCarga}</View> : null}
-              {tituloDasSeries(null)}
-              <View style={estilos.series}>{cartoes}</View>
-              {avisoDeRecorde}
-            </View>
-            {p.emColunas.fim}
-          </View>
-        }
+        principal={terceira && c ? (
+          <PrincipalComApoio
+            larguraDoApoio={c.extras}
+            topoDoApoio={TOPO_DA_COLUNA_DO_EXERCICIO}
+            alturaForaDaRolagem={alturaForaDaRolagem}
+            rotuloDoApoio="Próximo exercício e histórico"
+            idDoApoio="coluna-dos-extras"
+            principal={series}
+            apoio={terceira}
+          />
+        ) : series}
       />
     );
   }
@@ -363,8 +399,13 @@ const estilos = StyleSheet.create({
   series: { gap: espaco(1.5) },
   secao: { gap: espaco(1.5) },
   meta: { flexShrink: 1, minWidth: 0 },
-  // Web larga: as séries até 720 e a carga de trabalho, que é um campo e não uma faixa, até a largura de formulário.
-  colunaDasSeries: { width: '100%', maxWidth: LARGURA_DAS_SERIES, gap: espaco(3) },
+  // Web larga: as séries na largura da coluna (`colunasDoExercicio`) e a carga de trabalho, que é um campo e não uma faixa,
+  // até a largura de formulário.
+  colunaDasSeries: { width: '100%', gap: espaco(3) },
+  extrasEmDuas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(4) },
+  colunaDosExtras: { flex: 1, minWidth: 0, gap: espaco(3) },
+  // 24 entre as partes do histórico, 8 dentro delas (o mesmo da folha do Histórico).
+  secoesDoHistorico: { gap: espaco(3) },
   carga: { maxWidth: LARGURA_FORMULARIO },
   tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   recorde: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },

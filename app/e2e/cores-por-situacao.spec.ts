@@ -63,9 +63,9 @@ test('aviso de atenção (edição em conflito): pintado de âmbar (borda inteir
     'PUT /consultoria/marca': (_p, route) => json(route, erroApi(409, 'Conflito.', 'CONFLITO_EDICAO').corpo, 409),
   });
   await page.goto('/treinador/marca');
-  await page.getByRole('radiogroup', { name: 'Meta do peso dos alunos' }).getByRole('radio', { name: 'Aumentar', exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Cor da marca' }).getByRole('radio', { name: 'Verde', exact: true }).click();
   await page.getByRole('button', { name: 'Salvar marca', exact: true }).click();
-  const aviso = page.getByRole('alert').filter({ hasText: 'A marca foi alterada em outra aba' });
+  const aviso = page.getByRole('alert').filter({ hasText: 'Os dados da consultoria mudaram em outra aba' });
   await expect(aviso).toBeVisible();
   // Pintado (`ui/superficiePintada`; 26/11: liso nas claras, borda neutra): `divisor` inteiro, sem a faixa de 4 px.
   await expect(aviso).toHaveCSS('border-top-color', rgb(CLARO.divisor));

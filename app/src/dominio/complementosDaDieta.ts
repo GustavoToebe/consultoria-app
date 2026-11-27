@@ -1,6 +1,7 @@
 import type { ConteudoDieta, ItemErgogenico, Suplemento } from '../api/tipos';
 import { linkExternoSeguro } from './links';
 import { MAX_CUPOM } from './suplementos';
+import { textoFormatado } from './textoFormatado';
 
 /**
  * Regras puras do cartão "Complementos" do editor de dieta (abas Orientações, Observações, Suplementação e Outros): os
@@ -30,11 +31,63 @@ const passa = (t: string | null | undefined, max: number) => (t ?? '').length > 
 /** O mais grave vence: perigo (a API recusa) sobre atenção (aviso que não trava). */
 const pior = (a: GravidadeDoProblema | undefined, b: GravidadeDoProblema | undefined) => (a === 'perigo' || b === 'perigo' ? 'perigo' : a ?? b);
 
-/** Orientação: texto acima do limite é recusado pela API; sem título, o aluno lê um texto sem nome (só aviso). */
+/**
+ * Orientação: texto acima do limite é recusado pela API (perigo, na linha e na aba). Sem título não é problema da lista
+ * (27/11): o aviso fica só no campo Título (`avisoDoTitulo`), sem repetir na linha nem na aba.
+ */
 export function problemaDaOrientacao(o: Orientacao): GravidadeDoProblema | undefined {
   const L = LIMITES_DOS_COMPLEMENTOS;
-  if (passa(o.titulo, L.tituloDaOrientacao) || passa(o.texto, L.textoDaOrientacao)) return 'perigo';
-  return vazio(o.titulo) ? 'atencao' : undefined;
+  return passa(o.titulo, L.tituloDaOrientacao) || passa(o.texto, L.textoDaOrientacao) ? 'perigo' : undefined;
+}
+
+/** O aviso embaixo do campo Título quando ele está vazio (só aviso: publica assim); nulo com título. */
+export const avisoDoTitulo = (o: Orientacao): string | null =>
+  (vazio(o.titulo) ? 'Sem título: o aluno lê o texto sem um nome em cima.' : null);
+
+/** O que a prévia para o aluno mostra: as orientações com algo escrito (a vazia não aparece), com a posição na lista. */
+export function orientacoesNaPrevia(lista: readonly Orientacao[]): { orientacao: Orientacao; indice: number }[] {
+  return lista.flatMap((orientacao, indice) => (vazio(orientacao.titulo) && vazio(orientacao.texto) ? [] : [{ orientacao, indice }]));
+}
+
+/** O começo do texto na linha da lista, como o aluno lê: sem os marcadores de negrito e sublinhado, numa linha só. */
+export const comecoDoTexto = (texto: string): string =>
+  textoFormatado(texto).map((p) => p.map((linha) => linha.map((t) => t.texto).join('')).join(' ')).join(' ').trim();
+
+/** Prévia sem nada escrito: "Nada para mostrar ainda". */
+export const previaVazia = (texto: string | null | undefined) => vazio(texto);
+
+/**
+ * Arranjo das abas Orientações e Observações pela largura medida do cartão na linha do editor (a mesma régua do Total do
+ * dia, `colunasDaDieta`: as faixas de 4.10 vistas de dentro do recuo). `lista`: como antes de 27/11 (edição na linha);
+ * `lado`: a partir da `larga`, lista e editor lado a lado, a prévia embaixo do editor; `ladoComPrevia`: na `ultralarga`, a
+ * prévia ao lado do editor. Sem medida ainda, `lista`.
+ */
+export type ArranjoDosComplementos = 'lista' | 'lado' | 'ladoComPrevia';
+export function arranjoDosComplementos(linha: number | null | undefined, inicioDaLarga: number, inicioDaUltralarga: number): ArranjoDosComplementos {
+  if (typeof linha !== 'number' || !(linha >= inicioDaLarga)) return 'lista';
+  return linha >= inicioDaUltralarga ? 'ladoComPrevia' : 'lado';
+}
+
+/**
+ * Qual orientação está selecionada no arranjo lado a lado: a escolhida se ainda existe; senão (nada escolhido ou o
+ * Desfazer tirou itens por fora) a última que existe, ou a primeira; lista vazia, nenhuma. No arranjo de lista, a aberta
+ * pode ser nenhuma (fechada) e o índice fora da lista fecha.
+ */
+export function selecionadaValida(selecionada: number | null, total: number, lado: boolean): number | null {
+  if (total <= 0) return null;
+  if (selecionada !== null && selecionada >= 0 && selecionada < total) return selecionada;
+  if (!lado) return null;
+  return selecionada === null ? 0 : total - 1;
+}
+
+/**
+ * A selecionada depois de remover `removido` de uma lista de `total` itens: a removida passa para a vizinha (a que toma o
+ * lugar dela, ou a anterior se era a última; nenhuma se a lista esvaziou), as de depois descem uma posição.
+ */
+export function selecionadaDepoisDeRemover(selecionada: number | null, removido: number, total: number): number | null {
+  if (selecionada === null) return null;
+  if (selecionada === removido) return total <= 1 ? null : Math.min(removido, total - 2);
+  return selecionada > removido ? selecionada - 1 : selecionada;
 }
 
 /** Link fora da regra https e cupom acima de 40 travam a publicação; sem nome ou sem dose, só aviso. */

@@ -112,8 +112,9 @@ async function arrastar(page: Page, alca: Locator, alvo: Locator) {
 for (const largura of [1280, 390]) {
   test(`complementos: abas com contagem e problema, aba lembrada ao salvar e ao trocar de refeição (${largura}px)`, async ({ page }) => {
     const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, { largura });
-    // Contagens reais; Observações não conta; a orientação sem título e o suplemento sem dose avisam na própria aba.
-    await expect(aba(page, /^Orientações \(3\), com aviso$/)).toHaveAttribute('aria-selected', 'true');
+    // Contagens reais; Observações não conta; o suplemento sem dose avisa na própria aba (a orientação sem título avisa só
+    // no campo Título, 27/11).
+    await expect(aba(page, /^Orientações \(3\)$/)).toHaveAttribute('aria-selected', 'true');
     await expect(aba(page, /^Observações$/)).toBeVisible();
     await expect(aba(page, /^Suplementação \(3\), com aviso$/)).toBeVisible();
     await expect(aba(page, /^Outros \(3\)$/)).toBeVisible();
@@ -185,7 +186,7 @@ test('orientações: abre na linha, uma aberta por vez, reordena, exclui com Des
   await page.getByRole('button', { name: 'Adicionar orientação' }).click();
   await expect(page.getByLabel('Título da orientação 4')).toBeFocused();
   await expect(page.getByLabel('Título da orientação 1')).toHaveCount(0);
-  await expect(aba(page, /^Orientações \(4\), com aviso$/)).toBeVisible();
+  await expect(aba(page, /^Orientações \(4\)$/)).toBeVisible();
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
@@ -253,15 +254,16 @@ test('suplementação em tabela: cabeçalho uma vez, nome em duas linhas, link, 
 });
 
 // 26/11: sem o teto de 1400 nos Complementos; colunas proporcionais (Suplemento 28%, Dose 12% e Horário 10% com teto,
-// Observação com o resto); nome e observação inteiros em até duas linhas; Orientações em largura de leitura.
+// Observação com o resto); nome e observação inteiros em até duas linhas. Orientações: desde 27/11, na faixa `larga` em
+// diante, a lista fica com ~40% do cartão (o editor e a prévia ao lado; `dieta-complementos-ultralarga.spec.ts`).
 for (const largura of [1920, 3440]) {
   test(`suplementação sem teto, colunas proporcionais e texto inteiro em duas linhas (${largura}px)`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrir(page, { largura, conteudo: {
       ...CONTEUDO,
       suplementacao: CONTEUDO.suplementacao.map((s, i) => (i === 0 ? { ...s, observacao: 'Misturar em 200 ml de água, todos os dias, inclusive nos dias sem treino.' } : s)),
     } });
-    const lista = page.getByRole('group', { name: 'Orientações da dieta' });
-    expect((await lista.boundingBox())!.width).toBeLessThan(720);
+    const lista = page.getByRole('listbox', { name: 'Orientações da dieta' });
+    expect((await lista.boundingBox())!.width).toBeLessThan((await cartao(page).boundingBox())!.width * 0.45);
     await aba(page, /^Suplementação/).click();
     const tabela = (await page.getByRole('group', { name: 'Suplementação da dieta' }).boundingBox())!.width;
     expect(tabela).toBeGreaterThan(1400);

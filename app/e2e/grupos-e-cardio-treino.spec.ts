@@ -63,7 +63,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Adicionar cardio', exact: true }).first().click();
     await expect(page.getByText('Escolher cardio', { exact: true })).toBeVisible();
     await page.getByRole('textbox', { name: 'Buscar na biblioteca', exact: true }).fill('Esteira de teste');
-    await page.getByRole('button', { name: 'Usar só o nome Esteira de teste, fora da biblioteca', exact: true }).click();
+    // A folha "Escolher exercício" (27/11) lista o nome livre como opção da lista.
+    await page.getByRole('option', { name: /^Usar só o nome Esteira de teste/ }).click();
     await expect(page.getByText('Escolher cardio', { exact: true })).toHaveCount(0);
     // O novo fica escolhido: no estreito o cartão dele já nasce aberto.
     if (largura < 960) await expect(page.getByRole('button', { name: 'Fechar Esteira de teste', exact: true })).toBeVisible();
@@ -115,7 +116,9 @@ for (const largura of [390, 1280]) {
     // Remada com observação: também nasce fechada (18/11), e o botão diz que tem observação; abre no toque, com o texto.
     await abrirExercicio(2, 'Remada de teste');
     await expect(extras.last()).toHaveAttribute('aria-expanded', 'false');
-    await expect(extras.last()).toHaveAccessibleName('Nome de exibição e instruções (com observação)');
+    // 27/11: seção recolhível; o resumo ao lado do título diz que tem observação.
+    await expect(extras.last()).toHaveAccessibleName('Nome de exibição e instruções');
+    await expect(page.getByText('Remada de teste · sem vídeo · com observação', { exact: true })).toBeVisible();
     await expect(observacao).toHaveCount(0);
     await extras.last().click();
     await expect(extras.last()).toHaveAttribute('aria-expanded', 'true');

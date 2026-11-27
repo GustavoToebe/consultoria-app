@@ -1,9 +1,11 @@
 import { Library, PencilLine, Trash2 } from 'lucide-react-native';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useId, useState, type ComponentProps, type ReactNode } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 
 import type { ConteudoDieta } from '../../api/tipos';
-import { type AbaDosComplementos, contagemDaAba, LIMITES_DOS_COMPLEMENTOS, problemasDosComplementos } from '../../dominio/complementosDaDieta';
+import { type AbaDosComplementos, type ArranjoDosComplementos, arranjoDosComplementos, contagemDaAba, LIMITES_DOS_COMPLEMENTOS, problemasDosComplementos } from '../../dominio/complementosDaDieta';
+import { LINHA_DAS_TRES_COLUNAS, LINHA_DO_TOTAL_ULTRALARGO } from '../../dominio/colunasDaDieta';
+import { inteiroComMilhar } from '../../dominio/formatos';
 import { remover, substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
 import { moverPara } from '../../dominio/reordenar';
@@ -13,6 +15,7 @@ import { espaco, LARGURA_TEXTO_CORRIDO, RAIO } from '../../tema/tokens';
 import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { CampoQueCresce } from '../../ui/CampoQueCresce';
 import { Cartao } from '../../ui/Cartao';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -23,6 +26,7 @@ import { CampoDaTabela } from './CampoDaTabela';
 import { COLUNA_DA_DOSE, COLUNA_DE_DETALHE, COLUNA_DO_HORARIO, LARGURA_DA_TABELA } from './colunasDosComplementos';
 import { ContadorDeCaracteres } from './ContadorDeCaracteres';
 import { OrientacoesDaDieta } from './OrientacoesDaDieta';
+import { PreviaDasObservacoes } from './PreviaDosComplementos';
 import { SuplementacaoDaDieta } from './SuplementacaoDaDieta';
 
 type Ergogenico = NonNullable<ConteudoDieta['ergogenicos']>[number];
@@ -61,6 +65,10 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
   const [aba, setAba] = useState<AbaDosComplementos>('orientacoes');
   const [vezVista, setVezVista] = useState(irPara?.vez);
   const [larguraDeOutros, setLarguraDeOutros] = useState(0);
+  // A largura do cartão na linha do editor (o `TelaDoEditor` não é uma `Tela`, então não há `useFaixaDaTela` aqui): a
+  // mesma régua do Total do dia (`colunasDaDieta`), as faixas `larga` e `ultralarga` vistas de dentro do recuo.
+  const [linha, setLinha] = useState<number | null>(null);
+  const arranjo = arranjoDosComplementos(linha, LINHA_DAS_TRES_COLUNAS, LINHA_DO_TOTAL_ULTRALARGO);
   if (irPara && irPara.vez !== vezVista) {
     setVezVista(irPara.vez);
     if (c.suplementacao.some((s) => irPara.uids.includes(s.uid))) setAba('suplementacao');
@@ -77,15 +85,16 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
   ];
 
   return (
+    <View onLayout={(e) => setLinha(Math.round(e.nativeEvent.layout.width))}>
     <Cartao titulo="Complementos">
       {aviso}
       <Abas abas={abas} ativa={ativa} aoMudar={setAba} fundo={cores.superficie} />
       <View style={estilos.painel}>
         {ativa === 'orientacoes' ? (
-          <OrientacoesDaDieta orientacoes={c.orientacoes} aoMudar={(orientacoes) => mudar({ orientacoes })}
+          <OrientacoesDaDieta orientacoes={c.orientacoes} arranjo={arranjo} aoMudar={(orientacoes) => mudar({ orientacoes })}
             aoRemover={(i) => comDesfazer(`Orientação “${c.orientacoes[i]?.titulo.trim() || i + 1}” removida.`, (a) => ({ ...a, orientacoes: remover(a.orientacoes, i) }), SECAO)} />
         ) : null}
-        {ativa === 'observacoes' ? <ObservacoesDaDieta valor={c.observacoes ?? ''} aoMudar={(t) => mudar({ observacoes: t || null })} /> : null}
+        {ativa === 'observacoes' ? <ObservacoesDaDieta valor={c.observacoes ?? ''} arranjo={arranjo} aoMudar={(t) => mudar({ observacoes: t || null })} /> : null}
         {ativa === 'suplementacao' ? (
           <SuplementacaoDaDieta itens={c.suplementacao} porcoes={porcoes} veBiblioteca={veBiblioteca}
             aoMudar={(i, parcial) => mudar({ suplementacao: substituir(c.suplementacao, i, { ...c.suplementacao[i], ...parcial }) })}
@@ -125,17 +134,36 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
         ) : null}
       </View>
     </Cartao>
+    </View>
   );
 }
 
-/** Observações em largura de leitura (~72 caracteres), com o contador de caracteres no canto (até 8.000, o limite da API). */
-function ObservacoesDaDieta({ valor, aoMudar }: { valor: string; aoMudar: (t: string) => void }) {
+/**
+ * Observações com o contador de caracteres no canto (até 8.000, o limite da API). `lista`: em largura de leitura (~72
+ * caracteres), como antes. Lado a lado (27/11, faixa `larga` em diante): o campo à esquerda (50%), crescendo com o texto,
+ * e "Como o aluno vê" à direita (50%); a frase "O aluno lê junto com a dieta" sai, porque a prévia mostra isso.
+ */
+function ObservacoesDaDieta({ valor, arranjo, aoMudar }: { valor: string; arranjo: ArranjoDosComplementos; aoMudar: (t: string) => void }) {
   const max = LIMITES_DOS_COMPLEMENTOS.observacoes;
+  const idDoContador = useId();
+  const erro = valor.length > max ? `Até ${inteiroComMilhar(max)} caracteres.` : null;
+  if (arranjo === 'lista') {
+    return (
+      <View style={estilos.leitura}>
+        <Campo rotulo="Observações (opcional)" valor={valor} aoMudar={aoMudar} linhas={8} maxLength={max}
+          ajuda="O aluno lê junto com a dieta, com as quebras de linha." erro={erro} />
+        <ContadorDeCaracteres usados={valor.length} maximo={max} />
+      </View>
+    );
+  }
   return (
-    <View style={estilos.leitura}>
-      <Campo rotulo="Observações (opcional)" valor={valor} aoMudar={aoMudar} linhas={8} maxLength={max}
-        ajuda="O aluno lê junto com a dieta, com as quebras de linha." erro={valor.length > max ? `Até ${max} caracteres.` : null} />
-      <ContadorDeCaracteres usados={valor.length} maximo={max} />
+    <View style={estilos.lado}>
+      <View style={[estilos.metade, estilos.campoComContador]}>
+        <CampoQueCresce rotulo="Observações (opcional)" valor={valor} aoMudar={aoMudar} linhas={8} maximoDeLinhas={30} maxLength={max}
+          ajudaForaDoCampo={{ id: idDoContador, texto: `${inteiroComMilhar(valor.length)} de ${inteiroComMilhar(max)} caracteres` }} erro={erro} />
+        <ContadorDeCaracteres nativeID={idDoContador} usados={valor.length} maximo={max} />
+      </View>
+      <View style={estilos.metade}><PreviaDasObservacoes texto={valor} /></View>
     </View>
   );
 }
@@ -199,6 +227,9 @@ function CampoDaColuna(props: Omit<ComponentProps<typeof Campo>, 'linhas' | 'ref
 const estilos = StyleSheet.create({
   painel: { paddingTop: espaco(1) },
   leitura: { gap: espaco(0.5), maxWidth: LARGURA_TEXTO_CORRIDO },
+  lado: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  metade: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+  campoComContador: { gap: espaco(0.5) },
   outros: { gap: espaco(1.5) },
   subCartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },

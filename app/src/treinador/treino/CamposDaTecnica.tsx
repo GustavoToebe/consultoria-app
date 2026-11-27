@@ -1,8 +1,8 @@
-import { Plus } from 'lucide-react-native';
+import { Minus, Plus } from 'lucide-react-native';
 import { Children, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { CargaDaEtapa, RegiaoDasParciais, Retomada, Tecnica } from '../../api/tipos';
-import { blocosIguais, blocosSeValidos, blocosValidos, lerBlocos, listaDeBlocosIguaisSeValidos, rascunhoDoModoDiferente, textoDeBlocos } from '../../dominio/blocos';
+import { blocosIguais, blocosQueChegaram, blocosSeValidos, blocosValidos, comRepsIguais, lerBlocos, maisUmBloco, MAXIMO_DE_BLOCOS, MAXIMO_REPS_POR_BLOCO, menosUmBloco, MINIMO_DE_BLOCOS, modoInicialDosBlocos, rascunhoInicialDosBlocos, textoDeBlocos, type ModoDosBlocos } from '../../dominio/blocos';
 import { REGIOES_DAS_PARCIAIS } from '../../dominio/metodologia';
 import { aoTrocarUnidade, outraUnidade, pausaEmDuasUnidades, unidadeVisivel, type UnidadeDaPausa } from '../../dominio/pausaDaTecnica';
 import { escalar } from '../../dominio/preferencias';
@@ -13,6 +13,8 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
+import { IconeBotao } from '../../ui/IconeBotao';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
 import { BotaoDeAbrir, BotaoDeTexto } from './BotaoDeAbrir';
 import { AvisoDoCampo, CampoSozinho, CamposDasRepeticoes, ErroDoCampo, LinhaDeCampos, useCamposLadoALado } from './CamposBasicos';
@@ -24,157 +26,138 @@ import { ajustarCargasDosBlocos, ajustarRetomadas, CARGA_DA_SERIE, cargaDaEtapaN
  */
 
 /**
- * Blocos do Cluster. "Blocos iguais" pede só os dois números; a notação compacta ("4+2", "4×4") fica em "Blocos
- * diferentes", junto das células, ou atrás de "Digitar como 4+2". O campo da notação mora sempre no mesmo lugar da
- * árvore: digitar troca o modo sem tirar o foco dele. O resumo vai para "Para o aluno", não aqui.
+ * Blocos do Cluster (27/11): a escolha "Blocos iguais | Blocos diferentes" e, numa linha, os campos pequenos dos blocos
+ * (B1, B2…; nos iguais um campo só, com a quantidade ao lado) e os botões − e + no fim. A notação ("4+2", "5×5") fica
+ * atrás de "Digitar como texto", nos dois sentidos com os campos. O campo é dono do rascunho e do modo: o eco do que ele
+ * mesmo gravou não refaz nada (`blocosQueChegaram`, a causa do defeito do "Mais um bloco"); só lista de fora (desfazer,
+ * receita) troca os campos.
  */
 function CampoBlocos({ valor, aoMudar, erro }: {
   valor: number[] | null | undefined; aoMudar: (v: number[] | null) => void; erro?: string | null;
 }) {
+  const { fatorTexto } = useTema();
+  const [modo, setModo] = useState<ModoDosBlocos>(() => modoInicialDosBlocos(valor));
+  const [rascunho, setRascunho] = useState<(number | null)[]>(() => rascunhoInicialDosBlocos(valor));
+  const [invalidos, setInvalidos] = useState<ReadonlySet<number>>(() => new Set());
+  const [publicado, setPublicado] = useState<number[] | null>(valor ?? null);
   const [texto, setTexto] = useState(textoDeBlocos(valor ?? null));
   const [notacao, setNotacao] = useState(false);
-  const [modo, setModo] = useState<'iguais' | 'diferentes'>(blocosIguais(valor) || !valor?.length ? 'iguais' : 'diferentes');
   const [confirmar, setConfirmar] = useState(false);
-  const [quantidade, setQuantidade] = useState<number | null>(blocosIguais(valor) ? valor!.length : null);
-  const [repsCada, setRepsCada] = useState<number | null>(blocosIguais(valor) ? valor![0] : null);
-  const [quantidadeInvalida, setQuantidadeInvalida] = useState(false);
-  const [repsInvalidas, setRepsInvalidas] = useState(false);
-  const [rascunho, setRascunho] = useState<(number | null)[]>(valor && !blocosIguais(valor) ? [...valor] : []);
-  const [invalidos, setInvalidos] = useState<ReadonlySet<number>>(() => new Set());
-  const chave = JSON.stringify(valor ?? null);
-  const [anterior, setAnterior] = useState(chave);
-  if (anterior !== chave) {
-    setAnterior(chave);
+  // O bloco que acabou de entrar recebe o foco (ele nasce editável, com as repetições do anterior).
+  const [focar, setFocar] = useState<number | null>(null);
+  const chegou = blocosQueChegaram(valor, publicado, modo);
+  if (chegou.mudou) {
+    setPublicado(valor ?? null);
+    setRascunho(chegou.rascunho);
+    setModo(chegou.modo);
+    setInvalidos(new Set());
     setConfirmar(false);
-    // Lista inválida zera o gravado e deixa o que a pessoa digitou. Só uma lista válida puxa os campos de volta.
-    if (valor && blocosValidos(valor)) {
-      setQuantidadeInvalida(false);
-      setRepsInvalidas(false);
-      setInvalidos(new Set());
-      setRascunho([...valor]);
-      if (blocosIguais(valor)) {
-        setModo('iguais');
-        setQuantidade(valor.length);
-        setRepsCada(valor[0]);
-      } else setModo('diferentes');
-      if (JSON.stringify(lerBlocos(texto)) !== chave) setTexto(textoDeBlocos(valor));
-    }
+    if (JSON.stringify(lerBlocos(texto)) !== JSON.stringify(valor ?? null)) setTexto(textoDeBlocos(valor));
   }
-  const erroFaixa = quantidade != null && (quantidade < 2 || quantidade > 10) ? 'De 2 a 10 blocos.' : null;
-  const erroReps = repsCada != null && (repsCada < 1 || repsCada > 50) ? 'De 1 a 50 repetições.' : null;
-  const aplicarIguais = (q: number | null, reps: number | null, qInvalida: boolean, rInvalida: boolean) => {
-    const lista = listaDeBlocosIguaisSeValidos(q, reps, qInvalida, rInvalida);
-    if (!qInvalida && !rInvalida && q != null && reps != null) setTexto(lista ? textoDeBlocos(lista) : `${q}×${reps}`);
-    else if (!qInvalida && !rInvalida && q == null && reps == null) setTexto('');
-    if (lista) setRascunho(lista);
-    aoMudar(lista);
+  const publicar = (lista: (number | null)[], aindaInvalidos: ReadonlySet<number>) => {
+    const gravar = blocosSeValidos(lista, aindaInvalidos.size > 0);
+    setRascunho(lista);
+    setInvalidos(aindaInvalidos);
+    setPublicado(gravar);
+    if (gravar) setTexto(textoDeBlocos(gravar));
+    aoMudar(gravar);
   };
-  const invalidarQuantidade = (ok: boolean) => {
+  const invalidar = (indice: number, ok: boolean) => {
     if (ok) return;
-    setQuantidadeInvalida(true);
-    setRascunho([]);
-    setTexto('');
+    setInvalidos((atual) => new Set(atual).add(indice));
+    setPublicado(null);
     aoMudar(null);
   };
-  const invalidarReps = (ok: boolean) => {
-    if (ok) return;
-    setRepsInvalidas(true);
-    setRascunho([]);
-    setTexto('');
-    aoMudar(null);
+  const alterarBloco = (indice: number, reps: number | null) => {
+    const ainda = new Set(invalidos);
+    ainda.delete(indice);
+    publicar(rascunho.map((r, i) => (i === indice ? reps : r)), ainda);
   };
-  const escolher = (proximo: 'iguais' | 'diferentes') => {
-    if (proximo === 'iguais' && valor && !blocosIguais(valor)) {
+  const mais = () => {
+    const proximo = maisUmBloco(rascunho);
+    if (modo === 'diferentes') setFocar(proximo.length - 1);
+    publicar(proximo, invalidos);
+  };
+  const menos = () => {
+    const ainda = new Set(invalidos);
+    ainda.delete(rascunho.length - 1);
+    publicar(menosUmBloco(rascunho), ainda);
+  };
+  const escolher = (proximo: ModoDosBlocos) => {
+    if (proximo === modo) return;
+    if (proximo === 'iguais' && !blocosIguais(rascunho.filter((r): r is number => r != null)) && rascunho.some((r) => r != null)) {
       setConfirmar(true);
       return;
     }
     setConfirmar(false);
-    if (proximo === 'diferentes') setRascunho(rascunhoDoModoDiferente(valor, rascunho));
     setModo(proximo);
   };
-  const celulas = rascunho.length >= 2 ? rascunho : valor && valor.length >= 2 ? [...valor] : [];
-  const publicarCelulas = (lista: readonly (number | null)[], aindaInvalidos: ReadonlySet<number>) => {
-    setRascunho([...lista]);
-    setInvalidos(aindaInvalidos);
-    aoMudar(blocosSeValidos(lista, aindaInvalidos.size > 0));
-  };
-  const alterarBloco = (indice: number, reps: number | null) => {
-    const proximo = [...celulas];
-    proximo[indice] = reps;
-    const ainda = new Set(invalidos);
-    ainda.delete(indice);
-    publicarCelulas(proximo, ainda);
-  };
-  const invalidarBloco = (indice: number, ok: boolean) => {
-    if (ok) return;
-    setInvalidos((atual) => new Set(atual).add(indice));
-    aoMudar(null);
-  };
+  const corrigir = invalidos.size > 0;
+  const noMaximo = rascunho.length >= MAXIMO_DE_BLOCOS;
+  const caixa = { width: escalar(LARGURA_DO_BLOCO, fatorTexto) };
+  const foraDaFaixa = (reps: number | null) => (reps != null && (reps < 1 || reps > MAXIMO_REPS_POR_BLOCO) ? 'De 1 a 50 repetições.' : null);
+  const botoes = <View style={estilos.botoesDosBlocos}>
+    <IconeBotao moldura Icone={Minus} rotulo="Remover um bloco" desabilitado={rascunho.length <= MINIMO_DE_BLOCOS} aoTocar={menos} />
+    <IconeBotao moldura Icone={Plus} rotulo="Adicionar um bloco" desabilitado={noMaximo || corrigir} aoTocar={mais} />
+  </View>;
+  const erroDosCampos = rascunho.map(foraDaFaixa).find(Boolean) ?? null;
   return <View style={estilos.bloco}>
-    <Escolha rotulo="Distribuição dos blocos" opcoes={[{ valor: 'iguais', rotulo: 'Blocos iguais' }, { valor: 'diferentes', rotulo: 'Blocos diferentes' }]} valor={modo} aoMudar={escolher} />
+    <Escolha descricao="Distribuição dos blocos" compacta opcoes={[{ valor: 'iguais', rotulo: 'Blocos iguais' }, { valor: 'diferentes', rotulo: 'Blocos diferentes' }]} valor={modo} aoMudar={escolher} />
     {confirmar ? <View style={estilos.bloco}>
       <Texto variante="pequeno">Todos os blocos ficam com as repetições do primeiro.</Texto>
-      <Botao tipo="secundario" rotulo="Converter para blocos iguais" aoTocar={() => {
-        const primeiro = valor?.[0];
-        if (valor && primeiro != null) {
-          const iguais = Array.from({ length: valor.length }, () => primeiro);
-          setRascunho(iguais);
-          setQuantidade(iguais.length);
-          setRepsCada(primeiro);
-          setQuantidadeInvalida(false);
-          setRepsInvalidas(false);
-          setInvalidos(new Set());
-          aoMudar(iguais);
-        }
-        setModo('iguais');
-        setConfirmar(false);
-      }} />
+      <LinhaDeAcoes>
+        <Botao tipo="secundario" rotulo="Converter para blocos iguais" aoTocar={() => {
+          const primeiro = rascunho.find((r) => r != null) ?? null;
+          setModo('iguais');
+          setConfirmar(false);
+          publicar(comRepsIguais(rascunho, primeiro), new Set());
+        }} />
+        <Botao tipo="fantasma" rotulo="Manter blocos diferentes" aoTocar={() => setConfirmar(false)} />
+      </LinhaDeAcoes>
     </View> : null}
-    {modo === 'iguais' && !confirmar ? <LinhaDeCampos>
-      <CampoNumerico rotulo="Quantos blocos" inteiro valor={quantidade} erro={erroFaixa}
-        aoMudar={(q) => { setQuantidade(q); setQuantidadeInvalida(false); aplicarIguais(q, repsCada, false, repsInvalidas); }} aoValidade={invalidarQuantidade} />
-      <CampoNumerico rotulo="Repetições em cada bloco" inteiro valor={repsCada} erro={erroReps}
-        aoMudar={(reps) => { setRepsCada(reps); setRepsInvalidas(false); aplicarIguais(quantidade, reps, quantidadeInvalida, false); }} aoValidade={invalidarReps} />
-    </LinhaDeCampos> : null}
-    {modo === 'diferentes' && celulas.length >= 2 ? <View style={estilos.bloco}>
-      <LinhaDeCampos>
-        {celulas.map((reps, indice) => <CampoNumerico key={indice} rotulo={`Bloco ${indice + 1}`} inteiro valor={reps} erro={reps != null && (reps < 1 || reps > 50) ? 'De 1 a 50 repetições.' : null}
-          aoMudar={(v) => alterarBloco(indice, v)} aoValidade={(ok) => invalidarBloco(indice, ok)} />)}
-      </LinhaDeCampos>
-      <View style={estilos.linha}>
-        <Botao tipo="secundario" rotulo="Mais um bloco" desabilitado={celulas.length >= 10 || invalidos.size > 0} motivo={invalidos.size > 0 ? 'Corrija o bloco com número inválido.' : celulas.length >= 10 ? 'Máximo de 10 blocos.' : undefined} aoTocar={() => publicarCelulas([...celulas, celulas[celulas.length - 1]], invalidos)} />
-        <Botao tipo="fantasma" rotulo="Menos um bloco" desabilitado={celulas.length <= 2 || invalidos.size > 0} motivo={invalidos.size > 0 ? 'Corrija o bloco com número inválido.' : celulas.length <= 2 ? 'Mínimo de 2 blocos.' : undefined} aoTocar={() => publicarCelulas(celulas.slice(0, -1), invalidos)} />
+    {modo === 'iguais' && !confirmar ? <View style={estilos.linhaDosBlocos}>
+      <View style={caixa}>
+        <CampoNumerico rotulo="Reps" rotuloAcessivel="Repetições em cada bloco" inteiro valor={rascunho[0] ?? null} erro={foraDaFaixa(rascunho[0] ?? null)} erroSemTexto
+          aoMudar={(reps) => publicar(comRepsIguais(rascunho, reps), new Set())} aoValidade={(ok) => invalidar(0, ok)} />
       </View>
+      <Texto numerico style={estilos.vezes} accessibilityLiveRegion="polite">{`× ${rascunho.length} blocos`}</Texto>
+      {botoes}
     </View> : null}
-    {modo === 'iguais' && !confirmar ? <BotaoDeAbrir texto="Digitar como 4+2" aberto={notacao} aoAlternar={() => setNotacao(!notacao)} /> : null}
-    {modo === 'diferentes' || notacao ? <Campo rotulo="Blocos de repetições" valor={texto} maxLength={60} placeholder="4+2 ou 4×4"
-      erro={erro ?? (texto && !blocosValidos(lerBlocos(texto)) ? 'De 2 a 10 blocos, cada um com 1 a 50 repetições.' : null)}
+    {modo === 'diferentes' ? <View style={estilos.linhaDosBlocos} role="group" aria-label="Repetições de cada bloco">
+      {rascunho.map((reps, i) => <View key={i} style={caixa}>
+        <CampoNumerico rotulo={`B${i + 1}`} rotuloAcessivel={`Bloco ${i + 1}`} inteiro valor={reps} erro={foraDaFaixa(reps)} erroSemTexto autoFocus={focar === i}
+          aoMudar={(v) => alterarBloco(i, v)} aoValidade={(ok) => invalidar(i, ok)} />
+      </View>)}
+      {botoes}
+    </View> : null}
+    {erroDosCampos ? <ErroDoCampo mensagem={erroDosCampos} /> : corrigir ? <ErroDoCampo mensagem="Use só números inteiros." /> : null}
+    {noMaximo && !confirmar ? <Texto variante="pequeno">Máximo de 10 blocos.</Texto> : null}
+    <BotaoDeAbrir texto="Digitar como texto" aberto={notacao} aoAlternar={() => setNotacao(!notacao)} pequeno />
+    {notacao ? <View style={estilos.notacao}><Campo rotulo="Blocos de repetições" valor={texto} maxLength={60} placeholder="4+2 ou 5×5"
+      erro={texto && !blocosValidos(lerBlocos(texto)) ? 'De 2 a 10 blocos, cada um com 1 a 50 repetições.' : null}
       aoMudar={(t) => {
-        // Quem digitou aqui continua vendo o campo, mesmo que a notação faça o modo voltar para "Blocos iguais".
-        setNotacao(true);
         setTexto(t);
         const lidos = lerBlocos(t);
         const gravados = blocosSeValidos(lidos, false);
-        aoMudar(gravados);
-        setQuantidadeInvalida(false);
-        setRepsInvalidas(false);
-        setInvalidos(new Set());
-        if (lidos && lidos.length >= 2 && !blocosIguais(lidos)) {
-          setModo('diferentes');
+        if (lidos && lidos.length >= MINIMO_DE_BLOCOS && lidos.length <= MAXIMO_DE_BLOCOS) {
           setRascunho(lidos);
-        } else if (gravados && blocosIguais(gravados)) {
-          setModo('iguais');
-          setQuantidade(gravados.length);
-          setRepsCada(gravados[0]);
-          setRascunho(gravados);
+          setInvalidos(new Set());
+          setConfirmar(false);
+          if (!blocosIguais(lidos)) setModo('diferentes');
         }
-      }} /> : null}
-    {/* Sem o campo da notação na tela, o erro dos blocos (o da publicação) aparece aqui. */}
-    {modo === 'diferentes' || notacao ? null : <ErroDoCampo mensagem={erro} />}
+        setPublicado(gravados);
+        aoMudar(gravados);
+      }} /></View> : null}
+    {/* O erro da publicação (blocos que faltam), quando os campos não dizem outro. */}
+    {!erroDosCampos && !corrigir ? <ErroDoCampo mensagem={erro} /> : null}
   </View>;
 }
 
 const UNIDADES_DA_PAUSA: { valor: UnidadeDaPausa; rotulo: string }[] = [{ valor: 'SEGUNDOS', rotulo: 'Segundos (s)' }, { valor: 'RESPIRACOES', rotulo: 'Respirações' }];
+/** No Cluster (27/11) a unidade é curta, "s · respirações", para a pausa caber na linha dos blocos. */
+const UNIDADES_CURTAS: { valor: UnidadeDaPausa; rotulo: string }[] = [{ valor: 'SEGUNDOS', rotulo: 's' }, { valor: 'RESPIRACOES', rotulo: 'respirações' }];
+/** Caixa de um bloco e da pausa curta: três dígitos e o padding. */
+const LARGURA_DO_BLOCO = 64;
 
 /**
  * Pausa interna num controle só: o número e a unidade (segundos ou respirações). Trocar a unidade com um valor escrito
@@ -182,10 +165,13 @@ const UNIDADES_DA_PAUSA: { valor: UnidadeDaPausa; rotulo: string }[] = [{ valor:
  * dois campos. A falta de pausa chega em `pausaSegundos`: aparece no campo que estiver na tela. `antes` são os campos
  * curtos da técnica que dividem a linha com a pausa no PC (no celular, empilhados acima dela).
  */
-function CamposDePausa({ t, mudar, e, rotulo = 'Pausa', antes = [] }: {
+function CamposDePausa({ t, mudar, e, rotulo = 'Pausa', antes = [], curta = false }: {
   t: Tecnica; mudar: (parte: Partial<Tecnica>) => void; e: Problemas; rotulo?: string; antes?: ReactNode[];
+  /** Cluster: caixa estreita com a unidade curta ao lado, e "Informar também em respirações" só a partir dos segundos. */
+  curta?: boolean;
 }) {
-  const largo = useCamposLadoALado();
+  const largo = useCamposLadoALado() || curta;
+  const { fatorTexto } = useTema();
   const [escolhida, setEscolhida] = useState<UnidadeDaPausa>(unidadeVisivel('SEGUNDOS', t));
   const [pediuAsDuas, setPediuAsDuas] = useState(false);
   // Depois de "Informar também em …", o campo novo recebe o foco (o botão some da tela).
@@ -220,18 +206,18 @@ function CamposDePausa({ t, mudar, e, rotulo = 'Pausa', antes = [] }: {
       {/* O número e a unidade andam juntos: se a linha quebrar no PC, os dois descem juntos. */}
       <View style={largo ? estilos.pausaComUnidade : estilos.bloco}>
         {/* A chave troca com a unidade: o texto digitado numa não passa para a outra. */}
-        <View key={unidade} style={largo ? estilos.campo : null}>
+        <View key={unidade} style={curta ? { width: escalar(150, fatorTexto) } : largo ? estilos.campo : null}>
           {unidade === 'SEGUNDOS' ? segundos(e.pausaSegundos, mudar, false) : respiracoes(e.pausaRespiracoes ?? e.pausaSegundos, mudar, false)}
         </View>
         {/* No PC a escolha fica à direita, na altura da caixa (descontado o rótulo do campo). */}
         <View style={largo ? estilos.unidadeAoLado : null}>
-          <Escolha descricao={`Unidade da ${rotulo.toLowerCase()}`} compacta opcoes={UNIDADES_DA_PAUSA} valor={unidade} aoMudar={trocar} />
+          <Escolha descricao={`Unidade da ${rotulo.toLowerCase()}`} compacta opcoes={curta ? UNIDADES_CURTAS : UNIDADES_DA_PAUSA} valor={unidade} aoMudar={trocar} />
         </View>
       </View>
     </View>
     {/* O nome acessível começa pelo texto visível e diz de qual pausa é (a metodologia tem várias na mesma tela). */}
-    <BotaoDeTexto Icone={Plus} texto={`Informar também em ${outra}`} rotuloAcessivel={`Informar também em ${outra} (${rotulo.toLowerCase()})`}
-      aoTocar={() => { setFocar(outraUnidade(unidade)); setPediuAsDuas(true); }} />
+    {curta && unidade !== 'SEGUNDOS' ? null : <BotaoDeTexto Icone={Plus} texto={`Informar também em ${outra}`} rotuloAcessivel={`Informar também em ${outra} (${rotulo.toLowerCase()})`}
+      aoTocar={() => { setFocar(outraUnidade(unidade)); setPediuAsDuas(true); }} />}
   </View>;
 }
 
@@ -263,7 +249,7 @@ export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros, s
     case 'CLUSTER':
       return <View style={estilos.bloco}>
         <CampoBlocos valor={t.blocos} aoMudar={(blocos) => mudar({ blocos, cargasDosBlocos: ajustarCargasDosBlocos(t.cargasDosBlocos, blocos) })} erro={e.blocos} />
-        <CamposDePausa t={t} mudar={mudar} e={e} rotulo="Pausa entre blocos" />
+        <CamposDePausa t={t} mudar={mudar} e={e} rotulo="Pausa entre blocos" curta />
         {completa && !semCarga ? <CamposDasCargasDosBlocos t={t} mudar={mudar} e={e} ws={ws} /> : null}
       </View>;
     case 'DROP_SET':
@@ -388,6 +374,10 @@ const estilos = StyleSheet.create({
   campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
   // Altura do rótulo do campo (13/18) mais o vão até a caixa: a escolha da unidade fica na linha da caixa.
   unidadeAoLado: { paddingTop: 18 + espaco(0.5) },
+  linhaDosBlocos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
+  botoesDosBlocos: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.25) },
+  vezes: { minHeight: 44, textAlignVertical: 'center', paddingTop: espaco(1.25) },
+  notacao: { maxWidth: 320 },
   pausaComUnidade: { flexDirection: 'row', gap: espaco(1.5), alignItems: 'flex-start', flexGrow: 1, flexBasis: 300, maxWidth: 440 },
   etapa: { gap: espaco(0.5) },
   linhaDaEtapa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(0.75) },

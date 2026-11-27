@@ -3,8 +3,8 @@ import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { alterarExercicio, criarExercicio, inativarExercicio, listarExerciciosPagina, TAMANHO_DA_PAGINA_DE_EXERCICIOS } from '../../api/rotas';
-import type { Exercicio, ExercicioRequest, Modalidade } from '../../api/tipos';
+import { alterarExercicio, criarExercicio, inativarExercicio, listarExercicios, listarExerciciosPagina, TAMANHO_DA_PAGINA_DE_EXERCICIOS } from '../../api/rotas';
+import type { Exercicio, ExercicioRequest, MedidaDeCardio, Modalidade, TipoDeCardio } from '../../api/tipos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -19,23 +19,22 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
-import { LinhaDaLista } from '../../ui/LinhaDaLista';
 import { ListaEmColunas } from '../ListaEmColunas';
 import { espaco, LARGURA_FOLHA_LARGA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useTema } from '../../tema/TemaProvider';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
-import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
 import { gruposDaConsulta, marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
 import {
-  chipsDosExercicios, midiaParaApi, modalidadesExistentes, opcoesDeModalidade,
-  ORDEM_DAS_MODALIDADES, SEM_FILTROS_DE_EXERCICIOS, semOFiltro, type FiltrosDeExercicios,
+  chipsDosExercicios, coincideComABusca, contagemDosGrupos, midiaParaApi, modalidadesExistentes, opcoesDeModalidade,
+  ORDEM_DAS_MODALIDADES, passaNosFiltros, rotuloDoMostrar, SEM_FILTROS_DE_EXERCICIOS, semOFiltro, type FiltrosDeExercicios,
 } from '../../dominio/exerciciosDaBiblioteca';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
-import { DetalheDoExercicio, LegendaDasModalidades, SeletoresDeExercicios } from './ModalidadeDoExercicio';
+import { LegendaDasModalidades, LinhaDoExercicio, PainelDeExercicios } from './ModalidadeDoExercicio';
 import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
 import { ImportarDePlanilha } from './ImportarDePlanilha';
 import { VideoDoExercicioEditor } from './VideoDoExercicioEditor';
+import { DetalhesDoCardio, medidasEmOrdem, TipoDoCardio } from './CamposDoCardio';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
 
@@ -95,6 +94,17 @@ export function AbaExercicios() {
   const total = dados?.total ?? 0;
   const paginas = Math.max(1, Math.ceil(total / TAMANHO_DA_PAGINA_DE_EXERCICIOS));
   const semFiltro = !buscaAtrasada && chips.length === 0;
+  // A lista inteira (a mesma chave das outras telas) só quando alguém abre os filtros: dá a contagem de cada grupo e o
+  // "Mostrar N exercícios". Sem ela (carregando ou com erro) os chips ficam só com o nome e o botão sem número.
+  const [querContagem, setQuerContagem] = useState(false);
+  const listaInteira = useCarregar(querContagem ? 'biblioteca-exercicios' : null, () => listarExercicios());
+  const todos = listaInteira.dados;
+  // Cada abertura depois da primeira busca de novo: salvar, criar ou tirar um exercício muda as contagens.
+  const abrirPainel = () => { if (querContagem) listaInteira.recarregar(); else setQuerContagem(true); };
+  const gruposDoPainel = todos ? contagemDosGrupos(todos) : opcoesDeGrupo;
+  // Busca só em nome e grupo, como o servidor (`ExpansorTermosExercicio.casou`; sem o equipamento).
+  // shortcut: a tradução dos termos em inglês do app (`coincideComBuscaExercicio`) pode diferir da do servidor num termo raro; trocar pelo `total` de uma consulta da API se divergir na prática.
+  const mostrar = (f: FiltrosDeExercicios) => rotuloDoMostrar(todos ? todos.filter((e) => passaNosFiltros(e, f) && coincideComABusca({ ...e, equipamento: null }, buscaAtrasada)).length : null);
   const mudarBusca = (texto: string) => { setBusca(texto); setPagina(0); };
   // Todos os filtros vão à API: trocar qualquer um volta à primeira página.
   const mudarFiltros = (novos: FiltrosDeExercicios) => { setFiltros(novos); setPagina(0); };
@@ -122,7 +132,8 @@ export function AbaExercicios() {
       <BarraDeFiltros busca={{ rotulo: 'Buscar exercício', placeholder: 'Nome ou grupo', valor: busca, aoMudar: mudarBusca }}
         valor={aplicados} aoAplicar={mudarFiltros} limpo={SEM_FILTROS_DE_EXERCICIOS} chips={chips}
         aoTirar={(chave) => mudarFiltros(semOFiltro(aplicados, chave))} painelLateral={{ titulo: 'Filtros de exercícios' }}
-        seletores={(atual, mudar) => <SeletoresDeExercicios atual={atual} mudar={mudar} opcoesDeGrupo={opcoesDeGrupo} opcoesDeModalidades={opcoesDeModalidades} />} />
+        aoAbrirPainel={abrirPainel} rotuloDoAplicar={mostrar}
+        seletores={(atual, mudar) => <PainelDeExercicios atual={atual} mudar={mudar} grupos={gruposDoPainel} opcoesDeModalidades={opcoesDeModalidades} />} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && total === 0 ? (
@@ -134,10 +145,7 @@ export function AbaExercicios() {
       ) : null}
       {lista.length ? <LegendaDasModalidades modalidades={modalidadesExistentes(lista)} /> : null}
       {lista.length ? <ListaEmColunas divisorias>{lista.map((e) => (
-        <LinhaDaLista key={e.id} titulo={e.nome}
-          valores={<DetalheDoExercicio exercicio={e} />}
-          inicio={<DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel reservarEspaco />}
-          acoesAoLado
+        <LinhaDoExercicio key={e.id} exercicio={e} ampliavel
           acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
       ))}</ListaEmColunas> : null}
       {total > TAMANHO_DA_PAGINA_DE_EXERCICIOS ? (
@@ -187,18 +195,26 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
   const [modalidade, setModalidade] = useState<Modalidade>(inicial?.modalidade ?? 'MAQUINA');
   const [video, setVideo] = useState(inicial?.videoUrl ?? '');
   const [observacoes, setObservacoes] = useState(inicial?.observacoes ?? '');
+  // Cardio (D12): tipo e medidas. Fora do Cardio a API devolve as medidas vazias; ao passar para Cardio nascem as duas.
+  const [tipoDeCardio, setTipoDeCardio] = useState<TipoDeCardio | null>(inicial?.tipoDeCardio ?? null);
+  const [medidas, setMedidas] = useState<MedidaDeCardio[]>(
+    inicial?.modalidade === 'CARDIO' && inicial.medidasDeCardio ? medidasEmOrdem(inicial.medidasDeCardio) : ['DISTANCIA', 'RITMO']);
+  const cardio = modalidade === 'CARDIO';
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
 
   const salvar = () => {
+    // Grupo e equipamento ficam no estado ao trocar a modalidade (nada se perde ao voltar), mas o Cardio não os grava (D13).
     const dados: ExercicioRequest = {
       nome: nome.trim(),
-      grupoMuscular: grupo.trim() || null,
-      equipamento: equipamento.trim() || null,
+      grupoMuscular: cardio ? null : grupo.trim() || null,
+      equipamento: cardio ? null : equipamento.trim() || null,
       modalidade,
       videoUrl: video.trim() || null,
       observacoes: observacoes.trim() || null,
+      // Só no Cardio; as medidas vão sempre explícitas, para a edição não cair no "mantém as gravadas".
+      ...(cardio ? { tipoDeCardio, medidasDeCardio: medidas } : {}),
     };
     setSalvando(true);
     setErro(null);
@@ -223,18 +239,31 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
       <View style={estilos.partes} onLayout={(e) => setLarguraMedida(Math.floor(e.nativeEvent.layout.width))}>
         <Cartao titulo="Identificação" nivel={3}>
           <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
-          {/* Três colunas iguais na folha média; no celular, uma embaixo da outra. */}
+          {/* Três colunas iguais na folha média (no Cardio, duas: Modalidade e Tipo); no celular, uma embaixo da outra. */}
           <View style={emColunas ? estilos.linhaDeCampos : estilos.colunaDeCampos}>
             <View style={emColunas ? estilos.campoIgual : null}>
               <EscolhaSuspensa rotulo="Modalidade" opcoes={OPCOES_MODALIDADE} valor={modalidade} aoMudar={setModalidade} semBusca />
             </View>
-            <View style={emColunas ? estilos.campoIgual : null}>
-              <Campo rotulo="Grupo muscular (opcional)" valor={grupo} aoMudar={setGrupo} erro={campos.grupoMuscular} maxLength={60} />
-            </View>
-            <View style={emColunas ? estilos.campoIgual : null}>
-              <Campo rotulo="Equipamento (opcional)" valor={equipamento} aoMudar={setEquipamento} erro={campos.equipamento} maxLength={60} />
-            </View>
+            {cardio ? (
+              <View style={emColunas ? estilos.campoIgual : null}>
+                <TipoDoCardio valor={tipoDeCardio} aoMudar={setTipoDeCardio} />
+              </View>
+            ) : (
+              <>
+                <View style={emColunas ? estilos.campoIgual : null}>
+                  <Campo rotulo="Grupo muscular (opcional)" valor={grupo} aoMudar={setGrupo} erro={campos.grupoMuscular} maxLength={60} />
+                </View>
+                <View style={emColunas ? estilos.campoIgual : null}>
+                  <Campo rotulo="Equipamento (opcional)" valor={equipamento} aoMudar={setEquipamento} erro={campos.equipamento} maxLength={60} />
+                </View>
+              </>
+            )}
           </View>
+          {cardio ? (
+            <DetalhesDoCardio medidas={medidas} aoMudar={setMedidas} emColunas={emColunas}
+              erroDoTipo={campos.tipoDeCardio} erroDasMedidas={campos.medidasDeCardio}
+              saemAoSalvar={[grupo.trim() && `o grupo muscular (${grupo.trim()})`, equipamento.trim() && `o equipamento (${equipamento.trim()})`].filter((t) => !!t)} />
+          ) : null}
         </Cartao>
 
         <Cartao titulo="Instruções" nivel={3}>

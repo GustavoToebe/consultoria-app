@@ -2,6 +2,11 @@ import type { Exercicio } from '../api/tipos';
 import { coresComBordasReforcadas, coresComContraste } from './preferencias';
 import { CHAVES_DE_IDENTIFICACAO, PALETAS, contraste, coresDeIdentificacao, type Cores, type VarianteDoTema } from '../tema/tokens';
 import {
+  coincideComABusca,
+  contagemDosGrupos,
+  gruposDaBusca,
+  passaNosFiltros,
+  rotuloDoMostrar,
   chipsDosExercicios,
   COR_DA_MODALIDADE,
   detalheDoExercicio,
@@ -106,5 +111,52 @@ describe.each(TEMAS)('marca da modalidade no tema %s', (_nome, cores, variante) 
       const cor = chave ? identificacao[chave].cor : cores.textoSuave;
       for (const base of [cores.superficie, cores.sobre, cores.superficie2]) expect(contraste(cor, base)).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+describe('filtros da folha e do painel (passaNosFiltros, mesma regra da API)', () => {
+  const comVideo = ex({ id: 'v', videoUrl: 'https://youtu.be/x', grupoMuscular: ' Peito ' });
+  const comImagem = ex({ id: 'i', imagens: ['a.jpg'], modalidade: 'LIVRE' });
+  const semGrupo = ex({ id: 's', grupoMuscular: null, modalidade: 'CARDIO' });
+  it('sem filtro passa tudo', () => {
+    for (const e of [comVideo, comImagem, semGrupo]) expect(passaNosFiltros(e, SEM_FILTROS_DE_EXERCICIOS)).toBe(true);
+  });
+  it('grupos em OU (sem espaço nas pontas), modalidades em OU, vídeo e imagem; tudo em E', () => {
+    const f = { ...SEM_FILTROS_DE_EXERCICIOS, grupos: new Set(['Peito', 'Costas']) };
+    expect([comVideo, comImagem, semGrupo].filter((e) => passaNosFiltros(e, f)).map((e) => e.id)).toEqual(['v', 'i']);
+    expect(passaNosFiltros(comImagem, { ...f, modalidades: new Set(['MAQUINA']) })).toBe(false);
+    expect(passaNosFiltros(comVideo, { ...f, video: 'COM' })).toBe(true);
+    expect(passaNosFiltros(comVideo, { ...f, video: 'SEM' })).toBe(false);
+    expect(passaNosFiltros(comImagem, { ...f, imagem: 'COM' })).toBe(true);
+    expect(passaNosFiltros(comVideo, { ...f, imagem: 'COM' })).toBe(false);
+    expect(passaNosFiltros(ex({ imagemPropriaEm: '2026-11-27T10:00:00Z' }), { ...SEM_FILTROS_DE_EXERCICIOS, imagem: 'SEM' })).toBe(false);
+  });
+  it('busca: nome, grupo e equipamento, sem acento e sem caixa', () => {
+    const e = ex({ nome: 'Rosca Direta', grupoMuscular: 'Bíceps', equipamento: 'Barra W' });
+    for (const t of ['rosca', 'BICEPS', ' barra w ', '']) expect(coincideComABusca(e, t)).toBe(true);
+    expect(coincideComABusca(e, 'supino')).toBe(false);
+  });
+});
+
+describe('grupos do painel', () => {
+  it('contagem por grupo em ordem alfabética do português, sem o vazio, juntando espaços nas pontas', () => {
+    const lista = [ex({ grupoMuscular: 'Peito' }), ex({ grupoMuscular: ' Peito' }), ex({ grupoMuscular: 'Abdômen' }), ex({ grupoMuscular: 'Ombros' }), ex({ grupoMuscular: null }), ex({ grupoMuscular: '  ' })];
+    expect(contagemDosGrupos(lista)).toEqual([
+      { valor: 'Abdômen', rotulo: 'Abdômen', contagem: 1 },
+      { valor: 'Ombros', rotulo: 'Ombros', contagem: 1 },
+      { valor: 'Peito', rotulo: 'Peito', contagem: 2 },
+    ]);
+  });
+  it('a busca de grupo acha sem acento e mantém os marcados à vista', () => {
+    const opcoes = contagemDosGrupos([ex({ grupoMuscular: 'Abdômen' }), ex({ grupoMuscular: 'Abdutores' }), ex({ grupoMuscular: 'Peito' })]);
+    expect(gruposDaBusca(opcoes, 'abdo', new Set()).map((o) => o.valor)).toEqual(['Abdômen']);
+    expect(gruposDaBusca(opcoes, 'abdo', new Set(['Peito'])).map((o) => o.valor)).toEqual(['Abdômen', 'Peito']);
+    expect(gruposDaBusca(opcoes, '', new Set()).length).toBe(3);
+  });
+  it('"Mostrar N exercícios" no singular, no plural, com milhar e sem número enquanto não conta', () => {
+    expect(rotuloDoMostrar(1)).toBe('Mostrar 1 exercício');
+    expect(rotuloDoMostrar(0)).toBe('Mostrar 0 exercícios');
+    expect(rotuloDoMostrar(1234)).toBe('Mostrar 1.234 exercícios');
+    expect(rotuloDoMostrar(null)).toBe('Mostrar exercícios');
   });
 });

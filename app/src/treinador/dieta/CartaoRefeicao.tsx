@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowLeftRight, ArrowLeftToLine, ArrowRight, Ellipsis, GripVertical, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { AccessibilityInfo, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Alimento, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../../api/tipos';
@@ -28,7 +28,14 @@ import { remover, substituir } from '../../dominio/editorTreino';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
 import { abaComProblema, chaveDosProblemas, gramasSemUnidade } from '../../dominio/opcoesDaRefeicao';
 import { moverPara } from '../../dominio/reordenar';
-import { numeroParaTela } from '../../dominio/formatos';
+import { inteiroComMilhar, numeroParaTela } from '../../dominio/formatos';
+import {
+  OBSERVACAO_DA_REFEICAO_MAXIMO,
+  observacaoDaRefeicaoValida,
+  resumoDaObservacaoEPreparo,
+  type ResumoDaObservacaoEPreparo,
+  temObservacaoOuPreparo,
+} from '../../dominio/observacaoEPreparo';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO_CONTROLE } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
@@ -36,6 +43,7 @@ import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA as LARGURA_DA_PECA, useA
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
+import { CampoQueCresce } from '../../ui/CampoQueCresce';
 import { CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Divisor } from '../../ui/Divisor';
@@ -44,6 +52,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { NumeroInvertido } from '../../ui/NumeroInvertido';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { SecaoRecolhivel } from '../../ui/SecaoRecolhivel';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -52,11 +61,11 @@ import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { acoesDeMover } from '../acoesDeMover';
 import { type AcaoDoMenu, FolhaDeAcoes } from '../FolhaDeAcoes';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
-import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AbasDeOpcao, type ReordenarOpcoes } from './AbasDeOpcao';
 import { CampoDaQuantidade } from './CampoDaQuantidade';
 import { type ColunasDaTabela, ComparacaoDasOpcoes } from './ComparacaoDasOpcoes';
+import { ContadorDeCaracteres } from './ContadorDeCaracteres';
 
 /** Id no DOM (web) do cartão da refeição: `mostrarAbaixoDaBarra` rola até ele ao adicionar uma refeição. */
 export const idDaRefeicao = (uid: string) => `refeicao-${uid}`;
@@ -156,11 +165,18 @@ export function CartaoRefeicao(p: Props) {
   const mudarItens = (indice: number, fn: (itens: ItemDieta[]) => ItemDieta[]) =>
     mudar({ opcoes: substituir(r.opcoes, indice, { ...r.opcoes[indice], itens: fn(r.opcoes[indice].itens) }) });
   const modoDePreparo = r.modoDePreparo ?? '';
-  // Observação e modo de preparo ficam recolhidos num link, também com texto gravado (regra de 18/11: nasce fechado); o
-  // toque abre e não volta a fechar, para os campos não sumirem enquanto a pessoa digita. Só o modo de preparo acima do
-  // limite (erro apontado por "ir ao primeiro") os abre, para o erro aparecer.
-  const [extrasAbertos, setExtrasAbertos] = useState(false);
-  const mostrarExtras = extrasAbertos || !modoDePreparoValido(modoDePreparo);
+  const observacao = r.observacao ?? '';
+  // Observação e modo de preparo numa seção que abre e fecha pelo título (27/11, no lugar do link de 18/11 que só abria):
+  // nasce aberta com texto gravado e fechada sem nada; um texto acima do limite (erro apontado por "ir ao primeiro") a
+  // abre sozinha, na hora em que o erro aparece, e a pessoa ainda pode fechá-la.
+  const extrasComErro = !modoDePreparoValido(modoDePreparo) || !observacaoDaRefeicaoValida(observacao);
+  const [extrasAbertos, setExtrasAbertos] = useState(() => temObservacaoOuPreparo(observacao, modoDePreparo) || extrasComErro);
+  const [erroDosExtrasVisto, setErroDosExtrasVisto] = useState(extrasComErro);
+  if (extrasComErro !== erroDosExtrasVisto) {
+    setErroDosExtrasVisto(extrasComErro);
+    if (extrasComErro) setExtrasAbertos(true);
+  }
+  const idDosContadores = useId();
   const titulo = tituloDaRefeicao(r, p.posicao);
   const problema = p.comProblema.has(r.uid);
   const varias = r.opcoes.length > 1;
@@ -314,22 +330,16 @@ export function CartaoRefeicao(p: Props) {
                 <Campo rotulo="Horário" valor={r.horario ?? ''} aoMudar={(t) => mudar({ horario: t || null })} maxLength={5} placeholder="07:00" />
               </View>
             </View>
-            {mostrarExtras ? (
-              <>
-                <Campo rotulo="Observação (opcional)" valor={r.observacao ?? ''} aoMudar={(t) => mudar({ observacao: t || null })} linhas={2} maxLength={1000} />
-                <Campo
-                  rotulo="Modo de preparo (opcional)"
-                  valor={modoDePreparo}
-                  aoMudar={(t) => mudar({ modoDePreparo: t || null })}
-                  linhas={4}
-                  maxLength={MODO_DE_PREPARO_MAXIMO}
-                  ajuda={`O aluno vê como você escrever, com as quebras de linha. Até ${numeroParaTela(MODO_DE_PREPARO_MAXIMO)} caracteres.`}
-                  erro={modoDePreparoValido(modoDePreparo) ? null : `Até ${numeroParaTela(MODO_DE_PREPARO_MAXIMO)} caracteres.`}
-                />
-              </>
-            ) : (
-              <BotaoDeTexto texto="Observação ou modo de preparo (opcional)" Icone={Plus} aoTocar={() => setExtrasAbertos(true)} />
-            )}
+            <SecaoRecolhivel titulo="Observação e modo de preparo" nivel={4} aberta={extrasAbertos} aoMudar={setExtrasAbertos}
+              ajuda="O aluno vê como você escrever, com as quebras de linha. Os dois campos são opcionais."
+              resumo={<ResumoDosExtras resumo={resumoDaObservacaoEPreparo(observacao, modoDePreparo)} />}>
+              <View style={estilos.extras}>
+                <CampoDosExtras rotulo="Observação" valor={observacao} maximo={OBSERVACAO_DA_REFEICAO_MAXIMO} idDoContador={`${idDosContadores}-obs`}
+                  aoMudar={(t) => mudar({ observacao: t || null })} />
+                <CampoDosExtras rotulo="Modo de preparo" valor={modoDePreparo} maximo={MODO_DE_PREPARO_MAXIMO} idDoContador={`${idDosContadores}-preparo`}
+                  aoMudar={(t) => mudar({ modoDePreparo: t || null })} />
+              </View>
+            </SecaoRecolhivel>
           </View>
           <Divisor />
           <View testID="opcoes-da-refeicao" style={estilos.opcoes} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
@@ -382,6 +392,40 @@ export function CartaoRefeicao(p: Props) {
       aoCancelar={() => setConfirmarExclusao(null)}
     />
     </View></AlvoDeRolagem>
+  );
+}
+
+/**
+ * Fechada, ao lado do título: o começo da observação numa linha (reticências) e "Modo de preparo: N linhas", que nunca
+ * corta; nada escrito, "Nenhuma".
+ */
+function ResumoDosExtras({ resumo }: { resumo: ResumoDaObservacaoEPreparo }) {
+  if (resumo.vazio) return <Texto variante="suave" numberOfLines={1}>Nenhuma</Texto>;
+  return (
+    <View style={estilos.resumoDosExtras}>
+      {resumo.observacao ? <Texto variante="suave" numberOfLines={1} style={estilos.encolhe}>{resumo.observacao}</Texto> : null}
+      {resumo.observacao && resumo.preparo ? <Texto variante="suave" aria-hidden>·</Texto> : null}
+      {resumo.preparo ? <Texto variante="suave" numerico numberOfLines={1} style={estilos.naoEncolhe}>{resumo.preparo}</Texto> : null}
+    </View>
+  );
+}
+
+/**
+ * Observação ou modo de preparo: nasce com 3 linhas e cresce com o texto (sem a alça), com o contador no canto de baixo,
+ * que o campo aponta como descrição (o leitor ouve "120 de 1.000 caracteres" ao entrar nele). Acima do limite (texto que
+ * veio de fora), o erro no campo.
+ */
+function CampoDosExtras({ rotulo, valor, maximo, idDoContador, aoMudar }: {
+  rotulo: string; valor: string; maximo: number; idDoContador: string; aoMudar: (t: string) => void;
+}) {
+  const contagem = `${inteiroComMilhar(valor.length)} de ${inteiroComMilhar(maximo)} caracteres`;
+  return (
+    <View style={estilos.extra}>
+      <CampoQueCresce rotulo={rotulo} valor={valor} aoMudar={aoMudar} linhas={3} maximoDeLinhas={16} maxLength={maximo}
+        ajudaForaDoCampo={{ id: idDoContador, texto: contagem }}
+        erro={valor.length > maximo ? `Passou do limite: use até ${inteiroComMilhar(maximo)} caracteres.` : null} />
+      <ContadorDeCaracteres nativeID={idDoContador} usados={valor.length} maximo={maximo} />
+    </View>
   );
 }
 
@@ -775,6 +819,12 @@ function GradeDosValores({ children }: { children: { chave: string; campo: React
 
 const estilos = StyleSheet.create({
   soLeitor: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
+  // Observação e Modo de preparo lado a lado, na mesma largura, a partir de ~900 px de seção (2 × 442 + o vão); abaixo, empilhados.
+  extras: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
+  extra: { flexGrow: 1, flexShrink: 1, flexBasis: 442, minWidth: 0, gap: espaco(0.5) },
+  resumoDosExtras: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minWidth: 0 },
+  encolhe: { flexShrink: 1, minWidth: 0 },
+  naoEncolhe: { flexShrink: 0 },
   topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(0.5) },
   titulo: { flex: 1, gap: espaco(0.5), minHeight: 44, justifyContent: 'center' },
   corpo: { gap: espaco(1.5) },

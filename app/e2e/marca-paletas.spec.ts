@@ -79,9 +79,12 @@ for (const temaDoEditor of ['CLARO', 'ESCURO'] as const) {
 for (const largura of [390, 1280]) {
   test(`cor personalizada: o aviso segue a paleta escolhida em ${largura}px`, async ({ page }) => {
     const { errosDaPagina } = await abrirMarca(page, largura);
-    await page.getByRole('radio', { name: /^Cor personalizada/ }).click();
+    await page.getByRole('radiogroup', { name: 'Cor da marca' }).getByRole('radio', { name: /^Outra cor/ }).click();
+    // A bolinha # abre o campo do código, com o foco nele.
+    const codigo = page.getByRole('textbox', { name: 'Código da cor' });
+    await expect(codigo).toBeFocused();
     // visual-ponytail (17/11): com o cartão quase preto do Oceano e do Escuro o azul #3A67B5 já aparece; o Índigo ainda some no Oceano e passa no Escuro.
-    await page.getByRole('textbox', { name: 'Cor principal (#RRGGBB)' }).fill('#4F46E5');
+    await codigo.fill('#4F46E5');
     const aviso = page.getByTestId('aviso-marca-apagada-na-paleta');
     await expect(aviso).toHaveCount(0);
 
@@ -97,6 +100,42 @@ for (const largura of [390, 1280]) {
 
     await paleta(page, 'Escuras', 'Escuro').click();
     await expect(aviso).toHaveCount(0);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+for (const largura of [390, 1280]) {
+  test(`cor da marca em bolinhas: 13 opções (12 prontas e a personalizada por último), escolhida com ✓, aviso de erro só no vermelho (${largura}px)`, async ({ page }) => {
+    const { pedidos, errosDaPagina } = await abrirMarca(page, largura);
+    const grupo = page.getByRole('radiogroup', { name: 'Cor da marca' });
+    const radios = grupo.getByRole('radio');
+    await expect(radios).toHaveCount(13);
+    await expect(radios.last()).toHaveAccessibleName(/^Outra cor/);
+    // A marca de teste (#B91C1C) não é de paleta: abre na personalizada, com o código à vista, e lembra o vermelho de erro.
+    await expect(radios.last()).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('textbox', { name: 'Código da cor' })).toHaveValue('#B91C1C');
+    await expect(page.getByTestId('aviso-marca-perto-de-status')).toBeVisible();
+    const verde = grupo.getByRole('radio', { name: 'Verde', exact: true });
+    await verde.click();
+    await expect(verde).toHaveAttribute('aria-checked', 'true');
+    await expect(radios.last()).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByRole('textbox', { name: 'Código da cor' })).toHaveCount(0);
+    await expect(page.getByTestId('aviso-marca-perto-de-status')).toHaveCount(0);
+    await grupo.getByRole('radio', { name: 'Vermelho intenso', exact: true }).click();
+    await expect(page.getByTestId('aviso-marca-perto-de-status')).toBeVisible();
+    for (const radio of await radios.all()) {
+      const caixa = (await radio.boundingBox())!;
+      expect(caixa.height).toBeGreaterThanOrEqual(44);
+      expect(caixa.x + caixa.width).toBeLessThanOrEqual(largura);
+    }
+    // 7 por linha quando cabe (1280); no celular, as que cabem com o nome legível embaixo.
+    const ys = new Set<number>();
+    for (const radio of (await radios.all()).slice(0, 7)) ys.add(Math.round((await radio.boundingBox())!.y));
+    if (largura === 1280) expect(ys.size).toBe(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByRole('button', { name: 'Salvar marca', exact: true }).click();
+    await expect(page.getByText('Marca salva. Os alunos veem a nova marca ao abrir o app.')).toBeVisible();
+    expect(pedidos.find((p) => p.metodo === 'PUT' && p.caminho === '/consultoria/marca')?.corpo).toMatchObject({ corPrimaria: '#C62828' });
     expect(errosDaPagina).toEqual([]);
   });
 }

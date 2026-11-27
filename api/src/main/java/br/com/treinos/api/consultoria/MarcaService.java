@@ -128,6 +128,12 @@ public class MarcaService {
         return MarcaPublica.de(buscar(consultoriaId));
     }
 
+    /** Marca da página pública da inscrição: a marca e as redes sociais (só elas; nunca o contato interno). */
+    @Transactional(readOnly = true)
+    public MarcaComRedes marcaComRedes(UUID consultoriaId) {
+        return MarcaComRedes.de(buscar(consultoriaId));
+    }
+
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="MARCA_ALTERADA",entidade="CONSULTORIA",resumo="Alterou a marca da consultoria.")
     public ConsultoriaResponse alterarMarca(UUID consultoriaId, MarcaRequest r) {

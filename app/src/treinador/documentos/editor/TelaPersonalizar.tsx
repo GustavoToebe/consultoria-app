@@ -1,22 +1,24 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Lock, Monitor, RotateCcw, Save } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ErroApi } from '../../../api/cliente';
 import { alterarDocumentosPdf, consultoria } from '../../../api/rotas';
-import { coresDoDestaque, eDoModelo, resolver, resumoDasAlteracoes, restaurar, trocarModelo, type ConfigPdf, type ModeloPdf } from '../../../dominio/configuracaoPdf';
-import { arranjoDoEditor, configDaMarca, mensagemDoErroDeCampo, mesmaConfig, modeloDoEndereco, nomeDoModelo, rascunhoDepoisDeSalvar, VAO_DO_EDITOR, type GrupoDoEditor, type ZoomDaFolha } from '../../../dominio/editorDoPdf';
-import type { SeloDoEditor } from '../../../dominio/barraDoEditor';
+import { coresDoDestaque, eDoModelo, resolver, restaurar, trocarModelo, type ConfigPdf, type ModeloPdf } from '../../../dominio/configuracaoPdf';
+import { arranjoDoEditor, configDaMarca, estadoDaBarra, mensagemDoErroDeCampo, mesmaConfig, modeloDoEndereco, nomeDoModelo, rascunhoDepoisDeSalvar, VAO_DO_EDITOR, type GrupoDoEditor, type ZoomDaFolha } from '../../../dominio/editorDoPdf';
+import { larguraMaximaDoConteudo, respiroLateralDaTela } from '../../../dominio/larguraDoConteudo';
 import { MOTIVO_FORA_DO_PLANO } from '../../../dominio/funcionalidadesDoPlano';
 import { documentoDeExemploDeDieta, documentoDeExemploDeMobilidade, documentoDeExemploDeTreino } from '../../../pdf/exemplos';
 import { logoComoDataUri } from '../../../pdf/logo';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { useTema } from '../../../tema/TemaProvider';
-import { espaco, LARGURA_FORMULARIO, LARGURA_MAXIMA } from '../../../tema/tokens';
+import { espaco, faixaDeLargura, LARGURA_FORMULARIO, LARGURA_MAXIMA } from '../../../tema/tokens';
+import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
+import { Escolha } from '../../../ui/Escolha';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
@@ -26,7 +28,6 @@ import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 import { useFaixaDeLargura } from '../../../ui/useFaixaDeLargura';
-import { BarraDesfazer, type Desfazer } from '../../plano/BarraDesfazer';
 import { BarraDoEditor } from '../../plano/BarraDoEditor';
 import { FixoAbaixoDaBarra, TelaDoEditor } from '../../plano/TelaDoEditor';
 import { PainelDeOpcoes } from './PainelDeOpcoes';
@@ -37,6 +38,9 @@ const DESCRICAO = 'Ajuste cores, texto, cabeçalho e tabelas do modelo e confira
 const GERADORES = { treino: documentoDeExemploDeTreino, dieta: documentoDeExemploDeDieta, mobilidade: documentoDeExemploDeMobilidade } satisfies Record<DocumentoDeExemplo, unknown>;
 const GALERIA = '/treinador/documentos';
 const TRILHA = [{ rotulo: 'Documentos (PDF)', href: GALERIA }, { rotulo: 'Personalizar' }] as const;
+const NOMES: Record<DocumentoDeExemplo, string> = { treino: 'Treino', dieta: 'Dieta', mobilidade: 'Mobilidade' };
+const ABAS = (['treino', 'dieta', 'mobilidade'] as const).map((valor) => ({ valor, rotulo: NOMES[valor] }));
+const SEGUNDAS = (['dieta', 'mobilidade'] as const).map((valor) => ({ valor, rotulo: NOMES[valor] }));
 
 /**
  * Editor dos PDFs (`/treinador/documentos/personalizar`; D-F1 a D-F8 de `docs/planos/documentos-pdf-motor.md`). A guarda
@@ -68,6 +72,7 @@ function voltarAosModelos() {
  */
 function Personalizar() {
   const { atualizarMarca } = useSessao();
+  const { preferencias } = useTema();
   const { avisar } = useAviso();
   const { dados, erro, carregando, recarregar, definir: definirDados } = useCarregar('consultoria', () => consultoria());
   const { largura: area, aoMedir } = useFaixaDeLargura();
@@ -78,20 +83,22 @@ function Personalizar() {
     if (noEndereco !== undefined) router.setParams({ modelo: undefined });
   }, [noEndereco]);
   const [rascunho, setRascunho] = useState<ConfigPdf | null>(null);
-  const [desfazer, setDesfazer] = useState<(Desfazer<ConfigPdf> & { focar: boolean }) | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erroAoSalvar, setErroAoSalvar] = useState<string | null>(null);
   const [conflito, setConflito] = useState(false);
   const [aberto, setAberto] = useState<GrupoDoEditor | null>(null);
   const [aba, setAba] = useState<DocumentoDeExemplo>('treino');
-  const [zoomEscolhido, setZoom] = useState<ZoomDaFolha | null>(null);
+  const [zoom, setZoom] = useState<ZoomDaFolha>('AJUSTAR');
   const [logo, setLogo] = useState<string | null>(null);
   // Uma data por visita: a prévia não muda sozinha a cada opção.
   const [emitidoEm] = useState(() => new Date());
 
   const marca = dados?.marca;
-  const arranjo = area > 0 ? arranjoDoEditor(area) : null;
-  const editor = arranjo?.tipo === 'editor';
+  // O conteúdo de dentro da `TelaDoEditor`: a área menos o recuo lateral, com o teto da preferência "Largura do conteúdo".
+  const conteudo = Math.min(area - 2 * (respiroLateralDaTela(faixaDeLargura(area)) ?? espaco(2)), larguraMaximaDoConteudo(LARGURA_MAXIMA, preferencias.larguraConteudo) ?? Infinity);
+  const janela = useWindowDimensions().width;
+  const arranjo = area > 0 ? arranjoDoEditor(area, conteudo, janela) : null;
+  const editor = !!arranjo && arranjo.tipo !== 'compacto';
   const salvo = marca ? configDaMarca(marca) : null;
   // Modelo pedido igual ao gravado abre o gravado (com as personalizações): reabrir não apaga nada.
   const doPedido = pedido && salvo && pedido !== salvo.modelo ? trocarModelo(pedido) : null;
@@ -118,10 +125,16 @@ function Personalizar() {
     setRascunho(proxima);
     setErroAoSalvar(null);
   };
-  const comDesfazer = (proxima: ConfigPdf, rotulo: string, focar: boolean) => {
+  const botaoSalvar = useRef<View>(null);
+  // Trocar de modelo e restaurar avisam com "Desfazer" no aviso (27/11, sem faixa na tela). O Desfazer só volta se nada
+  // mudou depois (outra opção, ou o salvar): senão apagaria o que veio depois dele.
+  const comDesfazer = (proxima: ConfigPdf, rotulo: string, focarSalvar: boolean) => {
     if (!atual || mesmaConfig(proxima, atual)) return;
-    setDesfazer({ rotulo, conteudo: atual, focar });
+    const anterior = atual;
     mudar(proxima);
+    avisar(rotulo, 'neutro', { rotulo: 'Desfazer', aoTocar: () => { if (rascunhoAtual.current === proxima) mudar(anterior); } });
+    // O "Restaurar" fica apagado depois do toque e o foco do teclado cairia no corpo da página: vai para o Salvar.
+    if (focarSalvar) requestAnimationFrame(() => botaoSalvar.current?.focus());
   };
 
   const gravar = (alvo: ConfigPdf, depois?: () => void) => {
@@ -136,7 +149,6 @@ function Personalizar() {
         const mantido = rascunhoDepoisDeSalvar(rascunhoAtual.current, alvo);
         setRascunho(mantido);
         setPedido(null);
-        if (!mantido) setDesfazer(null);
         avisar(`Documentos salvos no modelo ${nomeDoModelo(alvo.modelo)}. Os próximos PDFs já saem assim.`, 'sucesso');
         depois?.();
       })
@@ -150,7 +162,6 @@ function Personalizar() {
   const recarregarDepoisDoConflito = () => {
     setConflito(false);
     setRascunho(null);
-    setDesfazer(null);
     setErroAoSalvar(null);
     recarregar();
   };
@@ -184,37 +195,58 @@ function Personalizar() {
   } else {
     const valores = resolver(atual.modelo, atual.sobrescritas);
     const nome = nomeDoModelo(atual.modelo);
-    const gerar = GERADORES[aba];
-    const documento = gerar({ ...marca, temaPdf: atual.modelo, opcoesPdf: atual.sobrescritas }, emitidoEm, logo);
-    const selo: SeloDoEditor = salvando ? { texto: 'Salvando…', tipo: 'neutro' }
-      : erroAoSalvar ? { texto: 'Falha ao salvar', tipo: 'perigo' }
-      : pendente ? { texto: 'Alterações não salvas', tipo: 'neutro', naoSalvo: true }
-      : { texto: 'Em uso nos PDFs', tipo: 'sucesso' };
+    const barra = estadoDaBarra(atual, salvo, { salvando, erro: !!erroAoSalvar });
+    const config = { ...marca, temaPdf: atual.modelo, opcoesPdf: atual.sobrescritas };
+    const previa = (doc: DocumentoDeExemplo, cabeca: ReactNode, regiao: string) => (
+      <PreviaNaMesa documento={GERADORES[doc](config, emitidoEm, logo)} rotulo={`Prévia do PDF de ${doc} no modelo ${nome}, com dados de exemplo`}
+        regiao={regiao} chave={`editor-do-pdf-${doc}`} cabeca={cabeca} zoom={zoom} aoMudarZoom={setZoom} />
+    );
+    const segunda = aba === 'mobilidade' ? 'mobilidade' : 'dieta';
+    const previas = (
+      <View style={estilos.previas}>
+        <Texto variante="pequeno">Dados de exemplo, nenhum é real. A folha é contínua: as quebras de página só aparecem no PDF.</Texto>
+        {arranjo.tipo === 'colunas' && arranjo.previas === 2 ? (
+          // Duas prévias (2400 de conteúdo): Treino fixo e a segunda coluna troca entre Dieta e Mobilidade; as abas somem.
+          <View style={estilos.duas}>
+            {previa('treino', <Texto variante="bloco" nivel={2}>Treino</Texto>, 'Prévia do treino')}
+            {previa(segunda, (
+              <View style={estilos.cabecaDaSegunda}>
+                <Texto variante="bloco" nivel={2}>{NOMES[segunda]}</Texto>
+                <Escolha descricao="Documento da segunda prévia" opcoes={SEGUNDAS} valor={segunda} aoMudar={setAba} />
+              </View>
+            ), `Prévia da ${NOMES[segunda].toLowerCase()}`)}
+          </View>
+        ) : previa(aba, <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />, 'Prévia com dados de exemplo')}
+      </View>
+    );
+    const painel = (
+      <PainelDeOpcoes config={atual} valores={valores} corDaMarca={coresDoDestaque('MARCA', marca.corPrimaria).fundo}
+        aberto={aberto} aoAbrir={setAberto} aoMudar={mudar}
+        aoTrocarModelo={(m) => comDesfazer(trocarModelo(m), `Modelo trocado para ${nomeDoModelo(m)}.`, false)} />
+    );
     corpo = (
       <TelaDoEditor largura={LARGURA_MAXIMA}
         cabecalho={<Cabecalho titulo={TITULO} descricao={DESCRICAO} trilha={[...TRILHA]} voltar={GALERIA} />}
         barra={
-          <View style={estilos.barra}>
-            <BarraDoEditor selo={selo} info={`${nome} · ${resumoDasAlteracoes(atual)}`} erro={erroAoSalvar}>
-              <Botao rotulo="Restaurar o modelo" tipo="secundario" Icone={RotateCcw} desabilitado={eDoModelo(atual) || salvando}
-                aoTocar={() => comDesfazer(restaurar(atual), `Opções do modelo ${nome} restauradas.`, true)} />
-              <Botao rotulo="Salvar" Icone={Save} carregando={salvando} desabilitado={!pendente} aoTocar={() => gravar(atual)} />
-            </BarraDoEditor>
-            {desfazer ? (
-              <BarraDesfazer desfazer={desfazer} focarAoMontar={desfazer.focar}
-                aoDesfazer={() => { mudar(desfazer.conteudo); setDesfazer(null); }} aoFechar={() => setDesfazer(null)} />
-            ) : null}
-          </View>
+          <BarraDoEditor selo={barra.selo} info={barra.info} erro={erroAoSalvar}>
+            <Botao rotulo="Restaurar o modelo" tipo="secundario" Icone={RotateCcw} desabilitado={eDoModelo(atual) || salvando}
+              aoTocar={() => comDesfazer(restaurar(atual), `Opções do modelo ${nome} restauradas.`, true)} />
+            <Botao ref={botaoSalvar} rotulo="Salvar" Icone={Save} carregando={salvando} desabilitado={!pendente} aoTocar={() => gravar(atual)} />
+          </BarraDoEditor>
         }>
-        <View style={estilos.colunas}>
-          <FixoAbaixoDaBarra rola testID="painel-de-opcoes" style={[estilos.painel, { width: arranjo.painel }]}>
-            <PainelDeOpcoes config={atual} valores={valores} corDaMarca={coresDoDestaque('MARCA', marca.corPrimaria).fundo}
-              aberto={aberto} aoAbrir={setAberto} aoMudar={mudar}
-              aoTrocarModelo={(m) => comDesfazer(trocarModelo(m), `Modelo trocado para ${nomeDoModelo(m)}.`, false)} />
-          </FixoAbaixoDaBarra>
-          <PreviaNaMesa documento={documento} rotulo={`Prévia do PDF de ${aba} no modelo ${nome}, com dados de exemplo`}
-            aba={aba} aoMudarAba={setAba} zoom={zoomEscolhido ?? arranjo.zoomPadrao} aoMudarZoom={setZoom} />
-        </View>
+        {arranjo.tipo === 'colunas' ? (
+          <View style={estilos.colunas}>
+            {/* Fixo abaixo da barra ao rolar, com rolagem própria quando passa da janela. */}
+            <FixoAbaixoDaBarra rola testID="painel-de-opcoes" style={[estilos.painel, { width: arranjo.painel }]}>{painel}</FixoAbaixoDaBarra>
+            {previas}
+          </View>
+        ) : (
+          // Janela abaixo de 1280 (menu recolhido): opções em cima e a prévia embaixo, na largura toda (sem grudar: cobriria a prévia ao rolar).
+          <View style={estilos.empilhado}>
+            <View testID="painel-de-opcoes">{painel}</View>
+            {previas}
+          </View>
+        )}
         {painelDoConflito}
       </TelaDoEditor>
     );
@@ -239,8 +271,12 @@ function ConfirmarModelo({ pedido, salvoPersonalizado, salvando, erro, aoConfirm
 
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },
-  barra: { gap: espaco(1) },
   // `flex-start`: sem ele o painel estica até a altura da prévia e o `sticky` não tem para onde andar.
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO_DO_EDITOR },
   painel: { flexShrink: 0 },
+  previas: { flex: 1, minWidth: 0, gap: espaco(1.5) },
+  // `stretch`: as duas mesas terminam na mesma altura, mesmo com documentos de tamanhos diferentes.
+  duas: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(3) },
+  cabecaDaSegunda: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(2) },
+  empilhado: { gap: espaco(4) },
 });

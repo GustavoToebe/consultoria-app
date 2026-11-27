@@ -4,9 +4,8 @@ import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } fr
 import { ALUNO_ID, BIBLIOTECA, PLANO_ID, planoDetalhe } from './editor-inspetor.dados';
 
 /**
- * Prescrição da série aberta (redesenho das séries, 05/11, com a largura da revisão dos editores, 04/11): Séries, Repetições
- * e Descanso numa linha só da faixa Estrutura a partir de 1440; em 1280 as Séries ficam em cima e Repetições e Descanso
- * descem juntos, lado a lado; no celular a linha quebra e nada passa da borda. O "+ Nova série" fica inteiro na coluna.
+ * Prescrição da série aberta (redesenho das séries, 05/11; série aberta de 27/11): Séries, Repetições e Descanso numa linha
+ * só da faixa Estrutura no PC; no celular a linha quebra e nada passa da borda. O "+ Nova série" fica inteiro na coluna.
  */
 
 async function abrir(page: Page) {
@@ -27,28 +26,24 @@ async function abrir(page: Page) {
 async function linhaDaEstrutura(page: Page) {
   const caixa = async (b: ReturnType<Page['getByRole']>) => (await b.first().boundingBox())!;
   return {
-    series: await caixa(page.getByRole('button', { name: 'Uma série completa a mais', exact: true })),
+    series: await caixa(page.getByRole('button', { name: /^Séries: .*. Escolher.$/ })),
     maximo: await caixa(page.getByRole('textbox', { name: 'Reps máx.', exact: true })),
-    descanso: await caixa(page.getByRole('textbox', { name: 'Descanso depois da série, em segundos', exact: true })),
+    descanso: await caixa(page.getByRole('button', { name: /^Descanso: .*. Escolher.$/ })),
   };
 }
 
 for (const largura of [1280, 1440, 1920]) {
-  test(`Estrutura no PC: ${largura >= 1440 ? 'Séries, Repetições e Descanso numa linha' : 'Repetições e Descanso juntos'} (${largura}px)`, async ({ page }) => {
+  test(`Estrutura no PC: Séries, Repetições e Descanso numa linha (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await abrir(page);
     // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
     await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
     const { series, maximo, descanso } = await linhaDaEstrutura(page);
-    // Repetições e Descanso sempre na mesma linha, nesta ordem; a partir de 1440 as Séries também (centros alinhados: os
-    // controles têm alturas diferentes).
-    const centro = (r: { y: number; height: number }) => r.y + r.height / 2;
-    expect(Math.abs(centro(maximo) - centro(descanso))).toBeLessThan(2);
+    // 27/11: os três lado a lado, nesta ordem, alinhados pelo topo (as repetições têm a escolha Faixa | Exata | AMRAP em
+    // cima dos números, numa área de largura fixa).
+    expect(Math.abs(series.y - descanso.y)).toBeLessThan(2);
+    expect(maximo.x).toBeGreaterThan(series.x + series.width);
     expect(descanso.x).toBeGreaterThan(maximo.x + maximo.width);
-    if (largura >= 1440) {
-      expect(Math.abs(centro(series) - centro(maximo))).toBeLessThan(12);
-      expect(maximo.x).toBeGreaterThan(series.x + series.width);
-    } else expect(maximo.y).toBeGreaterThan(series.y + series.height);
     // A grade 2 + 2 saiu: nada de seções Esforço nem Carga de cada série.
     for (const antiga of ['Esforço', 'Carga de cada série', 'Repetições']) {
       await expect(page.getByRole('heading', { level: 3, name: antiga, exact: true })).toHaveCount(0);
@@ -57,8 +52,8 @@ for (const largura of [1280, 1440, 1920]) {
     await nova.scrollIntoViewIfNeeded();
     await expect(nova).toBeInViewport({ ratio: 1 });
     const caixaNova = (await nova.boundingBox())!;
-    // "Usar receita" marca a borda direita da coluna das séries.
-    const receita = (await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).boundingBox())!;
+    // "Salvar como receita" (o último botão do cabeçalho das séries, 27/11) marca a borda direita da coluna das séries.
+    const receita = (await page.getByRole('button', { name: 'Salvar como receita de séries', exact: true }).boundingBox())!;
     expect(caixaNova.x + caixaNova.width).toBeLessThanOrEqual(receita.x + receita.width + 1);
   });
 }

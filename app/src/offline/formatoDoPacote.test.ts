@@ -108,6 +108,27 @@ describe('formato do pacote salvo no aparelho', () => {
     expect(pacoteNoFormatoAtual(c)).toBe(false);
   });
 
+  it('aceita o cardio intervalado novo (D16) e confere os enums e os tipos dele, estritamente', () => {
+    const com = (cardio: Record<string, unknown>) => {
+      const p = salvo();
+      p.pacote.treino.conteudo.sessoes[0].exercicios[2].series[0].cardio = cardio;
+      return p;
+    };
+    // O bloco SIT do contrato (docs/planos/cardio-e-hiit.md, seção a).
+    const sit = {
+      modo: 'INTERVALADO', protocolo: 'SIT', duracaoMin: null, distanciaKm: null, ritmo: null, zona: null, esforcoMaximo: true,
+      aquecimentoSeg: 240, desaquecimentoSeg: 180, recuperacaoTipo: 'PASSIVA', intervalos: { trabalhoSeg: 30, descansoSeg: 180, voltas: 6 },
+    };
+    expect(pacoteNoFormatoAtual(com(sit))).toBe(true);
+    // O contínuo (sem as chaves novas) e o modo explícito continuam valendo.
+    expect(pacoteNoFormatoAtual(com({ duracaoMin: 10, distanciaKm: null, ritmo: null, zona: 2, intervalos: null }))).toBe(true);
+    expect(pacoteNoFormatoAtual(com({ ...sit, modo: 'CONTINUO', protocolo: null, recuperacaoTipo: null, esforcoMaximo: null }))).toBe(true);
+    for (const ruim of [
+      { modo: 'TABATA' }, { protocolo: 'EMOM' }, { recuperacaoTipo: 'LEVE' }, { esforcoMaximo: 'sim' },
+      { aquecimentoSeg: '240' }, { desaquecimentoSeg: '3 min' }, { chaveNova: 1 },
+    ]) expect(pacoteNoFormatoAtual(com({ ...sit, ...ruim }))).toBe(false);
+  });
+
   it('recusa técnica, papel e região fora da lista, e números que não são números', () => {
     const q = salvo();
     q.pacote.treino.conteudo.sessoes[0].exercicios[0].series[2].tecnica.tipo = 'OUTRA';

@@ -21,6 +21,7 @@ for (const largura of [390, 1280]) {
       ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
       'GET /inscricoes': { corpo: { itens: [], total: 0 } },
       'GET /exercicios/pagina': paginaDeExerciciosFalsa(TODOS, consultas),
+      'GET /exercicios': { corpo: TODOS },
     });
     await page.goto('/treinador/biblioteca');
 
@@ -54,13 +55,12 @@ for (const largura of [390, 1280]) {
     // O filtro de grupo não tira os grupos do seletor.
     await page.getByRole('textbox', { name: 'Buscar exercício' }).fill('');
     await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
-    await page.getByRole('button', { name: 'Grupo muscular: Todos os grupos. Escolher.' }).click();
-    const painel = page.getByRole('dialog', { name: 'Grupo muscular' });
-    await painel.getByRole('checkbox', { name: 'Costas' }).click();
-    await expect(painel.getByRole('checkbox', { name: 'Ombro' })).toBeVisible();
-    await page.keyboard.press('Escape');
-    // Painel lateral "Filtros de exercícios": o grupo vale no "Aplicar filtros", nas duas larguras.
-    await page.getByRole('dialog', { name: 'Filtros de exercícios' }).getByRole('button', { name: 'Aplicar filtros' }).click();
+    // Painel lateral "Filtros de exercícios": os grupos são chips dentro dele; o grupo vale no "Mostrar N exercícios", nas duas larguras.
+    const painel = page.getByRole('dialog', { name: 'Filtros de exercícios' });
+    const grupos = painel.getByRole('group', { name: 'Grupo muscular' });
+    await grupos.getByRole('checkbox', { name: /^Costas,/ }).click();
+    await expect(grupos.getByRole('checkbox', { name: /^Ombro,/ })).toBeVisible();
+    await painel.getByRole('button', { name: /^Mostrar / }).click();
     await expect(page.getByText('Elevação 41', { exact: true })).toBeVisible();
     await expect(page.getByText('Elevação 40', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Página 1 de 1')).toHaveCount(0);

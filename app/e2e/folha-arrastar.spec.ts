@@ -11,6 +11,8 @@ function exercicio(n: number, nome: string, grupo: string): Exercicio {
     observacoes: null, origem: 'MANUAL', imagens: [], imagemPropriaEm: null,
   };
 }
+// Linhas da lista (listbox): o nome acessível começa pelo nome do exercício.
+const opcao = (folha: import('@playwright/test').Locator, nome: string) => folha.getByRole('option', { name: new RegExp(`^${nome},`) });
 const BIBLIOTECA = [exercicio(1, 'Supino reto', 'Peito'), exercicio(2, 'Crucifixo', 'Peito'), exercicio(3, 'Remada baixa', 'Costas')];
 
 async function abrirEditor(page: import('@playwright/test').Page, biblioteca: Exercicio[] = BIBLIOTECA) {
@@ -68,15 +70,15 @@ test('escolher exercício: marca vários do grupo escolhido e adiciona de uma ve
   await page.getByRole('button', { name: 'Adicionar exercício' }).first().click();
   const folha = page.getByRole('dialog', { name: 'Escolher exercício' });
   await expect(folha.getByRole('button', { name: 'Adicionar exercício' })).toBeDisabled();
-  await folha.getByRole('checkbox', { name: 'Supino reto' }).click();
-  await folha.getByRole('checkbox', { name: 'Remada baixa' }).click();
+  await opcao(folha, 'Supino reto').click();
+  await opcao(folha, 'Remada baixa').click();
   await expect(folha.getByRole('button', { name: 'Adicionar 2 exercícios' })).toBeEnabled();
   // Trocar de grupo (etapa "Filtros de exercícios" da mesma folha) tira da seleção o que não é do grupo novo, com aviso.
   await folha.getByRole('button', { name: /^Filtros, / }).click();
   const etapa = page.getByRole('dialog', { name: 'Filtros de exercícios' });
-  await etapa.getByRole('radio', { name: 'Peito' }).click();
-  await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
-  await expect(folha.getByRole('checkbox', { name: 'Remada baixa' })).toHaveCount(0);
+  await etapa.getByRole('checkbox', { name: 'Peito, 2 exercícios' }).click();
+  await etapa.getByRole('button', { name: 'Mostrar 2 exercícios' }).click();
+  await expect(opcao(folha, 'Remada baixa')).toHaveCount(0);
   await expect(folha.getByRole('status').filter({ hasText: '1 exercício marcado saiu da seleção porque não é do grupo Peito.' })).toBeVisible();
   await expect(folha.getByRole('button', { name: 'Adicionar exercício' })).toBeEnabled();
   await folha.getByRole('button', { name: /Marcar todos os 2 da lista/ }).click();
@@ -93,10 +95,10 @@ test('escolher exercício: o manual leva junto os já marcados', async ({ page }
   const { naoTratadas, errosDaPagina } = await abrirEditor(page);
   await page.getByRole('button', { name: 'Adicionar exercício' }).first().click();
   const folha = page.getByRole('dialog', { name: 'Escolher exercício' });
-  await folha.getByRole('checkbox', { name: 'Supino reto' }).click();
-  await folha.getByRole('checkbox', { name: 'Remada baixa' }).click();
+  await opcao(folha, 'Supino reto').click();
+  await opcao(folha, 'Remada baixa').click();
   await folha.getByRole('textbox', { name: 'Buscar na biblioteca' }).fill('Flexão diamante');
-  await folha.getByRole('button', { name: /Usar só o nome Flexão diamante/ }).click();
+  await folha.getByRole('option', { name: /Usar só o nome Flexão diamante/ }).click();
   await expect(folha).toHaveCount(0);
   for (const nome of ['Supino reto', 'Remada baixa', 'Flexão diamante']) await expect(page.getByText(nome).first()).toBeVisible();
   expect(naoTratadas).toEqual([]);
@@ -108,7 +110,7 @@ test('escolher exercício: "Mostrar mais" de 80 em 80 (80, 160, 200), a busca vo
   const { naoTratadas, errosDaPagina } = await abrirEditor(page, muitos);
   await page.getByRole('button', { name: 'Adicionar exercício' }).first().click();
   const folha = page.getByRole('dialog', { name: 'Escolher exercício' });
-  const caixas = folha.getByRole('checkbox');
+  const caixas = folha.getByRole('listbox').getByRole('option').filter({ hasNotText: 'como exercício manual' });
   await expect(caixas).toHaveCount(80);
   await expect(folha.getByText('Mostrando 80 de 200.')).toBeVisible();
   // Com a lista cortada, marcar leva só os 80 exibidos.

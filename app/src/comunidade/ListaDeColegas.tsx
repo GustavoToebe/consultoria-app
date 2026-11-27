@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 
 import { listarColegasDaComunidade } from '../api/comunidade';
-import { dividirEmColunas, quantasColunasNaLista } from '../dominio/listaEmColunas';
+import { colunasPorCelula } from '../dominio/colunasPorCelula';
+import { dividirEmColunas } from '../dominio/listaEmColunas';
 import { molduraDoPerfil } from '../dominio/perfilDaComunidade';
 import {
   colegasDaPrimeiraPagina, erroDaLeitura, haMaisColegas, juntarPaginaDeColegas, proximaPaginaDeColegas, rotuloDoColega, TEXTO_LIMITE_DE_LEITURA, textoDoNivel,
@@ -25,11 +26,12 @@ import { FotoDoColega } from './FotoDoColega';
 const FOTO = 40;
 const CHAVE = 'colegas-da-comunidade';
 /**
- * Coluna mínima da lista (foto, nome, nível e "Ver perfil"): no bloco de 1092 da web cabem duas, e o nome fica perto do botão
+ * Coluna mínima da lista (foto, nome, nível e "Ver perfil"): em 1280 da web cabem duas, e o nome fica perto do botão
  * em vez de cruzar a tela (4.10: espaço extra vira coluna, nunca linha esticada). Celular e tela estreita: uma coluna.
  */
 const MINIMO_DA_COLUNA = 400;
 const VAO_DAS_COLUNAS = espaco(3);
+const MAXIMO_DE_COLUNAS = 6;
 
 /** Erro de uma leitura da lista: 429 com o texto fixo (pede espera, não é falha), o resto como erro com "Tentar de novo". */
 function ErroDaLista({ erro, tentarDeNovo }: { erro: unknown; tentarDeNovo: () => void }) {
@@ -59,7 +61,8 @@ export function ListaDeColegas({ aoAbrir }: { aoAbrir: (autorId: string) => void
   const [mais, setMais] = useState<{ carregando: boolean; erro?: unknown } | null>(null);
   const moldura = molduraDoPerfil(null).valor;
   const { largura, aoMedir } = useFaixaDeLargura();
-  const colunas = quantasColunasNaLista(largura, MINIMO_DA_COLUNA, VAO_DAS_COLUNAS);
+  // Até 6 (27/11, contêiner do treinador): em 3440 três colunas teriam ~1000 px e o nome ficaria longe do "Ver perfil".
+  const colunas = colunasPorCelula(largura, MINIMO_DA_COLUNA, VAO_DAS_COLUNAS, MAXIMO_DE_COLUNAS);
   // A largura sai das colunas que cabem, não das que têm colega: com poucos, a vaga fica vazia à direita (a linha não estica).
   const larguraDaColuna = (largura - VAO_DAS_COLUNAS * (colunas - 1)) / colunas;
 
@@ -92,7 +95,8 @@ export function ListaDeColegas({ aoAbrir }: { aoAbrir: (autorId: string) => void
         <View style={estilos.lista}>
           {/* De cima para baixo (a coluna 1 inteira, depois a 2): a ordem de leitura e a do Tab são as de uma coluna só. */}
           <View onLayout={aoMedir} style={colunas > 1 ? estilos.colunas : null}>
-            {dividirEmColunas(dados.itens, colunas).map((grupo, i) => (
+            {/* Colunas cheias por igual (8 em 6 que cabem = 4 de 2, nunca 2 + 2 + 1 + 1 + 1 + 1); as vagas sobram à direita. */}
+            {dividirEmColunas(dados.itens, Math.ceil(dados.itens.length / Math.ceil(dados.itens.length / colunas))).map((grupo, i) => (
               <View key={i} style={colunas > 1 ? { width: larguraDaColuna } : null}>
                 <ListaDeLinhas>
                   {grupo.map((c) => (

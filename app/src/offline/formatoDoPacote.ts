@@ -67,10 +67,24 @@ function tecnica(v: unknown): boolean {
   );
 }
 
+const MODOS_DE_CARDIO = ['CONTINUO', 'INTERVALADO'];
+const PROTOCOLOS_DE_CARDIO = ['CURTO', 'LONGO', 'SIT', 'RST', 'PERSONALIZADO'];
+const TIPOS_DE_RECUPERACAO = ['ATIVA', 'PASSIVA'];
+const umDe = (v: unknown, valores: readonly string[]) => v == null || (typeof v === 'string' && valores.includes(v));
+
+/**
+ * Bloco de cardio (docs/planos/cardio-e-hiit.md, D16): as chaves de antes mais as do intervalado novo (modo, protocolo,
+ * aquecimento, desaquecimento, tipo da recuperação e esforço máximo), com os enums conferidos. Continua estrito: um enum
+ * ou uma chave que este app não conhece recusa o pacote.
+ */
 function cardio(v: unknown): boolean {
   if (v == null) return true;
   const intervalos = (i: unknown) => i == null || (objeto(i) && campos(i, ['trabalhoSeg', 'descansoSeg', 'voltas']) && todos(i, ['trabalhoSeg', 'descansoSeg', 'voltas'], numero));
-  return objeto(v) && campos(v, ['duracaoMin', 'distanciaKm', 'ritmo', 'zona', 'intervalos']) && numero(v.duracaoMin) && numero(v.distanciaKm) && texto(v.ritmo) && numero(v.zona) && intervalos(v.intervalos);
+  return objeto(v)
+    && campos(v, ['duracaoMin', 'distanciaKm', 'ritmo', 'zona', 'intervalos', 'modo', 'protocolo', 'aquecimentoSeg', 'desaquecimentoSeg', 'recuperacaoTipo', 'esforcoMaximo'])
+    && todos(v, ['duracaoMin', 'distanciaKm', 'zona', 'aquecimentoSeg', 'desaquecimentoSeg'], numero) && texto(v.ritmo) && intervalos(v.intervalos)
+    && umDe(v.modo, MODOS_DE_CARDIO) && umDe(v.protocolo, PROTOCOLOS_DE_CARDIO) && umDe(v.recuperacaoTipo, TIPOS_DE_RECUPERACAO)
+    && (v.esforcoMaximo == null || typeof v.esforcoMaximo === 'boolean');
 }
 
 function faixaDeRepeticoes(v: unknown): boolean {

@@ -37,19 +37,26 @@ export interface ArranjoDaAba {
   apoio: readonly BlocoDoHistorico[];
   /** Nome da região de apoio para o leitor de tela (nulo sem apoio). */
   rotuloDoApoio: string | null;
-  /** Lista sequencial: largura de leitura (880), no meio do bloco, em vez da largura toda. */
-  lista: boolean;
+  /** A principal são cartões soltos que viram colunas nas faixas larga e ultralarga (`dominio/colunasDoHistorico`). */
+  emColunas: boolean;
 }
 
 /**
- * Treinos: Registros e cargas na principal, Progresso por exercício no apoio. Corpo: os gráficos (peso, avaliação) e as
- * fotos (lista e comparar) precisam da largura do bloco, um embaixo do outro. Atualizações: a lista das enviadas.
+ * Treinos: Registros e cargas na principal (as divisões em colunas por dentro), Progresso por exercício no apoio. Corpo:
+ * peso, avaliação e fotos em colunas empilhadas (1 até a normal, 2 da larga em diante, 27/11). Atualizações: a lista das enviadas, na
+ * largura do contêiner (as linhas em colunas por dentro), começando na borda do título.
  */
 export const ARRANJO_DA_ABA: Readonly<Record<AbaDoHistorico, ArranjoDaAba>> = {
-  treinos: { principal: ['registros'], apoio: ['progresso'], rotuloDoApoio: 'Progresso por exercício', lista: false },
-  corpo: { principal: ['peso', 'avaliacao', 'fotos'], apoio: [], rotuloDoApoio: null, lista: false },
-  atualizacoes: { principal: ['atualizacoes'], apoio: [], rotuloDoApoio: null, lista: true },
+  treinos: { principal: ['registros'], apoio: ['progresso'], rotuloDoApoio: 'Progresso por exercício', emColunas: false },
+  corpo: { principal: ['peso', 'avaliacao', 'fotos'], apoio: [], rotuloDoApoio: null, emColunas: true },
+  atualizacoes: { principal: ['atualizacoes'], apoio: [], rotuloDoApoio: null, emColunas: false },
 };
+
+/**
+ * Altura estimada de cada cartão do Corpo para as colunas empilhadas (`ui/Alvenaria` decide a coluna antes de medir): peso
+ * (resumo, lista de até 12) e avaliação (abas, gráfico e datas) são os altos; as fotos ficam com a coluna mais baixa.
+ */
+export const PESO_NO_CORPO: Readonly<Partial<Record<BlocoDoHistorico, number>>> = { peso: 3, avaliacao: 3, fotos: 2 };
 
 /**
  * Abas só na web com o menu lateral (a mesma régua do `app/aluno/_layout`: janela ≥ `LARGURA_MENU_LATERAL`). É o modo da

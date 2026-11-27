@@ -41,7 +41,7 @@ import { Esqueleto } from '../../../../ui/Esqueleto';
 import { Vazio } from '../../../../ui/Estados';
 import { LinhaDeAcoes } from '../../../../ui/LinhaDeAcoes';
 import { Selo } from '../../../../ui/Selo';
-import { Tela } from '../../../../ui/Tela';
+import { TelaDoAluno } from '../../../../aluno/TelaDoAluno';
 import { Texto } from '../../../../ui/Texto';
 import { useCarregar } from '../../../../ui/useCarregar';
 
@@ -73,20 +73,20 @@ export default function TreinoConcluido() {
 
   if (!dia.carregado) {
     return (
-      <Tela bordas={['top']} largura={1120}>
+      <TelaDoAluno bordas={['top']}>
         <Cabecalho titulo="Bom trabalho!" voltar={voltar} />
         <Esqueleto />
-      </Tela>
+      </TelaDoAluno>
     );
   }
   const conclusao = dia.treino && sessao ? aluno.sessaoConcluidaDe(dia.treino.versaoId, sessao.uid, data) : null;
   if (!retornoHabilitado || !dia.treino || !sessao || !conclusao?.concluida) {
     return (
-      <Tela bordas={['top']} largura={1120}>
+      <TelaDoAluno bordas={['top']}>
         <Cabecalho titulo="Treino" voltar={voltar} />
         <Vazio texto="Este treino não está concluído. Volte à lista do dia para concluir." />
         <Botao rotulo="Voltar à lista do dia" tipo="secundario" Icone={ArrowLeft} aoTocar={() => router.replace(voltar)} />
-      </Tela>
+      </TelaDoAluno>
     );
   }
 
@@ -126,7 +126,7 @@ export default function TreinoConcluido() {
   const medir = (e: LayoutChangeEvent) => setLargura(Math.min(PREVIA_MAXIMA, Math.floor(e.nativeEvent.layout.width)));
 
   return (
-    <Tela bordas={['top']} largura={1120}>
+    <TelaDoAluno bordas={['top']}>
       <Cabecalho titulo="Bom trabalho!" subtitulo={`${nomeComDia(sessao)} · ${dataParaTela(data)}`} voltar={voltar} />
       <Cartao>
         {frase ? <Texto style={estilos.frase}>{frase}</Texto> : null}
@@ -183,7 +183,7 @@ export default function TreinoConcluido() {
         </LinhaDeAcoes>
       </Cartao>
       <Botao rotulo="Voltar à lista do dia" tipo="secundario" Icone={ArrowLeft} aoTocar={() => router.replace(voltar)} />
-    </Tela>
+    </TelaDoAluno>
   );
 }
 

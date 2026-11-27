@@ -1,6 +1,6 @@
 # App do aluno na web: reorganizar o layout (pedido do Gustavo de 26/11/2026)
 
-Situação: Planejando (análise e recomendações, nada implementado) · Onde: `main` · Atualizado: 26/11/2026
+Situação: Em execução, sem commit (contêiner novo e telas em refação, 27/11) · Onde: `main` · Atualizado: 27/11/2026
 
 Briefing para outra IA executar. As capturas estão em [`aluno-web-layout/`](aluno-web-layout/), tiradas em 1920 px com o
 menu aberto e o tema escuro. Remédios, fotos de corpo, peso, objetivo e o valor da cobrança foram borrados (dado sensível
@@ -197,13 +197,18 @@ Não veio captura. Já segue a regra de formulário (320 + 640, decisão D6 de
 ## Passos
 
 - [ ] 1. Plano de tela (`plano-front`) cobrindo as sete telas — commit: —
-- [ ] 2. Início — commit: —
-- [ ] 3. Dieta — commit: —
-- [ ] 4. Exercício — commit: —
-- [ ] 5. Treino e Treino do dia — commit: —
-- [ ] 6. Histórico — commit: —
-- [ ] 7. Comunidade — commit: —
-- [ ] 8. Conferência final (Conta, capturas, e2e inteira) — commit: —
+- [ ] 2. Início — em andamento, sem commit (27/11)
+- [ ] 3. Dieta — em andamento, sem commit (27/11)
+- [ ] 4. Exercício — em andamento, sem commit (27/11)
+- [ ] 5. Treino e Treino do dia — em andamento, sem commit (27/11)
+- [ ] 6. Histórico — em andamento, sem commit (27/11)
+- [ ] 7. Comunidade — em andamento, sem commit (27/11)
+- [ ] 8. Conferência final (Conta, capturas, e2e inteira) — Conta em andamento, sem commit (27/11); capturas e e2e pendentes
+
+## Registro de execução (27/11, sem commit)
+- Contêiner novo do aluno na web: `useAreaDaTela` (medição da área de conteúdo); apoio de 380, 420 e 440 px; o teto de 1312 px foi removido.
+- `apoioGruda` existe e está disponível, mas o fixo ao rolar da `PrincipalComApoio` ficou como estava.
+- Telas sendo refeitas nesse contêiner, sem commit: Início, Treino, Treino do dia/Exercício, Dieta, Comunidade, Conta e Histórico.
 
 ## Fora do escopo
 

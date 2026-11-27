@@ -561,6 +561,15 @@ describe('PDF da dieta', () => {
       expect(com.match(/Beba água/g)).toHaveLength(1);
     });
 
+    it('orientações e observações saem com o formato do treinador (negrito, sublinhado, linhas), escapadas', () => {
+      const c = documentoDieta({
+        ...base, versao: 1, pesos: [],
+        conteudo: { ...comVariacoes, orientacoes: [{ titulo: 'Água', texto: 'Beba **2 L**\n__sem <b>gás</b>__' }], observacoes: 'Troca só com o **treinador** & 2 ** 3' },
+      }).corpo;
+      expect(c).toContain('<div class="orient"><strong>Água:</strong> Beba <strong>2 L</strong><br><u>sem &lt;b&gt;gás&lt;/b&gt;</u></div>');
+      expect(c).toContain('<div class="suave">Troca só com o <strong>treinador</strong> &amp; 2 ** 3</div>');
+    });
+
     it('com lista, avisa que cada variação entra pelos dias dela; sem variação, o aviso não aparece', () => {
       const lista = { periodo: 'semana' as const, opcoes: [], linhas: [], mostrarFatores: false };
       const com = documentoDieta({ ...base, versao: 1, conteudo: comVariacoes, pesos: [], lista }).corpo;

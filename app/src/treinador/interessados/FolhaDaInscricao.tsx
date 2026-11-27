@@ -439,6 +439,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       <Cartao titulo="O que a pessoa escreveu">
         <CampoLeitura rotulo="Sexo" valor={dados.sexo ? rotuloDoSexo(dados.sexo) : 'Prefiro não informar'} />
         <CampoLeitura rotulo="Objetivo" valor={dados.objetivo} />
+        {dados.planoComercialNome ? <CampoLeitura rotulo="Plano escolhido na página" valor={dados.planoComercialNome} /> : null}
         {/* A "Observação" deixou de ser campo fixo (virou pergunta do treinador); só as inscrições de antes a têm. */}
         {dados.observacao ? <CampoLeitura rotulo="Observação" valor={dados.observacao} /> : null}
         <CampoLeitura rotulo="O que procura" valor={rotuloOpcional(INTERESSES, dados.interesse)} />
@@ -546,6 +547,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
           {/* O Instagram vai para as redes do cadastro do aluno; sem ele, a linha não aparece. */}
           {dados.instagram ? <Texto variante="pequeno">Instagram: @{dados.instagram} (vai para as redes do aluno)</Texto> : null}
           <Texto variante="pequeno">Responsável: {dados.responsavelNome ?? 'Sem responsável'}</Texto>
+          {dados.planoComercialNome ? <Texto variante="pequeno">Plano escolhido na página: {dados.planoComercialNome}</Texto> : null}
           <Texto variante="pequeno">Proposta: {resumoDaProposta}</Texto>
           <Texto variante="pequeno">Pagamento (registro manual): {pagamentoTela.texto}</Texto>
         </View>
@@ -569,6 +571,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
           <Texto variante="pequeno">Nome: {dados.nome}</Texto>
           <Texto variante="pequeno">E-mail: {dados.email ?? SEM_DADO}</Texto>
           <Texto variante="pequeno">Responsável: {dados.responsavelNome ?? 'Sem responsável'}</Texto>
+          {dados.planoComercialNome ? <Texto variante="pequeno">Plano escolhido na página: {dados.planoComercialNome}</Texto> : null}
           <Texto variante="pequeno">Proposta: {resumoDaProposta}</Texto>
           <Texto variante="pequeno">Condição: Aceite sem cobrança (cortesia)</Texto>
         </View>
@@ -677,7 +680,9 @@ function ResultadoDoAceite({ aceite, dados, podeVerAluno, pagamentosHabilitados,
           ? `Proposta: ${[proposta.planoNome, centavosParaTela(proposta.valorCentavos)].filter((x) => x && x !== SEM_DADO).join(' · ') || 'registrada'}`
           : 'Sem proposta registrada'} />
         {pagamentosHabilitados ? (
-          <Texto variante="pequeno">Para cobrar pelo app, cadastre a contratação no Financeiro, na ficha do aluno.</Texto>
+          <Texto variante="pequeno">
+            Para cobrar pelo app, cadastre a contratação no Financeiro, na ficha do aluno{dados.planoComercialNome ? ` (plano escolhido na página: ${dados.planoComercialNome})` : ''}.
+          </Texto>
         ) : null}
         {podeVerAluno ? (
           <LinhaDeAcoes><Botao rotulo="Abrir ficha" aoTocar={() => aoAbrirFicha(aceite.alunoId)} /></LinhaDeAcoes>

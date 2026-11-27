@@ -468,26 +468,115 @@ public record ConteudoTreino(
         }
     }
 
+    /** Modo do bloco de cardio (docs/planos/cardio-e-hiit.md, D3). O contínuo nunca grava {@code modo}. */
+    public enum ModoDeCardio { CONTINUO, INTERVALADO }
+
+    /** Protocolo do intervalado; nulo vale como {@code PERSONALIZADO}. As faixas de cada um são só aviso no app. */
+    public enum ProtocoloDeCardio { CURTO, LONGO, SIT, RST, PERSONALIZADO }
+
+    public enum TipoDeRecuperacao { ATIVA, PASSIVA }
+
     /**
-     * Prescrição de uma série de cardio (só em exercício com modalidade {@code CARDIO}): ao menos duração, distância ou
-     * intervalos. O aluno só marca "feito".
+     * Prescrição de um bloco de cardio (cada série de um exercício {@code CARDIO} é um bloco). O aluno só marca "feito".
+     * Os campos novos ({@code modo} em diante) saem do JSON só quando existem: o contínuo e o dado antigo continuam com as
+     * mesmas cinco chaves, que o app instalado confere de forma estrita no pacote offline ({@code formatoDoPacote}). Só o
+     * intervalado novo grava {@code modo: INTERVALADO}; sem {@code modo} e com {@code intervalos} é o intervalado antigo,
+     * conferido pelas regras de antes. Espelho de {@code dominio/cardio.erroDoBloco} no app.
      */
     public record Cardio(
             Integer duracaoMin,
             BigDecimal distanciaKm,
             @Size(max = 40) String ritmo,
             Integer zona,
-            @Valid Intervalos intervalos) {
+            @Valid Intervalos intervalos,
+            @JsonInclude(JsonInclude.Include.NON_NULL) ModoDeCardio modo,
+            @JsonInclude(JsonInclude.Include.NON_NULL) ProtocoloDeCardio protocolo,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Integer aquecimentoSeg,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Integer desaquecimentoSeg,
+            @JsonInclude(JsonInclude.Include.NON_NULL) TipoDeRecuperacao recuperacaoTipo,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Boolean esforcoMaximo) {
 
-        /** Intervalado: {@code voltas} de {@code trabalhoSeg} de esforço e {@code descansoSeg} de descanso. */
+        private static final String SO_NO_INTERVALADO = "Só vale no intervalado.";
+        private static final String SO_NO_CONTINUO = "Só vale no contínuo.";
+
+        /** Esforço máximo é só {@code true} ou ausente ({@code false} vira nulo e some do JSON). */
+        public Cardio {
+            esforcoMaximo = Boolean.TRUE.equals(esforcoMaximo) ? Boolean.TRUE : null;
+        }
+
+        /** Dado antigo (sem modo): as regras de antes. */
+        public Cardio(Integer duracaoMin, BigDecimal distanciaKm, String ritmo, Integer zona, Intervalos intervalos) {
+            this(duracaoMin, distanciaKm, ritmo, zona, intervalos, null, null, null, null, null, null);
+        }
+
+        /** Intervalado: {@code voltas} de {@code trabalhoSeg} de estímulo e {@code descansoSeg} de recuperação. */
         public record Intervalos(Integer trabalhoSeg, Integer descansoSeg, Integer voltas) {
         }
 
         public Map<String, String> problemas() {
-            Map<String, String> p = new LinkedHashMap<>();
-            if (duracaoMin == null && distanciaKm == null && intervalos == null) {
-                p.put("duracaoMin", "Informe a duração, a distância ou os intervalos.");
+            if (modo == null && intervalos != null) {
+                return problemasDoIntervaladoAntigo();
             }
+            Map<String, String> p = new LinkedHashMap<>();
+            if (zona != null && (zona < 1 || zona > 5)) {
+                p.put("zona", "Zona de 1 a 5.");
+            }
+            if (modo != ModoDeCardio.INTERVALADO) {
+                if (duracaoMin == null && distanciaKm == null) {
+                    p.put("duracaoMin", "Informe a duração ou a distância.");
+                } else if (duracaoMin != null && (duracaoMin < 1 || duracaoMin > 600)) {
+                    p.put("duracaoMin", "Duração de 1 a 600 minutos.");
+                }
+                if (distanciaKm != null && (distanciaKm.signum() <= 0 || distanciaKm.compareTo(new BigDecimal("1000")) > 0)) {
+                    p.put("distanciaKm", "Distância maior que zero e até 1000 km.");
+                }
+                if (ritmo != null && ritmo.length() > 40) {
+                    p.put("ritmo", "Ritmo com no máximo 40 caracteres.");
+                }
+                soNoOutroModo(p, "intervalos", intervalos, SO_NO_INTERVALADO);
+                soNoOutroModo(p, "protocolo", protocolo, SO_NO_INTERVALADO);
+                soNoOutroModo(p, "aquecimentoSeg", aquecimentoSeg, SO_NO_INTERVALADO);
+                soNoOutroModo(p, "desaquecimentoSeg", desaquecimentoSeg, SO_NO_INTERVALADO);
+                soNoOutroModo(p, "recuperacaoTipo", recuperacaoTipo, SO_NO_INTERVALADO);
+                soNoOutroModo(p, "esforcoMaximo", esforcoMaximo, SO_NO_INTERVALADO);
+                return p;
+            }
+            soNoOutroModo(p, "duracaoMin", duracaoMin, SO_NO_CONTINUO);
+            soNoOutroModo(p, "distanciaKm", distanciaKm, SO_NO_CONTINUO);
+            soNoOutroModo(p, "ritmo", ritmo, SO_NO_CONTINUO);
+            Integer estimulo = intervalos == null ? null : intervalos.trabalhoSeg();
+            Integer recuperacao = intervalos == null ? null : intervalos.descansoSeg();
+            Integer voltas = intervalos == null ? null : intervalos.voltas();
+            if (estimulo == null || estimulo < 1 || estimulo > 3600) {
+                p.put("intervalos.trabalhoSeg", "Estímulo de 1 s a 60 min.");
+            }
+            if (recuperacao != null && (recuperacao < 0 || recuperacao > 3600)) {
+                p.put("intervalos.descansoSeg", "Recuperação de 0 a 60 min.");
+            }
+            if (voltas == null || voltas < 1 || voltas > 100) {
+                p.put("intervalos.voltas", "Voltas de 1 a 100.");
+            }
+            if (aquecimentoSeg != null && (aquecimentoSeg < 0 || aquecimentoSeg > 3600)) {
+                p.put("aquecimentoSeg", "Aquecimento de 0 a 60 min.");
+            }
+            if (desaquecimentoSeg != null && (desaquecimentoSeg < 0 || desaquecimentoSeg > 3600)) {
+                p.put("desaquecimentoSeg", "Desaquecimento de 0 a 60 min.");
+            }
+            if (zona != null && esforcoMaximo != null) {
+                p.put("esforcoMaximo", "Use a zona ou o esforço máximo, não os dois.");
+            }
+            return p;
+        }
+
+        private static void soNoOutroModo(Map<String, String> p, String campo, Object valor, String mensagem) {
+            if (valor != null) {
+                p.put(campo, mensagem);
+            }
+        }
+
+        /** Intervalado salvo antes do {@code modo}: exatamente as regras de antes, para republicar e replicar sem quebrar. */
+        private Map<String, String> problemasDoIntervaladoAntigo() {
+            Map<String, String> p = new LinkedHashMap<>();
             if (duracaoMin != null && (duracaoMin < 1 || duracaoMin > 600)) {
                 p.put("duracaoMin", "Duração de 1 a 600 minutos.");
             }

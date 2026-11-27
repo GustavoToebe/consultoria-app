@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-nat
 
 import { contagem } from '../dominio/contagens';
 import { TEXTO_PACOTE_RECUSADO, type EstadoDoHoje } from '../dominio/inicioDoAluno';
+import { exerciciosNoHoje, textoDosOutrosExercicios } from '../dominio/resumoDoInicio';
 import { contornoDoCartao } from '../dominio/preferencias';
 import { nomeComDia, rotuloDoTipo } from '../dominio/semana';
 import { useTema } from '../tema/TemaProvider';
@@ -27,6 +28,8 @@ interface Props {
   concluido?: { texto: string; aoVerResumo: () => void } | null;
   /** Treino de hoje começado e não concluído: "1 de 6 séries feitas" no lugar da contagem e a ação vira "Continuar treino" (o mesmo destino). */
   emAndamento?: string | null;
+  /** Web larga (27/11): a lista dos exercícios de hoje (nome e séries, até 5) entre a contagem e o botão. O celular não a tem. */
+  comExercicios?: boolean;
 }
 
 /**
@@ -36,7 +39,7 @@ interface Props {
  * todo um toque: a ação é o botão "Ver meu treino →", que abre a lista do dia (cada exercício se abre e se marca por lá).
  * Falha ao carregar nunca é mostrada como "treino não publicado".
  */
-export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, concluido, emAndamento }: Props) {
+export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, concluido, emAndamento, comExercicios = false }: Props) {
   const { cores, marcaTexto, marcaPeca, preferencias } = useTema();
   const reduzido = useMovimentoReduzido();
   // O contorno do `Cartao` (`divisor`; `bordaCampo` no contraste alto), para o Hoje não ficar mais apagado que os vizinhos.
@@ -98,6 +101,7 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, con
       <Texto variante="suave">
         {treino ? (concluido ? concluido.texto : andamento ?? contagem(estado.sessao.exercicios.length, 'exercício', 'exercícios')) : 'Seu plano não tem dia fixo. Escolha uma divisão.'}
       </Texto>
+      {treino && comExercicios && estado.sessao.exercicios.length ? <ExerciciosDeHoje lista={estado.sessao.exercicios} /> : null}
       <View style={estilos.acao}>
         <Pressable
           accessibilityRole="button"
@@ -117,7 +121,32 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, con
   );
 }
 
+/** Os exercícios do dia em linhas (nome e séries lado a lado, perto um do outro), com "+N exercícios" depois do quinto. */
+function ExerciciosDeHoje({ lista }: { lista: Parameters<typeof exerciciosNoHoje>[0] }) {
+  const { cores } = useTema();
+  const { itens, mais } = exerciciosNoHoje(lista);
+  return (
+    <View style={estilos.lista}>
+      <View role="list" aria-label="Exercícios de hoje">
+        {itens.map((e, i) => (
+          <View key={e.uid} role="listitem" style={[estilos.exercicio, i > 0 && { borderTopWidth: 1, borderTopColor: cores.divisor }]}>
+            <Texto numerico variante="suave" style={estilos.ordem}>{i + 1}</Texto>
+            <Texto style={estilos.nomeDoExercicio} numberOfLines={1}>{e.nome}</Texto>
+            <Texto variante="suave" numerico style={estilos.series}>{e.detalhe}</Texto>
+          </View>
+        ))}
+      </View>
+      {mais ? <Texto variante="suave" numerico>{textoDosOutrosExercicios(mais)}</Texto> : null}
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
+  lista: { gap: espaco(0.5), marginTop: espaco(1) },
+  exercicio: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(1.5), paddingVertical: espaco(1) },
+  ordem: { width: 18, textAlign: 'right' },
+  nomeDoExercicio: { flexShrink: 1, fontFamily: fontes.semi },
+  series: { flexShrink: 0 },
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.75) },
   carregando: { minHeight: 140, opacity: 0.6 },
   linhaDescanso: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },

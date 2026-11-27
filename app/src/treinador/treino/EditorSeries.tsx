@@ -4,10 +4,10 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import type { Configuracao, PapelDaSerie, Serie, TipoDeTecnica } from '../../api/tipos';
 import { agrupar, tituloDoGrupoDeSeries, type GrupoDeSeries } from '../../dominio/agrupamento';
-import { adicionarSerie, alterarGrupo, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
+import { adicionarSerie, alterarGrupoComANova, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { grupoComSerie, uidDaAbaAposMudar } from '../../dominio/inspetorDoTreino';
 import { restPauseNestaSerie } from '../../dominio/exemplosDePrescricao';
-import { blocosESeries, resumoDoBloco, textoDeBlocosESeries } from '../../dominio/editorDeTreino';
+import { resumoDoBloco } from '../../dominio/editorDeTreino';
 import { corDoTipoDeSerie } from '../../dominio/corDaSerie';
 import { codigoTrabalho, nomeDoTipo, papelDe, tecnicaNaMetodologia } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
@@ -70,7 +70,6 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const [largura, setLargura] = useState<number | null>(ultimaLargura);
   const largo = janelaLarga && (largura === null || largura >= LARGURA_LADO_A_LADO);
   const medir = (e: LayoutChangeEvent) => { ultimaLargura = e.nativeEvent.layout.width; setLargura(ultimaLargura); };
-  const [novaAberta, setNovaAberta] = useState(false);
   // Uma aba por grupo; quem controla é o editor de treino (D8) quando passa `aoAbrirGrupo`, mesmo antes do primeiro toque.
   const [abertoInterno, setAbertoInterno] = useState<string | null>(null);
   const controlado = aoAbrirGrupo !== undefined;
@@ -109,15 +108,26 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const adicionar = (tipo: string | undefined, tecnica: TipoDeTecnica | null) => {
     const novas = adicionarSerie(series, cfg, tipo, tecnica, modalidade);
     aoMudar(novas, doUltimo(novas));
-    setNovaAberta(false);
   };
   const motivoCheio = cheio ? `O exercício já tem ${LIMITE_SERIES} séries, o máximo.` : undefined;
-  const alterar = (g: GrupoDeSeries, m: AlteracaoDeGrupo) => aoMudar(alterarGrupo(series, g, m, cfg));
+  // A série que o "+ Nova série" acabou de somar ao bloco aberto: o tipo e a técnica escolhidos depois valem só para ela
+  // (`alterarGrupoComANova`), sem reescrever as séries que já estavam no bloco. Abrir outro bloco esquece.
+  const [uidDaNova, setUidDaNova] = useState<string | null>(null);
+  const alterar = (g: GrupoDeSeries, m: AlteracaoDeGrupo) => {
+    const r = alterarGrupoComANova(series, g, m, cfg, uidDaNova);
+    if (r.separou) aoMudar(r.series, r.abrir);
+    else aoMudar(r.series);
+  };
   const iAberto = grupoAberto ? grupos.findIndex((g) => g.series[0].uid === uidAberto) : -1;
   const g = iAberto >= 0 ? grupos[iAberto] : null;
   const rotuloDaNova = cardio ? 'Novo cardio' : 'Nova série';
-  // Cardio não tem tipo: "Novo cardio" já adiciona. Na musculação, "Nova série" mostra os botões de 1 clique.
-  const aoNova = cardio ? () => adicionar(undefined, null) : () => setNovaAberta(!novaAberta);
+  // 27/11: "+ Nova série" (a última linha da tabela) já adiciona a série (a de trabalho da metodologia, `novaSerie`) e a
+  // abre em edição; o tipo e a técnica se trocam nela. Os botões de 1 clique ("+ FS", "+ Cluster"…) ficam no estado vazio.
+  const aoNova = () => {
+    const novas = adicionarSerie(series, cfg, undefined, null, modalidade);
+    setUidDaNova(novas.length > series.length ? novas[novas.length - 1].uid : null);
+    aoMudar(novas, doUltimo(novas));
+  };
   const nova = <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} />;
   const botoesDaNova = cardio || cheio ? null : <BotoesDeNovaSerie config={cfg} aoAdicionar={adicionar} />;
   // Estreito (390): a linha vira divulgação e o editor abre logo abaixo da série escolhida (guia premium pág. 9).
@@ -131,7 +141,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
     aoRestPauseNaUltima={() => aoMudar(restPauseNestaSerie(series, g, cfg))}
     aoRemover={() => aoMudar(removerGrupo(series, g))} /> : null;
   return <View style={estilos.lista} onLayout={medir}>
-    {grupos.length > 0 ? <TabelaDeBlocos ativa={uidAberto} aoMudar={(uid) => definirAberto(uid ?? NENHUM_BLOCO_ABERTO)}
+    {grupos.length > 0 ? <TabelaDeBlocos ativa={uidAberto} aoMudar={(uid) => { setUidDaNova(null); definirAberto(uid ?? NENHUM_BLOCO_ABERTO); }}
       empilhado={empilhado} detalhe={editor}
       // "Mover para cima/baixo" do ⋯ de cada linha (a alternativa ao arrastar): o bloco anda e a aberta vai junto.
       aoMover={(i, d) => aoMudar(moverGrupo(series, i, d))}
@@ -157,19 +167,16 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
           edicao: `Editando série ${i + 1}${cardio ? '' : `, ${tituloDoGrupoDeSeries(x, cfg)}`}`,
         };
       })}
-      // Cheio, o botão sai do fim da tabela: desabilitado ele perdia o tracejado e o motivo ficava escondido.
-      depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
+      // Cheio, a linha sai do fim da tabela: o botão desabilitado com o motivo fica embaixo dela.
+      nova={cheio ? undefined : { rotulo: rotuloDaNova, aoTocar: aoNova }} />
       : <View style={estilos.vazio}>
         <Texto variante="suave">Nenhuma série ainda.</Texto>
         {aoUsarReceita ? <LinhaDeAcoes><Botao rotulo="Usar receita de séries" tipo="acao" Icone={NotebookTabs} aoTocar={aoUsarReceita} /></LinhaDeAcoes> : null}
         {botoesDaNova ?? <LinhaDeAcoes>{nova}</LinhaDeAcoes>}
       </View>}
     {grupos.length > 0 && cheio ? <LinhaDeAcoes>{nova}</LinhaDeAcoes> : null}
-    {grupos.length > 0 && novaAberta ? botoesDaNova : null}
     <ErroDoCampo mensagem={validacao.daLista.series} />
     <AvisoDoCampo mensagem={validacao.avisosDaLista.series} />
-    {/* "2 blocos · 7 séries": quantidade de blocos e total de séries não se confundem (a coluna Quantidade é do bloco). */}
-    {series.length ? <Texto variante="pequeno" numerico>{`Este exercício: ${textoDeBlocosESeries(blocosESeries(series))}`}</Texto> : null}
   </View>;
 }
 
@@ -220,6 +227,4 @@ const estilos = StyleSheet.create({
   lista: { gap: espaco(1.5) },
   juntos: { gap: espaco(0.5) },
   vazio: { gap: espaco(1) },
-  // "+ Nova série" depois das abas: tracejado, para ler como "lugar de mais uma" e não como outra aba.
-  tracejado: { borderStyle: 'dashed', alignSelf: 'center' },
 });

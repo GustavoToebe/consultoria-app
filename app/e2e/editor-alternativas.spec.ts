@@ -57,7 +57,7 @@ async function escolherAlternativa(page: Page, nome: string) {
   await adicionar(page).click();
   const folha = page.getByRole('dialog');
   await expect(folha.getByText('Escolher alternativa', { exact: true })).toBeVisible();
-  await folha.getByRole('button', { name: `Escolher ${nome}`, exact: true }).click();
+  await folha.getByRole('option', { name: new RegExp(`^${nome},`) }).click();
   await expect(page.getByRole('button', { name: `Remover a alternativa ${nome}`, exact: true })).toBeVisible();
 }
 
@@ -66,7 +66,7 @@ test.describe('alternativas de troca no PC (1280)', () => {
 
   test('adiciona até 3 do mesmo tipo, sem o principal, trava com o motivo, remove e salva', async ({ page }) => {
     const api = await abrir(page);
-    await expect(secao(page)).toHaveAccessibleName(/\(nenhuma\)/);
+    await expect(secao(page)).toHaveAccessibleName(/ · 0 de 3$/);
     await secao(page).click();
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'true');
 
@@ -74,26 +74,26 @@ test.describe('alternativas de troca no PC (1280)', () => {
     const folha = page.getByRole('dialog');
     await expect(folha.getByText('Escolher alternativa', { exact: true })).toBeVisible();
     // Cardio não troca por carga, e o próprio supino não é alternativa dele.
-    await expect(folha.getByRole('button', { name: 'Escolher Esteira', exact: true })).toHaveCount(0);
-    await expect(folha.getByRole('button', { name: `Escolher ${SUPINO.nome}`, exact: true })).toHaveCount(0);
+    await expect(folha.getByRole('option', { name: /^Esteira,/ })).toHaveCount(0);
+    await expect(folha.getByRole('option', { name: new RegExp(`^${SUPINO.nome},`) })).toHaveCount(0);
     // Sem "exercício manual": a alternativa é sempre da biblioteca.
     await folha.getByRole('textbox', { name: 'Buscar na biblioteca' }).fill('Inexistente');
-    await expect(folha.getByRole('button', { name: /^Usar só o nome/ })).toHaveCount(0);
+    await expect(folha.getByRole('option', { name: /^Usar só o nome/ })).toHaveCount(0);
     await folha.getByRole('textbox', { name: 'Buscar na biblioteca' }).fill('');
-    await folha.getByRole('button', { name: 'Escolher Supino inclinado com halteres', exact: true }).click();
+    await folha.getByRole('option', { name: /^Supino inclinado com halteres,/ }).click();
     await expect(page.getByRole('button', { name: 'Remover a alternativa Supino inclinado com halteres', exact: true })).toBeVisible();
 
     // A que já está na lista não aparece de novo.
     await adicionar(page).click();
-    await expect(page.getByRole('dialog').getByRole('button', { name: 'Escolher Supino inclinado com halteres', exact: true })).toHaveCount(0);
-    await page.getByRole('dialog').getByRole('button', { name: 'Escolher Crucifixo na máquina', exact: true }).click();
+    await expect(page.getByRole('dialog').getByRole('option', { name: /^Supino inclinado com halteres,/ })).toHaveCount(0);
+    await page.getByRole('dialog').getByRole('option', { name: /^Crucifixo na máquina,/ }).click();
     await escolherAlternativa(page, 'Tríceps na polia');
-    await expect(secao(page)).toHaveAccessibleName(/\(3 de 3\)/);
+    await expect(secao(page)).toHaveAccessibleName(/ · 3 de 3$/);
     await expect(adicionar(page)).toBeDisabled();
     await expect(page.getByText('Já tem 3 alternativas, o máximo. Remova uma para adicionar outra.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Remover a alternativa Crucifixo na máquina', exact: true }).click();
-    await expect(secao(page)).toHaveAccessibleName(/\(2 de 3\)/);
+    await expect(secao(page)).toHaveAccessibleName(/ · 2 de 3$/);
     await expect(adicionar(page)).toBeEnabled();
 
     // Nada vai à API antes do "Salvar rascunho".
@@ -116,7 +116,7 @@ test.describe('alternativas de troca no PC (1280)', () => {
     });
     // Nasce fechada mesmo com alternativa (18/11); o botão diz quantas tem.
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'false');
-    await expect(secao(page)).toHaveAccessibleName(/\(1 de 3\)/);
+    await expect(secao(page)).toHaveAccessibleName(/ · 1 de 3$/);
     await secao(page).click();
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'true');
     await page.getByRole('button', { name: `Trocar em todas as sessões: ${SUPINO.nome} por ${HALTERES.nome}`, exact: true }).click();
@@ -145,7 +145,7 @@ test.describe('alternativas de troca no PC (1280)', () => {
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('erro da API na alternativa aparece na linha dela, com a seção aberta', async ({ page }) => {
+  test('erro da API na alternativa aparece com o nome dela, com a seção aberta', async ({ page }) => {
     const mensagem = 'A alternativa precisa ser do mesmo tipo do exercício (cardio só por cardio).';
     const api = await abrir(page, (c) => {
       c.sessoes[0].exercicios[0].alternativas = [alt(BIBLIOTECA[5])];
@@ -156,8 +156,9 @@ test.describe('alternativas de troca no PC (1280)', () => {
     await page.getByRole('button', { name: 'Publicar treino', exact: true }).click();
     await page.getByRole('dialog', { name: 'Publicar treino' }).getByRole('button', { name: 'Publicar agora' }).click();
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'true');
-    const linha = page.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Remover a alternativa Paralelas', exact: true }) });
-    await expect(linha.getByText(mensagem)).toBeVisible();
+    // 27/11: as alternativas são chips; o erro de uma fica embaixo da linha dos chips, com o nome dela na frente.
+    await expect(page.getByRole('button', { name: 'Remover a alternativa Paralelas', exact: true })).toBeVisible();
+    await expect(page.getByText(`Paralelas: ${mensagem}`, { exact: true })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
   });
 });
@@ -179,7 +180,7 @@ test.describe('alternativas de troca no celular (390)', () => {
     expect((await trocar.boundingBox())!.width).toBeGreaterThanOrEqual(44);
 
     await escolherAlternativa(page, 'Paralelas');
-    await expect(secao(page)).toHaveAccessibleName(/\(2 de 3\)/);
+    await expect(secao(page)).toHaveAccessibleName(/ · 2 de 3$/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(escritas(api.pedidos)).toEqual([]);
     expect(api.errosDaPagina).toEqual([]);

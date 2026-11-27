@@ -6,6 +6,7 @@ import { FolhaReceitas } from '../FolhaReceitas';
 import { FolhaSalvarReceita } from '../FolhaSalvarReceita';
 import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
 import { OpcaoDeModelo } from '../plano/OpcaoDeModelo';
+import { FolhaUsarReceita } from './FolhaUsarReceita';
 import { useAviso } from '../../ui/Aviso';
 import { Folha } from '../../ui/Folha';
 
@@ -84,16 +85,11 @@ export function FolhasDoTreino({ folha: aberta, abrir, fechar, conteudo: c, conf
     case 'receitaSeries': {
       const atuais = c.sessoes[folha.alvo.sessao]?.exercicios[folha.alvo.exercicio]?.series.length ?? 0;
       return (
-        <FolhaReceitas
-          tipo="SERIES"
-          titulo="Usar receita"
-          explicacao={atuais
-            ? `Este exercício já tem ${atuais === 1 ? '1 série' : `${atuais} séries`}: substitua ou acrescente as da receita ao fim. Dá para desfazer logo depois.`
-            : 'Escolha a receita pela sequência de séries. Ao aplicar, dá para desfazer logo depois.'}
+        <FolhaUsarReceita
           config={config}
           seriesAtuais={atuais}
           aoFechar={fechar}
-          aoUsar={(r, modo = 'substituir') => {
+          aoUsar={(r, modo) => {
             const { sessao: si, exercicio: ei } = folha.alvo;
             fechar();
             // Gerada uma vez, fora do `comDesfazer`, para a aba aberta (a do último grupo, D12) apontar para estas séries.

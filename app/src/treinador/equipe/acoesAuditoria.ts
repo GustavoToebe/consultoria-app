@@ -2,6 +2,7 @@ import { NOME_DA_VITRINE_DE_CONSULTORIAS } from '../../dominio/produto';
 
 export const ACOES_AUDITORIA:Record<string,string>={
   LOGIN_SUCESSO:'Login realizado',LOGIN_BLOQUEADO:'Login bloqueado',SENHA_REDEFINIDA:'Senha redefinida pelo link do e-mail',SENHA_ALTERADA:'Senha alterada pelo próprio usuário',
+  MFA_PREPARADO:'Verificação em duas etapas iniciada',MFA_ATIVADO:'Verificação em duas etapas ativada',MFA_DESATIVADO:'Verificação em duas etapas desativada',
   USUARIO_CONVIDADO:'Convite de equipe criado',CONVITE_EQUIPE_ACEITO:'Convite de equipe aceito',CONVITE_EQUIPE_CANCELADO:'Convite de equipe cancelado',
   USUARIO_ALTERADO:'Membro editado',USUARIO_PERFIL_ALTERADO:'Perfil do membro alterado',USUARIO_DESATIVADO:'Membro desativado',USUARIO_LIMITE_DE_ALUNOS_ALTERADO:'Limite de alunos do membro alterado',
   PERFIL_CRIADO:'Perfil criado',PERFIL_ALTERADO:'Perfil editado',PERFIL_APAGADO:'Perfil excluído',PERFIL_DUPLICADO:'Perfil duplicado',

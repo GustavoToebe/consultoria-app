@@ -336,9 +336,19 @@ export type ParteDaInscricao = 1 | 2;
 const CHAVES_DO_CONTATO: ReadonlySet<string> = new Set(['nome', 'whatsapp', 'email', 'instagram']);
 export const parteDoCampoDaInscricao = (chave: string): ParteDaInscricao => (CHAVES_DO_CONTATO.has(chave) ? 1 : 2);
 
-/** Só há parte 2 se sobra algo além do contato: algum fixo visível que não é o e-mail ou uma pergunta do treinador. */
+/**
+ * Id da pergunta "Qual plano combinou?" que a API cria na Ficha rápida (`ConfiguracaoInscricaoService.PERGUNTA_PLANO_COMBINADO`).
+ * A página a desenha à parte (cartões dos planos, `dominio/planosDaInscricao`) e o texto de "Outro" é a resposta dela.
+ */
+export const ID_DA_PERGUNTA_DO_PLANO = 'plano_combinado';
+
+/**
+ * Só há parte 2 se sobra algo além do contato: algum fixo visível que não é o e-mail ou uma pergunta do treinador. A do
+ * plano não conta (27/11): a Ficha rápida (contato + plano) fica numa página só, com o plano logo depois do contato.
+ */
 export function temSegundaParte(campos: readonly CampoDaInscricao[], perguntas: ConteudoQuestionario | null): boolean {
-  return campos.some((c) => c !== 'EMAIL') || !!perguntas?.secoes.some((s) => s.perguntas.length > 0);
+  return campos.some((c) => c !== 'EMAIL')
+    || !!perguntas?.secoes.some((s) => s.perguntas.some((p) => p.id !== ID_DA_PERGUNTA_DO_PLANO));
 }
 
 /** Parte a mostrar para corrigir os erros: a 1 se algum é do contato, senão a 2; `null` sem erro. */
@@ -401,12 +411,13 @@ export interface RespostasDoEnvio {
 /**
  * Corpo do envio: textos sem espaços nas pontas e vazio = nulo. O token só vai quando há. `textoVersao` é a do texto que
  * a página mostrou (a API recusa a ciência de um texto que mudou). Campo fixo escondido (`campos` são os visíveis) vai
- * nulo. `perguntas` nulo = a página não tinha perguntas. `codigoIndicacao` (link de um aluno) só vai quando há.
+ * nulo. `perguntas` nulo = a página não tinha perguntas. `codigoIndicacao` (link de um aluno) e `planoComercialId` (plano
+ * escolhido nos cartões; "Outro" ou nada = ausente, que a API lê como nulo) só vão quando há.
  */
 export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: string | null,
   textoVersao: string | null = null, origemLink: string | null = null,
   campos: readonly CampoDaInscricao[] = TODOS_OS_CAMPOS, perguntas: RespostasDoEnvio | null = null,
-  codigoIndicacao: string | null = null): InscricaoPublicaRequest {
+  codigoIndicacao: string | null = null, planoComercialId: string | null = null): InscricaoPublicaRequest {
   const opcional = (t: string) => (t.trim() ? t.trim() : null);
   const mostra = (c: CampoDaInscricao) => campos.includes(c);
   const corpo: InscricaoPublicaRequest = {
@@ -429,6 +440,7 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
   };
   if (token) corpo.turnstileToken = token;
   if (codigoIndicacao) corpo.codigoIndicacao = codigoIndicacao;
+  if (planoComercialId) corpo.planoComercialId = planoComercialId;
   return corpo;
 }
 

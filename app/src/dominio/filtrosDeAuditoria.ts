@@ -1,12 +1,14 @@
 import {
   ehId, lista, periodoDoEndereco, periodoParaEndereco, SEM_PERIODO, temPeriodo, textoDoPeriodo, type Parametro, type Periodo,
 } from './filtrosComuns';
+import { ACOES_DE_LOGIN, acoesCombinadas, type AtalhoDeAuditoria } from './categoriasDeAuditoria';
 
 /**
  * Filtros da Auditoria (`docs/planos/filtros-nas-listas.md`, D9 e lote 2): pessoas (várias, e "Sistema" para os eventos
  * sem autor), ações (várias) e período, no endereço (`?usuarioId=<id>,sistema&acao=A,B&de=&ate=`); para a API cada
  * pessoa e cada ação vira um parâmetro repetido. A ação só vale se estiver no catálogo do app (`ACOES_AUDITORIA`); o resto
- * do endereço é ignorado. Funções puras.
+ * do endereço é ignorado. O atalho de cima da tabela (`?atalho=`, fora do painel e do "Limpar filtros") é de
+ * `categoriasDeAuditoria` e combina com estes por interseção (`pedidoComAtalho`). Funções puras.
  */
 export const SISTEMA = 'sistema';
 
@@ -53,6 +55,21 @@ export function pedidoDaApi(f: FiltrosDeAuditoria): { de?: string; ate?: string;
     ...(f.pessoas.length ? { usuarioId: [...f.pessoas] } : {}),
     ...(f.acoes.length ? { acao: [...f.acoes] } : {}),
   };
+}
+
+/**
+ * O filtro de `listarAuditoria` com o atalho de cima da tabela; pessoa e período não mudam.
+ * - "Sem logins" sem filtro "Ação": `acaoExceto` com os logins (a API exclui; a lista do catálogo inteiro passaria do teto
+ *   da `acao` e do tamanho de endereço). Com o filtro "Ação": os logins saem da lista localmente e vai só a `acao`.
+ * - Categorias: a `acao` é a interseção do filtro "Ação" com os códigos da categoria (`acoesCombinadas`; todas ≤ 100, o
+ *   teto da `acao` neste endpoint, conferido em `categoriasDeAuditoria.test.ts`).
+ * `'NENHUMA'` = os dois não têm ação em comum, e a tela não pergunta à API.
+ */
+export function pedidoComAtalho(f: FiltrosDeAuditoria, atalho: AtalhoDeAuditoria, catalogo: Readonly<Record<string, string>>) {
+  if (atalho === 'SEM_LOGINS' && !f.acoes.length) return { ...pedidoDaApi(f), acaoExceto: [...ACOES_DE_LOGIN] };
+  const combinadas = acoesCombinadas(f.acoes, atalho, catalogo);
+  if (combinadas === 'NENHUMA') return 'NENHUMA' as const;
+  return pedidoDaApi({ ...f, acoes: combinadas.acoes });
 }
 
 export interface ChipDeFiltro { chave: ChaveDoFiltro; texto: string }

@@ -23,7 +23,7 @@ import { Carregando, MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
-import { Tela } from '../../ui/Tela';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { Texto } from '../../ui/Texto';
 import { TextoFormatado } from '../../ui/TextoFormatado';
 import { useAviso } from '../../ui/Aviso';
@@ -63,7 +63,7 @@ function CicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna> }) {
     hoje,
   } : null;
   return (
-    <Tela bordas={['top']} largura={1120}>
+    <TelaDoAluno bordas={['top']}>
       <Cabecalho titulo="Ciclo menstrual" voltar="/aluno/conta" />
       {!ciclo.online ? <Texto>Precisa de conexão.</Texto> : null}
       {ciclo.online && !dados && ciclo.erro ? <MensagemErro texto={textoDoErro(ciclo.erro)} tentarDeNovo={ciclo.recarregar} /> : null}
@@ -82,7 +82,7 @@ function CicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna> }) {
           avisar={avisar}
         />
       ) : null}
-    </Tela>
+    </TelaDoAluno>
   );
 }
 

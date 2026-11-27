@@ -36,7 +36,7 @@ const RECUO = espaco(1);
  * (mover, Tirar link, Tirar cupom e Excluir com Desfazer). Sem teto de largura (26/11): colunas proporcionais (Suplemento
  * 28%, Dose 12% e Horário 10%, os dois com teto; a Observação fica com o resto). Os campos crescem sozinhos de uma a
  * duas linhas (`CampoDaTabela`; o que passar rola dentro do campo); o link do
- * produto abre fora do app (só https, `linkParaAbrir`) pelo ícone ao lado do nome; o cupom fica embaixo dele. Celular:
+ * produto abre fora do app (só https, `linkParaAbrir`) pelo ícone no fim do campo do nome (só com link; 27/11); o cupom fica embaixo dele. Celular:
  * um cartão compacto (nome em cima, "dose · horário" embaixo) que abre os campos ao tocar, um aberto por vez.
  */
 export function SuplementacaoDaDieta({ itens, porcoes, veBiblioteca, aoMudar, aoMover, aoRemover, aoAdicionarManual, aoEscolherDaBiblioteca }: {
@@ -133,12 +133,17 @@ function LinhaDoSuplemento({ modo, item: s, posicao, total, porcao, aberto, foca
     { rotulo: 'Excluir suplemento', detalhe: `Remover ${nome}. Dá para desfazer logo depois.`, Icone: Trash2, perigo: true, aoTocar: aoRemover },
   ];
 
+  const abrirProduto = link ? (
+    <IconeBotao Icone={ExternalLink} rotulo={`Abrir produto ${nome} (fora do app)`}
+      aoTocar={() => { void abrirLinkExterno(link).then((ok) => { if (!ok) avisar('Não foi possível abrir o link.', 'perigo'); }); }} />
+  ) : null;
   // Na tabela os quatro campos são `CampoDaTabela` (uma a duas linhas, mesma altura e o texto na mesma linha de base). No
-  // cartão o nome quebra quantas linhas precisar (`linhasDoNome`) e os outros são de uma linha.
+  // cartão o nome quebra quantas linhas precisar (`linhasDoNome`) e os outros são de uma linha. Na tabela o link do produto
+  // é o ícone no fim do campo do nome (`acao` do `Campo`, 27/11), só quando há link: sem coluna vazia nas linhas sem link.
   const CampoDaLinha = tabela ? CampoDaTabela : Campo;
   const campoNome = tabela ? (
     <CampoDaTabela rotulo="Nome" rotuloAcessivel={`Nome do suplemento ${n}`} valor={s.nome} maxLength={L.campoCurto} autoFocus={focar}
-      placeholder="Ex.: Creatina" aoMudar={(nome) => aoMudar({ nome })} />
+      placeholder="Ex.: Creatina" acao={abrirProduto ?? undefined} aoMudar={(nome) => aoMudar({ nome })} />
   ) : (
     <View onLayout={(e) => setLarguraDoNome(e.nativeEvent.layout.width)}>
       <Campo rotulo="Nome" rotuloAcessivel={`Nome do suplemento ${n}`} valor={s.nome} linhas={linhasDoNome(s.nome, larguraDoNome, fatorTexto)}
@@ -158,10 +163,6 @@ function LinhaDoSuplemento({ modo, item: s, posicao, total, porcao, aberto, foca
     <CampoDaLinha rotulo="Observação" rotuloAcessivel={`Observação do suplemento ${n}`} valor={s.observacao} maxLength={L.observacao}
       aoMudar={(observacao) => aoMudar({ observacao })} />
   );
-  const abrirProduto = link ? (
-    <IconeBotao Icone={ExternalLink} rotulo={`Abrir produto ${nome} (fora do app)`}
-      aoTocar={() => { void abrirLinkExterno(link).then((ok) => { if (!ok) avisar('Não foi possível abrir o link.', 'perigo'); }); }} />
-  ) : null;
   // Embaixo do nome: o cupom (vem da biblioteca; tirar fica no ⋯), o link que a API recusaria e o nome que falta; a dose
   // que falta fica embaixo da dose.
   const seloDaFalta = (qual: string) => (falta === qual ? <View style={estilos.selo}><Selo texto={falta} tipo="atencao" /></View> : null);
@@ -182,11 +183,7 @@ function LinhaDoSuplemento({ modo, item: s, posicao, total, porcao, aberto, foca
         <View style={estilos.linhaDaTabela}>
           <View style={[estilos.colunaDaAlca, estilos.noMeio]}>{alca}</View>
           <View style={[estilos.colunaDoNome, estilos.celula]}>
-            <View style={estilos.nomeComLink}>
-              <View style={estilos.cresce}>{campoNome}</View>
-              {/* O lugar do ícone existe também sem link: o campo do nome tem a mesma largura em todas as linhas. */}
-              <View style={estilos.lugarDoLink}>{abrirProduto}</View>
-            </View>
+            {campoNome}
             {sobreONome}
           </View>
           <View style={[estilos.colunaDaDose, estilos.celula]}>{campoDose}{seloDaFalta('Falta a dose')}</View>
@@ -260,9 +257,6 @@ const estilos = StyleSheet.create({
   colunaDasAcoes: { width: ALVO_TOQUE },
   celula: { gap: espaco(0.5) },
   noMeio: { minHeight: ALVO_TOQUE, justifyContent: 'center' },
-  nomeComLink: { flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
-  cresce: { flex: 1, minWidth: 0 },
-  lugarDoLink: { width: ALVO_TOQUE },
   selo: { flexDirection: 'row' },
   linhaDoCartao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   botaoDoCartao: { flex: 1, minWidth: 0, minHeight: ALVO_TOQUE, justifyContent: 'center', borderRadius: 8 },

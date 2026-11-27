@@ -43,6 +43,8 @@ import java.util.UUID;
 @Service
 public class ConfiguracaoInscricaoService {
 
+    /** Id da pergunta de texto "Outro" da ficha rápida: o plano escolhido na lista a descarta ({@code InscricaoService}). */
+    static final String PERGUNTA_PLANO_COMBINADO = "plano_combinado";
     private static final int NOME_MAXIMO = 120;
     private static final int FORMATO_QUESTIONARIO = 2;
 
@@ -83,7 +85,7 @@ public class ConfiguracaoInscricaoService {
         String nome = nomeDisponivel(nomeBase);
         ConteudoQuestionario conteudo = new ConteudoQuestionario(FORMATO_QUESTIONARIO, List.of(), List.of(
                 new Secao("plano_combinado_secao", "Plano combinado", List.of(
-                        new Pergunta("plano_combinado", TipoPergunta.TEXTO, "Qual plano combinou?", false,
+                        new Pergunta(PERGUNTA_PLANO_COMBINADO, TipoPergunta.TEXTO, "Qual plano combinou?", false,
                                 null, null, null, null, null, null, null, null, null, null)))));
         String conteudoJson = json.writeValueAsString(conteudo);
         Questionario novo = new Questionario(nome, null, conteudoJson, Finalidade.INSCRICAO);
@@ -126,6 +128,7 @@ public class ConfiguracaoInscricaoService {
         q.setPublicoAberto(r.aberta());
         q.setResponsavelPadraoId(responsaveis.exigirValido(r.responsavelId()));
         q.setTextoApresentacao(Buscas.opcional(r.texto()));
+        if (r.mostrarPrecoDosPlanos() != null) q.setMostrarPrecoDosPlanos(r.mostrarPrecoDosPlanos());
         if (r.aberta() && q.getCodigoPublico() == null) {
             q.setCodigoPublico(CodigoDeInscricao.novo());
         }
@@ -185,7 +188,7 @@ public class ConfiguracaoInscricaoService {
         String codigo = inscricao ? q.getCodigoPublico() : null;
         return new ConfiguracaoResponse(q.isLinkPublicoAberto(), codigo, codigo == null ? null : appUrl + "/inscricao/" + codigo,
                 q.getResponsavelPadraoId(), q.getTextoApresentacao(), List.copyOf(CampoDaInscricao.ler(q.getCamposOcultos())),
-                q.getLinkVersao());
+                q.getLinkVersao(), q.isMostrarPrecoDosPlanos());
     }
 
     private LinkDeInscricaoResponse linkResponse(Questionario q) {
@@ -193,7 +196,7 @@ public class ConfiguracaoInscricaoService {
         return new LinkDeInscricaoResponse(q.getId(), q.getNome(), q.isPadrao(), q.isLinkPublicoAberto(), codigo,
                 codigo == null ? null : appUrl + "/inscricao/" + codigo, q.getResponsavelPadraoId(),
                 q.getProximoQuestionarioId(), q.getTextoApresentacao(),
-                List.copyOf(CampoDaInscricao.ler(q.getCamposOcultos())), q.getLinkVersao());
+                List.copyOf(CampoDaInscricao.ler(q.getCamposOcultos())), q.getLinkVersao(), q.isMostrarPrecoDosPlanos());
     }
 
     private String nomeDisponivel(String base) {

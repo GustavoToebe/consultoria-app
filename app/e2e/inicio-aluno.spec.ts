@@ -5,8 +5,9 @@ import { ALUNO, erroApi, sessao, simularApi, type RespostasApi } from './api-fal
 import { dietaFalsa, fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, SESSOES_COM_DIAS } from './aluno';
 
 /**
- * Início do aluno: Hoje → Dieta compacta → Água de hoje (com meta na dieta) → Suas pendências → Sua semana, em qualquer largura (o Hoje
- * primeiro desde 24/11). As divisões ficam na aba Treino.
+ * Início do aluno: Hoje → Dieta (compacta no celular; "Dieta de hoje" com as refeições no computador) → Água de hoje (com meta na
+ * dieta) → Suas pendências → Sua semana (o Hoje primeiro desde 24/11). As divisões ficam na aba Treino. O arranjo do computador
+ * em detalhe está em `aluno-layout-inicio.spec.ts`.
  * O relógio fica em segunda-feira, 19/10/2026 (o treino de hoje é o A).
  */
 
@@ -82,11 +83,16 @@ async function topo(page: Page, nome: string | RegExp, papel: 'heading' | 'link'
   return caixa!.y;
 }
 
+/** A linha da divisão na aba Treino: link que abre o dia no celular, botão que escolhe a divisão no computador (27/11). */
+const divisao = (page: Page, nome: RegExp) => page.getByRole('link', { name: nome }).or(page.getByRole('button', { name: nome }));
+
 /** Caixas do Hoje, do Dieta, da Água de hoje, das pendências e do Sua semana, nessa ordem. */
 async function ordemDoInicio(page: Page) {
   const caixa = async (nome: string | RegExp, papel: 'heading' | 'link') => (await page.getByRole(papel, { name: nome }).first().boundingBox())!;
+  // Dieta: a linha compacta no celular e no tablet; no computador, o título da "Dieta de hoje" (27/11).
+  const dieta = page.getByRole('link', { name: /^Dieta,/ }).or(page.getByRole('heading', { name: 'Dieta de hoje', exact: true })).first();
   return [
-    await caixa(/^Hoje$/, 'heading'), await caixa(/^Dieta,/, 'link'), await caixa('Água de hoje', 'heading'),
+    await caixa(/^Hoje$/, 'heading'), (await dieta.boundingBox())!, await caixa('Água de hoje', 'heading'),
     await caixa('Suas pendências', 'heading'), await caixa('Sua semana', 'heading'),
   ];
 }
@@ -100,12 +106,12 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Hoje → 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Olá, Aluno.');
   await expect(page.getByText('Segunda-feira · 19 de outubro')).toBeVisible();
 
-  // Dieta compacta: refeições e "Ver dieta", sem a água (ela fica só no cartão "Água de hoje").
-  const dieta = page.getByRole('link', { name: /^Dieta,/ });
-  await expect(dieta).toContainText('6 refeições no seu plano');
-  await expect(dieta).toContainText('Ver dieta');
-  await expect(dieta).not.toContainText('Água do dia');
-  await expect(dieta).not.toContainText('3,0 L');
+  // No computador (27/11) a "Dieta de hoje" lista as refeições do dia e tem "Ver dieta", sem a água (ela fica só no
+  // cartão "Água de hoje"). A linha compacta do celular está no teste de 390 abaixo.
+  const refeicoes = page.getByRole('list', { name: 'Refeições de hoje' });
+  await expect(refeicoes.getByRole('listitem')).toHaveCount(6);
+  await expect(page.getByRole('button', { name: 'Ver dieta' })).toBeVisible();
+  await expect(refeicoes).not.toContainText('3,0 L');
 
   // Hoje: rótulo, nome, contagem, o botão primário e a nota.
   await expect(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true })).toBeVisible();
@@ -123,8 +129,8 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Hoje → 
   // As divisões saíram do resumo.
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toHaveCount(0);
 
-  // No PC (1280, área de 952 em diante; 26/11, `inicioLargoDoAluno`): Hoje → Dieta à esquerda e, ao lado, na coluna de apoio,
-  // pendências → Água, com as pendências na altura do Hoje; a Sua semana embaixo das duas, na borda do Hoje.
+  // No PC (1280, área lado a lado de 972 em diante; 27/11, `arranjoDoInicioLargo`): Hoje → Dieta à esquerda e, ao lado, na
+  // coluna de apoio, pendências → Água, com as pendências na altura do Hoje; Sua semana desce na pilha, sob a Dieta.
   const [hoje, cartaoDieta, agua, pendencias, semana] = await ordemDoInicio(page);
   expect(hoje.y).toBeLessThan(cartaoDieta.y);
   expect(Math.abs(cartaoDieta.x - hoje.x)).toBeLessThan(2);
@@ -132,15 +138,15 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Hoje → 
   expect(Math.abs(pendencias.y - hoje.y)).toBeLessThan(4);
   expect(Math.abs(agua.x - pendencias.x)).toBeLessThan(24);
   expect(agua.y).toBeGreaterThan(pendencias.y);
-  expect(semana.y).toBeGreaterThan(Math.max(cartaoDieta.y, agua.y));
-  expect(Math.abs(semana.x - hoje.x)).toBeLessThan(24);
+  expect(semana.y).toBeGreaterThan(cartaoDieta.y);
+  expect(semana.x).toBeLessThan(pendencias.x - 300);
 
   await page.getByRole('link', { name: 'Treino', exact: true }).click();
   await expect(page).toHaveURL(/\/aluno\/treino$/);
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Divisão A, Peito e tríceps, Segunda · 5 exercícios, hoje/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Divisão B, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Divisão C, Pernas, Sexta · 6 exercícios$/ })).toBeVisible();
+  await expect(divisao(page, /^Divisão A, Peito e tríceps, Segunda · 5 exercícios, hoje/)).toBeVisible();
+  await expect(divisao(page, /^Divisão B, Costas e bíceps, Quarta · 4 exercícios$/)).toBeVisible();
+  await expect(divisao(page, /^Divisão C, Pernas, Sexta · 6 exercícios$/)).toBeVisible();
 
   expect(errosDaPagina).toEqual([]);
 });
@@ -183,6 +189,9 @@ test('N3: treino de hoje concluído: o cartão diz "Treino concluído · …" e 
 });
 
 test('a divisão de outro dia abre a próxima vez dela e a tela do dia deixa escolher outra data', async ({ page }) => {
+  // No celular a linha da divisão é o link do dia; no computador ela só escolhe a divisão (e "Começar treino" abre o
+  // exercício), coberto em `aluno-layout-treino.spec.ts`.
+  await page.setViewportSize({ width: 390, height: 844 });
   await abrirInicio(page);
   await page.getByRole('link', { name: 'Treino', exact: true }).click();
   await page.getByRole('link', { name: /^Divisão B,/ }).click();
@@ -220,6 +229,7 @@ test('no celular (390 px) o botão "Ver meu treino" aparece na primeira tela, co
 });
 
 test('sem água na dieta, o cartão da dieta continua igual (a água nunca aparece nele)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await abrirInicio(page, { dieta: dietaFalsa(4, null) });
   const dieta = page.getByRole('link', { name: /^Dieta,/ });
   await expect(dieta).toContainText('4 refeições no seu plano');
@@ -245,7 +255,7 @@ test('dia de descanso: "Hoje é dia de descanso." e nenhum botão de treino', as
   await expect(page.getByRole('button', { name: /^Ver meu treino/ })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Treino', exact: true }).click();
-  await expect(page.getByRole('link', { name: /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
+  await expect(divisao(page, /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/)).toBeVisible();
 });
 
 for (const [largura, tema] of [[390, 'CLARO'], [1280, 'CLARO'], [390, 'ESCURO'], [1280, 'ESCURO']] as const) {
@@ -264,7 +274,7 @@ for (const [largura, tema] of [[390, 'CLARO'], [1280, 'CLARO'], [390, 'ESCURO'],
     await page.screenshot({ path: test.info().outputPath(`descanso-${largura}-${tema.toLowerCase()}.png`) });
     await link.click();
     await expect(page).toHaveURL(/\/aluno\/treino$/);
-    await expect(page.getByRole('link', { name: /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
+    await expect(divisao(page, /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/)).toBeVisible();
   });
 }
 
@@ -288,7 +298,10 @@ for (const largura of [390, 1280]) {
     await page.goto('/aluno/sessao/sa?data=2026-10-19');
     const comecar = page.getByRole('button', { name: 'Começar treino', exact: true });
     await expect(comecar).toBeVisible();
-    const caixa = (await comecar.boundingBox())!;
+    // No computador o primeiro desenho é o do celular até a área se medir: a caixa some por um instante na troca de arranjo.
+    let medida: Awaited<ReturnType<typeof comecar.boundingBox>> = null;
+    await expect.poll(async () => (medida = await comecar.boundingBox()) !== null).toBe(true);
+    const caixa = medida!;
     // Sem rolar: o botão inteiro acima da barra inferior do aluno (no celular) ou da borda da janela (menu lateral, desde 768 px).
     const barra = (await page.getByRole('link', { name: 'Início', exact: true }).boundingBox())!;
     expect(caixa.y + caixa.height).toBeLessThanOrEqual(largura < 768 ? barra.y : 844);

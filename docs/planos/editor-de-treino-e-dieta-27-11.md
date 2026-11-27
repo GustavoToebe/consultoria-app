@@ -1,0 +1,38 @@
+# Ajustes do editor de treino e da dieta (27/11)
+
+Situação: Em execução · Onde: main (sem commit nesta frente até 27/11) · Atualizado: 27/11/2026
+
+## Objetivo
+Ajustar o editor de treino (folha "Usar receita", série aberta, fim da lista de séries, folha "Escolher exercício") e o
+editor de dieta (observação recolhível e Complementos na tela larga com prévia), pedidos do Gustavo em 27/11. O treinador
+monta a série e a dieta com menos cliques e vê o resultado antes de salvar.
+
+## Decisões
+| # | Decisão | Valor | Quem decidiu |
+| --- | --- | --- | --- |
+| D1 | "Usar receita" sem aba "Minhas": falta campo de origem na API para separar receitas do treinador | adiado | Gustavo (pedido 23) e sessão (contrato) |
+| D2 | Folha "Escolher exercício" igual à Biblioteca › Exercícios (mesma linha, mesmos filtros, grupo com seleção múltipla) | decidido no pedido | Gustavo (pedido 25, item 9) |
+| D3 | Cluster: "Mais um bloco" e "Menos um bloco" atualizam na hora os campos, o resumo e o texto "5×5" | defeito a corrigir | Gustavo (pedido 25, item 7) |
+| D4 | Contagem de séries no cabeçalho ("5 séries em 4 linhas"), sem a palavra "blocos" | decidido no pedido | Gustavo (pedido 26, item 10) |
+
+## Passos
+- [x] U1. Folha "Usar receita" mais larga, em duas partes (lista + prévia fixa), rodapé com "Substituir" e "Acrescentar", toast com Desfazer, 390 px em lista e prévia (pedido 23) — estado: pronto, sem commit · responsável previsto: executor-front · arquivos: `app/src/treinador/treino/FolhaUsarReceita.tsx`, `app/src/treinador/treino/PreviaDaReceita.tsx`, `app/src/dominio/listaDeReceitas.ts`, `app/src/dominio/receitasDeSeries.ts` · aceite: spec de receitas verde e capturas 1920 e 390, claro e escuro · evidências: `app/e2e/usar-receita-folha.spec.ts`, `app/e2e/receita-ao-criar-plano.spec.ts`; capturas `capturas/27-11-usar-receita/` (17 arquivos, 1024, 1280, 1920 e 390, claro e escuro).
+- [ ] U2. Série aberta, ajustes 1 a 8 do pedido 25 (Tipo e Técnica como selects, séries "Digite ou escolha", repetições em faixa/exata/AMRAP com largura fixa, descanso com o mesmo campo, carga e RIR em linhas por série, observação em ~72ch e "Para o aluno" como prévia, seções "Nome de exibição e instruções" e "Alternativas de troca" recolhíveis) — estado: em execução (27/11) · responsável previsto: executor-front · arquivos: `app/src/aluno/LinhaDaSerie.tsx` (lado do aluno, prévia), `app/src/dominio/camposDaSerie.ts` e `app/src/dominio/camposDaSerie.test.ts` (regra pura, em andamento) · aceite: capturas 1280 e 1920 claro e escuro (séries Faixa, Exata, AMRAP; cluster antes e depois de adicionar bloco) · evidências: `app/e2e/editor-series.spec.ts`, `app/e2e/series-metodologia.spec.ts`, `app/e2e/cor-das-series.spec.ts`; captura de série 27-11 ainda não existe em `capturas/`.
+- [ ] U3. Cluster: defeito de "Mais um bloco" e "Menos um bloco" (atualizar na hora, bloco novo editável e focado), linha de blocos com − e + e campo "Digitar como texto" (pedido 25, item 7) — estado: em execução (27/11) · responsável previsto: executor (defeito) e executor-front (layout) · aceite: teste unitário e e2e de adicionar, remover e editar bloco; "Pausa entre blocos" na mesma linha; Descanso visível também no cluster · evidências: nenhuma spec 27-11 específica identificada; cobertura atual em `app/e2e/editor-series.spec.ts`.
+- [ ] U4. Fim da lista de séries (pedido 26): "+ Nova série" como última linha tracejada, resumo "SÉRIES · 5 no total" no cabeçalho, "Usar receita de séries" (acao) e "Salvar como receita" (secundário) no cabeçalho da seção, sai o espaço vazio · estado: em execução (27/11) · responsável previsto: executor-front · aceite: capturas 1280 e 1920 com a lista de séries e o cabeçalho · evidências: nenhuma captura 27-11 de cabeçalho de séries em `capturas/`.
+- [ ] U5. Folha "Escolher exercício" (Trocar e Adicionar) igual à Biblioteca › Exercícios: linhas com divisória, legenda das modalidades, filtros Grupo muscular (múltiplo, com contagem), Modalidade, Vídeo e Imagem, "Limpar filtros", "Mostrar N exercícios", "+ Usar 'texto' como exercício manual" (pedido 25, item 9) — estado: em execução (27/11) · responsável previsto: executor-front · arquivos: componente de escolha de exercício do editor (em `app/src/treinador/treino/`) e a regra de filtros compartilhada com a Biblioteca · aceite: e2e da folha em 1280 e 390 · evidências: `app/e2e/folha-escolher-exercicio.spec.ts`; captura `capturas/27-11-escolher-exercicio/base-biblioteca-1280-escuro.png` (só a Biblioteca; a folha ainda não tem captura).
+- [ ] U6. Relatório dos grupos musculares parecidos nos dados (ex.: "Abdômen" × "Abdômen / Core", "Panturrilha" × "Panturrilhas", "Posterior" × "Posterior de Coxa"), com a contagem de cada um; sem alterar dados de cliente (pedido 25, item 9) — estado: a fazer · responsável previsto: explorador (somente leitura) · evidências: a relatar no retorno da frente.
+- [ ] U7. Editor de dieta: "Observação e modo de preparo" recolhível com a peça `ui/SecaoRecolhivel` (pedido da sessão, não do arquivo de pedidos) — estado: em execução (27/11) · responsável previsto: executor-front · evidências: a peça aparece em `app/src/ajuda/TelaAjuda.tsx` e `app/src/aluno/OrientacoesDoTreinador.tsx`; spec ainda a criar para o editor.
+- [ ] U8. Complementos do editor de dieta na tela ultralarga com prévia: Orientações 40/60, Observações 50/50 e ícone de link dentro do campo do nome na Suplementação (pedido da sessão) — estado: em execução (27/11) · responsável previsto: executor-front · arquivos: `app/src/treinador/dieta/ComplementosDaDieta.tsx`, `app/src/treinador/dieta/colunasDosComplementos.ts`, `app/src/dominio/complementosDaDieta.ts` · evidências: `app/e2e/complementos-orientacoes-e-suplementos.spec.ts`, `app/e2e/aluno-dieta-complementos.spec.ts`; sem captura 27-11 de complementos em `capturas/`.
+
+Capturas: `capturas/27-11-usar-receita/`, `capturas/27-11-escolher-exercicio/`, `capturas/27-11-aluno-dieta/` (só a dieta do aluno, não o editor).
+
+## Fora do escopo
+- Aba "Minhas" em "Usar receita": depende de campo de origem na API; fica para depois do contrato.
+- Dados de cliente e grupos musculares: nada é alterado; só se relata.
+
+## Pendências de fonte
+- Os pedidos 32 e 33 não estão no arquivo de pedidos lido (`pedidos-do-gustavo.txt`, que termina no pedido 31). A descrição de U7 e U8 veio do briefing da sessão, não de um pedido numerado.
+
+## O que ficou para trás
+- (preencher na entrega)

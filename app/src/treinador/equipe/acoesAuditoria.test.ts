@@ -78,6 +78,10 @@ test('ações do acesso do aluno ao app têm rótulo no filtro da auditoria', ()
   for (const acao of ['ALUNO_EMAIL_DE_ACESSO_ALTERADO', 'ALUNO_ACESSO_DESATIVADO', 'ALUNO_ACESSO_REATIVADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
 
+test('a verificação em duas etapas tem rótulo no filtro da auditoria (a API grava as três)', () => {
+  for (const acao of ['MFA_PREPARADO', 'MFA_ATIVADO', 'MFA_DESATIVADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});
+
 test('ações do contrato digital têm rótulo no filtro da auditoria', () => {
   for (const acao of ['CONTRATO_MODELO_CRIADO', 'CONTRATO_MODELO_ALTERADO', 'CONTRATO_MODELO_ARQUIVADO', 'CONTRATO_GERADO', 'CONTRATO_LINK_GERADO', 'CONTRATO_ASSINADO', 'CONTRATO_CANCELADO', 'CONTRATO_PRAZO_PRORROGADO', 'CONTRATO_PRAZO_CONFIGURADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });

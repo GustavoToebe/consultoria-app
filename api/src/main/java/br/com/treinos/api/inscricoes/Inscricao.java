@@ -191,6 +191,13 @@ public class Inscricao {
     @Column(name = "indicado_por_aluno_id", updatable = false)
     private UUID indicadoPorAlunoId;
 
+    /**
+     * Plano comercial que a pessoa escolheu na página (V111), já conferido (ativo e da consultoria do link); nulo = não escolheu
+     * ou escreveu "Outro". Só na criação: apagar o plano zera a coluna pelo banco (SET NULL) e nenhuma gravação a restaura.
+     */
+    @Column(name = "plano_comercial_id", updatable = false)
+    private UUID planoComercialId;
+
     /** Coluna gerada no banco (nome sem acento, em minúsculas), lida pela busca. */
     @Column(name = "nome_busca", insertable = false, updatable = false)
     private String nomeBusca;
@@ -293,6 +300,10 @@ public class Inscricao {
     public UUID getIndicadoPorAlunoId() { return indicadoPorAlunoId; }
     /** Só antes de gravar a linha nova, com um aluno ativo da mesma consultoria já conferido. */
     void indicadaPor(UUID alunoId) { this.indicadoPorAlunoId = alunoId; }
+
+    public UUID getPlanoComercialId() { return planoComercialId; }
+    /** Só antes de gravar a linha nova, com um plano ativo da mesma consultoria já conferido. */
+    void escolherPlanoComercial(UUID planoId) { this.planoComercialId = planoId; }
 
     /** Só na criação, com o usuário já normalizado (ou nulo). */
     void informarInstagram(String instagram) {

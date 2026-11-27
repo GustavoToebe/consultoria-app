@@ -134,7 +134,7 @@ const TELAS: { nome: string; rota: string; pronta: (page: Page) => Promise<void>
   { nome: 'equipe-perfis', rota: '/treinador/equipe?aba=perfis', pronta: (p) => expect(p.getByRole('button', { name: 'Editar Estagiário' })).toBeVisible() },
   { nome: 'ajuda', rota: '/treinador/ajuda', pronta: (p) => expect(p.getByRole('heading', { name: 'Começar a usar', level: 2 })).toBeVisible() },
   { nome: 'ajustes', rota: '/treinador/ajustes', pronta: (p) => expect(p.getByRole('radiogroup', { name: 'Largura do conteúdo' })).toBeVisible() },
-  { nome: 'marca', rota: '/treinador/marca', pronta: (p) => expect(p.getByRole('heading', { name: 'Contato' })).toBeVisible() },
+  { nome: 'marca', rota: '/treinador/marca', pronta: (p) => expect(p.getByRole('heading', { name: 'Tema padrão' })).toBeVisible() },
   { nome: 'minha-conta-cadastro', rota: '/treinador/minha-conta?aba=cadastro', pronta: (p) => expect(p.getByRole('tab', { name: 'Cadastro' })).toBeVisible() },
   { nome: 'minha-conta-assinatura', rota: '/treinador/minha-conta?aba=assinatura', pronta: (p) => expect(p.getByRole('tab', { name: 'Assinatura' })).toBeVisible() },
   { nome: 'minha-conta-faturas', rota: '/treinador/minha-conta?aba=faturas', pronta: (p) => expect(p.getByRole('tab', { name: 'Faturas' })).toBeVisible() },
@@ -322,14 +322,14 @@ test('capturas da revisão (só com CAPTURAS_TELA_LARGA_GRUPO)', async ({ page }
         const pasta = path.join(base!, dados === POUCOS ? `${t.nome}-poucos` : t.nome, fase);
         fs.mkdirSync(pasta, { recursive: true });
         await page.screenshot({ path: path.join(pasta, `${largura}.png`) });
-        // Texto corrido da Ajuda (uma seção longa aberta) e o fim da Marca (Acompanhamento e Contato).
+        // Texto corrido da Ajuda (uma seção longa aberta) e o fim da Marca (Tema padrão e a prévia).
         const extra = dados === CHEIO && t.nome === 'ajuda'
           ? { nome: 'ajuda-secao-aberta', abrir: async () => {
             await page.getByRole('button', { name: 'Treino, dieta e mobilidade, recolhido' }).click();
             await page.getByRole('button', { name: 'Treino, dieta e mobilidade, aberto' }).scrollIntoViewIfNeeded();
           } }
           : dados === CHEIO && t.nome === 'marca'
-            ? { nome: 'marca-fim', abrir: () => page.getByRole('heading', { name: 'Contato' }).scrollIntoViewIfNeeded() }
+            ? { nome: 'marca-fim', abrir: () => page.getByRole('heading', { name: 'Tema padrão' }).scrollIntoViewIfNeeded() }
             : null;
         if (extra) {
           await extra.abrir();

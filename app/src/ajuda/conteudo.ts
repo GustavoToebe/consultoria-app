@@ -14,6 +14,9 @@ export function textoDoItem(texto: string, cicloHabilitado: boolean): string {
   return cicloHabilitado ? texto : texto.replace(` ${FRASE_DO_CICLO}`, '').replace(FRASE_DO_CICLO, '').trim();
 }
 
+/** Id da seção "Cardio e HIIT", alvo do "Saiba mais" do ⓘ do protocolo no editor do treino. */
+export const SECAO_CARDIO_E_HIIT = 'cardio-e-hiit';
+
 export type Publico = 'treinador' | 'aluno';
 
 export interface PassoGuia {
@@ -264,6 +267,7 @@ const TREINADOR: Guia = {
       titulo: 'Biblioteca',
       itens: [
         { titulo: 'Exercícios', texto: 'Na Biblioteca › Exercícios, Novo exercício pede o nome e a modalidade, escolhida numa lista fechada: Peso livre, Máquina, Elástico, Peso corporal, Cardio ou Outro. A modalidade aparece na lista da biblioteca e, para o aluno, junto do nome do exercício. Exercício da modalidade Cardio entra no treino do aluno como cardio; as outras só identificam o exercício e não mudam a carga nem a progressão. O botão Filtros escolhe um ou vários grupos musculares.' },
+        { titulo: 'Tipo de cardio e medidas', texto: 'Com a modalidade Cardio, o exercício não tem grupo muscular nem equipamento: no lugar deles ficam "Tipo de cardio (opcional)" (Esteira, Bike, Elíptico, Escada, Remo, Corrida ao ar livre, Natação ou Outro) e "Medidas que fazem sentido" (Distância e Ritmo, as duas marcadas no exercício novo). O editor do treino mostra só as medidas marcadas; duração e zona aparecem sempre, e um valor já escrito no treino nunca some. Desmarque o que não serve, como a distância numa escada. Salvar como Cardio tira o grupo muscular e o equipamento que o exercício tinha. Os protocolos do intervalado estão em Cardio e HIIT.' },
         { titulo: 'Equipamento do exercício', texto: 'No exercício da biblioteca, o campo "Equipamento (opcional)" (até 60 caracteres, texto livre, como "Barra" ou "Banco inclinado") diz o que o aluno vai usar. Ele é copiado para o treino quando você publica (mudou o equipamento, publique de novo; treino publicado antes não o tem). O aluno vê a lista na tela do dia, em "Equipamentos para hoje", sem repetir nomes. Exercício sem equipamento não aparece na lista, e sem nenhum a lista não aparece.' },
       ],
     },
@@ -298,6 +302,19 @@ const TREINADOR: Guia = {
         { titulo: 'Medicação e ergogênicos', texto: 'Na biblioteca ficam na aba Outros, agrupados pela categoria que você escreve (opcional, como "Injetáveis"). Na dieta, a aba Outros dos Complementos só aparece para quem tem a permissão. Da biblioteca vêm só nome, princípio ativo e concentração; dose, horário e prescrição são texto seu. O sistema não sugere, não calcula nem compara. Modelos de dieta nunca levam esta lista, e quem não tem a permissão não a vê nem a apaga ao salvar.' },
         { titulo: 'Modelos', texto: 'Salve um plano como modelo ou aplique um modelo ao aluno em Planejamento.' },
         { titulo: 'Copiar para outro aluno', texto: 'No plano, "Copiar para outro aluno" cria um rascunho novo para o aluno que você escolher, numa pasta que ele já tem ou numa pasta nova (que pede a permissão de alterar pastas). A cópia leva o conteúdo da última versão publicada, ou o rascunho atual se o plano nunca foi publicado. O plano de origem não muda, e a cópia só vale para o aluno depois que você revisar e publicar. Na dieta, medicação e ergogênicos nunca são copiados. Exige poder alterar o tipo de plano e ver alunos. Fica na auditoria, sem o conteúdo.' },
+      ],
+    },
+    {
+      // O "Saiba mais" do ⓘ do protocolo, no editor do treino, abre esta seção (`/treinador/ajuda?secao=cardio-e-hiit`).
+      id: SECAO_CARDIO_E_HIIT,
+      titulo: 'Cardio e HIIT',
+      itens: [
+        { titulo: 'Contínuo e intervalado', texto: 'Cada bloco de cardio é Contínuo (duração ou distância, ritmo e zona) ou Intervalado. No intervalado você escolhe um protocolo: ao escolher, o editor preenche os valores típicos dele, e você pode mudar qualquer um. Se o bloco sair da faixa do protocolo, aparece um aviso, como "Fora da faixa do SIT (estímulo de 20 a 30 s)"; o aviso não impede salvar nem publicar. O app não recomenda protocolo: as definições abaixo só dizem o que cada nome quer dizer.' },
+        { titulo: 'HIIT de intervalo curto', texto: 'Estímulos intensos de até 60 s com pausas curtas (≤ 60 s). Ao escolher, o editor preenche 10 × 30 s / 30 s, Zona 5, com 5 min de aquecimento e 5 min de desaquecimento. Faixa do aviso: estímulo e recuperação de até 60 s.' },
+        { titulo: 'HIIT de intervalo longo', texto: 'Estímulos vigorosos acima de 1 min (geralmente 1–4 min) com descansos acima de 60 s. Ao escolher, o editor preenche 5 × 3 min / 2 min, Zona 4, com 5 min de aquecimento e 5 min de desaquecimento. Faixa do aviso: estímulo e recuperação acima de 60 s.' },
+        { titulo: 'SIT (Sprint Interval Training)', texto: 'Tiros all-out de 20–30 s com descansos longos de 2–4 min para recuperação total. Ao escolher, o editor preenche 6 × 30 s / 3 min, esforço Máximo, com 4 min de aquecimento e 3 min de desaquecimento. Faixa do aviso: estímulo de 20 a 30 s, recuperação de 2 a 4 min e esforço Máximo.' },
+        { titulo: 'RST (Repeated Sprint Training)', texto: 'Tiros curtíssimos all-out de 3–10 s repetidos com intervalos curtos (< 60 s). Ao escolher, o editor preenche 10 × 6 s / 30 s, esforço Máximo, com 5 min de aquecimento e 5 min de desaquecimento. Faixa do aviso: estímulo de 3 a 10 s, recuperação abaixo de 60 s e esforço Máximo.' },
+        { titulo: 'Personalizado', texto: 'Intervalado do seu jeito, sem faixa de referência. Não preenche nada e nunca mostra o aviso de faixa.' },
       ],
     },
     {

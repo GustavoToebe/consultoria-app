@@ -31,7 +31,7 @@ export function linhasDoInicio(o: { retorno: boolean; duasColunas: boolean }): L
   return [[['hoje', 'dieta', 'pendencias'], ['agua', 'compromissos', 'vitrine']], [['semanaENivel']], [['mapa']]];
 }
 
-/** O arranjo largo vale da área de 952 em diante, a mesma em que a `PrincipalComApoio` abre lado a lado (apoio de 360). */
+/** O arranjo largo vale da área de 972 em diante, a mesma em que a `PrincipalComApoio` abre lado a lado (apoio de 380). */
 export const AREA_DO_INICIO_LARGO = AREA_MINIMA_LADO_A_LADO;
 export const inicioLargo = (largura: number) => largura >= AREA_DO_INICIO_LARGO;
 

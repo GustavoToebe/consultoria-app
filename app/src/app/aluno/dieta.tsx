@@ -16,7 +16,6 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Texto } from '../../ui/Texto';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 
 /**
@@ -27,16 +26,18 @@ export default function DietaAluno() {
   const { escolhida } = useAluno();
   const { dados, erro, carregando, recarregar } = useDietaDoAluno();
   // A água marcada é por dia, contra a meta da dieta em uso (a pasta escolhida para consulta não muda o registro).
-  const agua = dados?.dieta?.conteudo.aguaLitros ? <CartaoAguaDoDia metaLitros={dados.dieta.conteudo.aguaLitros} /> : null;
+  const meta = dados?.dieta?.conteudo.aguaLitros;
+  // No apoio do computador, "−1 copo" e "+1 copo" dividem a largura do cartão (como no Início); no celular, os de sempre.
+  const agua = (noApoio: boolean) => (meta ? <CartaoAguaDoDia metaLitros={meta} botoesCheios={noApoio} /> : null);
   // Com a dieta na tela, a água vai com ela (`lado`: no apoio ao lado das refeições, ou no topo no celular); sem dieta, fica aqui.
   const temDieta = escolhida ? !!escolhida.planos.dieta : !!dados?.dieta;
 
   return (
     <TelaDoAluno bordas={['top']}>
-      <Cabecalho titulo="Dieta" />
-      <Texto variante="suave">A dieta que o seu treinador publicou, só para consulta.</Texto>
+      {/* A explicação vai no ⓘ do cabeçalho, como nas telas do treinador (nunca texto solto abaixo do título). */}
+      <Cabecalho titulo="Dieta" descricao="A dieta que o seu treinador publicou, só para consulta." />
       <SeletorPlano rotulo={null} />
-      {temDieta ? null : agua}
+      {temDieta ? null : agua(false)}
       {escolhida ? (
         escolhida.planos.dieta ? (
           <Dieta versao={escolhida.planos.dieta} salva={false} aguaNoCartao={!!dados?.dieta?.conteudo.aguaLitros && dados.dieta.id === escolhida.planos.dieta.id}
@@ -59,7 +60,7 @@ export default function DietaAluno() {
 }
 
 /** A dieta do aluno com o PDF montado pelo pacote (marca e nome do aluno) e o peso dele, que só o servidor tem. */
-function Dieta({ versao, salva, aguaNoCartao, lado }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean; aguaNoCartao: boolean; lado: ReactNode }) {
+function Dieta({ versao, salva, aguaNoCartao, lado }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean; aguaNoCartao: boolean; lado: (noApoio: boolean) => ReactNode }) {
   const { pacote } = useAluno();
   const pdf = async (lista?: DadosPdfDieta['lista'], variacaoUid: string | null = null) => {
     if (!pacote) return;

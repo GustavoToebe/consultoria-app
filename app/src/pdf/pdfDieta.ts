@@ -15,6 +15,7 @@ import type { ValoresPdf } from '../dominio/configuracaoPdf';
 import { CINZA_DO_TEXTO_FRACO, FUNDO_LEVE } from './cssDosTemas';
 import { ajustesDoGerador } from './cssDosAjustes';
 import { cabecalhoDoPdf, coresDoPdf, cssBase, esc, escLinhas, type Documento } from './html';
+import { htmlFormatadoNoPdf } from './textoFormatadoNoPdf';
 
 export interface DadosPdfDieta {
   marca: Marca;
@@ -246,10 +247,10 @@ ${tabelaDoTotal(totalDoDia(c.refeicoes))}
     c.orientacoes.length || c.observacoes ? barra : '',
     c.orientacoes.length
       ? `<div class="bloco">${sec('Orientações e recomendações')}${c.orientacoes
-          .map((o) => `<div class="orient">${o.titulo ? `<strong>${esc(o.titulo)}:</strong> ` : ''}${escLinhas(o.texto)}</div>`)
+          .map((o) => `<div class="orient">${o.titulo ? `<strong>${esc(o.titulo)}:</strong> ` : ''}${htmlFormatadoNoPdf(o.texto)}</div>`)
           .join('')}</div>`
       : '',
-    c.observacoes ? `<div class="bloco"><strong>Observações e Diretrizes do Protocolo:</strong><div class="suave">${escLinhas(c.observacoes)}</div></div>` : '',
+    c.observacoes ? `<div class="bloco"><strong>Observações e Diretrizes do Protocolo:</strong><div class="suave">${htmlFormatadoNoPdf(c.observacoes)}</div></div>` : '',
     suplementos.length
       ? `${barra}<div class="bloco">${sec('Sugestão de suplementação')}<table class="dark"><thead><tr><th>Suplemento</th><th>Dose</th><th>Horário</th><th>Obs</th></tr></thead><tbody>${suplementos
           .map((s) => `<tr><td>${nomeDoSuplemento(s)}${s.cupom?.trim() ? ` · Cupom: ${esc(s.cupom.trim())}` : ''}</td><td>${esc(s.dose) || '—'}</td><td>${esc(s.horario) || '—'}</td><td>${esc(s.observacao) || '—'}</td></tr>`)

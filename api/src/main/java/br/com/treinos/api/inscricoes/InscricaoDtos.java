@@ -1,7 +1,7 @@
 package br.com.treinos.api.inscricoes;
 
 import br.com.treinos.api.alunos.dto.AlunoDtos.ConviteResponse;
-import br.com.treinos.api.consultoria.MarcaPublica;
+import br.com.treinos.api.consultoria.MarcaComRedes;
 import br.com.treinos.api.inscricoes.Crm.AcaoDaMensagem;
 import br.com.treinos.api.inscricoes.Crm.Interesse;
 import br.com.treinos.api.inscricoes.Crm.Modalidade;
@@ -39,15 +39,20 @@ public final class InscricaoDtos {
      * {@code textoVersao} identifica o texto mostrado (sha256): o envio devolve o mesmo valor, e o servidor recusa a
      * ciência de um texto que mudou enquanto a pessoa preenchia. Nulo sem texto. {@code campos}: os campos fixos que o
      * treinador não escondeu (nome, WhatsApp e ciência sempre aparecem e não estão na lista). {@code perguntas}: as do
-     * padrão de inscrição publicado, nulo sem padrão.
+     * padrão de inscrição publicado, nulo sem padrão. {@code planos}: os planos comerciais ativos (vazio = sem planos, a
+     * página usa só o texto de "Outro"); {@code mostrarPrecoDosPlanos}: o preço só vem preenchido com ela ligada.
      */
-    public record InscricaoPublica(MarcaPublica consultoria, String texto, String textoVersao, boolean aberta,
+    public record InscricaoPublica(MarcaComRedes consultoria, String texto, String textoVersao, boolean aberta,
                                    List<CampoDaInscricao> campos, PerguntasDaInscricao perguntas,
-                                   UUID questionarioId, String questionarioNome, String proximoQuestionarioCodigo) {
-        public InscricaoPublica(MarcaPublica consultoria, String texto, String textoVersao, boolean aberta,
-                               List<CampoDaInscricao> campos, PerguntasDaInscricao perguntas) {
-            this(consultoria, texto, textoVersao, aberta, campos, perguntas, null, null, null);
-        }
+                                   UUID questionarioId, String questionarioNome, String proximoQuestionarioCodigo,
+                                   List<PlanoDaPagina> planos, boolean mostrarPrecoDosPlanos) {
+    }
+
+    /**
+     * Plano comercial ativo oferecido na página pública: só o necessário para escolher. {@code valorCentavos} é nulo quando
+     * a consultoria não liga "Mostrar o preço dos planos" no link (nunca o valor). Nada interno do plano sai daqui.
+     */
+    public record PlanoDaPagina(UUID id, String nome, Periodicidade periodicidade, Long valorCentavos) {
     }
 
     /**
@@ -91,14 +96,20 @@ public final class InscricaoDtos {
              */
             @Size(max = 64) String codigoIndicacao,
             /** Instagram (campo fixo, opcional): usuário, {@code @usuario} ou link do perfil; a API guarda só o usuário. Dado pessoal. */
-            @Size(max = 200) String instagram) {
+            @Size(max = 200) String instagram,
+            /**
+             * Plano comercial escolhido na página (opcional). Tem de ser um plano ATIVO da consultoria do link, senão 422
+             * {@code INSCRICAO_INVALIDA} no campo, com mensagem fixa. Vale mais que o texto de "Outro" ({@code plano_combinado} nas
+             * respostas): com o id, o texto é descartado.
+             */
+            UUID planoComercialId) {
         public InscricaoPublicaRequest(String nome, String whatsapp, String email, String objetivo,
                                        Boolean cienciaPrivacidade, String textoVersao, String turnstileToken,
                                        String sexo, Interesse interesse, ModalidadeDesejada modalidade,
                                        PrevisaoInicio previsaoInicio, OrigemInformada origem, String origemLink,
                                        UUID questionarioVersaoId, JsonNode respostas) {
             this(nome, whatsapp, email, objetivo, cienciaPrivacidade, textoVersao, turnstileToken, sexo, interesse,
-                    modalidade, previsaoInicio, origem, origemLink, questionarioVersaoId, respostas, null, null, null);
+                    modalidade, previsaoInicio, origem, origemLink, questionarioVersaoId, respostas, null, null, null, null);
         }
 
         /** Nada do pedido vai a log: nem o código de indicação (identifica um aluno) nem os dados da pessoa. */
@@ -122,16 +133,19 @@ public final class InscricaoDtos {
      * escondidos da página.
      */
     public record ConfiguracaoResponse(boolean aberta, String codigo, String link, UUID responsavelId, String texto,
-                                       List<CampoDaInscricao> camposOcultos, Long versao) {
+                                       List<CampoDaInscricao> camposOcultos, Long versao, boolean mostrarPrecoDosPlanos) {
     }
 
     /** Campos fixos escondidos da página, sempre a lista inteira; {@code versao} nula só quando ainda não há configuração. */
     public record CamposOcultosRequest(@NotNull @Size(max = 7) List<@NotNull CampoDaInscricao> camposOcultos, Long versao) {
     }
 
-    /** {@code versao} nula só quando ainda não há configuração; {@code responsavelId} nulo = sem responsável. */
+    /**
+     * {@code versao} nula só quando ainda não há configuração; {@code responsavelId} nulo = sem responsável.
+     * {@code mostrarPrecoDosPlanos} ausente = mantém o valor gravado (um cliente que não conhece a opção não a desliga sem querer).
+     */
     public record ConfiguracaoRequest(@NotNull Boolean aberta, UUID responsavelId, @Size(max = 2000) String texto,
-                                      Long versao) {
+                                      Long versao, Boolean mostrarPrecoDosPlanos) {
     }
 
     public record NovoLinkRequest(Long versao) {
@@ -140,7 +154,8 @@ public final class InscricaoDtos {
     /** Link público de um formulário de inscrição da consultoria (padrão ou secundário, ex.: ficha rápida). */
     public record LinkDeInscricaoResponse(UUID id, String nome, boolean padrao, boolean aberta, String codigo,
                                           String link, UUID responsavelId, UUID proximoQuestionarioId, String texto,
-                                          List<CampoDaInscricao> camposOcultos, Long versao) {
+                                          List<CampoDaInscricao> camposOcultos, Long versao,
+                                          boolean mostrarPrecoDosPlanos) {
     }
 
     public record CriarFichaRapidaRequest(@Size(max = 120) String nome) {
@@ -167,27 +182,9 @@ public final class InscricaoDtos {
                                   int ciclo, Origem origem, String propostaPlanoNome, ProximoRetorno proximoRetorno,
                                   Long versao, Duplicidade duplicidade,
                                   UUID questionarioId, String questionarioNome, String indicadoPor,
-                                  boolean aceitaSemCobranca) {
-        public InscricaoResumo(UUID id, String nome, String objetivo, String whatsapp, String email,
-                              SituacaoInscricao situacao, PagamentoInscricao pagamento, UUID responsavelId,
-                              String responsavelNome, UUID alunoId, Instant criadaEm, Instant ultimaAtividadeEm,
-                              int ciclo, Origem origem, String propostaPlanoNome, ProximoRetorno proximoRetorno,
-                              Long versao, Duplicidade duplicidade,
-                              UUID questionarioId, String questionarioNome, String indicadoPor) {
-            this(id, nome, objetivo, whatsapp, email, situacao, pagamento, responsavelId, responsavelNome, alunoId,
-                    criadaEm, ultimaAtividadeEm, ciclo, origem, propostaPlanoNome, proximoRetorno, versao, duplicidade,
-                    questionarioId, questionarioNome, indicadoPor, false);
-        }
-
-        public InscricaoResumo(UUID id, String nome, String objetivo, String whatsapp, String email,
-                              SituacaoInscricao situacao, PagamentoInscricao pagamento, UUID responsavelId,
-                              String responsavelNome, UUID alunoId, Instant criadaEm, Instant ultimaAtividadeEm,
-                              int ciclo, Origem origem, String propostaPlanoNome, ProximoRetorno proximoRetorno,
-                              Long versao, Duplicidade duplicidade) {
-            this(id, nome, objetivo, whatsapp, email, situacao, pagamento, responsavelId, responsavelNome, alunoId,
-                    criadaEm, ultimaAtividadeEm, ciclo, origem, propostaPlanoNome, proximoRetorno, versao, duplicidade,
-                    null, null, null, false);
-        }
+                                  boolean aceitaSemCobranca,
+                                  /** Plano comercial que a pessoa escolheu na página; o nome é resolvido na hora (nulo se o plano foi apagado). */
+                                  UUID planoComercialId, String planoComercialNome) {
     }
 
     /** Contagens no escopo dos filtros (sem a situação). */
@@ -241,26 +238,9 @@ public final class InscricaoDtos {
                                    String indicadoPorAluno,
                                    /** Só o usuário (sem @), nulo sem Instagram. */
                                    String instagram,
-                                   boolean aceitaSemCobranca) {
-        public InscricaoDetalhe(UUID id, String nome, String whatsapp, String email, String objetivo,
-                               String observacao, String sexo, Interesse interesse,
-                               ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
-                               OrigemInformada origemInformada, String origemLink, Origem origem,
-                               Instant cienciaEm, String cienciaTexto, SituacaoInscricao situacao, int ciclo,
-                               MotivoEncerramento motivoEncerramento, String motivoDetalhe, Instant encerradaEm,
-                               String encerradaPorNome, PagamentoInscricao pagamento,
-                               String pagamentoConfirmadoPorNome, Instant pagamentoConfirmadoEm,
-                               UUID responsavelId, String responsavelNome, UUID alunoId, Instant aceitaEm,
-                               Relacionada relacionadaA, Proposta proposta, Instant criadaEm, Instant atualizadaEm,
-                               Instant ultimaAtividadeEm, Long versao, Duplicidade duplicidade, List<Nota> notas,
-                               List<Retorno> retornos, List<Evento> eventos, RespostasDaInscricao respostas) {
-            this(id, nome, whatsapp, email, objetivo, observacao, sexo, interesse, modalidadeDesejada, previsaoInicio,
-                    origemInformada, origemLink, origem, cienciaEm, cienciaTexto, situacao, ciclo, motivoEncerramento,
-                    motivoDetalhe, encerradaEm, encerradaPorNome, pagamento, pagamentoConfirmadoPorNome,
-                    pagamentoConfirmadoEm, responsavelId, responsavelNome, alunoId, aceitaEm, relacionadaA, proposta,
-                    criadaEm, atualizadaEm, ultimaAtividadeEm, versao, duplicidade, notas, retornos, eventos, respostas,
-                    null, null, null, null, null, false);
-        }
+                                   boolean aceitaSemCobranca,
+                                   /** Plano comercial que a pessoa escolheu na página; o nome é resolvido na hora (nulo se o plano foi apagado). */
+                                   UUID planoComercialId, String planoComercialNome) {
     }
 
     /**
@@ -407,9 +387,8 @@ public final class InscricaoDtos {
      * anamnese pendente enviada ao aluno, nulo quando o aceite não pediu anamnese.
      */
     public record AceiteResponse(UUID id, UUID alunoId, ConviteResponse convite, UUID anamneseId,
-                                 boolean aceitaSemCobranca) {
-        public AceiteResponse(UUID id, UUID alunoId, ConviteResponse convite, UUID anamneseId) {
-            this(id, alunoId, convite, anamneseId, false);
-        }
+                                 boolean aceitaSemCobranca,
+                                 /** Plano comercial que a pessoa escolheu na página (para a equipe preencher "Gerar cobrança"); o nome é resolvido na hora. */
+                                 UUID planoComercialId, String planoComercialNome) {
     }
 }

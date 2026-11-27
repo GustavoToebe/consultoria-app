@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
@@ -7,6 +7,7 @@ import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MAXIMA, type FaixaDeLargura } from '../tema/tokens';
 import { useFundoDaArea } from './fundoDaArea';
 import { RolagemComTopo } from './RolagemComTopo';
+import { AreaDaTelaContexto } from './useAreaDaTela';
 import { useFaixaDeLargura } from './useFaixaDeLargura';
 
 interface Props {
@@ -22,14 +23,12 @@ interface Props {
   folga?: number;
 }
 
-const FaixaDaTela = createContext<FaixaDeLargura>('compacta');
-
 /**
  * A faixa da área de conteúdo como a `Tela` a mede (o que sobra ao lado do menu, antes do recuo lateral): a régua de 4.10
  * para quem decide o layout dentro da tela. Medir por dentro do recuo nunca chegaria à `ultralarga` em 2560 px (o recuo
- * de 48 px tira 96). Fora de uma `Tela`, `compacta`.
+ * de 48 px tira 96). Fora de uma `Tela`, `compacta`. Com a largura útil junto: `useAreaDaTela`.
  */
-export const useFaixaDaTela = () => useContext(FaixaDaTela);
+export const useFaixaDaTela = (): FaixaDeLargura => useContext(AreaDaTelaContexto).faixa;
 
 /**
  * Base de toda tela: SafeAreaView do react-native-safe-area-context (o do react-native está obsoleto e quebrou o
@@ -41,6 +40,7 @@ export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas 
   const fundo = useFundoDaArea();
   const { preferencias } = useTema();
   const { faixa, aoMedir } = useFaixaDeLargura();
+  const util = useFaixaDeLargura();
   const larguraUtil = larguraMaximaDoConteudo(largura, preferencias.larguraConteudo);
   const lateral = respiroLateralDaTela(faixa, folga);
   const preenchimento =
@@ -48,8 +48,8 @@ export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas 
       ? undefined
       : { ...(folga !== undefined ? { padding: folga } : null), ...(lateral !== undefined ? { paddingHorizontal: lateral } : null) };
   const conteudo = (
-    <View style={[estilos.conteudo, larguraUtil === undefined ? null : { maxWidth: larguraUtil }, !rolar && { flex: 1, minHeight: 0 }]}>
-      <FaixaDaTela.Provider value={faixa}>{children}</FaixaDaTela.Provider>
+    <View onLayout={util.aoMedir} style={[estilos.conteudo, larguraUtil === undefined ? null : { maxWidth: larguraUtil }, !rolar && { flex: 1, minHeight: 0 }]}>
+      <AreaDaTelaContexto.Provider value={{ faixa, largura: util.largura }}>{children}</AreaDaTelaContexto.Provider>
     </View>
   );
   return (

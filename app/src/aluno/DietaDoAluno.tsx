@@ -9,6 +9,7 @@ import { ehRotuloPadrao, MACROS as CHAVES_DOS_MACROS, normalizarDieta, opcaoDoTo
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { arranjoDaDieta } from '../dominio/arranjoDaDieta';
+import { telaLargaDoAluno } from '../dominio/telaLargaDoAluno';
 import { duasColunasCom } from '../dominio/grade';
 import { kcalDaAba, letraDoMarcador, tituloDaOpcao } from '../dominio/opcoesDaRefeicao';
 import { textoDosDiasCurtos, variacaoDoDia, variacaoMostrada } from '../dominio/variacoesDaDieta';
@@ -28,10 +29,13 @@ import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
 import { PrincipalComApoio } from '../ui/PrincipalComApoio';
+import { useFaixaDaTela } from '../ui/Tela';
 import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, LegendaDosMacros, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
 import { CartoesDosComplementos } from './CartoesDosComplementos';
+import { ColunasMedidas } from './inicio/ColunasMedidas';
 import { TotalDaRefeicaoComRespiro } from './dieta/TotalDaRefeicaoComRespiro';
 import { ModoDePreparo } from './ModoDePreparo';
+import { ObservacoesDaDieta, OrientacaoDaDieta } from './OrientacoesEObservacoesDaDieta';
 import { PilulaDaQuantidade } from './PilulaDaQuantidade';
 import { useDiaDeHojeEmBrasilia } from './useDiaDeHoje';
 
@@ -52,11 +56,13 @@ const MOTIVO_NA_PREVIA = 'Só o aluno abre isto no app dele.';
  * Dieta por dia da semana: abre na variação de hoje (data de Brasília, relida na virada do dia e na volta do app) e o
  * aluno troca à mão; total e refeições são os da variação mostrada. Sem variação, nada muda.
  *
- * `largo` (só a aba Dieta passa, a folha da prévia não muda; 26/11, `docs/planos/aluno-web-layout.md` seção 5): mede a
- * própria área e, quando ela comporta (`arranjoDaDieta`, só na web: no nativo empilha sempre, orientação 0.2), as refeições
- * numa coluna só, na ordem do dia, com o total com respiro, e ao lado a coluna de apoio fixa ao rolar
- * (`ui/PrincipalComApoio`): Total do dia, `lado` (a água do dia), Suplementação, Medicação e ergogênicos, Lista de compras, PDF, o plano, Orientações e Observações. Sem
- * espaço, a ordem do celular de sempre, com `lado` no topo e as refeições também numa coluna.
+ * `largo` (só a aba Dieta passa, a folha da prévia não muda): mede a própria área e, quando ela comporta (`arranjoDaDieta`,
+ * só na web: no nativo empilha sempre, orientação 0.2), as refeições com o total com respiro e, à direita (o lado do Total do
+ * dia no editor do treinador), a coluna de apoio pela faixa da `Tela` (380, 420 na larga, 440 na ultralarga; fixa ao rolar
+ * quando cabe na janela, `ui/PrincipalComApoio`): Total do dia, `lado` (a água do dia), Suplementação, Lista de compras e PDF.
+ * Na principal (27/11, contêiner do treinador), as refeições numa coluna na faixa `normal` e em duas na `larga` e na
+ * `ultralarga`, empilhadas pela altura medida na ordem do dia (sem esticar cartão); depois delas, Medicação e ergogênicos,
+ * o plano, Orientações e Observações, cada um onde as duas colunas terminam mais perto. Sem espaço, a ordem do celular de sempre, com `lado` no topo e as refeições numa coluna.
  *
  * O título do plano não aparece (25/11): é o nome de trabalho do treinador ("Dieta de <aluno>", o da importação) e a tela
  * já se chama Dieta; o plano em uso e o período ficam no `SeletorPlano`, acima. Sem objetivo, água, início nem
@@ -78,12 +84,13 @@ export function DietaDoAluno({
   /** Gera o PDF (a tela do aluno monta o documento com o pacote); fora da prévia, sem ele o botão não aparece. */
   aoBaixarPdf?: (lista?: DadosPdfDieta['lista'], variacaoUid?: string | null) => Promise<void>;
   largo?: boolean;
-  /** Com `largo`, a água do dia: logo depois do Total do dia no apoio, ou no topo no desenho do celular. */
-  lado?: ReactNode;
+  /** Com `largo`, a água do dia: logo depois do Total do dia no apoio (`noApoio`: botões na largura do cartão), ou no topo no desenho do celular. */
+  lado?: (noApoio: boolean) => ReactNode;
 }) {
   const { cores } = useTema();
   const [folhaPdf, setFolhaPdf] = useState(false);
   const [area, setArea] = useState<number | null>(null);
+  const faixa = useFaixaDaTela();
   const c = normalizarDieta(versao.conteudo);
   const dia = useDiaDeHojeEmBrasilia();
   // Nulo = seguir hoje; a escolhida que sumiu (outra versão) ou de outro dia (virou a meia-noite) também volta para hoje.
@@ -115,17 +122,12 @@ export function DietaDoAluno({
   // Orientações e observações logo abaixo do plano (ficavam no fim, depois de todas as refeições), recolhíveis.
   const orientacoes = c.orientacoes.length ? (
     <Cartao titulo="Orientações" recolhivel recolhido>
-      {c.orientacoes.map((o, i) => (
-        <View key={i} style={estilos.orientacao}>
-          {o.titulo ? <Texto numerico style={estilos.forte}>{o.titulo}</Texto> : null}
-          <Texto numerico variante="suave">{o.texto}</Texto>
-        </View>
-      ))}
+      {c.orientacoes.map((o, i) => <OrientacaoDaDieta key={i} orientacao={o} />)}
     </Cartao>
   ) : null;
   const observacoes = c.observacoes ? (
     <Cartao titulo="Observações" recolhivel recolhido>
-      <Texto numerico>{c.observacoes}</Texto>
+      <ObservacoesDaDieta texto={c.observacoes} />
     </Cartao>
   ) : null;
   const listaDeCompras = <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) router.push('/aluno/lista-de-compras'); }} />;
@@ -142,8 +144,9 @@ export function DietaDoAluno({
       {CHAVES_DOS_MACROS.some((m) => totais[m] === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
     </Cartao>
   );
-  // Na aba Dieta as refeições ficam sempre numa coluna, na ordem do dia (nunca em zigue-zague); a prévia mantém a grade.
-  const cartoesDasRefeicoes = (respiro: boolean) => refeicoes.map((r, i) => <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} respiro={respiro} />);
+  const cartoesDasRefeicoes = (respiro: boolean) =>
+    refeicoes.map((r, i) => <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} respiro={respiro} />);
+  // Aba Dieta: uma coluna na ordem do dia. A prévia do treinador mantém a grade de sempre.
   const listaDeRefeicoes = (respiro = false) => (!refeicoes.length ? null : largo ? (
     <View style={estilos.refeicoes}>{cartoesDasRefeicoes(respiro)}</View>
   ) : (
@@ -172,27 +175,43 @@ export function DietaDoAluno({
   if (largo) {
     // No nativo a dieta empilha sempre (sem coluna fixa ao rolar): só a web mede a área para o lado a lado.
     const arranjo = arranjoDaDieta(Platform.OS === 'web' ? area : null);
+    const duas = telaLargaDoAluno(faixa);
+    // Conteúdo que não é resumo vai para a principal, depois das refeições (o apoio leva só resumo e ações, orientação 0.2):
+    // com o apoio curto ele cabe na janela e acompanha a rolagem, em vez de passar muito das refeições e deixar buraco.
+    const medicacao = ergogenicos.length ? <CartoesDosComplementos ergogenicos={ergogenicos} suplementacao={[]} /> : null;
+    const textos = plano || orientacoes || observacoes ? <>{plano}{orientacoes}{observacoes}</> : null;
+    // Faixa larga em diante (27/11): duas colunas empilhadas pela altura medida (`aluno/inicio/ColunasMedidas`), cada cartão do
+    // tamanho do que tem (sem esticar com vazio por dentro): as refeições na ordem do dia (o topo de uma nunca acima do da
+    // anterior; as duas primeiras abrem as colunas) e, depois delas, Medicação, o plano, Orientações e Observações, cada um
+    // onde as colunas terminam mais perto. A distribuição fica fixa por largura: abrir Orientações não troca cartão de coluna.
+    const pecas = [
+      ...refeicoes.map((r, i) => ({ chave: `refeicao-${r.uid}`, emOrdem: true, coluna: i < 2 ? i : undefined,
+        conteudo: <CartaoRefeicaoAluno refeicao={r} indice={i} respiro /> })),
+      ...([['medicacao', medicacao], ['plano', plano], ['orientacoes', orientacoes], ['observacoes', observacoes]] as const)
+        .flatMap(([chave, conteudo]) => (conteudo ? [{ chave, conteudo }] : [])),
+    ];
+    const conteudoDaPrincipal = duas && pecas.length > 1 ? (
+      <ColunasMedidas idDasPecas="dieta-coluna" colunas={() => 2} vao={espaco(2)} congelar pecas={pecas} />
+    ) : <>{listaDeRefeicoes(true)}{medicacao}{textos}</>;
     return (
       // O vão é o da `Tela` (24), o mesmo de quando os blocos ficam soltos nela; a folha do PDF fica fora dos dois ramos.
       <View onLayout={(e) => setArea(e.nativeEvent.layout.width)} style={estilos.pilha}>
         {arranjo.lado ? (
-          <PrincipalComApoio rotuloDoApoio="Resumo da dieta" larguraDoApoio={arranjo.larguraDoApoio}
-            principal={<>{selo}{variacao}{listaDeRefeicoes(true)}</>}
+          // A largura do apoio vem da faixa da `Tela` (a régua do treinador), não da área da dieta. Topo de 16: no PC o
+          // cabeçalho rola com a página (não há barra fixa), e com os 80 do padrão o apoio grudado descia 8 px abaixo das refeições.
+          <PrincipalComApoio rotuloDoApoio="Resumo da dieta" topoDoApoio={espaco(2)}
+            principal={<>{selo}{variacao}{conteudoDaPrincipal}</>}
             apoio={(
               <>
                 {total}
-                {lado}
-                {/* Duas chamadas para a ordem do apoio (Suplementação antes da Medicação); a lista vazia não desenha nada. */}
+                {lado?.(true)}
+                {/* Só a Suplementação (a Medicação fica na principal); a lista vazia não desenha nada. */}
                 <CartoesDosComplementos ergogenicos={[]} suplementacao={c.suplementacao} />
-                <CartoesDosComplementos ergogenicos={ergogenicos} suplementacao={[]} />
                 {listaDeCompras}
                 {botaoPdf}
-                {plano}
-                {orientacoes}
-                {observacoes}
               </>
             )} />
-        ) : <>{lado}{pilhaDoCelular}</>}
+        ) : <>{lado?.(false)}{pilhaDoCelular}</>}
         {folha}
       </View>
     );
@@ -339,7 +358,6 @@ const estilos = StyleSheet.create({
   agua: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
   textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
-  orientacao: { gap: 2 },
   forte: { fontFamily: fontes.semi },
   escolha: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25), gap: 2 },
   totalDaRefeicao: { borderTopWidth: 1, paddingTop: espaco(1), marginTop: espaco(0.5), gap: espaco(0.5) },

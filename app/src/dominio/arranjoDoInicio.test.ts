@@ -4,9 +4,9 @@ import { colunasDaVitrineDoInicio, inicioLargo, inicioLargoDoAluno, linhasDoInic
 const emOrdem = (pecas: readonly PecaDoInicio[]) => pecas.flatMap((p) => (p === 'semanaENivel' ? ['semana', 'nivel'] : [p]));
 
 describe('inicioLargo', () => {
-  it('abre na área de 952 (a da PrincipalComApoio das outras telas do aluno): 1280 com o menu aberto já é largo', () => {
-    expect(inicioLargo(951)).toBe(false);
-    expect(inicioLargo(952)).toBe(true);
+  it('abre na área de 972 (a da PrincipalComApoio das outras telas do aluno): 1280 com o menu aberto já é largo', () => {
+    expect(inicioLargo(971)).toBe(false);
+    expect(inicioLargo(972)).toBe(true);
     expect(inicioLargo(984)).toBe(true);
   });
 });

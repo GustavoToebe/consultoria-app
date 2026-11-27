@@ -4,25 +4,23 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import type { ConsultoriaResponse } from '../../api/tipos';
 import { alterarMarca } from '../../api/rotas';
-import { FormMarca } from './FormMarca';
+import { FormContato } from './FormContato';
 
 /**
- * Redes sociais do FormMarca (26/11): a peça no modo edição com só as redes salvas, o erro 422 na rede certa, remover uma rede
- * salva conta como alteração (aparece o "Salvar marca") e o PUT leva as oito chaves, com a removida em branco. A peça
- * (`ui/RedesSociais`, testada à parte) e o resto da tela viram nós mínimos; só dados fictícios.
+ * Redes sociais do Contato (26/11; desde 27/11 em `FormContato`, fora da Marca): a peça no modo edição com só as redes salvas,
+ * o erro 422 na rede certa, remover uma rede salva conta como alteração (aparece o "Salvar contato") e o PUT leva as oito
+ * chaves, com a removida em branco, e o resto da consultoria como está gravado. A peça (`ui/RedesSociais`, testada à parte)
+ * e o resto da tela viram nós mínimos; só dados fictícios.
  */
-jest.mock('expo-image-picker', () => ({}));
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
 jest.mock('../../api/cliente', () => ({ ErroApi: require('@plataforma/web').ErroApi }));
-jest.mock('../../api/rotas', () => ({ alterarMarca: jest.fn(), consultoria: jest.fn(), enviarLogo: jest.fn(), removerLogo: jest.fn() }));
-jest.mock('./anexarLogo', () => ({ anexarLogo: jest.fn() }));
+jest.mock('../../api/rotas', () => ({ alterarMarca: jest.fn() }));
+jest.mock('../../ui/GuardaDeSaida', () => ({ useGuardaDeSaida: () => undefined }));
 jest.mock('../../sessao/SessaoProvider', () => ({ useSessao: () => ({ atualizarMarca: jest.fn(), cicloHabilitado: false }) }));
 jest.mock('../../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../../tema/tokens').ESCURO, variante: 'escuro' }) }));
 jest.mock('../../ui/Aviso', () => ({ useAviso: () => ({ avisar: jest.fn() }) }));
 const h = (...a: unknown[]) => (require('react').createElement as (...x: unknown[]) => unknown)(...a);
-const passa = ({ children }: { children?: ReactNode }) => children;
 jest.mock('../../ui/Cartao', () => ({ Cartao: ({ children }: { children?: ReactNode }) => children }));
-jest.mock('../../ui/GradeDeOpcoes', () => ({ GradeDeOpcoes: ({ children }: { children?: ReactNode }) => children }));
 jest.mock('../../ui/Texto', () => ({ Texto: ({ children }: { children?: ReactNode }) => h(require('react-native').Text, null, children) }));
 jest.mock('../../ui/Estados', () => ({ MensagemErro: () => null }));
 jest.mock('../../ui/Campo', () => ({
@@ -30,12 +28,6 @@ jest.mock('../../ui/Campo', () => ({
   Campo: ({ rotulo, valor, aoMudar }: { rotulo: string; valor: string; aoMudar: (t: string) => void }) =>
     h(require('react-native').TextInput, { accessibilityLabel: rotulo, value: valor, onChangeText: aoMudar }),
 }));
-jest.mock('../../ui/Campos', () => ({ CampoNumerico: () => null }));
-jest.mock('../../ui/Escolha', () => ({ Escolha: () => null }));
-jest.mock('../../ui/LinkTexto', () => ({ LinkTexto: () => null }));
-jest.mock('../../ui/MarcaTitulo', () => ({ FAMILIAS: {}, MarcaTitulo: () => null }));
-jest.mock('../../ui/OpcaoCartao', () => ({ OpcaoCartao: () => null }));
-jest.mock('../../ui/PainelConfirmacao', () => ({ PainelConfirmacao: passa }));
 jest.mock('../../ui/Botao', () => ({
   Botao: ({ rotulo, aoTocar }: { rotulo: string; aoTocar: () => void }) => h(require('react-native').Pressable, { accessibilityLabel: rotulo, onPress: aoTocar }),
 }));
@@ -60,7 +52,7 @@ const CONSULTORIA = {
   redesSociais: { instagram: 'https://www.instagram.com/ficticia', tiktok: null, youtube: null, x: null, site: 'https://ficticia.test' },
 } as unknown as ConsultoriaResponse;
 
-const elemento = (c: ConsultoriaResponse, aoSalvar = jest.fn()) => <FormMarca consultoria={c} aoSalvar={aoSalvar} aoConflito={jest.fn()} />;
+const elemento = (c: ConsultoriaResponse, aoSalvar = jest.fn()) => <FormContato consultoria={c} aoSalvar={aoSalvar} aoConflito={jest.fn()} />;
 function montar(aoSalvar?: jest.Mock): ReactTestRenderer {
   let raiz!: ReactTestRenderer;
   act(() => { raiz = create(elemento(CONSULTORIA, aoSalvar)); });
@@ -77,7 +69,7 @@ it('a peça abre em edição com as oito redes permitidas e só as salvas adicio
   expect(toque(raiz, 'Remover instagram')).toHaveLength(1);
   expect(toque(raiz, 'Remover site')).toHaveLength(1);
   expect(toque(raiz, 'Remover tiktok')).toHaveLength(0);
-  expect(toque(raiz, 'Salvar marca')).toHaveLength(0);
+  expect(toque(raiz, 'Salvar contato')).toHaveLength(0);
 });
 
 it('remover uma rede salva é alteração: aparece o Salvar e o PUT manda as oito chaves, a removida em branco', async () => {
@@ -86,34 +78,36 @@ it('remover uma rede salva é alteração: aparece o Salvar e o PUT manda as oit
   const aoSalvar = jest.fn();
   const raiz = montar(aoSalvar);
   act(() => { (toque(raiz, 'Remover site')[0]!.props.onPress as () => void)(); });
-  expect(toque(raiz, 'Salvar marca')).toHaveLength(1);
-  await act(async () => { (toque(raiz, 'Salvar marca')[0]!.props.onPress as () => void)(); });
+  expect(toque(raiz, 'Salvar contato')).toHaveLength(1);
+  await act(async () => { (toque(raiz, 'Salvar contato')[0]!.props.onPress as () => void)(); });
   expect(salvarApi.mock.calls[0]![0].redesSociais).toEqual({
     instagram: 'https://www.instagram.com/ficticia', tiktok: '', youtube: '', facebook: '', linkedin: '', telegram: '', x: '', site: '',
   });
+  // O resto do PUT vai como está gravado: salvar o contato não mexe na marca nem no acompanhamento.
+  expect(salvarApi.mock.calls[0]![0]).toMatchObject({ nome: 'Consultoria Fictícia', corPrimaria: '#1F6FEB', fonteTitulo: 'PADRAO', temaPadrao: 'ESCURO', versao: 3, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' });
   // Salvo: a tela pai recebe a consultoria nova; com ela, a peça mostra o que a API devolveu e o botão some.
   expect(aoSalvar).toHaveBeenCalledWith(devolvida);
   act(() => { raiz.update(elemento(devolvida, aoSalvar)); });
   expect(toque(raiz, 'Remover site')).toHaveLength(0);
-  expect(toque(raiz, 'Salvar marca')).toHaveLength(0);
+  expect(toque(raiz, 'Salvar contato')).toHaveLength(0);
 });
 
 it('editar para o mesmo valor (só espaços sobrando) não é alteração; mudar ou esvaziar, é', () => {
   const raiz = montar();
   const digitar = (t: string) => act(() => { (raiz.root.findByProps({ accessibilityLabel: 'Campo site' }).props.onChangeText as (t: string) => void)(t); });
   digitar('https://ficticia.test  ');
-  expect(toque(raiz, 'Salvar marca')).toHaveLength(0);
+  expect(toque(raiz, 'Salvar contato')).toHaveLength(0);
   digitar('');
-  expect(toque(raiz, 'Salvar marca')).toHaveLength(1);
+  expect(toque(raiz, 'Salvar contato')).toHaveLength(1);
   digitar('https://ficticia.test');
-  expect(toque(raiz, 'Salvar marca')).toHaveLength(0);
+  expect(toque(raiz, 'Salvar contato')).toHaveLength(0);
 });
 
 it('o 422 de uma rede (redesSociais.<rede>) cai na linha dela e nas outras não', async () => {
   salvarApi.mockRejectedValueOnce(new ErroApi(422, 'MARCA_INVALIDA', 'Marca inválida.', [{ field: 'redesSociais.site', message: 'Use o link do site.' }]));
   const raiz = montar();
   act(() => { (raiz.root.findByProps({ accessibilityLabel: 'Campo site' }).props.onChangeText as (t: string) => void)('x y'); });
-  await act(async () => { (toque(raiz, 'Salvar marca')[0]!.props.onPress as () => void)(); });
+  await act(async () => { (toque(raiz, 'Salvar contato')[0]!.props.onPress as () => void)(); });
   expect(textos(raiz)).toContain('erro site: Use o link do site.');
   expect(textos(raiz).filter((t) => t.startsWith('erro instagram'))).toHaveLength(0);
 });

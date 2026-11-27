@@ -315,7 +315,9 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(nomes("/exercicios/pagina?modalidade=OUTRO")).doesNotContain("Teste da outra consultoria");
 
         // Combina com grupo e busca.
-        assertThat(nomes("/exercicios/pagina?grupo=Ombro&video=true")).containsExactly("Gama Teste");
+        // O cardio (Gama) é gravado sem grupo (D13 do docs/planos/cardio-e-hiit.md).
+        assertThat(nomes("/exercicios/pagina?grupo=Ombro&video=true")).isEmpty();
+        assertThat(nomes("/exercicios/pagina?grupo=Costas&video=true")).containsExactly("Alfa Teste");
         assertThat(nomes("/exercicios/pagina?busca=teste&imagem=true")).containsExactlyInAnyOrder("Beta Teste", "Gama Teste");
         assertThat(nomes("/exercicios/pagina?busca=teste&grupo=Costas&modalidade=MAQUINA&imagem=true")).containsExactly("Beta Teste");
         assertThat(nomes("/exercicios/pagina?busca=teste&modalidade=CARDIO&video=false")).isEmpty();

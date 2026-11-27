@@ -89,8 +89,10 @@ for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [12
     for (const antiga of ['Esforço', 'Carga de cada série']) await expect(page.getByRole('heading', { name: antiga, exact: true })).toHaveCount(0);
     // Séries, repetições e descanso: na mesma linha com espaço; no celular a linha quebra, sem nada passar da borda.
     const maximo = await caixa(page.getByRole('textbox', { name: 'Reps máx.', exact: true }), 'Reps máx.');
-    const descanso = await caixa(page.getByRole('textbox', { name: 'Descanso depois da série, em segundos', exact: true }), 'Descanso');
-    if (largura >= 1280) expect(Math.abs(descanso.y - maximo.y)).toBeLessThan(2);
+    const descanso = await caixa(page.getByRole('button', { name: /^Descanso: .*. Escolher.$/ }), 'Descanso');
+    // 27/11: alinhados pelo topo (as repetições têm a escolha Faixa | Exata | AMRAP em cima dos números).
+    const series = await caixa(page.getByRole('button', { name: /^Séries: .*. Escolher.$/ }), 'Séries');
+    if (largura >= 1280) expect(Math.abs(descanso.y - series.y)).toBeLessThan(2);
     expect(maximo.x + maximo.width).toBeLessThanOrEqual(largura);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await capturar(page, `treino-${largura}${escuro ? '-escuro' : ''}`);

@@ -51,12 +51,14 @@ class DetalheDaInscricao {
     private final InscricaoRetornoRepository retornos;
     private final ResponsaveisDaInscricao responsaveis;
     private final QuestionarioResolver questionarios;
+    private final PlanosDaInscricao planosComerciais;
     private final JsonMapper json;
 
     DetalheDaInscricao(InscricaoRepository inscricoes, InscricaoNotaRepository notas, InscricaoEventoRepository eventos,
                        InscricaoRetornoRepository retornos, ResponsaveisDaInscricao responsaveis,
-                       QuestionarioResolver questionarios, JsonMapper json) {
+                       QuestionarioResolver questionarios, PlanosDaInscricao planosComerciais, JsonMapper json) {
         this.questionarios = questionarios;
+        this.planosComerciais = planosComerciais;
         this.json = json;
         this.inscricoes = inscricoes;
         this.notas = notas;
@@ -102,7 +104,8 @@ class DetalheDaInscricao {
                         nomes.get(e.getAutorId()), e.getCriadoEm())).toList(),
                 respostas(i),
                 i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i), i.getInstagram(),
-                i.isAceitaSemCobranca());
+                i.isAceitaSemCobranca(), i.getPlanoComercialId(),
+                planosComerciais.nome(i.getPlanoComercialId()));
     }
 
     /** Indicação conferida pela API: o nome só para quem vê alunos, os demais veem só que foi um aluno (sem nome nem id). */
@@ -127,12 +130,14 @@ class DetalheDaInscricao {
         Map<UUID, Duplicidade> duplicidades = duplicidades(lista);
         Map<UUID, String> nomes = responsaveis.nomes(lista.stream().map(Inscricao::getResponsavelId).toList());
         Map<UUID, ProximoRetorno> proximos = proximosRetornos(lista);
+        Map<UUID, String> planos = planosComerciais.nomes(lista.stream().map(Inscricao::getPlanoComercialId).toList());
         return lista.stream().map(i -> new InscricaoResumo(i.getId(), i.getNome(), textoLivre(i, i.getObjetivo()),
                 i.getWhatsapp(), i.getEmail(), i.getSituacao(), i.getPagamento(), i.getResponsavelId(),
                 nomes.get(i.getResponsavelId()), alunoVisivel(i.getAlunoId()), i.getCriadaEm(), i.getUltimaAtividadeEm(),
                 i.getCiclo(), i.getOrigem(), i.getPropostaPlanoNome(), proximos.get(i.getId()), i.getVersao(),
                 duplicidades.getOrDefault(i.getId(), Duplicidade.NENHUMA),
-                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), i.isAceitaSemCobranca())).toList();
+                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), i.isAceitaSemCobranca(),
+                i.getPlanoComercialId(), planos.get(i.getPlanoComercialId()))).toList();
     }
 
     static Retorno retorno(InscricaoRetorno r, Map<UUID, String> nomes) {

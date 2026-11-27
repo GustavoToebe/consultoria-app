@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -84,6 +85,7 @@ public class InscricaoService {
     private final ConsultoriaRepository consultorias;
     private final QuestionarioResolver resolver;
     private final ValidadorAtualizacao validadorDeRespostas;
+    private final PlanosDaInscricao planosComerciais;
     private final JsonMapper json;
     private final int limiteDiario;
 
@@ -92,7 +94,7 @@ public class InscricaoService {
                             DetalheDaInscricao detalhes, AlunoService alunos, ConviteService convites,
                             AnamneseService anamneses, QuestionarioService questionarios, Auditoria auditoria,
                             ConsultoriaRepository consultorias, QuestionarioResolver resolver,
-                            ValidadorAtualizacao validadorDeRespostas, JsonMapper json,
+                            ValidadorAtualizacao validadorDeRespostas, PlanosDaInscricao planosComerciais, JsonMapper json,
                             @Value("${treinos.limites.inscricao-consultoria-dia:200}") int limiteDiario) {
         if (limiteDiario < 1) {
             throw new IllegalArgumentException("Limite diário de inscrições inválido.");
@@ -111,6 +113,7 @@ public class InscricaoService {
         this.consultorias = consultorias;
         this.resolver = resolver;
         this.validadorDeRespostas = validadorDeRespostas;
+        this.planosComerciais = planosComerciais;
         this.json = json;
     }
 
@@ -122,7 +125,8 @@ public class InscricaoService {
      * é conferido de novo aqui (pode ter mudado depois da busca).
      */
     public record PaginaDoLink(String texto, List<CampoDaInscricao> campos, InscricaoDtos.PerguntasDaInscricao perguntas,
-                               UUID questionarioId, String proximoQuestionarioCodigo) {
+                               UUID questionarioId, String proximoQuestionarioCodigo,
+                               List<InscricaoDtos.PlanoDaPagina> planos, boolean mostrarPrecoDosPlanos) {
     }
 
     @Transactional(readOnly = true)
@@ -135,7 +139,8 @@ public class InscricaoService {
                     PerguntasPublicas.de(json.readValue(v.conteudo(), ConteudoQuestionario.class)));
         }
         return new PaginaDoLink(q.getTextoApresentacao(), List.copyOf(CampoDaInscricao.visiveis(CampoDaInscricao.ler(q.getCamposOcultos()))),
-                perguntas, q.getId(), codigoDoProximo(q));
+                perguntas, q.getId(), codigoDoProximo(q), planosComerciais.ativos(q.isMostrarPrecoDosPlanos()),
+                q.isMostrarPrecoDosPlanos());
     }
 
     /** Código do próximo formulário só se ele também recebe inscrição agora (inscrição, aberto e não arquivado). */
@@ -205,7 +210,11 @@ public class InscricaoService {
         nova.setQuestionarioId(q.getId());
         nova.setQuestionarioNome(q.getNome());
         nova.setIndicadoPor(r.indicadoPor());
-        responderPerguntas(nova, q, r.questionarioVersaoId(), r.respostas());
+        if (r.planoComercialId() != null) {
+            planosComerciais.exigirAtivo(r.planoComercialId());
+            nova.escolherPlanoComercial(r.planoComercialId());
+        }
+        responderPerguntas(nova, q, r.questionarioVersaoId(), r.respostas(), r.planoComercialId() != null);
         Inscricao gravada = inscricoes.saveAndFlush(nova);
         // A indicação só depois do INSERT (que já prende a consultoria): a ordem é consultoria, depois aluno, a mesma da
         // anonimização e do inativar. Travar o aluno antes inverteria a ordem e fecharia um círculo (40P01) numa rota pública.
@@ -254,7 +263,8 @@ public class InscricaoService {
     }
 
     /** Confere a versão das perguntas e valida as respostas por ela (regras no javadoc de {@link #registrarPublica}). */
-    private void responderPerguntas(Inscricao nova, Questionario q, UUID versaoEnviada, JsonNode enviadas) {
+    private void responderPerguntas(Inscricao nova, Questionario q, UUID versaoEnviada, JsonNode enviadas,
+                                    boolean planoEscolhido) {
         boolean temRespostas = enviadas != null && !enviadas.isNull() && !enviadas.isMissingNode()
                 && !(enviadas.isObject() && enviadas.isEmpty());
         if (q.getVersaoPublicada() <= 0) {
@@ -263,9 +273,27 @@ public class InscricaoService {
         }
         var v = resolver.publicada(q);
         if (versaoEnviada != null ? !versaoEnviada.equals(v.versaoId()) : temRespostas) throw perguntasAlteradas();
-        JsonNode limpas = validadorDeRespostas.validar(json.readTree(v.conteudo()),
+        JsonNode modelo = json.readTree(v.conteudo());
+        if (planoEscolhido) dispensarPlanoCombinado(modelo);
+        JsonNode limpas = validadorDeRespostas.validar(modelo,
                 temRespostas ? enviadas : json.createObjectNode(), false, "INSCRICAO_INVALIDA", LocalDate.now(Fuso.BRASILIA));
+        // Plano escolhido vale mais que o texto de "Outro": o texto não fica gravado ao lado do plano.
+        if (planoEscolhido && limpas instanceof ObjectNode objeto) {
+            objeto.remove(ConfiguracaoInscricaoService.PERGUNTA_PLANO_COMBINADO);
+        }
         nova.responder(v.versaoId(), json.writeValueAsString(limpas));
+    }
+
+    /** Com plano da lista, a pergunta de "Outro" deixa de ser obrigatória (só ela; o modelo é a cópia lida agora). */
+    private static void dispensarPlanoCombinado(JsonNode modelo) {
+        for (JsonNode secao : modelo.path("secoes")) {
+            for (JsonNode p : secao.path("perguntas")) {
+                if (p instanceof ObjectNode pergunta
+                        && ConfiguracaoInscricaoService.PERGUNTA_PLANO_COMBINADO.equals(pergunta.path("id").asString())) {
+                    pergunta.put("obrigatoria", false);
+                }
+            }
+        }
     }
 
     private static ConflictException perguntasAlteradas() {
@@ -477,7 +505,8 @@ public class InscricaoService {
             anamneseId = anamneses.gravarAnamneseRespondida(aluno.id(), i.getQuestionarioVersaoId(), i.getRespostas(), usuarioId).getId();
         }
         ConviteResponse convite = convidar ? convites.gerar(aluno.id()) : null;
-        return new AceiteResponse(i.getId(), aluno.id(), convite, anamneseId, semCobranca);
+        return new AceiteResponse(i.getId(), aluno.id(), convite, anamneseId, semCobranca, i.getPlanoComercialId(),
+                planosComerciais.nome(i.getPlanoComercialId()));
     }
 
     // ---- Auxiliares (também usados pelos outros serviços do pacote) ----

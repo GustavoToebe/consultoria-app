@@ -142,7 +142,7 @@ export const TELAS_NOVAS: Tela[] = [
     pronto: async (page) => {
       await abrirPrimeiroExercicio(page);
       await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).first().click();
-      await expect(page.getByRole('button', { name: 'Receitas completas, aberto', exact: true })).toBeVisible();
+      await expect(page.getByRole('tab', { name: /^Completas/ })).toBeVisible();
       await expect(page.getByText('Volume fictício', { exact: true })).toBeVisible();
     },
   },

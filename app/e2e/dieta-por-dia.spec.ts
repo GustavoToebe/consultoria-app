@@ -242,9 +242,14 @@ for (const largura of [390, 1280]) {
       'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
     });
     await page.goto('/aluno');
-    await expect(page.getByRole('link', { name: /^Dieta,/ })).toBeVisible();
+    // Celular: a linha "Dieta," conta as refeições de hoje; computador (27/11): a "Dieta de hoje" diz a variação e lista as de hoje.
+    if (largura < 768) {
+      await expect(page.getByRole('link', { name: /^Dieta,/ })).toContainText('Hoje: Dia de treino · 2 refeições');
+    } else {
+      await expect(page.getByText('Hoje: Dia de treino', { exact: true })).toBeVisible();
+      await expect(page.getByRole('list', { name: 'Refeições de hoje' }).getByRole('listitem')).toHaveCount(2);
+    }
     await page.screenshot({ path: testInfo.outputPath(`aluno-inicio-${largura}.png`), fullPage: true });
-    await expect(page.getByRole('link', { name: /^Dieta,/ })).toContainText('Hoje: Dia de treino · 2 refeições');
 
     await page.goto('/aluno/dieta');
     await expect(page.getByRole('heading', { name: 'Hoje: Dia de treino' })).toBeVisible();
@@ -372,7 +377,8 @@ for (const largura of [390, 1280]) {
       'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
     });
     await page.goto('/aluno');
-    await expect(page.getByRole('link', { name: /^Dieta,/ })).toContainText('Sem dieta marcada para hoje');
+    if (largura < 768) await expect(page.getByRole('link', { name: /^Dieta,/ })).toContainText('Sem dieta marcada para hoje');
+    else await expect(page.getByText('Sem dieta marcada para hoje.', { exact: true })).toBeVisible();
 
     await page.goto('/aluno/dieta');
     await expect(page.getByRole('heading', { name: 'Sem dieta marcada para hoje' })).toBeVisible();

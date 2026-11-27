@@ -10,7 +10,8 @@ export const CAMPOS_FIXOS: CampoDaInscricao[] = ['EMAIL', 'SEXO', 'OBJETIVO', 'I
 
 /** `GET /publico/inscricoes/{codigo}`: sem texto, com todos os campos fixos e sem perguntas, salvo o que vier em `extra`. */
 export function paginaPublica(extra: Partial<InscricaoPublica> = {}): InscricaoPublica {
-  return { consultoria: MARCA, texto: null, textoVersao: null, aberta: true, campos: CAMPOS_FIXOS, perguntas: null, ...extra };
+  return { consultoria: MARCA, texto: null, textoVersao: null, aberta: true, campos: CAMPOS_FIXOS, perguntas: null, planos: [],
+    mostrarPrecoDosPlanos: false, ...extra };
 }
 
 export function idDe(n: number): string {
@@ -35,6 +36,8 @@ export function resumoFalso(n: number, extra: Partial<InscricaoResumo> = {}): In
     origem: null,
     propostaPlanoNome: null,
     proximoRetorno: null,
+    planoComercialId: null,
+    planoComercialNome: null,
     versao: 1,
     duplicidade: { alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 0, outrasInscricoesAnteriores: 0 },
     ...extra,

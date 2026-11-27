@@ -209,6 +209,9 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/auditoria', titulo: 'Auditoria', secao: 'consultoria' },
   // Itens abertos dentro de Configurações (26/11): o mesmo ⓘ e o mesmo "Saiba mais" da tela inteira (no celular, vão a ela).
   { caminho: '/treinador/configuracoes/marca', titulo: 'Marca', secao: 'consultoria' },
+  // Telas só de Configurações (27/11): herdam o "Saiba mais" da Marca.
+  { caminho: '/treinador/configuracoes/contato', titulo: 'Contato', secao: 'consultoria' },
+  { caminho: '/treinador/configuracoes/padroes-do-acompanhamento', titulo: 'Padrões do acompanhamento', secao: 'consultoria' },
   { caminho: '/treinador/configuracoes/seguranca', titulo: 'Segurança', secao: null },
   { caminho: '/treinador/configuracoes/termos', titulo: 'Termos e privacidade', secao: 'privacidade' },
   { caminho: '/treinador/marca', titulo: 'Marca', secao: 'consultoria' },

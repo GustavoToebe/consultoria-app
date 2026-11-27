@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { SearchX } from 'lucide-react-native';
 import { Fragment, useEffect, type ReactNode } from 'react';
 
-import { BASE_DAS_CONFIGURACOES, ehItemEmbutido, itemDoCaminho, type ItemEmbutido } from '../../dominio/rotasDasConfiguracoes';
+import { BASE_DAS_CONFIGURACOES, caminhoDoItem, ehItemEmbutido, itemDoCaminho, type ItemEmbutido } from '../../dominio/rotasDasConfiguracoes';
 import { LARGURA_FORMULARIO } from '../../tema/tokens';
 import { TelaContratos } from '../contratos/TelaContratos';
 import { TelaDocumentos } from '../documentos/TelaDocumentos';
@@ -13,9 +13,11 @@ import { Tela } from '../../ui/Tela';
 import { TelaDosTermos } from '../../ui/TelaDosTermos';
 import { useCartoesDoPerfil, useDuasColunas } from './comum';
 import { TelaAjustes } from './telas/TelaAjustes';
+import { TelaContato } from './telas/TelaContato';
 import { TelaMarca } from './telas/TelaMarca';
 import { TelaMeusDados } from './telas/TelaMeusDados';
 import { TelaMinhaConta } from './telas/TelaMinhaConta';
+import { TelaPadroesDoAcompanhamento } from './telas/TelaPadroesDoAcompanhamento';
 import { TelaSeguranca } from './telas/TelaSeguranca';
 import { TelaTagsDosAlunos } from './telas/TelaTagsDosAlunos';
 
@@ -26,7 +28,8 @@ const TELA_DO_ITEM: Record<ItemEmbutido, () => ReactNode> = {
   ajustes: () => <TelaAjustes />,
   'minha-conta': () => <TelaMinhaConta />,
   marca: () => <TelaMarca />,
-  contato: () => <TelaMarca noContato />,
+  contato: () => <TelaContato />,
+  'padroes-do-acompanhamento': () => <TelaPadroesDoAcompanhamento />,
   'whatsapp-oficial': () => <TelaWhatsApp />,
   'documentos-pdf': () => <TelaDocumentos />,
   'tags-dos-alunos': () => <TelaTagsDosAlunos embutida />,
@@ -36,7 +39,8 @@ const TELA_DO_ITEM: Record<ItemEmbutido, () => ReactNode> = {
 
 /**
  * `/treinador/configuracoes/<item>`: a tela do item na coluna da direita (a guarda já conferiu a rota inteira dele). Abaixo
- * de 1024 px de janela não há coluna: vai para a rota inteira, com a seta e o voltar de sempre. Item que o perfil não vê
+ * de 1024 px de janela não há coluna: vai para a rota inteira, com a seta e o voltar de sempre; a tela que só existe em
+ * Configurações (o `href` do cartão é este endereço: Contato, Padrões do acompanhamento) abre aqui mesmo. Item que o perfil não vê
  * (sem a permissão extra, fora do plano ou com a chave desligada) mostra o vazio, sem a tela.
  */
 export function TelaDoItem() {
@@ -53,7 +57,7 @@ export function TelaDoItem() {
       </Tela>
     );
   }
-  if (!duas) return <Redirect href={cartao.href as Href} />;
+  if (!duas && cartao.href !== caminhoDoItem(cartao.id)) return <Redirect href={cartao.href as Href} />;
   // A chave remonta a tela a cada item: a coluna da direita volta ao topo e nada de um item vaza para o outro.
   return <Fragment key={cartao.id}>{TELA_DO_ITEM[cartao.id]()}</Fragment>;
 }

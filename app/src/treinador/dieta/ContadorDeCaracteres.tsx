@@ -6,12 +6,13 @@ import { Texto } from '../../ui/Texto';
 
 /**
  * "123/2.000" no canto de baixo, à direita do campo (o padrão do comentário do treino concluído, `aluno/ConcluirTreino`):
- * o leitor de tela ouve "123 de 2.000 caracteres". Acima do limite (texto que veio de fora), em `perigo`.
+ * o leitor de tela ouve "123 de 2.000 caracteres". Acima do limite (texto que veio de fora), em `perigo`. Com `nativeID`, o
+ * campo pode apontar para ele como descrição (`ajudaForaDoCampo` do `Campo`).
  */
-export function ContadorDeCaracteres({ usados, maximo }: { usados: number; maximo: number }) {
+export function ContadorDeCaracteres({ usados, maximo, nativeID }: { usados: number; maximo: number; nativeID?: string }) {
   const { cores } = useTema();
   return (
-    <Texto variante="pequeno" numerico style={estilos.contador} cor={usados > maximo ? cores.perigo : undefined}
+    <Texto variante="pequeno" numerico style={estilos.contador} cor={usados > maximo ? cores.perigo : undefined} nativeID={nativeID}
       accessibilityLabel={`${inteiroComMilhar(usados)} de ${inteiroComMilhar(maximo)} caracteres`}>
       {inteiroComMilhar(usados)}/{inteiroComMilhar(maximo)}
     </Texto>

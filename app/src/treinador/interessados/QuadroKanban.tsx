@@ -280,7 +280,9 @@ function CartaoDoQuadro({ item, arraste, movendo, aoAbrir, aoMover }: {
               </View>
             ) : null}
             <Texto variante="pequeno">{item.responsavelNome ?? (item.responsavelId ? 'Membro inativo' : 'Sem responsável')} · {instanteRelativo(item.ultimaAtividadeEm)}</Texto>
-            {item.propostaPlanoNome ? <Texto variante="pequeno" numberOfLines={1}>Plano: {item.propostaPlanoNome}</Texto> : null}
+            {/* A proposta vale mais; sem ela, o plano que a pessoa escolheu na página. */}
+            {item.propostaPlanoNome || item.planoComercialNome
+              ? <Texto variante="pequeno" numberOfLines={1}>Plano: {item.propostaPlanoNome ?? item.planoComercialNome}</Texto> : null}
             {item.indicadoPor ? <Texto variante="pequeno" numberOfLines={1}>Indicado por: {item.indicadoPor}</Texto> : null}
           </Pressable>
           <IconeBotao Icone={Ellipsis} rotulo={`Mover ${item.nome} para`} aoTocar={aoMover} />

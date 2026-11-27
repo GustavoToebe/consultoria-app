@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe, AguaRegistrada, PlanoResumo, RegistroAguaEnvio } from '../src/api/tipos';
 import { dietaFalsa, fixarHoje, sessaoDeAluno } from './aluno';
+import { PALETA_DA_AGUA } from '../src/tema/tokens';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
@@ -141,10 +142,10 @@ for (const largura of [390, 1280]) {
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`);
     await expect(page.getByRole('heading', { name: 'Água', exact: true })).toBeVisible();
     await expect(page.getByText('Registrou 2 de 7 dias')).toBeVisible();
-    await expect(page.getByRole('img', { name: '19/10: 1,5 L de 3,0 L' })).toBeVisible();
-    await expect(page.getByRole('img', { name: '17/10: 0,0 L de 3,0 L' })).toBeVisible();
+    await expect(page.getByRole('img', { name: '19/10 · 1,5 L de 3,0 L (6 copos)' })).toBeVisible();
+    await expect(page.getByRole('img', { name: '17/10 · 0,0 L de 3,0 L (nenhum copo)' })).toBeVisible();
     // Dia sem registro é coluna vazia tracejada, nunca zero.
-    await expect(page.getByRole('img', { name: /: sem registro$/ })).toHaveCount(5);
+    await expect(page.getByRole('img', { name: /· sem registro$/ })).toHaveCount(5);
     const pedido = pedidos.find((p) => p.caminho === `/alunos/${ALUNO_ID}/agua`);
     expect(pedido?.busca.get('de')).toBe('2026-10-13');
     expect(pedido?.busca.get('ate')).toBe('2026-10-19');
@@ -179,6 +180,70 @@ for (const largura of [390, 1280]) {
       // As sete linhas de dia somem: nem "Hoje · 19/10" nem os traços.
       await expect(page.getByText('Hoje · 19/10')).toHaveCount(0);
       expect(errosDaPagina).toEqual([]);
+    });
+  }
+}
+
+// Item 7 da Água (27/11): o cartão "Água de hoje" do aluno usa o azul-água do token (`PALETA_DA_AGUA`, o mesmo do gráfico da
+// ficha) na gota, na barra e na borda dos botões; o número fica na cor do texto. A borda é conferida no "+" (o "−" com 0 copos
+// fora do Início leva o motivo, e aí o `Botao` põe o estilo no invólucro e mantém a borda cinza do desabilitado).
+const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+const cartaoDaAgua = (page: Page) => page.getByTestId('cartao').filter({ has: page.getByRole('heading', { name: 'Água de hoje' }) });
+const comTema = (page: Page, tema: 'ESCURO' | 'CLARO') =>
+  page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [ALUNO.id, tema] as const);
+
+for (const [tema, variante] of [['ESCURO', 'escuro'], ['CLARO', 'claro']] as const) {
+  for (const caminho of ['/aluno', '/aluno/dieta']) {
+    test(`"Água de hoje" em ${caminho} (1280, ${variante}): gota, barra e borda do "+" na cor da água, o número na do texto`, async ({ page }) => {
+      await comTema(page, tema);
+      const { errosDaPagina } = await abrirComoAluno(page, 1280, { 'GET /aluno/agua': { corpo: [{ data: '2026-10-19', aguaMl: 1500 }] } }, caminho);
+      const cartao = cartaoDaAgua(page);
+      await expect(cartao.getByText('1,5 L de 3,0 L')).toBeVisible();
+      const lido = await cartao.evaluate((el) => {
+        const gota = Array.from(el.querySelectorAll('svg')).find((s) => !s.closest('[role="button"], button'))!;
+        const traco = gota.querySelector('path, circle, line') ?? gota;
+        return {
+          gota: getComputedStyle(traco).stroke,
+          barra: getComputedStyle(el.querySelector('[role="progressbar"] > div')!).backgroundColor,
+          numero: getComputedStyle(el.querySelector('[aria-live="polite"] > div')!).color,
+        };
+      });
+      const borda = await cartao.getByRole('button', { name: 'Mais um copo' }).evaluate((b) => getComputedStyle(b).borderTopColor);
+      const agua = rgb(PALETA_DA_AGUA[variante]);
+      expect(lido).toEqual({ gota: agua, barra: agua, numero: lido.numero });
+      expect(borda).toBe(agua);
+      expect(lido.numero).not.toBe(agua);
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
+}
+
+// Capturas do cartão (item 7), só com `E2E_CAPTURAS` (fora do git): nada marcado (o "−" desabilitado), 1 dia e 5 dias (hoje na meta).
+const CENARIOS_DA_AGUA: [string, AguaRegistrada[]][] = [
+  ['vazio', []],
+  ['1-dia', [{ data: '2026-10-19', aguaMl: 750 }]],
+  ['5-dias', [['2026-10-19', 3000], ['2026-10-18', 2000], ['2026-10-17', 1250], ['2026-10-16', 3250], ['2026-10-15', 500]].map(([data, aguaMl]) => ({ data: String(data), aguaMl: Number(aguaMl) }))],
+];
+for (const largura of [1280, 1920]) {
+  for (const tema of ['ESCURO', 'CLARO'] as const) {
+    test(`capturas do "Água de hoje" (${largura}, ${tema.toLowerCase()})`, async ({ browser, baseURL }) => {
+      const pasta = process.env.E2E_CAPTURAS;
+      test.skip(!pasta, 'só com E2E_CAPTURAS');
+      test.setTimeout(120_000);
+      for (const [nome, registros] of CENARIOS_DA_AGUA) {
+        for (const [aba, caminho] of [['inicio', '/aluno'], ['dieta', '/aluno/dieta']]) {
+          // Um contexto por cenário: a água marcada fica no aparelho e misturaria os cenários.
+          const contexto = await browser.newContext({ baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
+          const page = await contexto.newPage();
+          await comTema(page, tema);
+          await abrirComoAluno(page, largura, { 'GET /aluno/agua': { corpo: registros } }, caminho);
+          await expect(cartaoDaAgua(page).getByText(/ L de 3,0 L$/)).toBeVisible();
+          if (registros.length) await expect(cartaoDaAgua(page).getByText('Nada marcado neste dia')).toHaveCount(0);
+          await page.waitForTimeout(500);
+          await cartaoDaAgua(page).screenshot({ path: `${pasta}/agua-${aba}-${nome}-${largura}-${tema.toLowerCase()}.png` });
+          await contexto.close();
+        }
+      }
     });
   }
 }

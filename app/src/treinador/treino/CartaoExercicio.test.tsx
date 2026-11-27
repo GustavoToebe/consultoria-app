@@ -85,9 +85,12 @@ describe('CartaoExercicio: nome de exibição e instruções', () => {
     expect(temCampo(semNome, 'Nome de exibição')).toBe(true);
   });
 
-  it('fechado, o botão diz o que já tem dentro', () => {
+  // 27/11: seção recolhível de verdade; fechada, o resumo em texto secundário embaixo do título diz o que há dentro.
+  it('fechado, o resumo diz o que já tem dentro', () => {
     const a = montar({ ...base, observacao: 'Desça devagar.', cadencia: '3-1-1-0' });
-    expect(botaoDosExtras(a).props.accessibilityLabel).toBe(`${EXTRAS} (com observação, cadência)`);
+    expect(botaoDosExtras(a).props.accessibilityLabel).toBe(EXTRAS);
+    const textos = a.root.findAll((n) => typeof n.props.children === 'string').map((n) => n.props.children as string);
+    expect(textos).toContain(`${base.nome} · sem vídeo · cadência 3-1-1-0 · com observação`);
   });
 
   it('com observação, vídeo, cadência ou isometria também começa fechado (18/11)', () => {

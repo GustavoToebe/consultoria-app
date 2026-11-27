@@ -517,20 +517,21 @@ test('exercícios da biblioteca: filtro de vários grupos no servidor', async ({
     observacoes: null, origem: 'MANUAL', imagens: [], imagemPropriaEm: null,
   });
   const consultas: string[] = [];
+  const todos = [doTreinador(1, 'Supino', 'Peito'), doTreinador(2, 'Remada', 'Costas'), doTreinador(3, 'Agacho', 'Pernas')];
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-    'GET /exercicios/pagina': paginaDeExerciciosFalsa([doTreinador(1, 'Supino', 'Peito'), doTreinador(2, 'Remada', 'Costas'), doTreinador(3, 'Agacho', 'Pernas')], consultas),
+    'GET /exercicios/pagina': paginaDeExerciciosFalsa(todos, consultas),
+    'GET /exercicios': { corpo: todos },
   });
   await page.goto('/treinador/biblioteca');
   await expect(page.getByText('Agacho', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
-  await page.getByRole('button', { name: 'Grupo muscular: Todos os grupos. Escolher.' }).click();
-  const painel = page.getByRole('dialog', { name: 'Grupo muscular' });
-  await painel.getByRole('checkbox', { name: 'Peito' }).click();
-  await painel.getByRole('checkbox', { name: 'Costas' }).click();
-  await page.keyboard.press('Escape');
-  await page.getByRole('dialog', { name: 'Filtros de exercícios' }).getByRole('button', { name: 'Aplicar filtros' }).click();
+  const painel = page.getByRole('dialog', { name: 'Filtros de exercícios' });
+  const grupos = painel.getByRole('group', { name: 'Grupo muscular' });
+  await grupos.getByRole('checkbox', { name: /^Peito,/ }).click();
+  await grupos.getByRole('checkbox', { name: /^Costas,/ }).click();
+  await painel.getByRole('button', { name: /^Mostrar / }).click();
   await expect(page.getByText('Supino', { exact: true })).toBeVisible();
   await expect(page.getByText('Remada', { exact: true })).toBeVisible();
   await expect(page.getByText('Agacho', { exact: true })).toHaveCount(0);

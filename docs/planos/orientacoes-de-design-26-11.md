@@ -179,23 +179,25 @@ Linhas, não pilhas. A regra em `dominio/arranjoDoInicio.ts` recebe a lista dos 
   - kcal em destaque: 20 px semibold, `fontVariant: tabular-nums`;
   - P · C · G · Fibra numa linha menor embaixo (13 a 14 px, cor suave, números tabulares, separados por " · ");
   - em cartão estreito (< 360) os quatro quebram em 2 × 2, nunca reticências.
+- Pendente de decisão (27/11): na implementação, Medicação e ergogênicos, cartão do plano, Orientações e Observações ficaram na coluna das refeições, não no apoio, para o apoio caber e ficar fixo; aguardando o Gustavo confirmar.
 
 ### 1.6 Comunidade
 
-- Bloco **720 + 32 + 340 = 1092, centralizado** no mesmo eixo das outras telas (não colado à esquerda).
+- Em 27/11 (código): feed de 720 + 32 + coluna de 340 ao lado a partir de 1092 px de área (`LARGURA_DO_BLOCO_DO_MURAL`); o bloco de 1092 não é mais um teto centralizado, a tela é a `TelaDoAluno`.
 - Uma linha de controles acima do feed, com a largura do feed (720): seletor Avisos/Alunos, busca flexível (mínimo 200)
   e Filtros. Abaixo de 600 de feed, a busca desce para a linha de baixo.
 - "Nova publicação" (`primario`): no topo do feed, à direita da linha de controles, ou como primeiro item do apoio acima
   de "Seus números". Recomendo **no feed**, porque a ação fica perto do que ela cria.
-- Abas Vídeos, Conquistas e Colegas usam o mesmo bloco de 1092.
+- Abas Vídeos, Conquistas e Colegas: a Conquistas põe a posição no apoio (380/420/440 pela faixa) e a Colegas tem até 6 colunas de no mínimo 400 px (27/11, `comunidade/ListaDeColegas`).
 
 ### 1.7 Histórico
 
 - **Pergunta 1 do plano, recomendação: abas**, com `?aba=`.
-- Treinos: Registros e cargas na principal (880) e Progresso por exercício no apoio (400). Abaixo de 952, empilha.
-- Corpo: gráficos de Peso e Avaliação física na **largura do bloco** (1312), altura fixa ~280 a 320 (gráfico mais alto
-  não mostra mais informação). Fotos em grade de célula mínima 200, proporção 3:4.
-- Atualizações: lista sequencial (880).
+- Treinos: Registros e cargas na principal e Progresso por exercício no apoio (380 na `normal`, 420 na `larga`, 440 na
+  `ultralarga`, como o `PrincipalComApoio`). Abaixo de 972 de área (560 + 32 + 380), empilha.
+- Corpo: gráficos de Peso e Avaliação física na **largura do bloco** (a área da tela, sem teto de 1312), altura fixa ~280 a 320 (gráfico mais alto
+  não mostra mais informação). Fotos em grade de célula mínima 200, proporção 3:4. Em 27/11 a aba Corpo tem no máximo 2 colunas (`dominio/colunasDoHistorico.ts`).
+- Atualizações: lista em colunas (`colunasDoHistorico`: 1 até a `normal`, 2 na `larga`, 3 na `ultralarga`; coluna mínima 480), no lugar da lista sequencial de 880.
 
 ---
 

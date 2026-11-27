@@ -1,22 +1,22 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { AtSign, BookOpen, FileSignature, FileText, IdCard, KeyRound, LogOut, SlidersHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { meuPerfilDaComunidade } from '../../api/comunidade';
 import { baixarFotoDePerfil, linkDeIndicacao, meusDados, usoDeImagem } from '../../api/rotas';
 import { MolduraDaFoto } from '../../comunidade/MolduraDaFoto';
+import { colunasDaConta } from '../../dominio/colunasDaConta';
 import { linkParaFalarComOTreinador } from '../../dominio/contatoDaConsultoria';
 import { existeContratosNaConta, resumoDoContratoNaConta, resumoDoPerfil, resumoDosDados, secoesVisiveis, type ChaveDaSecao } from '../../dominio/contaDoAluno';
 import { situacaoDoConvite } from '../../dominio/convidarAmigo';
 import { corDoPerfil, molduraDoPerfil, nomeParaColegas } from '../../dominio/perfilDaComunidade';
 import { redesPreenchidas } from '../../dominio/redesSociais';
-import { TETO_DA_TELA_DO_ALUNO } from '../../dominio/telaLargaDoAluno';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, corDoTomDoPerfil, espaco, LARGURA_FORMULARIO, RAIO_CONTROLE } from '../../tema/tokens';
+import { corDoTomDoPerfil, espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { ConfirmarSaida } from '../../ui/ConfirmarSaida';
@@ -25,12 +25,8 @@ import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { IconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { PreferenciasDoApp, RestaurarPreferencias } from '../../ui/PreferenciasDoApp';
 import { RedesSociais } from '../../ui/RedesSociais';
-import { useRolagem } from '../../ui/RolagemComTopo';
-import { sobre } from '../../ui/sobre';
-import { Tela } from '../../ui/Tela';
-import { Texto } from '../../ui/Texto';
+import { Tela, useFaixaDaTela } from '../../ui/Tela';
 import { useCarregar } from '../../ui/useCarregar';
-import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { CHAVE_DO_MEU_PERFIL } from '../AvisoDoPerfil';
 import { CartaoCiclo } from '../CartaoCiclo';
 import { CartaoConvidarAmigo } from '../CartaoConvidarAmigo';
@@ -45,30 +41,31 @@ import { InterruptorDeAvisoNoCelular } from '../push/InterruptorDeAvisoNoCelular
 import { useVersaoDaFotoDePerfil } from '../versaoDaFotoDePerfil';
 import { useAvisoAoSair } from '../useAvisoAoSair';
 import { CabecalhoDoPerfil } from './CabecalhoDoPerfil';
+import { ColunasEquilibradas, type PecaDaColuna } from './ColunasEquilibradas';
 import { DetalheMeuPerfil } from './DetalheMeuPerfil';
 import { DetalheMeusDados } from './DetalheMeusDados';
 import { FolhaTrocarSenha } from './FolhaTrocarSenha';
 import { LinhaDaSincronizacao } from './LinhaDaSincronizacao';
-import { alvoDaSecao, LinhaDaConta, SecaoDaConta } from './SecaoDaConta';
+import { LinhaDaConta, SecaoDaConta } from './SecaoDaConta';
 
 type Detalhe = 'perfil' | 'dados' | 'senha' | 'aparencia';
 
-/** Coluna da esquerda na web: o cabeçalho de perfil e o índice das seções. */
-const COLUNA_DO_PERFIL = 320;
 const MINI = 28;
-/** Fica no topo enquanto a coluna da direita rola (só na web; o padrão de `ajuda/TelaAjuda`). */
-const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), zIndex: 1 } : {}) as unknown as ViewStyle;
+/** 24 px entre as peças, nas colunas e na pilha do celular. */
+const VAO = espaco(3);
 
 const semConexao = (erro: unknown) => erro instanceof ErroApi && erro.semConexao;
 
 /**
  * Conta do aluno reorganizada (23/11, `docs/planos/conta-do-aluno.md`): cabeçalho de perfil e seções no estilo lista de
- * ajustes (Meu plano, Perfil na Comunidade, Meus dados, Ciclo, Convidar um amigo, Privacidade, Segurança, App) e, separado
- * no fim, "Excluir minha conta". A tela lê uma vez o que as linhas, o cabeçalho e as folhas mostram (meus dados, perfil da
+ * ajustes (Meu plano, Perfil na Comunidade, Meus dados, Ciclo, Convidar um amigo, Privacidade, Segurança, App) e, no fim,
+ * "Excluir minha conta". A tela lê uma vez o que as linhas, o cabeçalho e as folhas mostram (meus dados, perfil da
  * Comunidade, convite e uso das fotos) e passa a eles. Os detalhes (Meu perfil, Meus dados, Trocar senha, Aparência) abrem
- * em folha: painel à direita no PC, folha de baixo no celular; ficam fora dos dois arranjos, para cruzar a largura não
- * perder o que foi digitado. Na faixa normal ou maior (área medida), duas colunas: perfil e índice fixos à esquerda, seções
- * à direita na largura de formulário. `?secao=meu-perfil` (atalho da Comunidade) abre o Meu perfil no interruptor.
+ * em folha: painel à direita no PC, folha de baixo no celular; ficam fora do arranjo, para cruzar a largura não perder o que
+ * foi digitado. Na web (27/11, contêiner do treinador) as peças vão em colunas empilhadas (`ColunasEquilibradas`, variante da `ui/Alvenaria` de Aparência e
+ * preferências do treinador): 1 no celular, 2 na faixa normal, 3 na larga e na ultralarga (`dominio/colunasDaConta`); com
+ * tudo à vista, saíram o índice das seções e a coluna fixa do perfil. `?secao=meu-perfil` (atalho da Comunidade) abre o Meu
+ * perfil no interruptor.
  */
 export function TelaDaConta() {
   const sessao = useSessao();
@@ -80,8 +77,6 @@ export function TelaDaConta() {
   const { avisar } = useAviso();
   const versaoDaFoto = useVersaoDaFotoDePerfil();
   const { secao } = useLocalSearchParams<{ secao?: string }>();
-  const { faixa, largura, aoMedir } = useFaixaDeLargura();
-  const duasColunas = faixa !== 'compacta';
   const [aberto, setAberto] = useState<Detalhe | null>(null);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
   const avisoAoSair = useAvisoAoSair();
@@ -121,85 +116,115 @@ export function TelaDaConta() {
     ? `${nome} · ${resumoDoPerfil(meus.apelido, lido.destaques.length, lido.reservadoEfetivo)}`
     : perfil.erro || dados.erro ? 'Não foi possível carregar. Abra para tentar de novo.' : 'Carregando seu perfil…';
   const resumoDeMeusDados = meus ? resumoDosDados(meus.nome, meus.telefone) : dados.erro ? 'Não foi possível carregar. Abra para tentar de novo.' : 'Carregando seus dados…';
+  const usoAparece = usoDeImagemAparece(uso);
 
-  const perfilNoTopo = (
-    <View style={estilos.colunaDoPerfil}>
-      <CabecalhoDoPerfil nome={nome} email={sessao.usuario?.email} plano={financeiro.habilitado ? financeiro.dados?.plano : null} online={online} />
-      {duasColunas ? <IndiceDaConta secoes={secoes} /> : null}
-    </View>
+  const linhaDoPerfil = (
+    <LinhaDaConta titulo="Meu perfil" resumo={resumoDoMeuPerfil} aoTocar={() => setAberto('perfil')}
+      antes={(
+        <View style={estilos.mini} aria-hidden>
+          {lido && lido.reservadoEfetivo ? (
+            <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={nome} tamanho={MINI} />
+          ) : (
+            <MolduraDaFoto moldura={molduraDoPerfil(lido?.moldura).valor} cor={tom} tamanho={MINI}>
+              <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={nome} tamanho={MINI} />
+            </MolduraDaFoto>
+          )}
+        </View>
+      )} />
   );
 
-  return (
-    <View style={estilos.raiz} onLayout={aoMedir}>
-      {/* O contêiner de 1312 das telas do aluno, com o título na borda esquerda dele; perfil + seções (984) começam nela. */}
-      <Tela bordas={['top']} largura={TETO_DA_TELA_DO_ALUNO}>
-        <Cabecalho titulo="Conta" />
-        {/* A mesma árvore nas duas formas (só o estilo muda) e invisível até a primeira medida, para não saltar de uma coluna para duas. */}
-        <View style={[duasColunas ? estilos.colunas : estilos.pilha, largura === 0 ? estilos.semMedida : null]}>
-          <View style={duasColunas ? [estilos.esquerda, GRUDADA] : null}>{perfilNoTopo}</View>
-          <View style={[estilos.secoes, duasColunas ? estilos.direita : null]}>
-            {tem('plano') ? (
-              <SecaoDaConta chave="plano" titulo={titulo('plano')}><CartaoMeuPlano /></SecaoDaConta>
-            ) : null}
-            {tem('contratos') ? (
-              <SecaoDaConta chave="contratos" titulo={titulo('contratos')}>
-                {(contratos ?? []).map((c) => (
-                  <LinhaDaConta key={c.id} titulo={c.titulo} resumo={resumoDoContratoNaConta(c)} Icone={FileSignature} href={`/aluno/contrato/${encodeURIComponent(c.id)}`} />
-                ))}
-              </SecaoDaConta>
-            ) : null}
-            {tem('perfil') ? (
-              <SecaoDaConta chave="perfil" titulo={titulo('perfil')}>
-                <LinhaDaConta titulo="Meu perfil" resumo={resumoDoMeuPerfil} aoTocar={() => setAberto('perfil')}
-                  antes={(
-                    <View style={estilos.mini} aria-hidden>
-                      {lido && lido.reservadoEfetivo ? (
-                        <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={nome} tamanho={MINI} />
-                      ) : (
-                        <MolduraDaFoto moldura={molduraDoPerfil(lido?.moldura).valor} cor={tom} tamanho={MINI}>
-                          <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={nome} tamanho={MINI} />
-                        </MolduraDaFoto>
-                      )}
-                    </View>
-                  )} />
-              </SecaoDaConta>
-            ) : null}
-            {tem('dados') ? (
-              <SecaoDaConta chave="dados" titulo={titulo('dados')}>
-                <LinhaDaConta titulo="Meus dados" resumo={resumoDeMeusDados} Icone={IdCard} aoTocar={() => setAberto('dados')} />
-              </SecaoDaConta>
-            ) : null}
-            <CartaoCiclo />
-            <CartaoConvidarAmigo situacao={convite} link={indicacao.dados?.link} erro={indicacao.erro} recarregar={indicacao.recarregar} />
-            <SecaoDaConta chave="privacidade" titulo={titulo('privacidade')}>
-              {usoDeImagemAparece(uso) ? <CartaoUsoDeImagem carga={uso} /> : null}
-              <LinhaDaConta titulo="Termos e privacidade" Icone={FileText} href="/aluno/termos" />
+  // Na ordem de leitura (o DOM e o celular seguem esta ordem); a coluna de cada uma sai da altura medida.
+  // Peça que não desenha nada não entra: deixaria o vão das colunas sobrando.
+  const pecas: (PecaDaColuna | false)[] = [
+    {
+      chave: 'cabecalho',
+      conteudo: <CabecalhoDoPerfil nome={nome} email={sessao.usuario?.email} plano={financeiro.habilitado ? financeiro.dados?.plano : null} online={online} />,
+    },
+    tem('plano') && {
+      chave: 'plano',
+      conteudo: <SecaoDaConta chave="plano" titulo={titulo('plano')}><CartaoMeuPlano /></SecaoDaConta>,
+    },
+    tem('contratos') && {
+      chave: 'contratos',
+      conteudo: (
+        <SecaoDaConta chave="contratos" titulo={titulo('contratos')}>
+          {(contratos ?? []).map((c) => (
+            <LinhaDaConta key={c.id} titulo={c.titulo} resumo={resumoDoContratoNaConta(c)} Icone={FileSignature} href={`/aluno/contrato/${encodeURIComponent(c.id)}`} />
+          ))}
+        </SecaoDaConta>
+      ),
+    },
+    tem('perfil') && { chave: 'perfil', conteudo: <SecaoDaConta chave="perfil" titulo={titulo('perfil')}>{linhaDoPerfil}</SecaoDaConta> },
+    // O Ciclo vem logo depois de "Meus dados" (é lá que mora o sexo) e só aparece às vezes: mesma peça, sem vão vazio.
+    // Sem internet ele não desenha nada (não consulta).
+    (tem('dados') || online) && {
+      chave: 'dados',
+      conteudo: (
+        <View style={estilos.pilha}>
+          {tem('dados') ? (
+            <SecaoDaConta chave="dados" titulo={titulo('dados')}>
+              <LinhaDaConta titulo="Meus dados" resumo={resumoDeMeusDados} Icone={IdCard} aoTocar={() => setAberto('dados')} />
             </SecaoDaConta>
-            <SecaoDaConta chave="seguranca" titulo={titulo('seguranca')}>
-              {sessao.offline ? null : (
-                <LinhaDaConta titulo="Trocar senha" resumo="Senha atual e a nova; as outras sessões são encerradas" Icone={KeyRound} aoTocar={() => setAberto('senha')} />
-              )}
-              <LinhaDaConta titulo="Sair" rotulo="Sair" Icone={LogOut} semSeta aoTocar={() => setConfirmandoSaida(true)} />
-            </SecaoDaConta>
-            <SecaoDaConta chave="app" titulo={titulo('app')}>
-              <LinhaDaConta titulo="Aparência e preferências" resumo="Tema, contraste, tamanho do texto, animações e gráficos" Icone={SlidersHorizontal}
-                aoTocar={() => setAberto('aparencia')} />
-              <LinhaDaSincronizacao />
-              {linkDoTreinador ? (
-                <LinhaDaConta titulo="Falar com o treinador" resumo="Abre o WhatsApp da consultoria" Icone={IconeWhatsApp} semSeta
-                  aoTocar={() => void Linking.openURL(linkDoTreinador).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'))} />
-              ) : null}
-              {/* O WhatsApp fica na linha "Falar com o treinador" acima (um botão só); a peça traz só as redes. */}
-              {redesDaConsultoria.length ? (
-                <LinhaDaConta titulo="Redes da consultoria" resumo="Abrem fora do app" Icone={AtSign}>
-                  <View style={estilos.redes}><RedesSociais modo="leitura" redes={redesDaConsultoria} /></View>
-                </LinhaDaConta>
-              ) : null}
-              <LinhaDaConta titulo="Ajuda" resumo="Primeiros passos e tutorial" Icone={BookOpen} href="/aluno/ajuda" />
-            </SecaoDaConta>
-            <CartaoExcluirConta />
-          </View>
+          ) : null}
+          <CartaoCiclo />
         </View>
+      ),
+    },
+    convite !== 'oculto' && {
+      chave: 'convite',
+      conteudo: <CartaoConvidarAmigo situacao={convite} link={indicacao.dados?.link} erro={indicacao.erro} recarregar={indicacao.recarregar} />,
+    },
+    {
+      chave: 'privacidade',
+      conteudo: (
+        <SecaoDaConta chave="privacidade" titulo={titulo('privacidade')}>
+          {usoAparece ? <CartaoUsoDeImagem carga={uso} /> : null}
+          <LinhaDaConta titulo="Termos e privacidade" Icone={FileText} href="/aluno/termos" />
+        </SecaoDaConta>
+      ),
+    },
+    {
+      chave: 'seguranca',
+      conteudo: (
+        <SecaoDaConta chave="seguranca" titulo={titulo('seguranca')}>
+          {sessao.offline ? null : (
+            <LinhaDaConta titulo="Trocar senha" resumo="Senha atual e a nova; as outras sessões são encerradas" Icone={KeyRound} aoTocar={() => setAberto('senha')} />
+          )}
+          <LinhaDaConta titulo="Sair" rotulo="Sair" Icone={LogOut} semSeta aoTocar={() => setConfirmandoSaida(true)} />
+        </SecaoDaConta>
+      ),
+    },
+    {
+      chave: 'app',
+      conteudo: (
+        <SecaoDaConta chave="app" titulo={titulo('app')}>
+          <LinhaDaConta titulo="Aparência e preferências" resumo="Tema, contraste, tamanho do texto, animações e gráficos" Icone={SlidersHorizontal}
+            aoTocar={() => setAberto('aparencia')} />
+          <LinhaDaSincronizacao />
+          {linkDoTreinador ? (
+            <LinhaDaConta titulo="Falar com o treinador" resumo="Abre o WhatsApp da consultoria" Icone={IconeWhatsApp} semSeta
+              aoTocar={() => void Linking.openURL(linkDoTreinador).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'))} />
+          ) : null}
+          {/* O WhatsApp fica na linha "Falar com o treinador" acima (um botão só); a peça traz só as redes. */}
+          {redesDaConsultoria.length ? (
+            <LinhaDaConta titulo="Redes da consultoria" resumo="Abrem fora do app" Icone={AtSign}>
+              <View style={estilos.redes}><RedesSociais modo="leitura" redes={redesDaConsultoria} /></View>
+            </LinhaDaConta>
+          ) : null}
+          <LinhaDaConta titulo="Ajuda" resumo="Primeiros passos e tutorial" Icone={BookOpen} href="/aluno/ajuda" />
+        </SecaoDaConta>
+      ),
+    },
+    // Sem sessão no servidor (modo offline) o cartão não desenha nada.
+    !sessao.offline && { chave: 'excluir', conteudo: <CartaoExcluirConta /> },
+  ];
+
+  return (
+    <View style={estilos.raiz}>
+      {/* O contêiner das telas do aluno (o do treinador: ao lado do menu, até a "Largura do conteúdo"). */}
+      <Tela bordas={['top']}>
+        <Cabecalho titulo="Conta" />
+        <SecoesEmColunas pecas={pecas.filter((p): p is PecaDaColuna => !!p)} />
       </Tela>
       <ConfirmarSaida visivel={confirmandoSaida} aoFechar={() => setConfirmandoSaida(false)}
         aviso={avisoAoSair} />
@@ -213,34 +238,19 @@ export function TelaDaConta() {
   );
 }
 
-/** Índice das seções (web, coluna da esquerda): cada item rola até a seção. Some o que não existe agora. */
-function IndiceDaConta({ secoes }: { secoes: readonly { chave: ChaveDaSecao; titulo: string }[] }) {
-  const { cores } = useTema();
-  const { rolarAte } = useRolagem();
-  return (
-    <View role="navigation" aria-label="Seções da conta" style={estilos.indice}>
-      {secoes.map((s) => (
-        <Pressable key={s.chave} accessibilityRole="button" accessibilityLabel={`Ir para ${s.titulo}`} onPress={() => rolarAte([alvoDaSecao(s.chave)])}
-          style={(estado) => [estilos.itemDoIndice, { backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
-          <Texto cor={cores.texto}>{s.titulo}</Texto>
-        </Pressable>
-      ))}
-    </View>
-  );
+/**
+ * As peças em colunas empilhadas pela faixa da `Tela` (`dominio/colunasDaConta`: 1 no celular, 2 na normal, 3 na larga e na
+ * ultralarga). Fica dentro da `Tela`, para ler a faixa dela.
+ */
+function SecoesEmColunas({ pecas }: { pecas: readonly PecaDaColuna[] }) {
+  const faixa = useFaixaDaTela();
+  return <ColunasEquilibradas vao={VAO} colunas={(largura) => colunasDaConta(largura, faixa, VAO, pecas.length)} pecas={pecas} />;
 }
 
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },
-  semMedida: { opacity: 0 },
-  pilha: { gap: espaco(3) },
-  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3), maxWidth: COLUNA_DO_PERFIL + espaco(3) + LARGURA_FORMULARIO },
-  esquerda: { width: COLUNA_DO_PERFIL, flexShrink: 0 },
-  colunaDoPerfil: { gap: espaco(2) },
-  secoes: { gap: espaco(3) },
-  direita: { flex: 1, minWidth: 0, maxWidth: LARGURA_FORMULARIO },
+  pilha: { gap: VAO },
   mini: { width: 36, alignItems: 'center' },
   // O alvo de 44 tem 2 px de folga em volta do círculo: o recuo negativo alinha o primeiro círculo ao texto de cima.
   redes: { marginTop: espaco(1), marginLeft: -2 },
-  indice: { gap: 2 },
-  itemDoIndice: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5), borderRadius: RAIO_CONTROLE },
 });

@@ -93,6 +93,11 @@ public class Questionario {
     @Column(name = "campos_ocultos", nullable = false)
     private String camposOcultos = "";
 
+    /** Opção do link: mostrar o preço dos planos comerciais na página pública (padrão desligada). */
+    @OptimisticLock(excluded = true)
+    @Column(name = "mostrar_preco_dos_planos", nullable = false)
+    private boolean mostrarPrecoDosPlanos;
+
     /** Lock otimista das ações do link; sobe à mão em cada uma. */
     @OptimisticLock(excluded = true)
     @Column(name = "link_versao", nullable = false)
@@ -170,6 +175,8 @@ public class Questionario {
     public void setTextoApresentacao(String textoApresentacao) { this.textoApresentacao = textoApresentacao; }
     public String getCamposOcultos() { return camposOcultos; }
     public void setCamposOcultos(String camposOcultos) { this.camposOcultos = camposOcultos; }
+    public boolean isMostrarPrecoDosPlanos() { return mostrarPrecoDosPlanos; }
+    public void setMostrarPrecoDosPlanos(boolean mostrarPrecoDosPlanos) { this.mostrarPrecoDosPlanos = mostrarPrecoDosPlanos; }
     public long getLinkVersao() { return linkVersao; }
     public void subirLinkVersao() { this.linkVersao++; }
 

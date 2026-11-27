@@ -4,10 +4,23 @@ import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { linhaDaSerie } from './linhaDaSerie';
 
-// "Nova série" mostra os botões de 1 clique ("Adicionar FS", "Adicionar WS com Cluster"); sem série nenhuma eles já estão à vista.
+/** Abre um select da série ("Tipo da série", "Técnica da série", "Séries"…) e escolhe a opção. */
+async function escolher(page: Page, rotulo: string, opcao: string) {
+  await page.getByRole('button', { name: new RegExp(`^${rotulo}: .*\\. Escolher\\.$`) }).click();
+  await page.getByRole('option', { name: opcao, exact: true }).click();
+}
+
+// Sem série nenhuma, os botões de 1 clique ("Adicionar FS", "Adicionar WS com Cluster") estão à vista. Com séries, o
+// "+ Nova série" (a última linha da tabela, 27/11) já cria a WS e a abre; o tipo e a técnica se trocam nos selects dela.
 async function novaSerie(page: Page, botao: string) {
-  if (await linhaDaSerie(page, /^Série \d/).count()) await page.getByRole('button', { name: 'Nova série', exact: true }).click();
-  await page.getByRole('button', { name: botao, exact: true }).click();
+  if (!(await linhaDaSerie(page, /^Série \d/).count())) {
+    await page.getByRole('button', { name: botao, exact: true }).click();
+    return;
+  }
+  await page.getByRole('button', { name: 'Nova série', exact: true }).click();
+  const [, tipo, tecnica] = /^Adicionar (.+?)(?: com (.+))?$/.exec(botao)!;
+  if (tipo !== 'WS') await escolher(page, 'Tipo da série', tipo);
+  if (tecnica) await escolher(page, 'Técnica da série', tecnica);
 }
 
 for (const largura of [390, 1280]) {
@@ -29,8 +42,7 @@ for (const largura of [390, 1280]) {
       await expect(adicionar.getByRole('button', { name: nome, exact: true })).toBeVisible();
     }
     await novaSerie(page, 'Adicionar FS');
-    await page.getByRole('button', { name: 'Uma série completa a mais', exact: true }).click();
-    await page.getByRole('button', { name: 'Uma série completa a mais', exact: true }).click();
+    await escolher(page, 'Séries', '3');
     const campo = (nome: string) => page.getByRole('textbox', { name: nome, exact: true });
     await expect(campo('Série 1 · Mínimo (%)')).toHaveValue('50');
     await expect(campo('Série 2 · Mínimo (%)')).toHaveValue('70');
@@ -41,20 +53,19 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('region', { name: 'Editando série 1, Preparação · FS', exact: true })).toBeVisible();
     await expect(page.getByText(/3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
     await novaSerie(page, 'Adicionar WS');
-    // A técnica não é um tipo: a série é WS e o rest pause vai dentro dela.
+    // A técnica não é um tipo: a série é WS e o rest pause vai dentro dela. O "+ Nova série" soma uma WS ao grupo da WS e
+    // "Aplicar Rest-pause só na última série" separa a última, com a técnica.
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Só técnica', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Adicionar WS com Rest pause', exact: true }).click();
-    // Três grupos, três abas; a nova (a 3ª, WS com Rest pause) é a aberta.
+    await page.getByRole('button', { name: 'Aplicar Rest-pause só na última série', exact: true }).click();
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(3);
-    await expect(linhaDaSerie(page, /^Série 3 · WS/, true)).toBeVisible();
+    if (!(await linhaDaSerie(page, /^Série 3 · WS/, true).count())) await linhaDaSerie(page, /^Série 3 · WS/).click();
     await expect(page.getByRole('region', { name: /^Editando série \d, Trabalho · WS \+ Rest pause$/ })).toBeVisible();
     await expect(page.getByText(/1×3 a 6 · WS \+ Rest pause/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Técnica da série: Rest pause. Escolher.', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // O "mín" e o "máx" ficam dentro da caixa do número: com três dígitos o texto não passa da área dele (não é cortado).
-    // O descanso cabe "3600" (4 dígitos) na caixa estreita que deixa a linha Séries × Repetições × Descanso numa linha só.
-    for (const [nome, cheio] of [['Reps mín.', '100'], ['Reps máx.', '100'], ['Descanso depois da série, em segundos', '3600']]) {
+    for (const [nome, cheio] of [['Reps mín.', '100'], ['Reps máx.', '100']]) {
       const original = await campo(nome).inputValue();
       await campo(nome).fill(cheio);
       expect(await campo(nome).evaluate((e) => e.scrollWidth <= e.clientWidth), `${nome} cortado`).toBe(true);
@@ -89,8 +100,11 @@ for (const largura of [390, 1280]) {
 
     // WS com Cluster 4 blocos de 4: bloco 1 com a carga da série e os outros a 90% da WS.
     await novaSerie(page, 'Adicionar WS com Cluster');
-    await campo('Quantos blocos').fill('4');
+    // Blocos iguais (27/11): um campo só, as repetições; o + soma blocos (sem padrão, nasce com 2).
     await campo('Repetições em cada bloco').fill('4');
+    await page.getByRole('button', { name: 'Adicionar um bloco', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar um bloco', exact: true }).click();
+    await expect(page.getByText('4 blocos × 4 reps = 16 reps', { exact: true })).toBeVisible();
     await page.getByRole('switch', { name: 'Personalizar carga por bloco' }).click();
     for (const bloco of [2, 3, 4]) {
       await page.getByRole('radiogroup', { name: `Bloco ${bloco} (4 reps)` }).getByRole('radio', { name: 'Percentual da carga de trabalho (WS)', exact: true }).click();

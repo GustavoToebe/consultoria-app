@@ -15,9 +15,11 @@ import {
   historicoEmAbas,
   NO_TOPO_DE_TODA_ABA,
   ORDEM_NUMA_COLUNA,
+  PESO_NO_CORPO,
   type AbaDoHistorico,
   type BlocoDoHistorico,
 } from '../../dominio/abasDoHistorico';
+import { MAXIMO_DE_COLUNAS_DO_CORPO, pesoDaDivisao, pesoDaSemana } from '../../dominio/colunasDoHistorico';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { hojeEmBrasilia } from '../../dominio/financeiro';
@@ -32,6 +34,7 @@ import {
   pastaAnterior,
   periodoValido,
   rotuloDoPeriodo,
+  semanasDoHistorico,
   type PeriodoDoHistorico,
 } from '../../dominio/historicoDoAluno';
 import { cargasPorDivisao, nomeDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, textoSerie } from '../../dominio/relatorio';
@@ -40,7 +43,7 @@ import type { RegistroLocal } from '../../offline/repositorioLocal';
 import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
 import { documentoCargas } from '../../pdf/pdfCargas';
-import { espaco, fontes } from '../../tema/tokens';
+import { fontes } from '../../tema/tokens';
 import { CargasPorDivisao } from '../../treinador/CargasPorDivisao';
 import { CartaoAvaliacaoFisica } from '../../treinador/CartaoAvaliacaoFisica';
 import { CartaoPeso } from '../../treinador/CartaoPeso';
@@ -62,7 +65,7 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
-import { LARGURA_LISTA_DO_ALUNO } from '../../dominio/telaLargaDoAluno';
+import { ColunasDoHistorico } from '../../aluno/historico/ColunasDoHistorico';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -75,7 +78,9 @@ import { useCarregar } from '../../ui/useCarregar';
  *
  * Na web com o menu lateral (`docs/planos/aluno-web-layout.md`, seção 7) os cartões se dividem em abas no topo, Treinos,
  * Corpo e Atualizações, cada uma com o seu arranjo (`dominio/abasDoHistorico`); a aba mora no endereço (`?aba=`) e trocar é
- * um passo do histórico do navegador (o voltar a desfaz). No celular, a coluna única de sempre.
+ * um passo do histórico do navegador (o voltar a desfaz). No celular, a coluna única de sempre. Contêiner do treinador
+ * (27/11): divisões, semanas e linhas das Atualizações em 1, 2 e 3 colunas nas faixas normal, larga e ultralarga; os
+ * cartões do Corpo em 1 e 2 (`dominio/colunasDoHistorico`).
  */
 export default function HistoricoAluno() {
   const { registros, pacote, escolhida, falhas, tentarDeNovo, online } = useAluno();
@@ -198,8 +203,18 @@ export default function HistoricoAluno() {
         </>
       ) : null}
       {historico.dados && periodoMisturaVersoes(historico.dados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
-      {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} letras={letras} nascemAbertas /> : null}
-      {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} /> : null}
+      {/* Faixas larga e ultralarga: cada divisão (ou semana) é um bloco das colunas; a letra vem da tela, igual nas duas visões. */}
+      {historico.dados && visao === 'divisao' ? (
+        <ColunasDoHistorico umaColuna={<CargasPorDivisao divisoes={divisoes} letras={letras} nascemAbertas />}
+          pecas={divisoes.map((d) => ({ chave: d.chave, peso: pesoDaDivisao(d), conteudo: <CargasPorDivisao divisoes={[d]} letras={letras} nascemAbertas /> }))} />
+      ) : null}
+      {historico.dados && visao === 'dia' ? (
+        <ColunasDoHistorico umaColuna={<HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} />}
+          pecas={semanasDoHistorico(historico.dados, { de, ate }, hoje).map((s) => ({
+            chave: s.inicio, peso: pesoDaSemana(s),
+            conteudo: <HistoricoPorSemana dias={s.dias} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} />,
+          }))} />
+      ) : null}
     </Cartao>
   );
   // O mesmo cartão da ficha, só leitura (lista e gráfico); o peso não fica guardado no aparelho. Só o que a aba mostra é
@@ -224,8 +239,9 @@ export default function HistoricoAluno() {
           {/* Ativação manual: cada troca monta os cartões da aba e busca os dados; a seta só move o foco. */}
           <Abas abas={[...ABAS_DO_HISTORICO]} ativa={aba} aoMudar={setAba} ativacao="manual" />
           {mostrar(NO_TOPO_DE_TODA_ABA)}
-          {arranjo.lista ? (
-            <View style={estilos.lista}>{mostrar(arranjo.principal)}</View>
+          {arranjo.emColunas ? (
+            <ColunasDoHistorico umaColuna={mostrar(arranjo.principal)} maximo={MAXIMO_DE_COLUNAS_DO_CORPO}
+              pecas={arranjo.principal.map((b) => ({ chave: b, peso: PESO_NO_CORPO[b] ?? 1, conteudo: blocos[b] }))} />
           ) : (
             <PrincipalComApoio
               principal={mostrar(arranjo.principal)}
@@ -251,8 +267,6 @@ function agrupar(lista: RegistroLocal[]): [string, RegistroLocal[]][] {
 }
 
 const estilos = StyleSheet.create({
-  // Lista sequencial (as atualizações enviadas): largura de leitura, no meio do bloco.
-  lista: { width: '100%', maxWidth: LARGURA_LISTA_DO_ALUNO, alignSelf: 'center', gap: espaco(3) },
   linha: { gap: 2 },
   forte: { fontFamily: fontes.semi },
 });

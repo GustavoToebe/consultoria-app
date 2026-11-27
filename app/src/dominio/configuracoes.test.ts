@@ -90,13 +90,16 @@ describe('cartoesVisiveis', () => {
     expect(ids(cartoesVisiveis(com(['ALUNO_ALTERAR'])))).toEqual(expect.arrayContaining(['importacao', 'planilha-completa']));
   });
 
-  it('Marca e Contato são só do administrador: precisam da guarda da tela e de MARCA_ALTERAR', () => {
-    for (const id of ['marca', 'contato']) {
+  it('Marca, Contato e Padrões do acompanhamento são só do administrador: precisam da guarda da Marca e de MARCA_ALTERAR', () => {
+    for (const id of ['marca', 'contato', 'padroes-do-acompanhamento']) {
       expect(ids(cartoesVisiveis(com(['MARCA_ALTERAR'])))).not.toContain(id);
       expect(ids(cartoesVisiveis(com([], { administrador: true })))).not.toContain(id);
       expect(ids(cartoesVisiveis(com(['MARCA_ALTERAR'], { administrador: true })))).toContain(id);
     }
-    expect(CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'contato')).toMatchObject({ grupo: 'Consultoria', href: '/treinador/marca' });
+    // Telas só de Configurações (27/11): o endereço do cartão é o embutido (no celular abrem nele mesmo).
+    expect(CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'contato')).toMatchObject({ grupo: 'Consultoria', href: '/treinador/configuracoes/contato' });
+    expect(CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'padroes-do-acompanhamento'))
+      .toMatchObject({ grupo: 'Alunos e atendimento', href: '/treinador/configuracoes/padroes-do-acompanhamento' });
   });
 
   it('Documentos (PDF): administrador com MARCA_ALTERAR e o PDF no plano; a busca acha por pdf e tema', () => {
@@ -204,6 +207,16 @@ describe('buscarCartoes', () => {
     expect(ids(buscarCartoes('remetente', todos))).toEqual(['contato']);
     expect(ids(buscarCartoes('Responder para', todos))).toEqual(['contato']);
     expect(ids(buscarCartoes('WhatsApp', todos))).toContain('contato');
+    expect(ids(buscarCartoes('instagram', todos))).toEqual(['contato']);
+  });
+
+  it('os campos que saíram da Marca (27/11) são achados no lugar novo, e a Marca só pela identidade', () => {
+    for (const termo of ['meta do peso', 'dias de atualizacao', 'nova atualização', 'fases do ciclo', 'acompanhamento']) {
+      expect([termo, ids(buscarCartoes(termo, todos))]).toEqual([termo, ['padroes-do-acompanhamento']]);
+    }
+    for (const termo of ['remetente', 'redes sociais']) expect(ids(buscarCartoes(termo, todos))).toEqual(['contato']);
+    for (const termo of ['logo', 'paleta', 'tema padrao']) expect(ids(buscarCartoes(termo, todos))).toContain('marca');
+    expect(ids(buscarCartoes('logo', todos))).not.toContain('contato');
   });
 
   it('cada palavra precisa aparecer (E), em qualquer ordem', () => {
@@ -228,15 +241,17 @@ describe('buscarCartoes', () => {
 });
 
 describe('itens que abrem dentro de Configurações (coluna da direita)', () => {
-  it('cada item embutido é um cartão do catálogo e a rota inteira dele é o href do cartão (as duas rotas mostram a mesma tela)', () => {
+  it('cada item embutido é um cartão do catálogo; o href é a rota inteira (a mesma tela) ou, na tela só de Configurações, o próprio endereço', () => {
     for (const [id, rota] of Object.entries(ROTA_INTEIRA_DO_ITEM)) {
-      expect([id, CARTOES_DE_CONFIGURACAO.find((c) => c.id === id)?.href]).toEqual([id, rota]);
+      const href = CARTOES_DE_CONFIGURACAO.find((c) => c.id === id)?.href;
+      const propria = ['contato', 'padroes-do-acompanhamento'].includes(id);
+      expect([id, href]).toEqual([id, propria ? `/treinador/configuracoes/${id}` : rota]);
     }
   });
 
   it('abrem dentro só as telas de configuração; as do menu principal abrem a tela inteira', () => {
     expect(ids(CARTOES_DE_CONFIGURACAO.filter(abreDentro))).toEqual([
-      'meus-dados', 'seguranca', 'ajustes', 'minha-conta', 'marca', 'contato', 'whatsapp-oficial', 'documentos-pdf', 'tags-dos-alunos', 'contratos', 'termos',
+      'meus-dados', 'seguranca', 'ajustes', 'minha-conta', 'marca', 'contato', 'whatsapp-oficial', 'documentos-pdf', 'padroes-do-acompanhamento', 'tags-dos-alunos', 'contratos', 'termos',
     ]);
     const marca = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'marca')!;
     const auditoria = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'auditoria')!;
@@ -255,6 +270,7 @@ describe('itens que abrem dentro de Configurações (coluna da direita)', () => 
     expect(itemDoCaminho('/treinador/configuracoes')).toBeNull();
     expect(itemDoCaminho('/treinador/configuracoes/marca/x')).toBeNull();
     expect(rotaInteiraDoCaminho('/treinador/configuracoes/contato')).toBe('/treinador/marca');
+    expect(rotaInteiraDoCaminho('/treinador/configuracoes/padroes-do-acompanhamento')).toBe('/treinador/marca');
     expect(rotaInteiraDoCaminho('/treinador/configuracoes/auditoria')).toBeNull();
     expect(rotaInteiraDoCaminho('/treinador/marca')).toBeNull();
     expect(ehItemEmbutido('toString')).toBe(false);
@@ -264,6 +280,8 @@ describe('itens que abrem dentro de Configurações (coluna da direita)', () => 
     expect(podeAcessarTela('/treinador/configuracoes/meus-dados', () => false)).toBe(true);
     expect(podeAcessarTela('/treinador/configuracoes/marca', () => true, false, false)).toBe(false);
     expect(podeAcessarTela('/treinador/configuracoes/marca', () => true, false, true)).toBe(true);
+    expect(podeAcessarTela('/treinador/configuracoes/padroes-do-acompanhamento', () => true, false, false)).toBe(false);
+    expect(podeAcessarTela('/treinador/configuracoes/padroes-do-acompanhamento', () => true, false, true)).toBe(true);
     expect(podeAcessarTela('/treinador/configuracoes/minha-conta', (c) => c === 'CONTA_LER')).toBe(true);
     expect(podeAcessarTela('/treinador/configuracoes/minha-conta', () => false)).toBe(false);
     expect(podeAcessarTela('/treinador/configuracoes/tags-dos-alunos', (c) => c === 'ALUNO_LER')).toBe(true);

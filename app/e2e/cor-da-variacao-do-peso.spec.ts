@@ -6,7 +6,7 @@ import { ALUNO, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR
 import { sessaoDeAluno } from './aluno';
 
 /**
- * Cor da variação do peso pela meta que o treinador decide (plano cor-da-variacao-do-peso): campo na Marca e na ficha,
+ * Cor da variação do peso pela meta que o treinador decide (plano cor-da-variacao-do-peso): campo em Configurações › Padrões do acompanhamento (na Marca até 27/11) e na ficha,
  * cor na lista do peso da ficha e no Histórico do aluno (REDUZIR: queda verde; AUMENTAR: queda vermelha; SEM_META:
  * cor do texto), na lista e no resumo, seta e sinal sempre, a linha que explica as cores e o campo escondido sem
  * `ALUNO_SENSIVEL_LER`.
@@ -171,26 +171,26 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
 }
 
 for (const largura of [390, 1280]) {
-  test(`Marca: "Meta do peso dos alunos" nasce como veio e vai no PUT da marca em ${largura}px`, async ({ page }) => {
+  test(`Padrões do acompanhamento: "Meta do peso dos alunos" nasce como veio e vai no PUT da marca em ${largura}px`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const consultoria: ConsultoriaResponse = { marca: MARCA, versao: 3, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
     const { pedidos, errosDaPagina } = await simularApi(page, {
-      ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR, perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true } })),
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MARCA_ALTERAR'], perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true } })),
       ...ROTAS_DA_FICHA,
       'GET /consultoria': { corpo: consultoria },
       'PUT /consultoria/marca': (p, route) => json(route, { ...consultoria, ...(p.corpo as object), marca: MARCA, versao: 4 }),
     });
-    await page.goto('/treinador/marca');
+    await page.goto('/treinador/configuracoes/padroes-do-acompanhamento');
     const reduzir = opcao(page, 'Meta do peso dos alunos', 'Reduzir');
     await reduzir.scrollIntoViewIfNeeded();
     await expect(reduzir).toHaveAttribute('aria-checked', 'true');
     // Nada mudou: sem o rodapé de salvar.
-    await expect(page.getByRole('button', { name: 'Salvar marca' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Salvar padrões' })).toHaveCount(0);
     await opcao(page, 'Meta do peso dos alunos', 'Aumentar').click();
-    await page.getByRole('button', { name: 'Salvar marca' }).click();
-    await expect(page.getByText('Marca salva. Os alunos veem a nova marca ao abrir o app.')).toBeVisible();
+    await page.getByRole('button', { name: 'Salvar padrões' }).click();
+    await expect(page.getByText('Padrões do acompanhamento salvos.', { exact: true })).toBeVisible();
     const envio = pedidos.find((p) => p.metodo === 'PUT' && p.caminho === '/consultoria/marca');
-    expect(envio?.corpo).toMatchObject({ metaDoPeso: 'AUMENTAR', versao: 3 });
+    expect(envio?.corpo).toMatchObject({ metaDoPeso: 'AUMENTAR', versao: 3, nome: MARCA.nome, corPrimaria: MARCA.corPrimaria });
     expect(errosDaPagina).toEqual([]);
   });
 

@@ -33,7 +33,6 @@ import { Tela, useFaixaDaTela } from '../../../../ui/Tela';
 import { Texto } from '../../../../ui/Texto';
 import { TelaDoAluno } from '../../../../aluno/TelaDoAluno';
 import { fraseDaDataDoTreino, temColunasDoAluno } from '../../../../aluno/treino/arranjoDoTreino';
-import { TETO_DA_TELA_DO_ALUNO } from '../../../../dominio/telaLargaDoAluno';
 
 /** Dia de treino: os exercícios da sessão em cartões, com o progresso da data escolhida. */
 export default function SessaoAluno() {
@@ -51,7 +50,7 @@ export default function SessaoAluno() {
 
   if (!dia.carregado) {
     return (
-      <Tela bordas={['top']} largura={TETO_DA_TELA_DO_ALUNO}>
+      <Tela bordas={['top']}>
         <Cabecalho titulo="Treino" voltar="/aluno/treino" />
         <Esqueleto />
       </Tela>
@@ -59,7 +58,7 @@ export default function SessaoAluno() {
   }
   if (!dia.treino || !sessao) {
     return (
-      <Tela bordas={['top']} largura={TETO_DA_TELA_DO_ALUNO}>
+      <Tela bordas={['top']}>
         <Cabecalho titulo="Treino" voltar="/aluno/treino" />
         <Vazio texto="Esta sessão não está mais no seu plano. Volte para ver o treino atual."
           acao={{ rotulo: 'Ver meu treino', aoTocar: () => router.replace('/aluno/treino') }} />
@@ -160,7 +159,7 @@ export default function SessaoAluno() {
         href={(e) => caminhoDaSessao(sessao.uid, data, e.uid)}
         aoAbrir={(e) => abrir(e.uid)}
         animar={animar}
-        umaColuna={largo}
+        emColunas={largo}
       />
       {/* Rodapé: primário só quando já não há o "Começar/Continuar" lá em cima (um primário por área). */}
       <ConcluirTreino {...conclusao} tipo={pendente ? 'secundario' : 'primario'} cheio={!largo} />

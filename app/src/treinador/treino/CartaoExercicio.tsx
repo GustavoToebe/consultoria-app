@@ -4,11 +4,12 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { AlternativaDeExercicio, Configuracao, ExercicioPlano } from '../../api/tipos';
 import { descreverSeries } from '../../dominio/agrupamento';
+import { resumoDosExtras } from '../../dominio/camposDaSerie';
 import { erroDaCadencia, erroDaIsometria, normalizarCadencia, textoExecucao } from '../../dominio/execucaoDoExercicio';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { erroDoVideo } from '../../dominio/video';
 import { useTema } from '../../tema/TemaProvider';
-import { BORDA_BLOCO, espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
+import { BORDA_BLOCO, espaco, LARGURA_MENU_LATERAL, LARGURA_TEXTO_CORRIDO, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -21,9 +22,9 @@ import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { acoesDeMover } from '../acoesDeMover';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
-import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AlternativasDoExercicio } from './AlternativasDoExercicio';
-import { BotaoDeAbrir } from './BotaoDeAbrir';
+import { SecaoRecolhivel } from '../../ui/SecaoRecolhivel';
+import { BotaoDeInfo, Explicacao } from './BotaoDeAbrir';
 import { EditorSeries } from './EditorSeries';
 import { estadoDoExercicio } from './estadoDoExercicio';
 
@@ -94,29 +95,39 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const [menu, setMenu] = useState(false);
   const nomeDoExercicio = e.nome || 'o exercício';
   const acoesDoMenu = acoesDeMover({ nome: nomeDoExercicio, posicao: p.posicao, total: p.total, aoMover: p.aoMover });
+  const [explicarExecucao, setExplicarExecucao] = useState(false);
 
   const dados = <>
-    {/* Nome de exibição e o que é opcional num acordeão só (10/11): fechado, o botão diz o que já tem dentro. */}
-    <BotaoDeAbrir texto={textoDosExtras(e)} aberto={extrasAbertos} aoAlternar={() => setEscolhaDosExtras(!extrasAbertos)} />
-    {extrasAbertos ? (
-      <View style={[estilos.extras, { borderColor: cores.borda }]}>
-        <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
-        <Campo
-          rotulo="Observação para o aluno"
-          valor={e.observacao ?? ''}
-          aoMudar={(t) => mudar({ observacao: t || null })}
-          linhas={2}
-          maxLength={1000}
-        />
-        <Campo
-          rotulo="Vídeo (link do YouTube, opcional)"
-          valor={e.videoUrl ?? ''}
-          aoMudar={(t) => mudar({ videoUrl: t.trim() || null })}
-          erro={erroDoVideo(e.videoUrl) ?? erros.videoUrl}
-          autoCapitalize="none"
-          keyboardType="url"
-          maxLength={500}
-        />
+    {/* Seção recolhível de verdade (27/11): o título com a seta e, fechada, o resumo do que há dentro. Aberta, em grade:
+        nome | vídeo; a observação na largura de leitura; cadência | isometria. As explicações ficam no ⓘ. */}
+    <SecaoRecolhivel titulo="Nome de exibição e instruções" resumo={resumoDosExtras(e)} aberta={extrasAbertos} aoMudar={setEscolhaDosExtras}>
+      <View style={estilos.extras}>
+        <View style={estilos.linhaDosExtras}>
+          <View style={estilos.metade}>
+            <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
+          </View>
+          <View style={estilos.metade}>
+            <Campo
+              rotulo="Vídeo (link do YouTube, opcional)"
+              valor={e.videoUrl ?? ''}
+              aoMudar={(t) => mudar({ videoUrl: t.trim() || null })}
+              erro={erroDoVideo(e.videoUrl) ?? erros.videoUrl}
+              placeholder="https://youtu.be/…"
+              autoCapitalize="none"
+              keyboardType="url"
+              maxLength={500}
+            />
+          </View>
+        </View>
+        <View style={estilos.leitura}>
+          <Campo
+            rotulo="Observação para o aluno"
+            valor={e.observacao ?? ''}
+            aoMudar={(t) => mudar({ observacao: t || null })}
+            linhas={2}
+            maxLength={1000}
+          />
+        </View>
         <View style={estilos.linhaExecucao}>
           <View style={estilos.cadencia}>
             <Campo
@@ -124,8 +135,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
               valor={e.cadencia ?? ''}
               aoMudar={(t) => mudar({ cadencia: normalizarCadencia(t) })}
               erro={erroDaCadencia(e.cadencia) ?? erros.cadencia}
-              ajuda="Descida-pausa embaixo-subida-pausa em cima, em segundos; X = o mais rápido possível."
-              placeholder="Ex.: 3-1-1-0"
+              placeholder="3-1-1-0"
               autoCapitalize="characters"
               maxLength={15}
             />
@@ -138,12 +148,15 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
               valor={e.isometriaSegundos ?? null}
               aoMudar={(isometriaSegundos) => mudar({ isometriaSegundos })}
               erro={erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos}
-              ajuda="Segure N s; diga onde na observação."
             />
           </View>
+          <View style={estilos.infoDaExecucao}>
+            <BotaoDeInfo rotulo="Sobre cadência e isometria" aberto={explicarExecucao} aoAlternar={() => setExplicarExecucao(!explicarExecucao)} />
+          </View>
         </View>
+        {explicarExecucao ? <Explicacao texto="Cadência: descida-pausa embaixo-subida-pausa em cima, em segundos; X = o mais rápido possível. Isometria: segure N s; diga onde na observação." /> : null}
       </View>
-    ) : null}
+    </SecaoRecolhivel>
     {p.aoAdicionarAlternativa && p.aoTrocarEmTodas ? (
       <AlternativasDoExercicio exercicio={e} erros={erros} aoMudar={p.aoMudar} aoAdicionar={p.aoAdicionarAlternativa} aoTrocarEmTodas={p.aoTrocarEmTodas} />
     ) : null}
@@ -152,22 +165,25 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
       <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
     ) : null}
   </>;
+  // 27/11: o total no cabeçalho ("SÉRIES · 5 no total") e as duas ações de receita à direita; o rodapé saiu.
+  const total = e.series.length;
   const series = <>
     <View style={estilos.tituloDasSeries}>
-      <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
+      <View style={estilos.tituloETotal}>
+        <Texto variante="secao" nivel={3}>{cardio ? 'Cardio' : 'Séries'}</Texto>
+        {total ? <Texto variante="pequeno" numerico>{`· ${total} no total`}</Texto> : null}
+      </View>
       {/* Sem séries, "Usar receita" fica no estado vazio do `EditorSeries` (D13), não duas vezes. */}
-      {cardio || !e.series.length ? null : <Botao rotulo="Usar receita de séries" tipo="acao" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
+      {cardio || !total ? null : <View style={estilos.acoesDasSeries}>
+        <Botao rotulo="Usar receita de séries" tipo="acao" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />
+        <Botao rotulo="Salvar como receita" rotuloAcessivel="Salvar como receita de séries" tipo="secundario" Icone={Save} aoTocar={p.aoSalvarReceita} />
+      </View>}
     </View>
     <EditorSeries cardio={cardio} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
       aoUsarReceita={cardio ? undefined : p.aoUsarReceita}
       descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })}
       grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo} />
   </>;
-  const salvarReceita = e.series.length && !cardio ? (
-    <View style={estilos.rodape}>
-      <Botao rotulo={rotuloSalvarComo('SERIES')} tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
-    </View>
-  ) : null;
 
   return (
     <AlvoDeRolagem chave={e.uid}
@@ -231,7 +247,6 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
           {dados}
           <Divisor style={estilos.divisor} />
           {series}
-          {salvarReceita}
         </View>
       ) : null}
     </AlvoDeRolagem>
@@ -243,12 +258,6 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
  * shortcut: valor repetido nos dois editores; se mudar, extrair um token (`FAIXA_DO_PAINEL` em `tema/tokens.ts`) e usar nos dois.
  */
 const FAIXA_DO_PAINEL = 6;
-
-/** "Nome de exibição e instruções", com o que já está preenchido entre parênteses (o nome sempre está). */
-function textoDosExtras(e: ExercicioPlano): string {
-  const tem = [e.observacao ? 'observação' : null, e.videoUrl ? 'vídeo' : null, e.cadencia ? 'cadência' : null, e.isometriaSegundos != null ? 'isometria' : null].filter(Boolean);
-  return `Nome de exibição e instruções${tem.length ? ` (com ${tem.join(', ')})` : ''}`;
-}
 
 const estilos = StyleSheet.create({
   cartao: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, overflow: 'hidden' },
@@ -263,13 +272,18 @@ const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   // No PC os botões de mover têm texto: a linha quebra em vez de apertar o nome do exercício.
   acoesLargas: { flexWrap: 'wrap', justifyContent: 'flex-end' },
-  extras: { gap: espaco(1.5), paddingLeft: espaco(1.5), borderLeftWidth: 2 },
+  extras: { gap: espaco(1.5) },
+  linhaDosExtras: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
+  metade: { flexGrow: 1, flexShrink: 1, flexBasis: 260, minWidth: 0 },
+  leitura: { width: '100%', maxWidth: LARGURA_TEXTO_CORRIDO },
+  infoDaExecucao: { paddingTop: 18 + espaco(0.5) },
   tituloDasSeries: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  tituloETotal: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.75) },
+  acoesDasSeries: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), marginLeft: 'auto' },
   corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2) },
-  rodape: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: espaco(1) },
   linhaExecucao: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
-  cadencia: { flexGrow: 1, flexBasis: 220 },
-  isometria: { width: 180 },
+  cadencia: { width: 200 },
+  isometria: { width: 120 },
   // Separa o contexto do exercício das séries.
   divisor: { marginVertical: espaco(0.5) },
 });

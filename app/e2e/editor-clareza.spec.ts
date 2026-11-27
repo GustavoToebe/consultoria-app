@@ -154,33 +154,40 @@ for (const largura of [390, 1280]) {
     const api = await planoComDoisExercicios(page);
     await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
     await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
-    // Agrupadas por bloco e técnica (Frente G, D16): as duas têm mais de um papel e nenhuma técnica, então são
-    // "Receitas completas"; cada uma com a composição, a sequência, a coleção e, como a remada já tem uma série, as duas
-    // ações (C81): substituir ou acrescentar ao fim.
-    await expect(page.getByRole('button', { name: 'Receitas completas, aberto', exact: true })).toBeVisible();
+    // As duas têm mais de um papel: aba Completas (27/11). Cada linha da lista diz a composição nos selos; a prévia da
+    // escolhida traz a sequência e a coleção (só quando há uma) e, como a remada já tem uma série, o rodapé tem as duas
+    // ações (C81): substituir ou acrescentar ao fim, com o aviso curto.
+    await expect(page.getByRole('tab', { name: /^Completas/ })).toHaveAttribute('aria-selected', 'true');
+    const opcao = (nome: string) => page.getByRole('option', { name: new RegExp(`^${nome}:`) });
+    await expect(page.getByRole('option', { name: 'Força com preparação: FS ×1, WS ×1', exact: true })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Volume fictício: WS ×1, Back off ×2', exact: true })).toBeVisible();
+    if (largura < 768) await opcao('Força com preparação').click();
     await expect(page.getByText('Coleção: Força', { exact: true })).toBeVisible();
-    await expect(page.getByText('Coleção: Sem coleção', { exact: true })).toBeVisible();
-    await expect(page.getByText('FS ×1 · WS ×1', { exact: true })).toBeVisible();
-    await expect(page.getByText('WS ×1 · Back off ×2', { exact: true })).toBeVisible();
-    await expect(page.getByText('Sequência', { exact: true })).toHaveCount(2);
-    await expect(page.getByText(/^Este exercício já tem 1 série: substitua ou acrescente/)).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(2);
-    await expect(page.getByRole('button', { name: /^Acrescentar ao fim as séries de / })).toHaveCount(2);
+    await expect(page.getByText('Sequência', { exact: true })).toHaveCount(1);
+    await expect(page.getByText('Este exercício já tem 1 série.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Substituir a série por / })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: /^Acrescentar ao fim as séries de / })).toHaveCount(1);
+    // A outra não tem coleção: a linha some.
+    if (largura < 768) await page.getByRole('button', { name: 'Voltar à lista', exact: true }).click();
+    await opcao('Volume fictício').click();
+    await expect(page.getByText(/^Coleção:/)).toHaveCount(0);
+    if (largura < 768) await page.getByRole('button', { name: 'Voltar à lista', exact: true }).click();
     // Busca pela composição ("back off") e pelo nome, sem acento.
     const busca = page.getByRole('textbox', { name: 'Buscar receita', exact: true });
     await busca.fill('back off');
-    await expect(page.getByText('Volume fictício', { exact: true })).toBeVisible();
-    await expect(page.getByText('Força com preparação', { exact: true })).toHaveCount(0);
+    await expect(opcao('Volume fictício')).toBeVisible();
+    await expect(opcao('Força com preparação')).toHaveCount(0);
     await busca.fill('forca');
-    await expect(page.getByText('Força com preparação', { exact: true })).toBeVisible();
-    await expect(page.getByText('Volume fictício', { exact: true })).toHaveCount(0);
+    await expect(opcao('Força com preparação')).toBeVisible();
+    await expect(opcao('Volume fictício')).toHaveCount(0);
     await busca.fill('nada assim');
     await expect(page.getByText('Nenhuma receita com essa busca.', { exact: true })).toBeVisible();
     await busca.fill('back off');
     expect(await semRolagemDeLado(page)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('folha-receitas.png'), fullPage: true });
-    await page.getByRole('button', { name: 'Substituir as séries por Volume fictício', exact: true }).click();
-    await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(0);
+    if (largura < 768) await opcao('Volume fictício').click();
+    await page.getByRole('button', { name: 'Substituir a série por Volume fictício', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Substituir a série por / })).toHaveCount(0);
     await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toBeVisible();
     // A receita vira duas abas (uma por grupo); a aberta é a última, e o "Para o aluno" dela traz a faixa dos números.
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
@@ -204,6 +211,7 @@ for (const largura of [390, 1280]) {
     const api = await planoComDoisExercicios(page);
     await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
     await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
+    await page.getByRole('option', { name: /^Volume fictício:/ }).click();
     await page.getByRole('button', { name: 'Acrescentar ao fim as séries de Volume fictício', exact: true }).click();
     await expect(page.getByText('Receita “Volume fictício” acrescentada ao fim.', { exact: true })).toBeVisible();
     // A WS de antes continua a primeira; depois dela, a WS e os dois Back off da receita (a aberta é a última).
@@ -218,6 +226,7 @@ for (const largura of [390, 1280]) {
     expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
     // Acrescentada de novo e salva: a série de antes fica primeiro e as da receita entram com uids novos.
     await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
+    await page.getByRole('option', { name: /^Volume fictício:/ }).click();
     await page.getByRole('button', { name: 'Acrescentar ao fim as séries de Volume fictício', exact: true }).click();
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(3);
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
@@ -234,15 +243,17 @@ for (const largura of [390, 1280]) {
 
   test(`editor: receita sem séries é uma ação só; acima de 30 séries, acrescentar fica desabilitado com o motivo (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
-    // Sem séries: "Usar receita" fica no estado vazio (D13), uma vez só, e cada receita tem só "Aplicar receita".
+    // Sem séries: "Usar receita" fica no estado vazio (D13), uma vez só, e o rodapé da folha só tem "Usar receita".
     await planoComDoisExercicios(page, receitas, []);
     await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
     await expect(page.getByText('Nenhuma série ainda.', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Aplicar receita Volume fictício', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(0);
+    await page.getByRole('option', { name: /^Volume fictício:/ }).click();
+    await expect(page.getByRole('button', { name: 'Usar receita Volume fictício', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Substituir/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Acrescentar ao fim/ })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Aplicar receita Volume fictício', exact: true }).click();
+    await expect(page.getByText(/^Este exercício já tem/)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Usar receita Volume fictício', exact: true }).click();
     await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toBeVisible();
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
   });
@@ -254,17 +265,20 @@ for (const largura of [390, 1280]) {
     await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
     await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
     // 28 + 3 passa do máximo; 28 + 2 cabe. Substituir continua valendo nas duas.
+    await page.getByRole('option', { name: /^Volume fictício:/ }).click();
     await expect(page.getByRole('button', { name: 'Acrescentar ao fim as séries de Volume fictício', exact: true })).toBeDisabled();
     await expect(page.getByText('Passaria de 30 séries, o máximo: o exercício tem 28 e a receita traz 3.', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Acrescentar ao fim as séries de Força com preparação', exact: true })).toBeEnabled();
-    await expect(page.getByRole('button', { name: 'Substituir as séries por Volume fictício', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Substituir as 28 séries por Volume fictício', exact: true })).toBeEnabled();
     expect(await semRolagemDeLado(page)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`receita-limite-${largura}.png`), fullPage: true });
+    if (largura < 768) await page.getByRole('button', { name: 'Voltar à lista', exact: true }).click();
+    await page.getByRole('option', { name: /^Força com preparação:/ }).click();
+    await expect(page.getByRole('button', { name: 'Acrescentar ao fim as séries de Força com preparação', exact: true })).toBeEnabled();
   });
 }
 
-/* Frente G, passo 6 (D16, C16): "Usar receita" em seções por bloco e técnica, cada receita uma vez, com a sequência
- * colorida por tipo (selo de texto + cor). */
+/* Frente G, passo 6 (D16, C16), refeito em 27/11: "Usar receita" em duas abas (Completas e Partes), cada receita uma
+ * vez, com os selos da composição na cor do tipo (selo de texto + cor). */
 const cluster = { tipo: 'CLUSTER' as const, pausaSegundos: 15, blocos: [4, 4] };
 const restPause = { tipo: 'REST_PAUSE' as const, pausaSegundos: 20, pausas: 1 };
 const RECEITAS_EM_BLOCOS: Receita[] = [
@@ -287,35 +301,37 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       const api = await planoComDoisExercicios(page, RECEITAS_EM_BLOCOS);
       await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
       await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
-      // Completas primeiro, depois os papéis e as técnicas; cada receita uma vez.
-      const secoes = page.getByRole('button', { name: /, (aberto|recolhido)$/ }).filter({ hasText: /^(Receitas completas|Aquecimento|Pós-trabalho|Técnica: .*)/ });
-      await expect(secoes).toHaveText([/^Receitas completas/, /^Aquecimento/, /^Pós-trabalho/, /^Técnica: Rest pause/, /^Técnica: Cluster/]);
-      // As seções nascem fechadas (docs/design-e-front.md §4.8): abre as cinco antes de conferir o que há dentro.
-      for (const titulo of ['Receitas completas', 'Aquecimento', 'Pós-trabalho', 'Técnica: Rest pause', 'Técnica: Cluster']) {
-        await page.getByRole('button', { name: `${titulo}, recolhido`, exact: true }).click();
-      }
-      for (const nome of ['Força com preparação', 'Aquecimento fictício', 'Back off fictício', 'Cluster fictício', 'Rest pause fictício']) {
-        await expect(page.getByText(nome, { exact: true })).toHaveCount(1);
-      }
+      // Completas (mais de um papel) e Partes (o resto); cada receita uma vez.
+      const opcao = (nome: string) => page.getByRole('option', { name: new RegExp(`^${nome}:`) });
+      await expect(page.getByRole('tab', { name: /^Completas/ })).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByRole('option')).toHaveCount(1);
+      await expect(opcao('Força com preparação')).toHaveCount(1);
       // O selo do tipo na cor dele (FS azul, WS índigo, Back off magenta, Aquecimento ciano), com o nome escrito.
       const paleta = PALETA_DE_IDENTIFICACAO[nomeDoTema];
-      for (const [tipo, cor] of [['FS', paleta.AZUL], ['WS', paleta.INDIGO], ['Back off', paleta.MAGENTA], ['Aquecimento', paleta.CIANO]] as const) {
-        await expect(page.getByText(tipo, { exact: true }).last()).toHaveCSS('color', rgb(cor));
+      await expect(opcao('Força com preparação').getByText('FS ×1', { exact: true })).toHaveCSS('color', rgb(paleta.AZUL));
+      await page.getByRole('tab', { name: /^Partes/ }).click();
+      await expect(page.getByRole('option')).toHaveCount(4);
+      for (const nome of ['Aquecimento fictício', 'Back off fictício', 'Cluster fictício', 'Rest pause fictício']) {
+        await expect(opcao(nome)).toHaveCount(1);
       }
-      // Recolher uma seção esconde as receitas dela; a busca procura em todas e reabre.
-      await page.getByRole('button', { name: 'Aquecimento, aberto', exact: true }).click();
-      await expect(page.getByText('Aquecimento fictício', { exact: true })).toHaveCount(0);
+      for (const [nome, selo, cor] of [['Back off fictício', 'Back off ×1', paleta.MAGENTA], ['Aquecimento fictício', 'Aquecimento ×1', paleta.CIANO], ['Cluster fictício', 'WS ×1', paleta.INDIGO]] as const) {
+        await expect(opcao(nome).getByText(selo, { exact: true })).toHaveCSS('color', rgb(cor));
+      }
+      // Chip de técnica e busca procuram dentro da aba.
+      await page.getByRole('radio', { name: 'Cluster', exact: true }).click();
+      await expect(page.getByRole('option')).toHaveCount(1);
+      await page.getByRole('radio', { name: 'Todos', exact: true }).click();
       const busca = page.getByRole('textbox', { name: 'Buscar receita', exact: true });
       await busca.fill('cluster');
-      await expect(page.getByText('Cluster fictício', { exact: true })).toBeVisible();
-      await expect(page.getByText('Rest pause fictício', { exact: true })).toHaveCount(0);
+      await expect(opcao('Cluster fictício')).toBeVisible();
+      await expect(opcao('Rest pause fictício')).toHaveCount(0);
       await busca.fill('aquecimento');
-      await expect(page.getByText('Aquecimento fictício', { exact: true })).toBeVisible();
+      await expect(opcao('Aquecimento fictício')).toBeVisible();
       await busca.fill('');
       expect(await semRolagemDeLado(page)).toBe(true);
-      await page.getByText('Cluster fictício', { exact: true }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`usar-receita-${nomeDoTema}-${largura}.png`), fullPage: true });
-      await page.getByRole('button', { name: 'Substituir as séries por Back off fictício', exact: true }).click();
+      await opcao('Back off fictício').click();
+      await page.getByRole('button', { name: 'Substituir a série por Back off fictício', exact: true }).click();
       await expect(page.getByText('Receita “Back off fictício” aplicada.', { exact: true })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
       expect(api.naoTratadas).toEqual([]);

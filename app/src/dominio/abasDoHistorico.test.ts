@@ -28,10 +28,11 @@ describe('ARRANJO_DA_ABA', () => {
     expect(new Set(nasAbas).size).toBe(nasAbas.length);
   });
 
-  it('Treinos tem os registros na principal e o progresso ao lado; Atualizações é uma lista em largura de leitura', () => {
-    expect(ARRANJO_DA_ABA.treinos).toEqual({ principal: ['registros'], apoio: ['progresso'], rotuloDoApoio: 'Progresso por exercício', lista: false });
+  it('Treinos tem os registros na principal e o progresso ao lado; Corpo em colunas; Atualizações na largura do contêiner', () => {
+    expect(ARRANJO_DA_ABA.treinos).toEqual({ principal: ['registros'], apoio: ['progresso'], rotuloDoApoio: 'Progresso por exercício', emColunas: false });
     expect(ARRANJO_DA_ABA.corpo.principal).toEqual(['peso', 'avaliacao', 'fotos']);
-    expect(ARRANJO_DA_ABA.atualizacoes.lista).toBe(true);
+    expect(ARRANJO_DA_ABA.corpo.emColunas).toBe(true);
+    expect(ARRANJO_DA_ABA.atualizacoes.emColunas).toBe(false);
     // Toda aba com apoio dá nome à região; sem apoio, nome nulo.
     for (const { valor } of ABAS_DO_HISTORICO) expect(ARRANJO_DA_ABA[valor].rotuloDoApoio === null).toBe(ARRANJO_DA_ABA[valor].apoio.length === 0);
   });

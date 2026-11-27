@@ -314,8 +314,11 @@ export function CaixaDaLinha({ rotulo, marcado, aoMudar, desabilitado }: { rotul
   );
 }
 
-/** O quadrado da caixa de marcar (seleção invertida), sem toque: usado pela `CaixaDaLinha` e pela linha que marca. */
-function DesenhoDaCaixa({ marcado }: { marcado: boolean }) {
+/**
+ * O quadrado da caixa de marcar (seleção invertida), sem toque: usado pela `CaixaDaLinha`, pela linha que marca e pela opção
+ * de lista com várias escolhas (folha "Escolher exercício"), onde a linha inteira é a opção e não pode ter controle dentro.
+ */
+export function DesenhoDaCaixa({ marcado }: { marcado: boolean }) {
   const { cores } = useTema();
   return (
     <View style={[estilos.caixa, { backgroundColor: marcado ? cores.texto : cores.campo, borderColor: marcado ? cores.texto : cores.bordaCampo }]}>

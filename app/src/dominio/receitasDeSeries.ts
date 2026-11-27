@@ -23,14 +23,30 @@ function nomeNaComposicao(serie: Pick<Serie, 'tipo' | 'cardio'>, config: Configu
  * só os nomes configurados (sem o papel), para caber numa linha; tipo fora da metodologia sai pelo código.
  */
 export function composicaoDasSeries(series: readonly Pick<Serie, 'tipo' | 'cardio'>[], config?: Configuracao | null): string {
-  const trechos: { nome: string; quantas: number }[] = [];
+  return trechosDaComposicao(series, config).map((t) => `${t.nome} ×${t.quantas}`).join(' · ');
+}
+
+/** Um selo da composição na lista "Usar receita" (27/11): o nome do tipo, quantas seguidas e a cor do tipo (nula = sem cor). */
+export interface TrechoDaComposicao {
+  nome: string;
+  quantas: number;
+  cor: ChaveDeIdentificacao | null;
+}
+
+/**
+ * Os trechos da composição ("FS ×3", "WS ×1"…), na ordem e juntando só as seguidas de mesmo nome, com a cor do tipo da
+ * primeira (a do papel cai na metodologia padrão sem metodologia, como em `pecasDaReceita`). Cardio e sem tipo ficam sem cor.
+ */
+export function trechosDaComposicao(series: readonly Pick<Serie, 'tipo' | 'cardio'>[], config?: Configuracao | null): TrechoDaComposicao[] {
+  const paraOPapel = config ?? CONFIGURACAO_PADRAO;
+  const trechos: TrechoDaComposicao[] = [];
   for (const s of series) {
     const nome = nomeNaComposicao(s, config);
     const ultimo = trechos[trechos.length - 1];
     if (ultimo && ultimo.nome === nome) ultimo.quantas += 1;
-    else trechos.push({ nome, quantas: 1 });
+    else trechos.push({ nome, quantas: 1, cor: s.cardio ? null : corDoTipoDeSerie(s.tipo, papelDe(paraOPapel, s.tipo)) });
   }
-  return trechos.map((t) => `${t.nome} ×${t.quantas}`).join(' · ');
+  return trechos;
 }
 
 /** Composição da receita de séries guardada (`conteudo.series`); vazia sem séries. */

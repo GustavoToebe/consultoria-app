@@ -21,6 +21,7 @@ import { criarArmazemDePreferencias } from './armazemDePreferencias';
 import {
   coresDaAcao,
   coresDeIdentificacao,
+  corDaAgua,
   MARCA_NEUTRA,
   marcaAoPassar,
   marcaParaPeca,
@@ -70,9 +71,10 @@ interface ValorTema {
   /**
    * Cores de identificação (tipo de série, divisão, refeição) no tema em uso: a chave vem de `dominio/corDaSerie`
    * (`corDoTipoDeSerie`, `corDaDivisao`, `corDaRefeicao`); `cor` para texto, ícone e barra, `fundo` para o selo.
-   * Nunca dizem status e nunca vêm sem o texto do selo.
+   * Nunca dizem status e nunca vêm sem o texto do selo. `AGUA` (27/11) é a categoria da água (`PALETA_DA_AGUA`), fora da
+   * lista das cinco (não é cor de tag, série nem refeição).
    */
-  identificacao: Record<ChaveDeIdentificacao, CorDeIdentificacao>;
+  identificacao: Record<ChaveDeIdentificacao, CorDeIdentificacao> & { AGUA: CorDeIdentificacao };
   preferencias: Preferencias;
   /** A leitura das preferências gravadas terminou; antes disso `preferencias` é o padrão. */
   preferenciasLidas: boolean;
@@ -148,7 +150,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       marcaTexto: marcaParaTexto(marca, cores.superficie3),
       marcaHover: marcaAoPassar(marca),
       marcaPeca: marcaParaPeca(marca, [cores.superficie3, cores.fundo, cores.painel, cores.superficie]),
-      identificacao: coresDeIdentificacao(cores, variante),
+      identificacao: { ...coresDeIdentificacao(cores, variante), AGUA: corDaAgua(cores, variante) },
       preferencias,
       preferenciasLidas,
       fatorTexto: fatorDoTexto(preferencias.tamanhoTexto),

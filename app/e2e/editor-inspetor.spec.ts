@@ -84,9 +84,10 @@ test.describe('editor de treino no PC (1440)', () => {
     await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
     await expect(page.getByRole('region', { name: /^Editando série 2(,|$)/ })).toBeVisible();
 
-    // "+ Nova série" mostra um botão por tipo; um toque cria o grupo próprio e a aba dele fica escolhida.
+    // "+ Nova série" (a última linha da tabela, 27/11) cria a série de trabalho e a abre; o tipo se troca no select dela.
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
-    await page.getByRole('button', { name: 'Adicionar Aquecimento', exact: true }).click();
+    await page.getByRole('button', { name: /^Tipo da série: .*. Escolher.$/ }).click();
+    await page.getByRole('option', { name: /^Aquecimento/ }).click();
     await expect(abasDasSeries(page)).toHaveCount(4);
     await expect(abaSelecionada(page)).toHaveAccessibleName(/Aquecimento/);
     const numero = (await abaSelecionada(page).getAttribute('aria-label'))?.match(/^Série (\d+)/)?.[1];

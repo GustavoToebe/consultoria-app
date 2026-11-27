@@ -34,10 +34,19 @@ jest.mock('../FolhaDeAcoes', () => {
     acoes.map((a) => <Pressable key={a.rotulo} accessibilityLabel={`${a.rotulo}, ${a.detalhe}`} onPress={a.aoTocar} />) };
 });
 jest.mock('./TabelaDeBlocos', () => ({
-  TabelaDeBlocos: ({ linhas: abas, ativa, aoMudar, depois, detalhe }: { linhas: { valor: string; rotulo: string }[]; ativa: string | null; aoMudar: (v: string | null) => void; depois?: unknown; detalhe?: unknown }) => {
+  TabelaDeBlocos: ({ linhas: abas, ativa, aoMudar, depois, nova, detalhe }: { linhas: { valor: string; rotulo: string }[]; ativa: string | null; aoMudar: (v: string | null) => void; depois?: unknown; nova?: { rotulo: string; aoTocar: () => void }; detalhe?: unknown }) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createElement } = require('react'); const { Pressable, View } = require('react-native');
-    return createElement(View, null, ...abas.map((a) => createElement(Pressable, { key: a.valor, accessibilityRole: 'tab', accessibilityLabel: a.rotulo, accessibilityState: { selected: a.valor === ativa }, onPress: () => aoMudar(a.valor === ativa ? null : a.valor) })), detalhe, depois);
+    return createElement(View, null, ...abas.map((a) => createElement(Pressable, { key: a.valor, accessibilityRole: 'tab', accessibilityLabel: a.rotulo, accessibilityState: { selected: a.valor === ativa }, onPress: () => aoMudar(a.valor === ativa ? null : a.valor) })), detalhe, depois,
+      nova ? createElement(Pressable, { key: 'nova', accessibilityLabel: nova.rotulo, onPress: nova.aoTocar }) : null);
+  },
+}));
+// A lista suspensa (Tipo, Técnica, Séries, Descanso, RIR) sem a folha: cada opção vira um botão "Rótulo: opção".
+jest.mock('../../ui/EscolhaSuspensa', () => ({
+  EscolhaSuspensa: ({ rotulo, opcoes, aoMudar }: { rotulo: string; opcoes: { valor: unknown; rotulo: string }[]; aoMudar: (v: unknown) => void }) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createElement } = require('react'); const { Pressable, View } = require('react-native');
+    return createElement(View, null, ...opcoes.map((o) => createElement(Pressable, { key: String(o.valor), accessibilityLabel: `${rotulo}: ${o.rotulo}`, onPress: () => aoMudar(o.valor) })));
   },
 }));
 jest.mock('../../ui/Escolha', () => ({
@@ -118,27 +127,41 @@ describe('EditorSeries com a aba controlada', () => {
     expect(aoAbrir).not.toHaveBeenCalled();
   });
 
-  it('"Nova série" mostra os botões de 1 clique; "FS" adiciona e abre a aba nova (o último grupo)', () => {
+  // 27/11: "+ Nova série" é a última linha da tabela e já adiciona (a série de trabalho) e abre o grupo dela.
+  it('"Nova série" adiciona a série de trabalho e abre o grupo dela (o último)', () => {
     const aoAbrir = jest.fn();
-    const arvore = montar(<Controlado inicial="a1" aoAbrir={aoAbrir} />);
+    const comeco = [serie('b1', { tipo: 'WORKING' }), serie('a1', { tipo: 'FEEDER' })];
+    const arvore = montar(<Controlado inicial="b1" comeco={comeco} aoAbrir={aoAbrir} />);
     tocar(arvore, 'Nova série');
-    // O último grupo é a WS: o FS novo vira um grupo próprio, no fim.
-    tocar(arvore, 'Adicionar FS');
-    const editor = arvore.root.findByType(EditorSeries);
-    const novas: Serie[] = editor.props.series;
-    expect(novas.length).toBe(SERIES.length + 1);
-    expect(novas.at(-1)?.tipo).toBe('FEEDER');
+    const novas: Serie[] = arvore.root.findByType(EditorSeries).props.series;
+    expect(novas.length).toBe(comeco.length + 1);
+    expect(novas.at(-1)?.tipo).toBe('WORKING');
     expect(aoAbrir).toHaveBeenLastCalledWith(agrupar(novas).at(-1)?.series[0].uid);
     expect(abaSelecionada(arvore)).toMatch(new RegExp(`^Série ${agrupar(novas).length}`));
   });
 
-  it('"Cluster" cria a série de trabalho já com a técnica', () => {
-    const arvore = montar(<Controlado inicial="a1" aoAbrir={jest.fn()} />);
+  it('"Nova série" somada ao bloco igual: o tipo escolhido depois vale só para ela, sem mexer nas que já estavam', () => {
+    const comeco = [serie('b1', { tipo: 'WORKING' })];
+    const arvore = montar(<Controlado inicial="b1" comeco={comeco} aoAbrir={jest.fn()} />);
     tocar(arvore, 'Nova série');
+    expect(agrupar(arvore.root.findByType(EditorSeries).props.series)).toHaveLength(1);
+    const outra = arvore.root.findAll((n) => typeof n.props.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Tipo da série: ')
+      && !/Trabalho/.test(n.props.accessibilityLabel) && typeof n.props.onPress === 'function')[0];
+    if (!outra) throw new Error('sem outro tipo');
+    Renderer.act(() => outra.props.onPress());
+    const novas: Serie[] = arvore.root.findByType(EditorSeries).props.series;
+    expect(novas[0]).toEqual(comeco[0]);
+    expect(novas[1].tipo).not.toBe('WORKING');
+    expect(agrupar(novas)).toHaveLength(2);
+    expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
+  });
+
+  it('sem séries, "Cluster" cria a série de trabalho já com a técnica', () => {
+    const arvore = montar(<Controlado inicial={null} comeco={[]} aoAbrir={jest.fn()} />);
     tocar(arvore, 'Adicionar WS com Cluster');
     const novas: Serie[] = arvore.root.findByType(EditorSeries).props.series;
     expect(novas.at(-1)).toMatchObject({ tipo: 'WORKING', tecnica: { tipo: 'CLUSTER' } });
-    expect(agrupar(novas)).toHaveLength(3);
+    expect(agrupar(novas)).toHaveLength(1);
   });
 
   it('sem séries, os botões de 1 clique já aparecem', () => {
@@ -162,7 +185,7 @@ describe('EditorSeries com a aba controlada', () => {
     const comeco = [serie('b1', { tipo: 'WORKING' }), serie('a1', { tipo: 'FEEDER' }), serie('a2', { tipo: 'FEEDER' })];
     const arvore = montar(<Controlado inicial="a2" comeco={comeco} aoAbrir={aoAbrir} />);
     expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
-    tocar(arvore, 'Uma série completa a menos');
+    tocar(arvore, 'Séries: 1');
     expect(aoAbrir).toHaveBeenLastCalledWith('a1');
     expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
   });

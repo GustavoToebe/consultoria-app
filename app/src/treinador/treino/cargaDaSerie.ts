@@ -10,10 +10,10 @@ import type { UnidadeDeCarga } from '../../dominio/unidadeDeCarga';
  * no seletor binário, como o Aquecimento lê os % em branco e o resumo "Para o aluno". Só decisão; as telas desenham.
  */
 
-/** RIR de cada série: "—" (não prescrito), "0 (Falha)" e de 1 a 10. */
-export const OPCOES_DO_RIR: { valor: number | null; rotulo: string }[] = [
-  { valor: null, rotulo: '— (Não prescrito)' },
-  { valor: 0, rotulo: '0 (Falha)' },
+/** RIR de cada série: "—" (não prescrito), "0" (falha) e de 1 a 10. O select mostra só o valor (27/11); o significado fica no detalhe da lista. */
+export const OPCOES_DO_RIR: { valor: number | null; rotulo: string; detalhe?: string }[] = [
+  { valor: null, rotulo: '—', detalhe: 'Não prescrito' },
+  { valor: 0, rotulo: '0', detalhe: 'Até a falha' },
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((valor) => ({ valor: valor as number | null, rotulo: String(valor) })),
 ];
 

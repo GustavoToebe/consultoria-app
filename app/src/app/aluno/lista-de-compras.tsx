@@ -13,7 +13,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
-import { Tela } from '../../ui/Tela';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { Texto } from '../../ui/Texto';
 
 /**
@@ -26,7 +26,7 @@ export default function ListaDeComprasAluno() {
   const { dados, erro, carregando, recarregar } = useDietaDoAluno();
   const versao = escolhida ? escolhida.planos.dieta : dados?.dieta;
   return (
-    <Tela bordas={['top']} largura={1120}>
+    <TelaDoAluno bordas={['top']}>
       <Cabecalho titulo="Lista de compras" voltar="/aluno/dieta" />
       {!escolhida && erro && !dados ? (
         <MensagemErro
@@ -37,7 +37,7 @@ export default function ListaDeComprasAluno() {
       {!escolhida && !dados && carregando ? <Esqueleto /> : null}
       {(escolhida || dados) && !versao ? <Vazio titulo="Sem dieta" texto="Seu treinador ainda não publicou a dieta deste plano." /> : null}
       {versao ? <Lista versao={versao} salva={!escolhida && !!dados?.salva} /> : null}
-    </Tela>
+    </TelaDoAluno>
   );
 }
 

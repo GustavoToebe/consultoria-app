@@ -25,13 +25,20 @@ import { DatasDaMobilidade } from './DatasDaMobilidade';
  * Água do dia (docs/planos/agua-do-aluno.md): o aluno marca copos de 250 ml (−/+) e vê "1,5 L de 3,0 L" contra a "Água
  * por dia" da dieta. Grava no aparelho na hora e vai na mesma fila de envio das séries, inclusive sem internet. Só aparece
  * com meta na dieta (quem chama confere). Hoje e os 6 dias anteriores, no "hoje" de Brasília (o do servidor). A barra usa
- * a cor do texto: sem cor de alerta nem comemoração, o app não julga quanto o aluno tomou. Em todas as larguras o cartão é
+ * a cor da água (`identificacao.AGUA`, 27/11, a mesma do gráfico da ficha): categoria, sem cor de alerta nem comemoração, o
+ * app não julga quanto o aluno tomou. Em todas as larguras o cartão é
  * uma pilha só (título, números, barra e botões embaixo, que quebram se não couberem). `compacto` (o Início, onde o
  * "Ver meu treino" precisa caber na primeira tela do celular) mostra só hoje, sem a explicação nem os outros dias; a aba
  * Dieta tem o cartão inteiro.
  */
-export function CartaoAguaDoDia({ metaLitros, compacto = false }: { metaLitros: number; compacto?: boolean }) {
-  const { cores } = useTema();
+export function CartaoAguaDoDia({ metaLitros, compacto = false, botoesCheios = false }: {
+  metaLitros: number;
+  compacto?: boolean;
+  /** Web larga do Início (27/11): "−1 copo" e "+1 copo" dividem a largura do cartão em vez de ficarem do tamanho do rótulo. */
+  botoesCheios?: boolean;
+}) {
+  const { identificacao } = useTema();
+  const agua = identificacao.AGUA.cor;
   const { aguaPorDia, marcarAgua } = useAluno();
   const [diaEscolhido, setDiaEscolhido] = useState<string | null>(null);
   const [gravando, setGravando] = useState(false);
@@ -49,18 +56,26 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false }: { metaLitros: 
     void marcarAgua({ data: dia, aguaMl: novo }).finally(() => setGravando(false));
   };
 
+  const semCopo = ml <= 0 ? 'Nenhum copo marcado neste dia.' : undefined;
+  // Botões cheios: o motivo do "−" desabilitado vai numa linha embaixo dos dois (dentro do botão ele encolhia só o "−").
   const botoes = (
-    <View style={estilos.botoes}>
-      <Botao
-        rotulo="1 copo"
-        rotuloAcessivel="Tirar um copo"
-        tipo="secundario"
-        Icone={Minus}
-        desabilitado={ml <= 0 || gravando}
-        motivo={ml <= 0 ? 'Nenhum copo marcado neste dia.' : undefined}
-        aoTocar={() => mudar(menosUmCopo(ml))}
-      />
-      <Botao rotulo="1 copo" rotuloAcessivel="Mais um copo" tipo="secundario" Icone={Plus} desabilitado={gravando} aoTocar={() => mudar(maisUmCopo(ml))} />
+    <View style={botoesCheios ? estilos.blocoCheio : undefined}>
+      <View style={[estilos.botoes, botoesCheios && estilos.botoesCheios]}>
+        <Botao
+          rotulo="1 copo"
+          // Com o motivo fora do botão, ele vai no nome acessível (o `Botao` só o põe no hint quando o desenha).
+          rotuloAcessivel={botoesCheios && semCopo ? `Tirar um copo. ${semCopo}` : 'Tirar um copo'}
+          tipo="secundario"
+          Icone={Minus}
+          desabilitado={ml <= 0 || gravando}
+          motivo={botoesCheios ? undefined : semCopo}
+          aoTocar={() => mudar(menosUmCopo(ml))}
+          style={[botoesCheios && estilos.metade, !(ml <= 0 || gravando) && { borderColor: agua }]}
+        />
+        <Botao rotulo="1 copo" rotuloAcessivel="Mais um copo" tipo="secundario" Icone={Plus} desabilitado={gravando} aoTocar={() => mudar(maisUmCopo(ml))}
+          style={[botoesCheios && estilos.metade, !gravando && { borderColor: agua }]} />
+      </View>
+      {botoesCheios && semCopo ? <Texto variante="pequeno">{semCopo}</Texto> : null}
     </View>
   );
 
@@ -69,13 +84,13 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false }: { metaLitros: 
       titulo={ehHoje ? 'Água de hoje' : `Água em ${dataCurta(dia)}`}
       descricao={compacto ? undefined : 'Toque em + a cada copo de 250 ml que tomar.'}>
       <View style={estilos.topo}>
-        <Droplet size={22} color={cores.texto} aria-hidden />
+        <Droplet size={22} color={agua} aria-hidden />
         <View style={estilos.numeros} accessibilityLiveRegion="polite">
           <Texto numerico style={estilos.litros}>{textoDaAguaDoDia(ml, metaLitros)}</Texto>
           <Texto variante="suave" numerico>{registrado === undefined ? 'Nada marcado neste dia' : textoDosCopos(ml)}</Texto>
         </View>
       </View>
-      <BarraProgresso feitas={ml} total={meta} cor={cores.texto} />
+      <BarraProgresso feitas={ml} total={meta} cor={agua} />
       {botoes}
       {compacto ? null : (
         <DatasDaMobilidade
@@ -97,4 +112,7 @@ const estilos = StyleSheet.create({
   numeros: { flex: 1, gap: espaco(0.25) },
   litros: { fontFamily: fontes.semi, fontSize: 20 },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  blocoCheio: { gap: espaco(0.5) },
+  botoesCheios: { flexWrap: 'nowrap' },
+  metade: { flexGrow: 1, flexBasis: 0, minWidth: 0 },
 });

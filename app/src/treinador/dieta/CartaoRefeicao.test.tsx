@@ -33,9 +33,10 @@ jest.mock('../../ui/Botao', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   Botao: ({ rotulo, aoTocar, tipo }: { rotulo: string; aoTocar: () => void; tipo?: string }) => require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotulo, onPress: aoTocar, testID: tipo }),
 }));
-const campoFalso = ({ rotulo }: { rotulo: string }) =>
+// As props do campo ficam em `campo` (valor, aoMudar, linhas, erro, ajudaForaDoCampo), para os testes as lerem.
+const campoFalso = (campo: { rotulo: string }) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require('react').createElement(require('react-native').View, { accessibilityLabel: `campo ${rotulo}` });
+  require('react').createElement(require('react-native').View, { accessibilityLabel: `campo ${campo.rotulo}`, campo });
 jest.mock('../../ui/Campo', () => ({ Campo: campoFalso }));
 jest.mock('../../ui/Campos', () => ({ CampoNumerico: campoFalso }));
 jest.mock('../../ui/EscolhaSuspensa', () => ({
@@ -98,7 +99,7 @@ jest.mock('../biblioteca/AbaAlimentos', () => ({ UNIDADES: [{ valor: 'g', rotulo
 const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
 type Arvore = import('react-test-renderer').ReactTestRenderer;
 
-const EXTRAS = 'Observação ou modo de preparo (opcional)';
+const EXTRAS = 'Observação e modo de preparo';
 
 const item = (uid: string, nome: string): ItemDieta => ({ uid, alimentoId: null, nome, quantidade: 100, unidade: 'ml', kcal: 50, proteina: 1, carboidrato: 10, gordura: 0, manual: true });
 
@@ -132,6 +133,8 @@ function montar(r: Refeicao, extra: Extra = {}): Arvore {
 const comRotulo = (a: Arvore, rotulo: string) => a.root.findAll((n) => n.props.accessibilityLabel === rotulo && typeof n.type === 'string');
 const temCampo = (a: Arvore, rotulo: string) => comRotulo(a, `campo ${rotulo}`).length > 0;
 const botaoDosExtras = (a: Arvore) => a.root.findAll((n) => n.props.accessibilityLabel === EXTRAS && typeof n.props.onPress === 'function');
+const extrasAbertos = (a: Arvore) => botaoDosExtras(a)[0].props['aria-expanded'] as boolean;
+const textos = (a: Arvore) => a.root.findAllByType(Text).map(textoDoNo);
 /** Toca o primeiro com esse nome e um `onPress`. */
 const tocar = (a: Arvore, rotulo: string | RegExp) => {
   const alvo = a.root.findAll((n) => typeof n.props.onPress === 'function'
@@ -150,42 +153,60 @@ const medirAberta = (a: Arvore) => {
 const NOVA_OPCAO = 'Adicionar opção em 15:00 · Lanche fictício';
 
 describe('CartaoRefeicao: observação e modo de preparo', () => {
-  it('vazios ficam recolhidos no link, abaixo de Nome e Horário', () => {
+  it('vazios: a seção nasce fechada abaixo de Nome e Horário, com "Nenhuma" ao lado do título', () => {
     const a = montar(refeicao());
     expect(temCampo(a, 'Nome')).toBe(true);
     expect(temCampo(a, 'Horário')).toBe(true);
     expect(botaoDosExtras(a)).toHaveLength(1);
-    expect(temCampo(a, 'Observação (opcional)')).toBe(false);
-    expect(temCampo(a, 'Modo de preparo (opcional)')).toBe(false);
+    expect(extrasAbertos(a)).toBe(false);
+    expect(textos(a)).toContain('Nenhuma');
+    expect(temCampo(a, 'Observação')).toBe(false);
+    expect(temCampo(a, 'Modo de preparo')).toBe(false);
   });
 
-  it('o toque no link abre os dois campos e o link some', () => {
+  it('abre e fecha pelo título quantas vezes quiser, sem perder o que foi digitado', () => {
     const a = montar(refeicao());
     Renderer.act(() => botaoDosExtras(a)[0].props.onPress());
-    expect(temCampo(a, 'Observação (opcional)')).toBe(true);
-    expect(temCampo(a, 'Modo de preparo (opcional)')).toBe(true);
-    expect(botaoDosExtras(a)).toHaveLength(0);
-  });
-
-  // Regra de 18/11: nasce fechado também com texto gravado; o toque abre.
-  it('com modo de preparo gravado, os campos nascem recolhidos e abrem no toque', () => {
-    const a = montar(refeicao({ modoDePreparo: 'Bata tudo no liquidificador.' }));
-    expect(temCampo(a, 'Modo de preparo (opcional)')).toBe(false);
-    expect(botaoDosExtras(a)).toHaveLength(1);
+    expect(temCampo(a, 'Observação')).toBe(true);
+    expect(temCampo(a, 'Modo de preparo')).toBe(true);
+    const campo = comRotulo(a, 'campo Modo de preparo')[0];
+    Renderer.act(() => campo.props.campo.aoMudar('Lave.\n\nAsse.'));
     Renderer.act(() => botaoDosExtras(a)[0].props.onPress());
-    expect(temCampo(a, 'Modo de preparo (opcional)')).toBe(true);
+    expect(temCampo(a, 'Modo de preparo')).toBe(false);
+    expect(textos(a)).toContain('Modo de preparo: 2 linhas');
+    Renderer.act(() => botaoDosExtras(a)[0].props.onPress());
+    expect(comRotulo(a, 'campo Modo de preparo')[0].props.campo.valor).toBe('Lave.\n\nAsse.');
   });
 
-  it('com só a observação gravada, os campos também nascem recolhidos', () => {
+  it('com texto gravado nasce aberta (e o título fecha)', () => {
+    const a = montar(refeicao({ modoDePreparo: 'Bata tudo no liquidificador.' }));
+    expect(extrasAbertos(a)).toBe(true);
+    expect(temCampo(a, 'Modo de preparo')).toBe(true);
+    Renderer.act(() => botaoDosExtras(a)[0].props.onPress());
+    expect(temCampo(a, 'Modo de preparo')).toBe(false);
+    expect(textos(a)).toContain('Modo de preparo: 1 linha');
+  });
+
+  it('só a observação: nasce aberta e, fechada, mostra o começo dela', () => {
     const a = montar(refeicao({ observacao: 'Pode trocar a fruta.' }));
-    expect(temCampo(a, 'Observação (opcional)')).toBe(false);
-    expect(botaoDosExtras(a)).toHaveLength(1);
+    expect(temCampo(a, 'Observação')).toBe(true);
+    Renderer.act(() => botaoDosExtras(a)[0].props.onPress());
+    expect(textos(a)).toContain('Pode trocar a fruta.');
   });
 
-  it('modo de preparo acima do limite (erro apontado) abre os campos para o erro aparecer', () => {
+  it('cada campo cresce de 3 linhas e leva o contador como descrição', () => {
+    const a = montar(refeicao({ observacao: 'Sem sal.' }));
+    const obs = comRotulo(a, 'campo Observação')[0];
+    expect(obs.props.campo.linhas).toBe(3);
+    expect(obs.props.campo.ajudaForaDoCampo.texto).toBe('8 de 1.000 caracteres');
+    expect(textos(a)).toContain('8/1.000');
+    expect(textos(a)).toContain('0/2.000');
+  });
+
+  it('modo de preparo acima do limite (erro apontado) abre a seção para o erro aparecer', () => {
     const a = montar(refeicao({ modoDePreparo: 'x'.repeat(MODO_DE_PREPARO_MAXIMO + 1) }));
-    expect(temCampo(a, 'Modo de preparo (opcional)')).toBe(true);
-    expect(botaoDosExtras(a)).toHaveLength(0);
+    expect(extrasAbertos(a)).toBe(true);
+    expect(comRotulo(a, 'campo Modo de preparo')[0].props.campo.erro).toBe('Passou do limite: use até 2.000 caracteres.');
   });
 });
 

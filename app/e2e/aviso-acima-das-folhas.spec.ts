@@ -186,6 +186,9 @@ for (const largura of [390, 1280]) {
           id: `e000000${i + 1}-0000-4000-8000-000000000000`, nome: `Exercício fictício ${i + 1}`, grupoMuscular: grupo, equipamento: null,
           modalidade: 'LIVRE', videoUrl: null, observacoes: null, origem: 'MANUAL', imagens: [], imagemPropriaEm: null,
         }))),
+        'GET /exercicios': { corpo: [] },
+        'GET /catalogo/exercicios/grupos': { corpo: ['Costas', 'Peito'] },
+        'GET /catalogo/exercicios': { corpo: { itens: [], total: 0 } },
       },
     });
     // Erro fica até ser fechado: continua na tela depois de trocar de tela.
@@ -197,17 +200,21 @@ for (const largura of [390, 1280]) {
     await page.getByRole('menubar').getByText('Biblioteca', { exact: true }).click();
     await expect(page).toHaveURL(/\/treinador\/biblioteca/);
     await expect(aviso).toBeVisible();
-    // A seleção abre por cima do painel de filtros (uma folha): o aviso tem de passar por cima dos dois.
-    await page.getByRole('button', { name: /^Filtros/ }).click();
-    await expect(page.getByRole('dialog', { name: 'Filtros' })).toBeVisible();
+    // Na aba do catálogo a seleção de grupos abre por cima do painel de filtros (uma folha): o aviso tem de passar por
+    // cima dos dois. (Na aba Exercícios os grupos são caixas dentro do painel, sem segunda camada.)
+    await page.getByRole('tab', { name: 'Copiar do catálogo pronto', exact: true }).click();
+    await page.getByRole('button', { name: /^Filtros, / }).click();
+    const filtros = page.getByRole('dialog', { name: 'Filtros do catálogo' });
+    await expect(filtros).toBeVisible();
     await noTopo(aviso);
-    await page.getByRole('button', { name: 'Grupo muscular: Todos os grupos. Escolher.' }).click();
+    await filtros.getByRole('button', { name: 'Grupo muscular: Todos os grupos. Escolher.' }).click();
     const selecao = page.getByRole('dialog', { name: 'Grupo muscular' });
     await expect(selecao).toBeVisible();
     await noTopo(aviso);
     await aviso.getByRole('button', { name: 'Fechar aviso' }).click();
     await expect(aviso).toHaveCount(0);
     await expect(selecao).toBeVisible();
+    await expect(filtros).toBeVisible();
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

@@ -7,7 +7,7 @@ import { GIF_FALSO, pngDeCor } from './imagens-falsas';
 /**
  * Biblioteca (24/11): "■ Fibra" na legenda dos macros; em Exercícios a cor por modalidade (bolinha + legenda só das que
  * estão na lista), os ícones de vídeo e imagem no lugar do "com vídeo", os filtros Vídeo, Imagem e Modalidade (chips e
- * "Limpar filtros") e o "Buscar grupo"; na folha do exercício, a prévia do vídeo (e o cartão neutro quando a miniatura
+ * "Limpar filtros") e os grupos em chips com a contagem ("Mostrar N exercícios"); na folha do exercício, a prévia do vídeo (e o cartão neutro quando a miniatura
  * não carrega), o link inválido sem prévia e a imagem vazia (área tracejada, soltar arquivo) e preenchida. Só dados fictícios.
  */
 const ID_DO_VIDEO = 'dQw4w9WgXcQ';
@@ -35,6 +35,8 @@ async function abrir(page: Page, largura: number, { lista = LISTA, miniatura = '
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /exercicios/pagina': paginaDeExerciciosFalsa(atual, consultas),
+    // A lista inteira só sai ao abrir os filtros: a contagem de cada grupo e o "Mostrar N exercícios".
+    'GET /exercicios': (_p, r) => json(r, atual),
     'GET /exercicios/{id}/imagem': (_p, r) => r.fulfill({ status: 200, contentType: 'image/png', body: FOTO }),
     'PUT /exercicios/{id}/imagem': (p, r) => {
       const id = p.caminho.split('/')[2];
@@ -93,22 +95,22 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 
-  test(`exercícios: filtros Vídeo, Imagem e Modalidade, "Buscar grupo", chips e "Limpar filtros" (${largura} px)`, async ({ page }) => {
+  test(`exercícios: filtros Vídeo, Imagem e Modalidade, grupos com contagem, chips e "Limpar filtros" (${largura} px)`, async ({ page }) => {
     const consultas: string[] = [];
     const { naoTratadas, errosDaPagina } = await abrir(page, largura, { consultas });
     await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
     const painel = page.getByRole('dialog', { name: 'Filtros de exercícios' });
-    // O campo de busca dentro do Grupo muscular chama-se "Buscar grupo".
-    await painel.getByRole('button', { name: 'Grupo muscular: Todos os grupos. Escolher.' }).click();
-    await expect(page.getByRole('dialog', { name: 'Grupo muscular' }).getByRole('textbox', { name: 'Buscar grupo' })).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog', { name: 'Grupo muscular' })).toHaveCount(0);
+    // Grupo muscular em chips com a contagem (até 12 grupos, sem a busca "Buscar grupo"); o botão principal conta o resultado.
+    await expect(painel.getByRole('checkbox', { name: 'Abdômen, 2 exercícios' })).toBeVisible();
+    await expect(painel.getByRole('checkbox', { name: 'Costas, 1 exercício' })).toBeVisible();
+    await expect(painel.getByRole('textbox', { name: 'Buscar grupo' })).toHaveCount(0);
+    await expect(painel.getByRole('button', { name: 'Mostrar 3 exercícios' })).toBeVisible();
     // Só as modalidades que a biblioteca tem (a resposta traz `modalidades`): ninguém tem Cardio.
     await expect(painel.getByRole('checkbox', { name: 'Cardio' })).toHaveCount(0);
     await painel.getByRole('checkbox', { name: 'Máquina' }).click();
     await painel.getByRole('checkbox', { name: 'Peso corporal' }).click();
-    await painel.getByRole('radiogroup', { name: 'Vídeo' }).getByRole('radio', { name: 'Com vídeo' }).click();
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('radiogroup', { name: 'Vídeo' }).getByRole('radio', { name: 'Com', exact: true }).click();
+    await painel.getByRole('button', { name: /^Mostrar / }).click();
     await expect(page.getByRole('button', { name: 'Filtros, 2 ligados' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tirar filtro: Modalidade: Máquina, Peso corporal' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tirar filtro: Vídeo: Com vídeo' })).toBeVisible();
@@ -121,8 +123,8 @@ for (const largura of [390, 1280]) {
 
     // Imagem: "Sem imagem" junto com o resto deixa só a prancha; o ✕ do chip tira só aquele filtro.
     await page.getByRole('button', { name: 'Filtros, 2 ligados' }).click();
-    await painel.getByRole('radiogroup', { name: 'Imagem' }).getByRole('radio', { name: 'Sem imagem' }).click();
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('radiogroup', { name: 'Imagem' }).getByRole('radio', { name: 'Sem', exact: true }).click();
+    await painel.getByRole('button', { name: /^Mostrar / }).click();
     await expect(page.getByText(CRUNCH.nome, { exact: true })).toHaveCount(0);
     await expect(page.getByText(PRANCHA.nome, { exact: true })).toBeVisible();
     expect(consultas.at(-1)).toBe('pagina=0&tamanho=30&modalidade=MAQUINA&modalidade=PESO_CORPORAL&video=true&imagem=false');
@@ -135,7 +137,7 @@ for (const largura of [390, 1280]) {
     await painel.getByRole('checkbox', { name: 'Peso corporal' }).click();
     await painel.getByRole('checkbox', { name: 'Máquina' }).click();
     await painel.getByRole('checkbox', { name: 'Peso livre' }).click();
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^Mostrar / }).click();
     await expect(page.getByText('Nenhum exercício encontrado')).toBeVisible();
     expect(consultas.at(-1)).toBe('pagina=0&tamanho=30&modalidade=LIVRE&video=true');
     await page.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
@@ -158,8 +160,8 @@ test('exercícios: mudar um filtro refaz o pedido na página 1', async ({ page }
   expect(consultas.at(-1)).toBe('pagina=1&tamanho=30');
   await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
   const painel = page.getByRole('dialog', { name: 'Filtros de exercícios' });
-  await painel.getByRole('radiogroup', { name: 'Vídeo' }).getByRole('radio', { name: 'Com vídeo' }).click();
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('radiogroup', { name: 'Vídeo' }).getByRole('radio', { name: 'Com', exact: true }).click();
+  await painel.getByRole('button', { name: /^Mostrar / }).click();
   // O filtro vale sobre os 35, não sobre a página aberta: um único resultado, na página 1.
   await expect(page.getByText(muitos[34].nome, { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Próxima' })).toHaveCount(0);

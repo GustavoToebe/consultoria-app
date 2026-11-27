@@ -214,8 +214,8 @@ export const pedirRedefinicaoDeSenha = (email:string,turnstileToken?:string) => 
 export const redefinirSenha = (token:string,novaSenha:string,codigoMfa?:string) => requisicao<void>('/auth/redefinir-senha',{metodo:'POST',corpo:{token,novaSenha,codigoMfa},semRenovar:true});
 export const responsaveisEquipe = () => requisicao<ResponsavelEquipe[]>('/responsaveis');
 export const alterarMeuPerfil = (nome:string,telefone:string|null) => requisicao<EuResponse>('/eu',{metodo:'PUT',corpo:{nome,telefone}});
-/** Pessoas (`usuarioId`, ids e/ou `sistema`) e ações vão repetidas; o resto, uma vez. */
-export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:readonly string[];acao?:readonly string[];pagina:number}) => {
+/** Pessoas (`usuarioId`, ids e/ou `sistema`), ações (`acao`, até 100) e ações excluídas (`acaoExceto`, até 50) vão repetidas; o resto, uma vez. */
+export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:readonly string[];acao?:readonly string[];acaoExceto?:readonly string[];pagina:number}) => {
   const q=new URLSearchParams();
   for (const [campo,valor] of Object.entries(filtro)) {
     if (Array.isArray(valor)) valor.forEach((v:string)=>q.append(campo,v));

@@ -8,6 +8,7 @@ import { carga, exercicio, grupo, rir, serie as serieDeTeste, sessao as sessaoDe
 import {
   adicionarSerie,
   alterarGrupo,
+  alterarGrupoComANova,
   alterarPercentuais,
   alterarRirDaSerie,
   aplicarReceitaDePlano,
@@ -305,6 +306,26 @@ describe('adicionar e reordenar séries (reunião de 17/10)', () => {
     const resultado = adicionarSerie([fs('a', 70), fs('b', 85, 90)], CONFIG, 'FEEDER');
     expect(descreverSeries(resultado, CONFIG)).toEqual(['3x3 - FS 50% · 70% · 85% a 90% da WS']);
     expect(resultado.slice(0, 2).map((s) => s.uid)).toEqual(['a', 'b']);
+  });
+
+  it('"+ Nova série" somada ao bloco igual: trocar o tipo ou a técnica vale só para ela (27/11)', () => {
+    const antes = [ws('a')];
+    const comNova = adicionarSerie(antes, CONFIG);
+    const [bloco] = agrupar(comNova);
+    const nova = comNova[1].uid;
+    expect(bloco.series).toHaveLength(2);
+    const fsSo = alterarGrupoComANova(comNova, bloco, { tipo: 'FEEDER' }, CONFIG, nova);
+    expect(fsSo.series[0]).toEqual(antes[0]);
+    expect(fsSo.series[1]).toMatchObject({ uid: nova, tipo: 'FEEDER' });
+    expect(fsSo.abrir).toBe(nova);
+    const cluster = alterarGrupoComANova(comNova, bloco, { tecnica: { tipo: 'CLUSTER', blocos: [4, 4], pausaSegundos: 15 } }, CONFIG, nova);
+    expect(cluster.series[0]).toEqual(antes[0]);
+    expect(cluster.series[1].tecnica?.tipo).toBe('CLUSTER');
+    // Repetições seguem o bloco; sem a nova (outro bloco aberto), o tipo também.
+    expect(alterarGrupoComANova(comNova, bloco, { repsMin: 8, repsMax: 10 }, CONFIG, nova).series.map((x) => x.repsMax)).toEqual([10, 10]);
+    const semNova = alterarGrupoComANova(comNova, bloco, { tipo: 'FEEDER' }, CONFIG, null);
+    expect(semNova.series.map((x) => x.tipo)).toEqual(['FEEDER', 'FEEDER']);
+    expect(semNova.abrir).toBe('a');
   });
 
   it('sem tipo, a série nova é a de trabalho', () => {
@@ -805,5 +826,18 @@ describe('o corpo salvo não muda com os textos novos do editor (reunião de 30/
     expect(JSON.stringify(maquina.series)).toBe(antes);
     expect(JSON.stringify(comModalidade(maquina, 'LIVRE').series)).toBe(antes);
     expect(JSON.stringify(exercicioCongelado)).toBe(exercicioAntes);
+  });
+});
+
+describe('normalizarTreino e o cardio intervalado', () => {
+  const comCardio = (cardio: object) => ({ sessoes: [{ uid: 's', exercicios: [{ uid: 'e', series: [{ uid: 'x', cardio }] }] }] }) as unknown as Partial<ConteudoTreino>;
+  const lido = (c: Partial<ConteudoTreino>) => normalizarTreino(c).sessoes[0].exercicios[0].series[0].cardio;
+  it('mantém os campos novos quando preenchidos', () => {
+    const c = lido(comCardio({ duracaoMin: null, intervalos: { trabalhoSeg: 30, descansoSeg: 30, voltas: 8 }, modo: 'INTERVALADO', protocolo: 'SIT', aquecimentoSeg: 240, desaquecimentoSeg: 180, recuperacaoTipo: 'PASSIVA', esforcoMaximo: true }));
+    expect(c).toMatchObject({ modo: 'INTERVALADO', protocolo: 'SIT', aquecimentoSeg: 240, desaquecimentoSeg: 180, recuperacaoTipo: 'PASSIVA', esforcoMaximo: true });
+  });
+  it('o contínuo e o legado saem sem nenhuma chave nova (o app antigo recusa chave desconhecida)', () => {
+    const c = lido(comCardio({ duracaoMin: 30, zona: 2 }));
+    expect(Object.keys(c ?? {}).sort()).toEqual(['distanciaKm', 'duracaoMin', 'intervalos', 'ritmo', 'zona']);
   });
 });

@@ -1,10 +1,10 @@
 import {
-  AREA_MINIMA_LADO_A_LADO, arranjoPrincipalComApoio, LARGURA_DO_APOIO, larguraDoApoioPorArea,
+  AREA_MINIMA_LADO_A_LADO, apoioGruda, arranjoPrincipalComApoio, LARGURA_DO_APOIO, larguraDoApoioDaFaixa, larguraDoApoioPorArea,
 } from './arranjoPrincipalComApoio';
 
 describe('arranjoPrincipalComApoio', () => {
-  it('abre lado a lado a partir de 952 (560 + 32 + 360)', () => {
-    expect(AREA_MINIMA_LADO_A_LADO).toBe(952);
+  it('abre lado a lado a partir de 972 (560 + 32 + 380)', () => {
+    expect(AREA_MINIMA_LADO_A_LADO).toBe(972);
   });
 
   it('empilha sem apoio, sem medida ou com medida inválida', () => {
@@ -24,11 +24,18 @@ describe('arranjoPrincipalComApoio', () => {
     expect(arranjoPrincipalComApoio(AREA_MINIMA_LADO_A_LADO + 100, true, LARGURA_DO_APOIO + 100)).toBe('lado');
   });
 
-  it('o apoio cresce com a faixa: 360, 400 e 440', () => {
-    expect(larguraDoApoioPorArea(null)).toBe(360);
-    expect(larguraDoApoioPorArea(1311)).toBe(360);
-    expect(larguraDoApoioPorArea(1312)).toBe(400);
-    expect(larguraDoApoioPorArea(2399)).toBe(400);
+  it('o apoio segue as faixas da Tela (as do treinador): 380, 420 e 440', () => {
+    expect((['compacta', 'normal', 'larga', 'ultralarga'] as const).map(larguraDoApoioDaFaixa)).toEqual([380, 380, 420, 440]);
+    expect(larguraDoApoioPorArea(null)).toBe(380);
+    expect(larguraDoApoioPorArea(1599)).toBe(380);
+    expect(larguraDoApoioPorArea(1600)).toBe(420);
+    expect(larguraDoApoioPorArea(2399)).toBe(420);
     expect(larguraDoApoioPorArea(2400)).toBe(440);
+  });
+
+  it('a coluna que gruda só se couber: gruda até a altura disponível', () => {
+    expect(apoioGruda(0, 900)).toBe(true);
+    expect(apoioGruda(900, 900)).toBe(true);
+    expect(apoioGruda(901, 900)).toBe(false);
   });
 });

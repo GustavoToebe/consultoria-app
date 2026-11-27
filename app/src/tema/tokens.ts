@@ -683,6 +683,21 @@ export const PALETA_DE_IDENTIFICACAO: Record<VarianteDoTema, Record<ChaveDeIdent
  */
 export const PALETA_DA_FIBRA: Record<VarianteDoTema, string> = { claro: '#6A8A00', areia: '#6A8A00', escuro: '#B8E34A' };
 
+/**
+ * Cor da categoria ÁGUA (27/11, Gustavo: azul-água): as barras do gráfico da Água na ficha, a bolinha do resumo e o ✓ do
+ * dia que bateu a meta. Fica fora de `CHAVES_DE_IDENTIFICACAO` de propósito, como a fibra: não é cor de tag (o CHECK da
+ * V093 só aceita as cinco), de série, de divisão nem de refeição. É celeste/ciano, longe do azul do PESO (`PALETA_DE_DESTAQUE
+ * .azul`, ΔE ≥ 38) e do status (ΔE ≥ 40); passa 4,5:1 como texto sobre cartão, poço, faixa, hover e o próprio `fundo` nas
+ * 9 paletas × contraste alto × bordas reforçadas (`tokens.test.ts`). `useTema().identificacao.AGUA` entrega `{ cor, fundo }`.
+ */
+export const PALETA_DA_AGUA: Record<VarianteDoTema, string> = { claro: '#08679A', areia: '#08649A', escuro: '#45CFF0' };
+
+/** A cor da água no tema em uso, no mesmo formato das de identificação (`fundo` = `tingido` sobre a `superficie`). */
+export function corDaAgua(cores: Cores, variante: VarianteDoTema): CorDeIdentificacao {
+  const cor = PALETA_DA_AGUA[variante];
+  return { cor, fundo: tingido(cor, cores.superficie) };
+}
+
 /** Uma cor de identificação já resolvida para o tema: `cor` (texto, ícone, barra lateral) e `fundo` (selo, opaco). */
 export interface CorDeIdentificacao {
   cor: string;

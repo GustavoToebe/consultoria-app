@@ -12,5 +12,14 @@ export interface MembroEquipe {
 }
 export interface ConviteEquipe { codigo:string; link:string; expiraEm:string; emailEnviado:boolean }
 export interface ResponsavelEquipe { id:string; nome:string }
-export interface EventoAuditoria { id:string; usuarioId:string; nomeUsuario:string; acao:string; entidade:string; entidadeId:string|null; resumo:string; criadoEm:string }
+/**
+ * `resumo` é o texto fixo da ação (repete o nome dela): a tela não o mostra. `objetoNome` é o nome do objeto afetado, já
+ * sem o tipo (nulo sem objeto, objeto apagado ou tipo não resolvido) e `origem` é "Web", "App Android", "App iOS" ou nulo.
+ * `usuarioPerfil` é o nome do perfil de acesso de quem fez (o atual; nulo para o Sistema, autor sem perfil, como o aluno, ou não encontrado).
+ * Os três são opcionais no tipo só para os eventos montados à mão nos testes antigos; a API sempre os manda.
+ */
+export interface EventoAuditoria {
+  id:string; usuarioId:string|null; nomeUsuario:string; acao:string; entidade:string; entidadeId:string|null; resumo:string; criadoEm:string;
+  objetoNome?:string|null; origem?:string|null; usuarioPerfil?:string|null;
+}
 export interface PaginaAuditoria { itens:EventoAuditoria[]; total:number; pagina:number }

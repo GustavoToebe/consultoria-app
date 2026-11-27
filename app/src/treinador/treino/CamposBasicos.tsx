@@ -1,5 +1,6 @@
 import { Children, useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { dicaDasRepeticoes, DICA_DO_AMRAP } from '../../dominio/camposDaSerie';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
@@ -52,30 +53,35 @@ const FORMAS_CURTAS: { valor: FormaDasRepeticoes; rotulo: string }[] = [
   { valor: 'AMRAP', rotulo: 'AMRAP' },
 ];
 
-/**
- * Largura da caixa do número com o sufixo dentro: borda de 1 px de cada lado, o padding dos dois lados, o que o `Campo`
- * reserva para o sufixo (16 px por letra) e espaço para três dígitos ("100"). Fixa em 92, "10" saía cortado com "mín" e
- * "máx"; "reps", com uma letra a mais, ficava com menos de um dígito. Cresce com o texto da pessoa.
- */
-const larguraDoNumero = (sufixo: string) => 2 + 2 * espaco(1.5) + 16 * sufixo.length + 32;
+/** Caixa do número das repetições compactas: três dígitos ("100") e o padding; cresce com o texto da pessoa. */
+const LARGURA_DO_NUMERO_COMPACTO = 64;
+/** Área das repetições na Estrutura: a da escolha Faixa | Exata | AMRAP, igual nas três formas (o Descanso não pula). */
+export const LARGURA_DAS_REPETICOES = 200;
 
 /**
  * Quantidade exata, faixa ou AMRAP. A escolha fica com a tela enquanto o valor não a distingue (faixa 8 a 8, ou vazio).
  * `semRepeticoes` explica o vazio quando ele vale (série por tempo); sem ele, o vazio é só incompleto. `compacta` é a da
  * faixa da estrutura: escolha curta e os números na mesma linha, com "mín", "máx" ou "reps" dentro da caixa.
  */
-export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetições', rotuloVisivel = true, semRepeticoes, compacta = false }: {
+export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetições', rotuloVisivel = true, semRepeticoes, compacta = false, forma: formaDeFora, aoEscolherForma }: {
   valor: { repsMin?: number | null; repsMax?: number | null; amrap?: boolean | null }; aoMudar: (r: Repeticoes) => void;
   erros: Problemas; rotulo?: string; semRepeticoes?: string;
   /** Falso quando o título da seção já diz o mesmo: o rótulo fica só para o leitor de tela. */
   rotuloVisivel?: boolean;
   compacta?: boolean;
+  /**
+   * A forma guardada por quem usa (a série, 27/11): o erro e a dica de uma linha ficam fora, embaixo da linha inteira da
+   * Estrutura (`rodapeDasRepeticoes`), para a frase do AMRAP caber numa linha sem a área mudar de largura.
+   */
+  forma?: FormaDasRepeticoes; aoEscolherForma?: (f: FormaDasRepeticoes) => void;
 }) {
   const { fatorTexto } = useTema();
-  const [escolhida, setEscolhida] = useState<FormaDasRepeticoes>(formaVisivel(compacta ? 'FAIXA' : 'EXATA', valor));
+  const [escolhidaAqui, setEscolhida] = useState<FormaDasRepeticoes>(formaVisivel(compacta ? 'FAIXA' : 'EXATA', valor));
+  const escolhida = formaDeFora ?? escolhidaAqui;
   const forma = formaVisivel(escolhida, valor);
   const mudarForma = (f: FormaDasRepeticoes) => {
     setEscolhida(f);
+    aoEscolherForma?.(f);
     if (f !== forma) aoMudar(repeticoesNaForma(f, valor));
   };
   const vazio = valor.repsMin == null && valor.repsMax == null && !valor.amrap;
@@ -86,32 +92,33 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
   const minimo = (repsMin: number | null) => aoMudar({ repsMin, repsMax: valor.repsMax ?? null, amrap: false });
   const maximo = (repsMax: number | null) => aoMudar({ repsMin: valor.repsMin ?? null, repsMax, amrap: false });
   const rodape = <>
-    {forma === 'AMRAP' ? <Texto variante="pequeno">O aluno faz o máximo de repetições que conseguir e anota quantas fez.</Texto> : null}
+    {forma === 'AMRAP' ? <Texto variante="pequeno">{DICA_DO_AMRAP}</Texto> : null}
     <ErroDoCampo mensagem={forma === 'AMRAP' ? erros.amrap : null} />
     {vazio && forma !== 'AMRAP' && semRepeticoes ? <Texto variante="pequeno">{semRepeticoes}</Texto> : null}
   </>;
   if (compacta) {
-    const largura = (sufixo: string) => ({ width: escalar(larguraDoNumero(sufixo), fatorTexto) });
-    // Limitada à largura de quem a contém: numa linha que quebra (a Estrutura), sem isso ela não quebra por dentro em 390 px.
-    return <View style={[estilos.juntos, estilos.limitada]}>
+    // 27/11: a escolha em cima e os números embaixo, numa área de largura fixa (o Descanso ao lado não pula ao trocar a
+    // forma). Sem a unidade dentro da caixa: "8 a 12 reps" se lê pelo texto entre os campos.
+    const caixa = { width: escalar(LARGURA_DO_NUMERO_COMPACTO, fatorTexto) };
+    const { erro, dica } = rodapeDasRepeticoes(forma, valor, erros, !!semRepeticoes);
+    return <View style={[estilos.juntos, estilos.limitada, { width: escalar(LARGURA_DAS_REPETICOES, fatorTexto) }]}>
       {rotuloVisivel ? <Texto variante="rotulo">{rotulo}</Texto> : null}
-      <View style={estilos.linhaCompacta}>
-        <Escolha descricao={rotulo} compacta opcoes={FORMAS_CURTAS} valor={forma} aoMudar={mudarForma} />
-        {forma === 'EXATA' ? <View style={largura('reps')}>
-          <CampoNumerico rotulo={nome('Repetições')} rotuloOculto sufixo="reps" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
-            aoMudar={exata} erro={erros.repsMin ?? erros.repsMax} />
-        </View> : null}
-        {/* O par mín/máx quebra junto: em 390 px o "máx" não fica sozinho na linha de baixo. */}
-        {forma === 'FAIXA' ? <View style={estilos.linhaCompacta}>
-          <View style={largura('mín')}><CampoNumerico rotulo={nome('Reps mín.')} rotuloOculto sufixo="mín" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMin ?? null}
-            aoMudar={minimo} erro={erros.repsMin} /></View>
-          <View style={largura('máx')}><CampoNumerico rotulo={nome('Reps máx.')} rotuloOculto sufixo="máx" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMax ?? null}
-            aoMudar={maximo} erro={erros.repsMax} /></View>
-        </View> : null}
-      </View>
-      {/* Na caixa estreita o erro só marca a borda: a frase vem embaixo da linha inteira. */}
-      <ErroDoCampo mensagem={forma === 'AMRAP' ? null : erros.repsMin ?? erros.repsMax} />
-      {rodape}
+      <Escolha descricao={rotulo} compacta opcoes={FORMAS_CURTAS} valor={forma} aoMudar={mudarForma} />
+      {forma === 'EXATA' ? <View style={estilos.linhaDosNumeros}>
+        <View style={caixa}><CampoNumerico rotulo={nome('Repetições')} rotuloOculto erroSemTexto inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
+          aoMudar={exata} erro={erros.repsMin ?? erros.repsMax} /></View>
+        <Texto variante="suave" aria-hidden>reps</Texto>
+      </View> : null}
+      {forma === 'FAIXA' ? <View style={estilos.linhaDosNumeros}>
+        <View style={caixa}><CampoNumerico rotulo={nome('Reps mín.')} rotuloOculto erroSemTexto inteiro valor={valor.repsMin ?? null}
+          aoMudar={minimo} erro={erros.repsMin} /></View>
+        <Texto variante="suave" aria-hidden>a</Texto>
+        <View style={caixa}><CampoNumerico rotulo={nome('Reps máx.')} rotuloOculto erroSemTexto inteiro valor={valor.repsMax ?? null}
+          aoMudar={maximo} erro={erros.repsMax} /></View>
+        <Texto variante="suave" aria-hidden>reps</Texto>
+      </View> : null}
+      {/* Uma linha só: o erro (a frase do campo estreito) ou a dica do estado; fora daqui quando quem usa guarda a forma. */}
+      {formaDeFora ? null : <RodapeDasRepeticoes erro={erro} dica={dica} />}
     </View>;
   }
   return <View style={estilos.bloco}>
@@ -130,11 +137,20 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
   </View>;
 }
 
+/** O erro (vence) ou a dica de uma linha das repetições compactas. */
+export function rodapeDasRepeticoes(forma: FormaDasRepeticoes, valor: { repsMin?: number | null; repsMax?: number | null }, erros: Problemas, porTempo: boolean) {
+  return { erro: forma === 'AMRAP' ? erros.amrap : erros.repsMin ?? erros.repsMax, dica: dicaDasRepeticoes(forma, valor, porTempo) };
+}
+
+export function RodapeDasRepeticoes({ erro, dica }: { erro?: string | null; dica?: string | null }) {
+  return erro ? <ErroDoCampo mensagem={erro} /> : dica ? <Texto variante="pequeno">{dica}</Texto> : null;
+}
+
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   juntos: { gap: espaco(0.5) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
-  linhaCompacta: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), alignItems: 'flex-start' },
+  linhaDosNumeros: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   limitada: { maxWidth: '100%', flexShrink: 1 },
   campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
   sozinho: { width: '100%', maxWidth: 220 },

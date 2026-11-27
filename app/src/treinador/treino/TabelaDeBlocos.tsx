@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, CircleAlert, Ellipsis, TriangleAlert } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, CircleAlert, Ellipsis, Plus, TriangleAlert } from 'lucide-react-native';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -49,6 +49,8 @@ const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com avi
 /** Canto da linha fechada (o mesmo da caixa do botão) e do bloco aberto (linha + editor). */
 const RAIO_DA_LINHA = 12;
 const RAIO_DO_BLOCO = 14;
+/** Altura de uma linha fechada ("Série N" e "N séries" embaixo, mais o vão de cima e de baixo): a do "+ Nova série". */
+const ALTURA_DA_LINHA = 21 + 18 + 2 + 2 * espaco(1.25);
 
 /** Abaixo desta largura da coluna das séries as colunas viram linha empilhada com o editor embaixo (390). */
 export const LARGURA_DAS_COLUNAS = 540;
@@ -74,14 +76,19 @@ const ESPACO_DO_MENU = espaco(0.5);
  * ou, pela preferência "Cor das séries", a de ação); o problema é o ícone na cor da gravidade (a carga ainda vazia é âmbar,
  * "Falta a carga").
  */
-export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = false, detalhe, aoSoltar, aoMover }: {
+export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado = false, detalhe, aoSoltar, aoMover }: {
   linhas: LinhaDoBloco[];
   /** O bloco aberto; nulo = todos fechados. */
   ativa: string | null;
   /** Abre o bloco `valor`; nulo fecha o aberto. */
   aoMudar: (valor: string | null) => void;
-  /** "+ Nova série", logo abaixo da última linha. */
+  /** Algo logo abaixo da última linha. */
   depois?: ReactNode;
+  /**
+   * "+ Nova série" como a última linha da tabela (27/11): tracejada, na largura toda, com a altura de uma linha fechada,
+   * texto e ícone neutros. Quem usa adiciona e abre a série nova.
+   */
+  nova?: { rotulo: string; aoTocar: () => void };
   /** Coluna estreita: a linha vira texto corrido em vez de colunas. */
   empilhado?: boolean;
   /** O editor do bloco aberto, logo abaixo da linha dele, no PC e no celular. */
@@ -212,10 +219,18 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
     );
   };
 
+  const linhaNova = nova ? (
+    <Pressable accessibilityRole="button" accessibilityLabel={nova.rotulo} onPress={nova.aoTocar} testID="nova-serie"
+      style={(st) => [estilos.nova, { borderColor: cores.bordaCampo, backgroundColor: comMouse(st) ? cores.superficie2 : 'transparent' }]}>
+      <Plus size={18} color={cores.textoSuave} strokeWidth={2} />
+      <Texto style={[estilos.forte, { color: cores.textoSuave }]}>{nova.rotulo}</Texto>
+    </Pressable>
+  ) : null;
+
   if (empilhado) {
     return (
       <View style={estilos.tabela}>
-        <View style={estilos.lista} role="group" aria-label="Blocos do exercício">{linhas.map(linha)}</View>
+        <View style={estilos.lista} role="group" aria-label="Blocos do exercício">{linhas.map(linha)}{linhaNova}</View>
         {depois ? <View style={estilos.depois}>{depois}</View> : null}
         {acoesDoMenu.length ? <FolhaDeAcoes titulo={`Série ${(menuDe ?? 0) + 1}`} aoFechar={() => setMenuDe(null)} acoes={acoesDoMenu} /> : null}
       </View>
@@ -233,7 +248,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
         <Texto variante="rotulo" style={estilos.descanso} testID="cabecalho-descanso">Descanso</Texto>
         <View style={estilos.chevron} testID="cabecalho-chevron" />
       </View>
-      <View style={estilos.lista} role="group" aria-label="Blocos do exercício">{linhas.map(linha)}</View>
+      <View style={estilos.lista} role="group" aria-label="Blocos do exercício">{linhas.map(linha)}{linhaNova}</View>
       {depois ? <View style={estilos.depois}>{depois}</View> : null}
       {acoesDoMenu.length ? <FolhaDeAcoes titulo={`Série ${(menuDe ?? 0) + 1}`} aoFechar={() => setMenuDe(null)} acoes={acoesDoMenu} /> : null}
     </View>
@@ -278,4 +293,5 @@ const estilos = StyleSheet.create({
   semi: { fontFamily: fontes.semi },
   empilhado: { gap: espaco(0.5), flex: 1, minWidth: 0 },
   depois: { alignItems: 'flex-start', paddingTop: espaco(0.5) },
+  nova: { width: '100%', minHeight: ALTURA_DA_LINHA, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: espaco(0.75), borderWidth: 1.5, borderStyle: 'dashed', borderRadius: RAIO_DA_LINHA, paddingHorizontal: espaco(1.5) },
 });

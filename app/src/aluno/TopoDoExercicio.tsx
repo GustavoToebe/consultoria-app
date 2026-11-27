@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Sessao } from '../api/tipos';
 import { duracaoDoTreino } from '../dominio/conclusaoDoTreino';
-import { TETO_DA_TELA_DO_ALUNO } from '../dominio/telaLargaDoAluno';
 import type { ProgressoDoExercicio } from '../dominio/telaDoExercicio';
 import { duracaoDaFaixa, duracaoFalada, textoDaDuracaoAoVivo } from '../dominio/treinoAoVivo';
 import { useAluno } from '../offline/AlunoProvider';
@@ -89,7 +88,7 @@ function TempoDoTreino({ versaoId, sessao, data, hoje }: { versaoId: string; ses
 }
 
 const estilos = StyleSheet.create({
-  conteudo: { width: '100%', maxWidth: TETO_DA_TELA_DO_ALUNO, alignSelf: 'center', paddingHorizontal: espaco(2), paddingTop: espaco(0.5), paddingBottom: espaco(1), gap: espaco(1) },
+  conteudo: { width: '100%', paddingHorizontal: espaco(2), paddingTop: espaco(0.5), paddingBottom: espaco(1), gap: espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   textos: { flex: 1, minWidth: 0 },
   titulo: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },

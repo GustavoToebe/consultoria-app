@@ -1,4 +1,16 @@
-import { GUIAS, secoesDoGuia, textoDoItem } from './conteudo';
+import { PROTOCOLOS } from '../dominio/cardio';
+import { GUIAS, SECAO_CARDIO_E_HIIT, secoesDoGuia, textoDoItem } from './conteudo';
+
+describe('seção Cardio e HIIT', () => {
+  it('traz cada protocolo com o mesmo texto do ⓘ do editor (o conteudo.ts não importa nada, então o teste amarra)', () => {
+    const secao = GUIAS.treinador.secoes.find((s) => s.id === SECAO_CARDIO_E_HIIT);
+    expect(secao?.titulo).toBe('Cardio e HIIT');
+    for (const p of PROTOCOLOS) {
+      const item = secao?.itens.find((i) => i.titulo === p.rotulo);
+      expect(item?.texto.startsWith(p.definicao)).toBe(true);
+    }
+  });
+});
 
 /** Todo o texto de um guia, num bloco só, para procurar termos. */
 const textoDoGuia = (publico: 'treinador' | 'aluno') => {

@@ -37,7 +37,7 @@ describe('seletor binário da carga', () => {
   });
   test('RIR: não prescrito, falha e 1 a 10', () => {
     expect(OPCOES_DO_RIR.map((o) => o.valor)).toEqual([null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    expect(OPCOES_DO_RIR.slice(0, 2).map((o) => o.rotulo)).toEqual(['— (Não prescrito)', '0 (Falha)']);
+    expect(OPCOES_DO_RIR.slice(0, 2).map((o) => o.rotulo)).toEqual(['—', '0']);
   });
 });
 

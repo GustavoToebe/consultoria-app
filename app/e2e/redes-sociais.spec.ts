@@ -68,12 +68,12 @@ async function abrirMarca(page: Page, largura: number, put: RespostasApi[string]
     'GET /consultoria': { corpo: consultoria },
     'PUT /consultoria/marca': put,
   });
-  await page.goto('/treinador/marca');
+  await page.goto('/treinador/configuracoes/contato');
   await expect(page.getByRole('heading', { name: 'Redes sociais' })).toBeVisible();
   return api;
 }
 
-const salvarMarca = (page: Page) => page.getByRole('button', { name: 'Salvar marca', exact: true });
+const salvarMarca = (page: Page) => page.getByRole('button', { name: 'Salvar contato', exact: true });
 const putDaMarca = (pedidos: PedidoFalso[]) => pedidos.find((p) => p.metodo === 'PUT' && p.caminho === '/consultoria/marca');
 
 const DIGITADO: Record<string, string> = {
@@ -109,7 +109,7 @@ for (const largura of [390, 1280]) {
     // Com as oito na tela, o botão some.
     await expect(botaoAdicionar(page)).toHaveCount(0);
     await salvarMarca(page).click();
-    await expect(page.getByText('Marca salva. Os alunos veem a nova marca ao abrir o app.')).toBeVisible();
+    await expect(page.getByText('Contato salvo.', { exact: true })).toBeVisible();
     expect(putDaMarca(pedidos)?.corpo).toMatchObject({ redesSociais: Object.fromEntries(Object.entries(DIGITADO).map(([r, v]) => [CHAVE_DA_REDE[r], v])) });
     // Cada campo passa a mostrar o link gravado, e nada fica por salvar.
     for (const rede of Object.keys(DIGITADO)) await expect(campo(page, rede)).toHaveValue(NORMALIZADA[CHAVE_DA_REDE[rede]!]);
@@ -127,7 +127,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Remover Instagram', exact: true }).click();
     await expect(campo(page, 'Instagram')).toHaveCount(0);
     await salvarMarca(page).click();
-    await expect(page.getByText('Marca salva. Os alunos veem a nova marca ao abrir o app.')).toBeVisible();
+    await expect(page.getByText('Contato salvo.', { exact: true })).toBeVisible();
     expect((putDaMarca(pedidos)?.corpo as { redesSociais: unknown }).redesSociais).toEqual({
       instagram: '', tiktok: '', youtube: '', facebook: '', linkedin: '', telegram: NORMALIZADA.telegram, x: '', site: NORMALIZADA.site,
     });

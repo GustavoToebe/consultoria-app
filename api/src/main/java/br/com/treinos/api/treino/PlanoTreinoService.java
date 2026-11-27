@@ -95,7 +95,14 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
                 .comAlternativas(alternativasDaBiblioteca(x, porId)));
     }
 
+    /**
+     * Cardio com tipo: o rótulo da máquina (Esteira, Bike...), ou nada (corrida ao ar livre, natação, outro), sem chave
+     * nova no plano (o APK instalado recusaria o pacote; D14 do plano do cardio). Sem tipo, o equipamento gravado.
+     */
     private static String equipamentoDe(Exercicio e) {
+        if (e != null && e.getTipoDeCardio() != null) {
+            return e.getTipoDeCardio().rotuloDeEquipamento();
+        }
         String equipamento = e == null || e.getEquipamento() == null ? "" : e.getEquipamento().strip();
         return equipamento.isEmpty() ? null : equipamento;
     }

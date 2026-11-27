@@ -505,6 +505,7 @@ async function abrirBiblioteca(page: Page, largura: number, aba = '') {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /exercicios/pagina': paginaDeExerciciosFalsa(EXERCICIOS, consultas),
+    'GET /exercicios': { corpo: EXERCICIOS },
     'PUT /exercicios/{id}': (p, route) => json(route, { ...EXERCICIOS[0], ...(p.corpo as object) }),
     'GET /alimentos': { corpo: alimentos },
   });
@@ -520,12 +521,9 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Remada curvada', { exact: true })).toHaveCount(0);
 
     const painel = await abrirPainel(page, 'Filtros de exercícios');
-    await painel.getByRole('button', { name: 'Grupo muscular: Todos os grupos. Escolher.' }).click();
-    const lista = page.getByRole('dialog', { name: 'Grupo muscular' });
-    await lista.getByRole('checkbox', { name: 'Peito' }).click();
+    await painel.getByRole('group', { name: 'Grupo muscular' }).getByRole('checkbox', { name: /^Peito,/ }).click();
     await page.screenshot({ path: `${CAPTURAS}/depois-exercicios-lista-longa-${largura}.png` });
-    await page.keyboard.press('Escape');
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^Mostrar / }).click();
     await expect(painel).toHaveCount(0);
     await expect(botao(page)).toBeFocused();
     await expect.poll(() => consultas.at(-1)).toContain('grupo=Peito');

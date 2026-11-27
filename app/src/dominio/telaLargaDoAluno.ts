@@ -1,32 +1,16 @@
 import type { FaixaDeLargura } from '../tema/tokens';
 
 /**
- * Tela larga do app do aluno na web (revisão de 24/11, `docs/planos/tela-larga-revisao-app-do-aluno.md`). As telas do aluno
- * têm teto próprio: duas faixas de ~552 px (1120) até a faixa `normal`; a partir da `larga` (área de conteúdo de 1600 px ou
- * mais, a régua de 4.10) ganham a terceira faixa (1688), e o espaço vira colunas, nunca cartão esticado. Não passa de três:
- * o app do aluno é de leitura, e em 3440 px a sobra fica nas laterais (menos de 1/4 de cada lado).
+ * Tela larga do app do aluno na web. Desde 27/11 o contêiner é o do treinador (`Tela` sem teto próprio: começa ao lado do
+ * menu e preenche; Limitada para em 1800) e as faixas são as da `Tela` (`useAreaDaTela`/`useFaixaDaTela`: normal 1024,
+ * larga 1600, ultralarga 2400). Aqui só ficam as medidas de conteúdo do aluno.
  */
-export const FAIXA_DO_ALUNO = 552;
-export const VAO_DAS_FAIXAS = 16;
-/** Teto de hoje (duas faixas): celular, tablet e PC até a faixa `normal`. */
-export const LARGURA_TELA_DO_ALUNO = 2 * FAIXA_DO_ALUNO + VAO_DAS_FAIXAS;
 
-/** A faixa ganha a terceira coluna (`larga` e `ultralarga`). */
+/** A faixa ganha colunas a mais (`larga` e `ultralarga`). */
 export const telaLargaDoAluno = (faixa: FaixaDeLargura) => faixa === 'larga' || faixa === 'ultralarga';
 
 /** Lista sequencial (refeições, séries, exercícios do dia, divisões, perguntas e respostas): acima disso o nome fica longe do número. */
 export const LARGURA_LISTA_DO_ALUNO = 880;
-/**
- * Teto único das telas do aluno, centralizado (`docs/planos/orientacoes-de-design-26-11.md`, 1.0): 880 de principal + 32 de vão
- * + 400 de apoio. Vale da faixa `normal` em diante; abaixo disso o bloco ocupa a área. A `ultralarga` não ganha coluna nova: a
- * sobra vira margem. `faixa` e `faixas` ficam só para as telas que ainda os passam (shortcut: parâmetros sem efeito, tirar
- * quando nenhuma tela do aluno os usar mais).
- */
-export const TETO_DA_TELA_DO_ALUNO = LARGURA_LISTA_DO_ALUNO + 32 + 400;
-
-export function larguraDaTelaDoAluno(_faixa?: FaixaDeLargura, _faixas: 2 | 3 = 3): number {
-  return TETO_DA_TELA_DO_ALUNO;
-}
 
 /** Cartão de lista (divisão, exercício, refeição) não fica mais estreito que isto na grade larga. */
 export const CELULA_MINIMA_DO_ALUNO = 360;

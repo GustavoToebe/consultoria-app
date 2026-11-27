@@ -4,7 +4,8 @@ import type { ConteudoDieta, ItemDieta, PlanoDetalhe, Receita } from '../src/api
 import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * Ajustes do editor de dieta (04/11): observação e modo de preparo vazios recolhidos num link, unidade do alimento numa
+ * Ajustes do editor de dieta (04/11): observação e modo de preparo numa seção recolhível (27/11: fechada vazia, aberta
+ * com texto, abre e fecha pelo título), unidade do alimento numa
  * lista suspensa ao lado da quantidade, "Adicionar refeição" só no pé da lista (duas colunas) e no topo (uma coluna), os
  * complementos em abas (25/11; detalhes em `complementos-orientacoes-e-suplementos.spec.ts`), cada linha de "Outros" num
  * sub-cartão "#N · Nome" com a lixeira, "Mais detalhes" em "Outros" e o modelo de uma
@@ -95,11 +96,13 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
       await page.getByRole('button', { name: '07:00 · Café da manhã, fechado' }).click();
     }
 
-    // Café da manhã: sem observação nem modo de preparo, só o link; o toque abre os dois campos.
-    const extras = page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' });
-    await expect(extras).toBeVisible();
-    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveCount(0);
-    await expect(page.getByLabel('Observação (opcional)', { exact: true })).toHaveCount(0);
+    // Café da manhã: sem observação nem modo de preparo, a seção nasce fechada com "Nenhuma"; o título abre os dois campos.
+    const extras = page.getByRole('button', { name: 'Observação e modo de preparo', exact: true });
+    await expect(extras).toHaveCount(1);
+    await expect(extras).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByText('Nenhuma', { exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Modo de preparo', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Observação', exact: true })).toHaveCount(0);
 
     // Unidade: a atual ao lado da quantidade, numa lista suspensa; nenhum chip de unidade. Opções em abas (19/11): a A
     // aberta mostra só os alimentos dela (g e ml); a fruta em "un" fica na aba B.
@@ -124,17 +127,22 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await abas.getByRole('tab', { name: /^Opção A,/ }).click();
 
     await extras.click();
-    await expect(page.getByLabel('Observação (opcional)', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toBeVisible();
-    await expect(extras).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Observação', exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Modo de preparo', exact: true })).toBeVisible();
+    await expect(extras).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('region', { name: 'Observação e modo de preparo' })).toBeVisible();
+    // Fecha e abre de novo pelo título.
+    await extras.click();
+    await expect(page.getByRole('textbox', { name: 'Modo de preparo', exact: true })).toHaveCount(0);
+    await extras.click();
+    await expect(page.getByRole('textbox', { name: 'Modo de preparo', exact: true })).toBeVisible();
 
-    // Almoço: nasce fechado também com modo de preparo gravado (18/11); o link abre os campos e o texto está lá.
+    // Almoço: com modo de preparo gravado a seção nasce aberta (27/11), com o texto.
     if (duas) await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).click();
     else await page.getByRole('button', { name: '12:00 · Almoço, fechado' }).click();
     // (empilhado, o Café segue aberto com os campos dele; em duas colunas ele saiu do inspetor)
-    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveCount(duas ? 0 : 1);
-    await page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' }).click();
-    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true }).last()).toHaveValue('Grelhe sem óleo.');
+    await expect(page.getByRole('textbox', { name: 'Modo de preparo', exact: true })).toHaveCount(duas ? 1 : 2);
+    await expect(page.getByRole('textbox', { name: 'Modo de preparo', exact: true }).last()).toHaveValue('Grelhe sem óleo.');
 
     // Complementos (25/11): um cartão com abas; nasce em Orientações, e a Suplementação abre no toque da aba.
     await expect(page.getByRole('tab', { name: /^Orientações/ })).toHaveAttribute('aria-selected', 'true');
@@ -199,7 +207,7 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await expect(page.getByRole('heading', { name: 'Orientações' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Salvar como modelo de refeição' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Adicionar refeição' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Observação e modo de preparo', exact: true })).toHaveAttribute('aria-expanded', 'false');
     await capturar(page, `modelo-refeicao-${sufixo}`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     expect(naoTratadas).toEqual([]);

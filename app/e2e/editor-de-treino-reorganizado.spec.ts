@@ -90,7 +90,7 @@ test.describe('PC (1280)', () => {
     await expect(blocos(page)).toHaveCount(3);
     // Supino: 3 FS com % diferentes, 1 WS e 1 Back off.
     await expect(bloco(page, 1)).toHaveAccessibleName(/^Série 1 · FS, 3 séries, repetições .*, Varia entre as séries: carga/);
-    await expect(page.getByText('Este exercício: 3 blocos · 5 séries', { exact: true })).toBeVisible();
+    await expect(page.getByText('· 5 no total', { exact: true })).toBeVisible();
     // Uma linha por bloco, empilhadas, com 44 px ou mais.
     const [a, b] = [await bloco(page, 1).boundingBox(), await bloco(page, 2).boundingBox()];
     expect(b!.y).toBeGreaterThan(a!.y + a!.height - 1);
@@ -125,13 +125,15 @@ test.describe('PC (1280)', () => {
   test('trocar de bloco e de exercício não perde a mudança', async ({ page }) => {
     await abrirPlano(page);
     await bloco(page, 2).click();
-    await page.getByRole('button', { name: 'Uma série completa a mais', exact: true }).click();
-    await expect(page.getByText('Este exercício: 3 blocos · 6 séries', { exact: true })).toBeVisible();
+    // 27/11: a quantidade é o 'Digite ou escolha' da série aberta.
+    await page.getByRole('button', { name: /^Séries: 1. Escolher.$/ }).click();
+    await page.getByRole('option', { name: '2', exact: true }).click();
+    await expect(page.getByText('· 6 no total', { exact: true })).toBeVisible();
     await bloco(page, 1).click();
     await page.getByRole('button', { name: /^Exercício 2 de 7:/ }).click();
     await page.getByRole('button', { name: /^Exercício 1 de 7:/ }).click();
     await expect(bloco(page, 2)).toHaveAccessibleName(/^Série 2 · WS, 2 séries/);
-    await expect(page.getByText('Este exercício: 3 blocos · 6 séries', { exact: true })).toBeVisible();
+    await expect(page.getByText('· 6 no total', { exact: true })).toBeVisible();
   });
 
   test('"Ir à primeira pendência": escolhe exercício e bloco e foca o campo fora da barra grudada', async ({ page }) => {
@@ -211,7 +213,7 @@ test.describe('PC (1280)', () => {
   test('muitos exercícios e blocos: o Tipo tem largura própria e o último da lista abre com o inspetor à vista', async ({ page }) => {
     const api = await abrirPlano(page, false, muitos);
     await expect(blocos(page)).toHaveCount(7);
-    await expect(page.getByText('Este exercício: 7 blocos · 7 séries', { exact: true })).toBeVisible();
+    await expect(page.getByText('· 7 no total', { exact: true })).toBeVisible();
     // 16/11: com base 0 o Tipo ficava com ~60 px e quebrava em seis linhas; o cabeçalho tem a largura da coluna.
     expect((await page.getByText('Tipo', { exact: true }).first().boundingBox())!.width).toBeGreaterThanOrEqual(140);
     await page.getByRole('button', { name: /^Exercício 14 de 14:/ }).click();
@@ -252,7 +254,10 @@ test.describe('PC (1280)', () => {
     await page.getByRole('button', { name: /^Nome de exibição e instruções/ }).click();
     const [exibicao, paraOAluno] = [await page.getByRole('textbox', { name: 'Nome de exibição' }).boundingBox(), await page.getByRole('textbox', { name: 'Observação para o aluno' }).boundingBox()];
     expect(paraOAluno!.y - (exibicao!.y + exibicao!.height)).toBeLessThan(80);
-    expect(exibicao!.width).toBeGreaterThanOrEqual(paraOAluno!.width * 0.9);
+    // 27/11: Nome e Vídeo dividem a linha; a observação vem logo abaixo, na largura de leitura.
+    const video = (await page.getByRole('textbox', { name: 'Vídeo (link do YouTube, opcional)' }).boundingBox())!;
+    expect(Math.abs(video.y - exibicao!.y)).toBeLessThanOrEqual(1);
+    expect(video.x).toBeGreaterThan(exibicao!.x + exibicao!.width - 1);
     expect(api.errosDaPagina).toEqual([]);
   });
 

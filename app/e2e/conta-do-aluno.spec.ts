@@ -200,20 +200,23 @@ for (const largura of [390, 1280]) {
   });
 }
 
-test('1280 px: duas colunas, o cabeçalho fica à vista ao rolar e os detalhes abrem em folha lateral', async ({ page }) => {
+test('1280 px: duas colunas empilhadas e os detalhes abrem em folha lateral', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await abrir(page);
-  const topo = (await cabecalho(page).boundingBox())!;
-  const secoes = (await page.getByTestId('secao-plano').boundingBox())!;
-  // Lado a lado: o cabeçalho à esquerda, com ~320 px; as seções à direita, na largura de formulário.
-  expect(topo.x + topo.width).toBeLessThan(secoes.x);
-  expect(Math.abs(secoes.y - topo.y)).toBeLessThan(40);
-  expect(secoes.width).toBeLessThanOrEqual(640);
-  await expect(page.getByRole('navigation', { name: 'Seções da conta' })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Ir para App' }).click();
-  await expect(page.getByTestId('secao-app')).toBeInViewport();
-  await expect(cabecalho(page)).toBeInViewport();
+  // Colunas empilhadas (27/11): o perfil no topo da primeira coluna; a coluna de cada seção sai das alturas medidas
+  // (`colunasEquilibradas`), então só se confere que há duas colunas da mesma largura.
+  await expect(async () => {
+    const topo = (await cabecalho(page).boundingBox())!;
+    const secoes = await Promise.all(['secao-plano', 'secao-perfil', 'secao-dados', 'secao-privacidade', 'secao-seguranca', 'secao-app']
+      .map(async (id) => (await page.getByTestId(id).boundingBox())!));
+    const xs = [...new Set(secoes.map((s) => Math.round(s.x / 10)))];
+    expect(xs).toHaveLength(2);
+    expect(Math.max(...secoes.map((s) => s.x))).toBeGreaterThan(topo.x + topo.width);
+    // A segunda coluna começa no topo, na altura do cartão do perfil (o `cabecalho-do-perfil` fica dentro dele, com o recuo).
+    expect(Math.abs(Math.min(...secoes.map((s) => s.y)) - topo.y)).toBeLessThan(40);
+  }).toPass();
+  // Com tudo à vista nas colunas, não há mais índice das seções.
+  await expect(page.getByRole('navigation', { name: 'Seções da conta' })).toHaveCount(0);
 
   await page.getByRole('button', { name: /^Meus dados/ }).click();
   // Folha lateral: encostada à direita (depois da entrada de 180 ms), com 460 px.
@@ -266,8 +269,10 @@ for (const largura of [390, 1280]) {
 test('390 px: uma coluna, sem índice', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await abrir(page);
-  const topo = (await cabecalho(page).boundingBox())!;
-  const secoes = (await page.getByTestId('secao-plano').boundingBox())!;
-  expect(secoes.y).toBeGreaterThan(topo.y + topo.height);
+  await expect(async () => {
+    const topo = (await cabecalho(page).boundingBox())!;
+    const secoes = (await page.getByTestId('secao-plano').boundingBox())!;
+    expect(secoes.y).toBeGreaterThan(topo.y + topo.height);
+  }).toPass();
   await expect(page.getByRole('navigation', { name: 'Seções da conta' })).toHaveCount(0);
 });

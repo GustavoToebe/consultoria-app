@@ -1,4 +1,4 @@
-import type { ConteudoQuestionario, ConviteGerado, Marca, RespostasAtualizacao } from './tipos';
+import type { ConteudoQuestionario, ConviteGerado, Marca, RedeDaConsultoria, RespostasAtualizacao } from './tipos';
 
 /** Espelho dos DTOs de `inscricoes/InscricaoDtos` da API (inscrição por link e CRM de interessados). */
 export type SituacaoInscricao = 'NOVA' | 'EM_CONTATO' | 'EM_NEGOCIACAO' | 'ACEITA' | 'RECUSADA' | 'DESISTIU';
@@ -36,7 +36,8 @@ export interface PerguntasDaInscricao {
 }
 
 export interface InscricaoPublica {
-  consultoria: Marca;
+  /** A marca e as redes da consultoria (`MarcaComRedes` da API: link https normalizado ou nulo por rede; só nesta página). */
+  consultoria: Marca & { redes?: Partial<Record<RedeDaConsultoria, string | null>> | null };
   /** Texto de apresentação e privacidade da consultoria; com texto, a ciência é obrigatória. */
   texto: string | null;
   /** Identifica o texto mostrado; volta no envio para a API conferir que a ciência é do texto atual. */
@@ -46,6 +47,18 @@ export interface InscricaoPublica {
   campos: CampoDaInscricao[];
   /** Perguntas do padrão de inscrição publicado; nulo sem padrão. */
   perguntas: PerguntasDaInscricao | null;
+  /** Planos comerciais ativos da consultoria (vazio com o Financeiro desligado ou sem plano: a página fica sem cartões). */
+  planos: PlanoDaPagina[];
+  /** "Mostrar o preço dos planos" do link; desligada, `valorCentavos` vem nulo em todos. */
+  mostrarPrecoDosPlanos: boolean;
+}
+
+/** Plano oferecido na página pública: só o necessário para escolher. `valorCentavos` nulo = sem preço na página. */
+export interface PlanoDaPagina {
+  id: string;
+  nome: string;
+  periodicidade: Periodicidade;
+  valorCentavos: number | null;
 }
 
 export interface InscricaoPublicaRequest {
@@ -72,6 +85,8 @@ export interface InscricaoPublicaRequest {
   /** `perguntas.versaoId` da página (409 `PERGUNTAS_ALTERADAS` se a consultoria trocou as perguntas); nulo sem perguntas. */
   questionarioVersaoId: string | null;
   respostas: RespostasAtualizacao | null;
+  /** Plano escolhido nos cartões (tem de ser um dos `planos` da página: 422 `INSCRICAO_INVALIDA` no campo, senão). Vale mais que o texto de "Outro". */
+  planoComercialId?: string | null;
 }
 
 /** `GET /inscricoes/configuracao` (= `GET /questionarios/{id}/link` do formulário padrão; 404 se não há padrão). */
@@ -86,6 +101,8 @@ export interface ConfiguracaoInscricao {
   camposOcultos: CampoDaInscricao[];
   /** `linkVersao` do questionário (começa em 0): vai de volta em toda escrita; diferente = 409 `CONFLITO_EDICAO`. */
   versao: number;
+  /** Opção do link: o preço dos planos aparece nos cartões da página (padrão desligada; ausente = desligada). */
+  mostrarPrecoDosPlanos?: boolean;
 }
 
 export interface ConfiguracaoInscricaoRequest {
@@ -93,6 +110,8 @@ export interface ConfiguracaoInscricaoRequest {
   responsavelId: string | null;
   texto: string | null;
   versao: number;
+  /** Ausente = a API mantém o gravado. */
+  mostrarPrecoDosPlanos?: boolean;
 }
 
 /** `GET /inscricoes/links`: todos os links públicos de inscrição (o padrão e os extras, como a Ficha rápida). */
@@ -172,6 +191,9 @@ export interface InscricaoResumo {
   indicadoPor?: string | null;
   versao: number;
   duplicidade: DuplicidadeInscricao;
+  /** Plano comercial que a pessoa escolheu na página; o nome vem resolvido (nulo se não escolheu ou o plano foi apagado). */
+  planoComercialId: string | null;
+  planoComercialNome: string | null;
 }
 
 export interface PaginaInscricoes {
@@ -321,6 +343,9 @@ export interface InscricaoDetalhe {
   /** Inscrição anterior que a equipe confirmou ser da mesma pessoa. */
   relacionadaA: { id: string; nome: string; situacao: SituacaoInscricao; criadaEm: string } | null;
   proposta: PropostaInscricao;
+  /** Plano comercial que a pessoa escolheu na página (pré-seleciona o "Plano do Financeiro" da proposta). */
+  planoComercialId: string | null;
+  planoComercialNome: string | null;
   criadaEm: string;
   atualizadaEm: string;
   ultimaAtividadeEm: string;
@@ -434,4 +459,7 @@ export interface AceiteInscricao {
   /** Anamnese enviada junto com o aceite; `null` quando nenhuma foi enviada. */
   anamneseId: string | null;
   aceitaSemCobranca?: boolean;
+  /** Plano comercial que a pessoa escolheu na página (nome resolvido na hora; nulo se não escolheu). */
+  planoComercialId?: string | null;
+  planoComercialNome?: string | null;
 }

@@ -489,6 +489,10 @@ export interface ConviteGerado {
 // ---- Biblioteca ----
 
 export type Modalidade = 'LIVRE' | 'MAQUINA' | 'ELASTICO' | 'PESO_CORPORAL' | 'CARDIO' | 'OUTRO';
+/** Tipo do exercício de cardio da biblioteca (só com modalidade `CARDIO`; nulo = não informado). */
+export type TipoDeCardio = 'ESTEIRA' | 'BIKE' | 'ELIPTICO' | 'ESCADA' | 'REMO' | 'CORRIDA_AO_AR_LIVRE' | 'NATACAO' | 'OUTRO';
+/** Medidas que fazem sentido no cardio (o editor mostra só estas, além de duração e zona). */
+export type MedidaDeCardio = 'DISTANCIA' | 'RITMO';
 
 export interface Exercicio {
   id: string;
@@ -503,6 +507,10 @@ export interface Exercicio {
   imagens: string[];
   /** Quando a imagem ou GIF próprio foi enviado; nulo = não tem. Os bytes só pela rota autenticada. */
   imagemPropriaEm: string | null;
+  /** Só em `CARDIO` (docs/planos/cardio-e-hiit.md); opcional até a API (passo P1) devolver. */
+  tipoDeCardio?: TipoDeCardio | null;
+  /** Só em `CARDIO`; vazio fora dele. Exercício antigo vem com as duas. */
+  medidasDeCardio?: MedidaDeCardio[];
 }
 
 /** O que o aluno pode mostrar de um exercício do plano dele (só entram os que têm alguma imagem). */
@@ -519,6 +527,10 @@ export interface ExercicioRequest {
   modalidade: Modalidade;
   videoUrl: string | null;
   observacoes: string | null;
+  /** Só em `CARDIO` (fora dele a API ignora); em `CARDIO` a API grava `grupoMuscular` e `equipamento` nulos. */
+  tipoDeCardio?: TipoDeCardio | null;
+  /** Ausente: na criação, as duas; na edição, mantém as gravadas. */
+  medidasDeCardio?: MedidaDeCardio[] | null;
 }
 
 export type UnidadeAlimento = 'g' | 'ml' | 'un';
@@ -808,13 +820,32 @@ export interface IntervalosDeCardio {
   voltas: number | null;
 }
 
-/** Prescrição de uma série de cardio (só em exercício `CARDIO`): ao menos duração, distância ou intervalos. */
+/** Modo do bloco de cardio (docs/planos/cardio-e-hiit.md). Só o intervalado novo grava `modo`; ausente = contínuo, ou intervalado antigo se há `intervalos`. */
+export type ModoDeCardio = 'CONTINUO' | 'INTERVALADO';
+/** Protocolo do intervalado: HIIT de intervalo curto, de intervalo longo, SIT, RST ou personalizado (sem faixa). */
+export type ProtocoloDeCardio = 'CURTO' | 'LONGO' | 'SIT' | 'RST' | 'PERSONALIZADO';
+export type TipoDeRecuperacao = 'ATIVA' | 'PASSIVA';
+
+/**
+ * Prescrição de um bloco de cardio: cada série de um exercício `CARDIO` é um bloco. Contínuo (sem `modo` e sem
+ * `intervalos`): duração ou distância, ritmo e zona. Intervalado antigo (sem `modo`, com `intervalos`): as regras antigas. Intervalado:
+ * `intervalos` (estímulo = `trabalhoSeg`, recuperação = `descansoSeg`, `voltas`), `protocolo`, aquecimento e
+ * desaquecimento em segundos, tipo da recuperação e esforço (`zona` ou `esforcoMaximo`, nunca os dois). Os campos novos
+ * só vêm no JSON quando preenchidos (o pacote offline do app instalado confere as chaves).
+ */
 export interface Cardio {
   duracaoMin?: number | null;
   distanciaKm?: number | null;
   ritmo?: string | null;
   zona?: number | null;
   intervalos?: IntervalosDeCardio | null;
+  modo?: ModoDeCardio | null;
+  protocolo?: ProtocoloDeCardio | null;
+  aquecimentoSeg?: number | null;
+  desaquecimentoSeg?: number | null;
+  recuperacaoTipo?: TipoDeRecuperacao | null;
+  /** "Máximo / all-out": só `true` ou ausente. */
+  esforcoMaximo?: boolean | null;
 }
 
 /**

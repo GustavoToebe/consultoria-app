@@ -540,6 +540,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         visivel={folha?.tipo === 'biblioteca'}
         multiplo={folha?.tipo === 'biblioteca' && folha.alvo.exercicio === null}
         cardio={folha?.tipo === 'biblioteca' && !!folha.alvo.cardio}
+        atual={folha?.tipo === 'biblioteca' && folha.alvo.exercicio !== null ? c.sessoes[folha.alvo.sessao]?.exercicios[folha.alvo.exercicio] : undefined}
         aoFechar={() => setFolha(null)}
         aoEscolher={(escolhidos) => {
           if (folha?.tipo !== 'biblioteca' || escolhidos.length === 0) return;

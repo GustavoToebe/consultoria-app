@@ -8,7 +8,7 @@ import {
   obterConfiguracaoDoAluno, obterMeuRanking, reagirComoAluno, votarComoAluno,
 } from '../../api/comunidade';
 import { ErroApi } from '../../api/cliente';
-import type { AlvoDosComentarios, FiltrosDoMural, PostDoMural, TipoDePost } from '../../api/comunidadeTipos';
+import type { AlvoDosComentarios, ConquistaDoAluno, FiltrosDoMural, PostDoMural, TipoDePost } from '../../api/comunidadeTipos';
 import { AvisoDoPerfilNaComunidade } from '../../aluno/AvisoDoPerfil';
 import { ColecoesDeAuloes } from '../../aluno/ColecoesDeAuloes';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
@@ -46,6 +46,11 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
+import { PrincipalComApoio } from '../../ui/PrincipalComApoio';
+import { Grade } from '../../ui/Grade';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
+import { colunasPorCelula } from '../../dominio/colunasPorCelula';
+import { vagasDosVideos } from '../../dominio/gradeDosVideos';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 
@@ -227,9 +232,9 @@ export default function ComunidadeAluno() {
   return (
     <TelaDoAluno bordas={['top']}>
       {(largo) => (<>
-      {/* A tela inteira (título, abas e as quatro abas) no bloco do mural, a partir da borda esquerda do contêiner do aluno. */}
+      {/* Título e abas na largura do contêiner (o do treinador, ao lado do menu); o mural em feed 720 + coluna 340 à esquerda. */}
       <View testID="bloco-da-comunidade" style={estilos.bloco}>
-      <Cabecalho titulo="Comunidade" subtitulo="Mural do time, vídeos, conquistas e colegas da sua consultoria." />
+      <Cabecalho titulo="Comunidade" descricao="Mural do time, vídeos, conquistas e colegas da sua consultoria." />
       <AvisoDoPerfilNaComunidade online={online} />
 
       {!online ? (
@@ -311,23 +316,23 @@ export default function ComunidadeAluno() {
           ) : null}
 
           {aba === 'ranking' ? (
-            <View style={largo ? estilos.ladoALado : estilos.blocos}>
-              <Cartao titulo="Suas conquistas" descricao="Liberadas conforme você conclui treinos." style={largo ? estilos.largo : undefined}>
-                <EstadoDaFonte carregando={conquistas.carregando} erro={conquistas.erro} vazio={!conquistas.dados?.length}
-                  textoVazio="Nenhuma conquista por enquanto." recarregar={conquistas.recarregar} />
-                {conquistas.dados?.length ? (
-                  <View style={estilos.grade}>
-                    {conquistas.dados.map((c) => <CartaoDaConquista key={c.id} conquista={c} />)}
-                  </View>
-                ) : null}
-              </Cartao>
-
-              <Cartao style={largo ? estilos.estreito : undefined} titulo="Sua posição" descricao="Pelo número de treinos concluídos. Só você vê a sua posição; nomes de outros alunos não aparecem.">
-                <EstadoDaFonte carregando={ranking.carregando} erro={ranking.erro} vazio={!ranking.dados}
-                  textoVazio="A sua posição ainda não está disponível." recarregar={ranking.recarregar} />
-                {ranking.dados ? <LinhaDaPosicao ranking={ranking.dados} /> : null}
-              </Cartao>
-            </View>
+            // Conquistas na principal e a posição no apoio (380/420/440 pela faixa, fixo ao rolar), como as outras telas do
+            // aluno: o cartão curto não fica ao lado de uma grade alta com um buraco embaixo. Empilhado, a posição vem depois.
+            <PrincipalComApoio rotuloDoApoio="Sua posição" idDoApoio="apoio-da-posicao"
+              principal={(
+                <Cartao titulo="Suas conquistas" descricao="Liberadas conforme você conclui treinos.">
+                  <EstadoDaFonte carregando={conquistas.carregando} erro={conquistas.erro} vazio={!conquistas.dados?.length}
+                    textoVazio="Nenhuma conquista por enquanto." recarregar={conquistas.recarregar} />
+                  {conquistas.dados?.length ? <GradeDasConquistas conquistas={conquistas.dados} /> : null}
+                </Cartao>
+              )}
+              apoio={(
+                <Cartao titulo="Sua posição" descricao="Pelo número de treinos concluídos. Só você vê a sua posição; nomes de outros alunos não aparecem.">
+                  <EstadoDaFonte carregando={ranking.carregando} erro={ranking.erro} vazio={!ranking.dados}
+                    textoVazio="A sua posição ainda não está disponível." recarregar={ranking.recarregar} />
+                  {ranking.dados ? <LinhaDaPosicao ranking={ranking.dados} /> : null}
+                </Cartao>
+              )} />
           ) : null}
 
           {aba === 'colegas' ? <ListaDeColegas aoAbrir={setPerfilAberto} /> : null}
@@ -354,20 +359,38 @@ export default function ComunidadeAluno() {
   );
 }
 
+/** Conquista não fica mais estreita que isto (título de duas palavras numa linha). */
+const CELULA_DA_CONQUISTA = 180;
+
+/**
+ * As conquistas em colunas iguais pela largura da própria grade, em linhas equilibradas com a vaga vazia à direita (a regra
+ * dos vídeos, `vagasDosVideos`): 4 em 3 colunas = 2 + 2, nunca 3 + 1 com a última esticada na largura toda.
+ */
+function GradeDasConquistas({ conquistas }: { conquistas: readonly ConquistaDoAluno[] }) {
+  const { largura, aoMedir } = useFaixaDeLargura();
+  const colunas = largura > 0 ? colunasPorCelula(largura, CELULA_DA_CONQUISTA, espaco(2), 6) : 1;
+  return (
+    <View onLayout={aoMedir}>
+      <Grade gap={espaco(2)} colunas={() => colunas}>
+        {vagasDosVideos(conquistas.length, colunas).map((i, n) => {
+          const c = i === null ? undefined : conquistas[i];
+          // Em linha: o `flexBasis` do cartão vale na largura (numa coluna ele achataria a altura e o ícone).
+          return c ? <View key={c.id} style={estilos.celulaDaConquista}><CartaoDaConquista conquista={c} /></View> : <View key={`vaga-${n}`} aria-hidden />;
+        })}
+      </Grade>
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
-  // Até o bloco feed + coluna (1092), na borda esquerda do contêiner de 1312 das telas do aluno (o título cai no mesmo x das
-  // outras telas; decisão do Gustavo, 26/11); no celular, a largura toda (o teto não chega a valer).
-  bloco: { width: '100%', maxWidth: LARGURA_DO_BLOCO_DO_MURAL, alignSelf: 'flex-start', gap: espaco(3) },
-  // Tela larga: conquistas e posição lado a lado (2 para 1).
-  ladoALado: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
-  largo: { flex: 2, minWidth: 0 },
-  estreito: { flex: 1, minWidth: 0 },
+  // Na largura do contêiner das telas do aluno (27/11, o do treinador); o mural mede a própria área (`MuralComLateral`).
+  bloco: { width: '100%', gap: espaco(3) },
+  celulaDaConquista: { flex: 1, flexDirection: 'row' },
   // Seletor do mural à esquerda e a ação principal à direita; no celular estreito, o botão desce para a linha de baixo.
   topoDoMural: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(2) },
   topoDoMuralEmPilha: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', justifyContent: 'flex-start' },
-  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   // Web: Avisos/Alunos, a busca, os Filtros e "Nova publicação" numa linha na largura do feed; quebra só se não couber.
   linhaDoMural: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(1.5), rowGap: espaco(1.5), width: '100%', maxWidth: LARGURA_DO_FEED },
   buscaDaLinha: { flexGrow: 1, flexShrink: 1, flexBasis: 360, minWidth: 0 },

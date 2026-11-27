@@ -72,20 +72,20 @@ export function chipsDoGrupo(grupo: string, todos: string): ChipDoCartao<'grupo'
 }
 
 /**
- * Seleção do "Escolher exercício" (editor de treino) depois de aplicar outro grupo (D9): só se adiciona o que está no grupo
- * escolhido, então sai da seleção o que não é dele, com aviso de quantos saíram. `doGrupo` nulo = "Todos" (nada sai).
- * Aplicar o mesmo grupo nem chega aqui.
+ * Seleção do "Escolher exercício" (editor de treino) depois de aplicar outros filtros (D9): só se adiciona o que passa neles,
+ * então sai da seleção o que não passa, com aviso de quantos saíram. `passam` nulo = nenhum filtro (nada sai). `grupo` é o
+ * nome quando o único filtro é um grupo só (a frase diz qual); senão a frase fala dos filtros. Aplicar o mesmo nem chega aqui.
  */
-export function selecaoDepoisDoGrupo(marcados: ReadonlySet<string>, doGrupo: ReadonlySet<string> | null, grupo: string):
+export function selecaoDepoisDoGrupo(marcados: ReadonlySet<string>, passam: ReadonlySet<string> | null, grupo: string | null):
   { marcados: ReadonlySet<string>; aviso: string | null } {
-  if (!doGrupo) return { marcados, aviso: null };
-  const ficam = new Set([...marcados].filter((id) => doGrupo.has(id)));
+  if (!passam) return { marcados, aviso: null };
+  const ficam = new Set([...marcados].filter((id) => passam.has(id)));
   const sairam = marcados.size - ficam.size;
   if (sairam === 0) return { marcados, aviso: null };
+  const um = sairam === 1;
+  const motivo = grupo ? (um ? `não é do grupo ${grupo}` : `não são do grupo ${grupo}`) : (um ? 'não passa nos filtros' : 'não passam nos filtros');
   return {
     marcados: ficam,
-    aviso: sairam === 1
-      ? `1 exercício marcado saiu da seleção porque não é do grupo ${grupo}.`
-      : `${sairam} exercícios marcados saíram da seleção porque não são do grupo ${grupo}.`,
+    aviso: um ? `1 exercício marcado saiu da seleção porque ${motivo}.` : `${sairam} exercícios marcados saíram da seleção porque ${motivo}.`,
   };
 }

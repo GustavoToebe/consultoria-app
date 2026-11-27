@@ -84,7 +84,8 @@ function FormularioDaProposta({ dados, executar, ocupado, aoFechar }: {
 }) {
   const p = dados.proposta;
   const planos = useCarregar('inscricoes:planos-de-referencia', () => planosDeReferencia());
-  const [planoId, setPlanoId] = useState<string>(p.planoId ?? PLANO_LIVRE);
+  // Sem plano na proposta, abre no plano que a pessoa escolheu na página (27/11); só o estado inicial, nada grava sozinho.
+  const [planoId, setPlanoId] = useState<string>(p.planoId ?? dados.planoComercialId ?? PLANO_LIVRE);
   const [planoNome, setPlanoNome] = useState(p.planoNome ?? '');
   const [modalidade, setModalidade] = useState<Modalidade | null>(p.modalidade);
   const [periodicidade, setPeriodicidade] = useState<Periodicidade | null>(p.periodicidade);
@@ -132,7 +133,7 @@ function FormularioDaProposta({ dados, executar, ocupado, aoFechar }: {
   return (
     <View style={estilos.formulario}>
       {lista.length > 0 ? (
-        <EscolhaEmFolha rotulo="Plano do Financeiro" valor={planoId} aoMudar={escolherPlano}
+        <EscolhaEmFolha rotulo="Plano do Financeiro" valor={plano ? planoId : PLANO_LIVRE} aoMudar={escolherPlano}
           opcoes={[{ valor: PLANO_LIVRE, rotulo: 'Nenhum (escrever o plano)' },
             ...lista.map((x) => ({ valor: x.id, rotulo: x.nome, detalhe: `${centavosParaTela(x.valorCentavos)} · ${PERIODICIDADES[x.periodicidade]}` }))]} />
       ) : null}

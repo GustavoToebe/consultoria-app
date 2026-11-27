@@ -58,4 +58,8 @@ describe('grupo muscular das folhas de exercícios', () => {
     expect(selecaoDepoisDoGrupo(marcados, null, '')).toEqual({ marcados, aviso: null });
     expect(selecaoDepoisDoGrupo(marcados, new Set(['a', 'b', 'c']), 'Peito')).toEqual({ marcados, aviso: null });
   });
+  it('outros filtros (vários grupos, modalidade, mídia): a frase fala dos filtros', () => {
+    expect(selecaoDepoisDoGrupo(new Set(['a', 'b']), new Set(['a']), null).aviso).toBe('1 exercício marcado saiu da seleção porque não passa nos filtros.');
+    expect(selecaoDepoisDoGrupo(new Set(['a', 'b', 'c']), new Set([]), null).aviso).toBe('3 exercícios marcados saíram da seleção porque não passam nos filtros.');
+  });
 });

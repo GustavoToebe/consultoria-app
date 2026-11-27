@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Switch } from '../../../components/ui/switch';
-import { coresDoDestaque, definir, MODELOS_PDF, PALETA_DE_DESTAQUE, type ConfigPdf, type ModeloPdf, type ValoresPdf } from '../../../dominio/configuracaoPdf';
+import { coresDoDestaque, definir, PALETA_DE_DESTAQUE, type ConfigPdf, type ModeloPdf, type ValoresPdf } from '../../../dominio/configuracaoPdf';
 import { OPCOES_DO_PDF, resumoDoGrupo, type GrupoDoEditor } from '../../../dominio/editorDoPdf';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, RAIO_CONTROLE } from '../../../tema/tokens';
@@ -14,13 +14,14 @@ import { LinhaDeConfiguracao } from '../../../ui/LinhaDeConfiguracao';
 import { LinkTexto } from '../../../ui/LinkTexto';
 import { OpcaoCartao } from '../../../ui/OpcaoCartao';
 import { Texto } from '../../../ui/Texto';
+import { MiniaturasDosModelos } from './MiniaturasDosModelos';
 
 interface Props {
   config: ConfigPdf;
   valores: ValoresPdf;
   /** Cor da marca (`#RRGGBB`), a cor principal dos PDFs: só leitura aqui (D-F8). */
   corDaMarca: string;
-  /** Grupo aberto (só um por vez: no 1024 o painel não vira uma lista sem fim) ou `null`. */
+  /** Grupo aberto (só um por vez: o painel não vira uma lista sem fim) ou `null`. */
   aberto: GrupoDoEditor | null;
   aoAbrir: (grupo: GrupoDoEditor | null) => void;
   aoMudar: (config: ConfigPdf) => void;
@@ -43,11 +44,7 @@ export function PainelDeOpcoes({ config, valores, corDaMarca, aberto, aoAbrir, a
     </Cartao>
   );
   const corpos: Record<GrupoDoEditor, ReactNode> = {
-    modelo: (
-      <GradeDeOpcoes rotulo="Modelo" descricao="Trocar de modelo volta as opções aos valores dele. Dá para desfazer.">
-        {MODELOS_PDF.map((m) => <OpcaoCartao key={m.id} titulo={m.nome} descricao={m.descricao} selecionada={config.modelo === m.id} aoEscolher={() => aoTrocarModelo(m.id)} />)}
-      </GradeDeOpcoes>
-    ),
+    modelo: <MiniaturasDosModelos escolhido={config.modelo} destaque={valores.cores.destaque} corDaMarca={corDaMarca} aoEscolher={aoTrocarModelo} />,
     cores: <Cores config={config} valores={valores} corDaMarca={corDaMarca} aoMudar={aoMudar} />,
     texto: (
       <Linhas>

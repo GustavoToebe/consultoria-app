@@ -2,6 +2,7 @@ import { definir, resolver, trocarModelo } from './configuracaoPdf';
 import {
   arranjoDoEditor,
   configDaMarca,
+  estadoDaBarra,
   folhaNaTela,
   mensagemDoErroDeCampo,
   mesmaConfig,
@@ -15,26 +16,61 @@ describe('arranjoDoEditor (pela área de conteúdo)', () => {
     expect(arranjoDoEditor(0)).toEqual({ tipo: 'compacto' });
     expect(arranjoDoEditor(1023)).toEqual({ tipo: 'compacto' });
   });
-  it('1024 a < 1600: painel 360 e folha ajustada', () => {
-    expect(arranjoDoEditor(1024)).toEqual({ tipo: 'editor', painel: 360, zoomPadrao: 'AJUSTAR' });
-    expect(arranjoDoEditor(1599)).toEqual({ tipo: 'editor', painel: 360, zoomPadrao: 'AJUSTAR' });
+  it('janela abaixo de 1280 (área de 1024 em diante): opções em cima e prévia embaixo', () => {
+    expect(arranjoDoEditor(1024)).toEqual({ tipo: 'empilhado' });
+    expect(arranjoDoEditor(1279)).toEqual({ tipo: 'empilhado' });
+    expect(arranjoDoEditor(1112, 1080, 1200)).toEqual({ tipo: 'empilhado' });
   });
-  it('1600 a < 2400: painel 400 e 100%; a partir de 2400: painel 440 e 100%', () => {
-    expect(arranjoDoEditor(1600)).toEqual({ tipo: 'editor', painel: 400, zoomPadrao: 'CEM' });
-    expect(arranjoDoEditor(2399)).toEqual({ tipo: 'editor', painel: 400, zoomPadrao: 'CEM' });
-    expect(arranjoDoEditor(2400)).toEqual({ tipo: 'editor', painel: 440, zoomPadrao: 'CEM' });
+  it('a partir de 1280 de janela: painel de 420 e uma prévia; duas lado a lado só com 2400 de conteúdo', () => {
+    // 1280 de janela com o menu aberto: ~1040 de área, ainda em colunas (a janela decide, não a área).
+    expect(arranjoDoEditor(1040, 1008, 1280)).toEqual({ tipo: 'colunas', painel: 420, previas: 1 });
+    expect(arranjoDoEditor(1280)).toEqual({ tipo: 'colunas', painel: 420, previas: 1 });
+    expect(arranjoDoEditor(2399)).toEqual({ tipo: 'colunas', painel: 420, previas: 1 });
+    expect(arranjoDoEditor(2400)).toEqual({ tipo: 'colunas', painel: 420, previas: 2 });
+    // 3440 com o menu aberto (área 3200): com o recuo de 48 sobram 3104; com a preferência "Limitada", 1800.
+    expect(arranjoDoEditor(3200, 3104)).toEqual({ tipo: 'colunas', painel: 420, previas: 2 });
+    expect(arranjoDoEditor(3200, 1800)).toEqual({ tipo: 'colunas', painel: 420, previas: 1 });
   });
 });
 
 describe('folhaNaTela', () => {
-  it('Ajustar acompanha o espaço, com piso de 60% e teto de 100%', () => {
+  it('Ajustar acompanha o espaço, com piso de 60% e teto de 125%', () => {
     expect(folhaNaTela(600, 'AJUSTAR')).toEqual({ largura: 600, rolaDeLado: false, zoomMuda: true });
     expect(folhaNaTela(300, 'AJUSTAR')).toEqual({ largura: 476, rolaDeLado: true, zoomMuda: true });
-    expect(folhaNaTela(1200, 'AJUSTAR')).toEqual({ largura: 794, rolaDeLado: false, zoomMuda: false });
+    expect(folhaNaTela(900, 'AJUSTAR')).toEqual({ largura: 900, rolaDeLado: false, zoomMuda: false });
+    expect(folhaNaTela(1200, 'AJUSTAR')).toEqual({ largura: 993, rolaDeLado: false, zoomMuda: false });
   });
-  it('100% é sempre a A4 real; num espaço menor, rola de lado', () => {
+  it('100% é a A4 real só quando a ajustada encolhe; com sobra, a escolha antiga é ignorada', () => {
     expect(folhaNaTela(600, 'CEM')).toEqual({ largura: 794, rolaDeLado: true, zoomMuda: true });
     expect(folhaNaTela(794, 'CEM')).toEqual({ largura: 794, rolaDeLado: false, zoomMuda: false });
+    expect(folhaNaTela(1200, 'CEM')).toEqual({ largura: 993, rolaDeLado: false, zoomMuda: false });
+  });
+});
+
+describe('estadoDaBarra (um estado só)', () => {
+  const salvo = trocarModelo('CLASSICO');
+  const parado = { salvando: false, erro: false };
+  it('sem mudança: "Em uso nos PDFs · <modelo> · Sem alterações", também com personalizações gravadas', () => {
+    expect(estadoDaBarra(salvo, salvo, parado)).toEqual({ selo: { texto: 'Em uso nos PDFs', tipo: 'sucesso' }, info: 'Clássico · Sem alterações' });
+    const personalizado = definir(salvo, 'texto', 'fonte', 'SERIFADA');
+    expect(estadoDaBarra(personalizado, personalizado, parado).info).toBe('Clássico · Sem alterações');
+  });
+  it('modelo trocado sem mexer em nada não diz "Sem alterações" ao lado de "Alterações não salvas"', () => {
+    const r = estadoDaBarra(trocarModelo('ESPORTIVO'), salvo, parado);
+    expect(r.selo).toEqual({ texto: 'Alterações não salvas', tipo: 'neutro', naoSalvo: true });
+    expect(r.info).toBe('Esportivo · os PDFs ainda usam Clássico');
+  });
+  it('mesmo modelo: conta as opções diferentes do gravado (não do modelo)', () => {
+    const gravado = definir(salvo, 'texto', 'fonte', 'SERIFADA');
+    expect(estadoDaBarra(definir(gravado, 'tabelas', 'estilo', 'CARTOES'), gravado, parado).info).toBe('Clássico · 1 opção mudada');
+    expect(estadoDaBarra(definir(definir(gravado, 'tabelas', 'estilo', 'CARTOES'), 'texto', 'tamanho', 'G'), gravado, parado).info).toBe('Clássico · 2 opções mudadas');
+    expect(estadoDaBarra(salvo, gravado, parado).info).toBe('Clássico · 1 opção mudada');
+    expect(estadoDaBarra(salvo, { modelo: 'CLASSICO', sobrescritas: { cores: { destaque: 'MARCA' } } }, parado).info).toBe('Clássico · valores do modelo');
+  });
+  it('salvando e falha vencem o resto', () => {
+    const mexido = definir(salvo, 'texto', 'fonte', 'SERIFADA');
+    expect(estadoDaBarra(mexido, salvo, { salvando: true, erro: true })).toEqual({ selo: { texto: 'Salvando…', tipo: 'neutro' }, info: 'Clássico' });
+    expect(estadoDaBarra(mexido, salvo, { salvando: false, erro: true })).toEqual({ selo: { texto: 'Falha ao salvar', tipo: 'perigo' }, info: 'Clássico' });
   });
 });
 

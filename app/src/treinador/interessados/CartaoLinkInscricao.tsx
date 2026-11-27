@@ -39,6 +39,7 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 const SEM_RESPONSAVEL = '';
+const AJUDA_DO_PRECO = 'Os planos ativos do Financeiro aparecem para a pessoa escolher. Desligado, só o nome e o período; ligado, também o valor.';
 
 /**
  * Link de inscrição da consultoria, em faixa compacta (a fila de interessados é o que importa na tela): situação,
@@ -100,6 +101,7 @@ function Formulario({ config, extras, podeAlterar, responsaveis, aoGravar, aoCon
   const [aberta, setAberta] = useState(config.aberta);
   const [responsavelId, setResponsavelId] = useState(config.responsavelId ?? SEM_RESPONSAVEL);
   const [texto, setTexto] = useState(config.texto ?? '');
+  const [mostrarPreco, setMostrarPreco] = useState(!!config.mostrarPrecoDosPlanos);
   const [salvando, setSalvando] = useState(false);
   const [confirmarNovo, setConfirmarNovo] = useState(false);
   const [configurando, setConfigurando] = useState(false);
@@ -109,12 +111,13 @@ function Formulario({ config, extras, podeAlterar, responsaveis, aoGravar, aoCon
     setAberta(config.aberta);
     setResponsavelId(config.responsavelId ?? SEM_RESPONSAVEL);
     setTexto(config.texto ?? '');
+    setMostrarPreco(!!config.mostrarPrecoDosPlanos);
     setErro(null);
   };
   const [erro, setErro] = useState<unknown>(null);
 
   const mudou = aberta !== config.aberta || responsavelId !== (config.responsavelId ?? SEM_RESPONSAVEL)
-    || texto.trim() !== (config.texto ?? '');
+    || texto.trim() !== (config.texto ?? '') || mostrarPreco !== !!config.mostrarPrecoDosPlanos;
   const nomeDoResponsavel = responsaveis.find((r) => r.id === config.responsavelId)?.nome;
 
   const gravar = (acao: () => Promise<ConfiguracaoInscricao>, sucesso: string) => {
@@ -140,7 +143,7 @@ function Formulario({ config, extras, podeAlterar, responsaveis, aoGravar, aoCon
   };
 
   const salvar = () => gravar(() => alterarConfiguracaoInscricao({
-    aberta, responsavelId: responsavelId || null, texto: texto.trim() || null, versao: config.versao,
+    aberta, responsavelId: responsavelId || null, texto: texto.trim() || null, versao: config.versao, mostrarPrecoDosPlanos: mostrarPreco,
   }), aberta ? 'Link de inscrição salvo.' : 'Link de inscrição salvo (desligado).');
 
   const gerarNovo = () => {
@@ -191,6 +194,8 @@ function Formulario({ config, extras, podeAlterar, responsaveis, aoGravar, aoCon
           <Campo rotulo="Texto de apresentação e privacidade (opcional)" valor={texto} aoMudar={setTexto} linhas={5}
             maxLength={LIMITES_INSCRICAO.texto}
             ajuda="Aparece na página de inscrição; com texto, a pessoa marca que leu antes de enviar. Diga como a consultoria usa os dados." />
+          <Interruptor rotulo="Mostrar o preço dos planos na página de inscrição" valor={mostrarPreco} aoMudar={setMostrarPreco}
+            ajuda={AJUDA_DO_PRECO} />
           {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
           <PainelConfirmacao visivel={confirmarNovo} titulo="Gerar novo link?"
             mensagem="O link atual para de funcionar na hora: quem tiver o antigo vê a inscrição encerrada. As inscrições já recebidas não mudam."
@@ -354,12 +359,13 @@ function FormularioLinkExtra({ id, nome, config, responsaveis, aoFechar, aoGrava
   const [responsavelId, setResponsavelId] = useState(config.responsavelId ?? SEM_RESPONSAVEL);
   const [texto, setTexto] = useState(config.texto ?? '');
   const [ocultos, setOcultos] = useState<CampoDaInscricao[]>(config.camposOcultos);
+  const [mostrarPreco, setMostrarPreco] = useState(!!config.mostrarPrecoDosPlanos);
   const [salvando, setSalvando] = useState(false);
   const [confirmarNovo, setConfirmarNovo] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
 
   const mudouConfig = aberta !== config.aberta || responsavelId !== (config.responsavelId ?? SEM_RESPONSAVEL)
-    || texto.trim() !== (config.texto ?? '');
+    || texto.trim() !== (config.texto ?? '') || mostrarPreco !== !!config.mostrarPrecoDosPlanos;
   const mudouCampos = ocultos.length !== config.camposOcultos.length
     || ocultos.some((c, i) => config.camposOcultos[i] !== c);
   const mudou = mudouConfig || mudouCampos;
@@ -386,6 +392,7 @@ function FormularioLinkExtra({ id, nome, config, responsaveis, aoFechar, aoGrava
           responsavelId: responsavelId || null,
           texto: texto.trim() || null,
           versao: atual.versao,
+          mostrarPrecoDosPlanos: mostrarPreco,
         });
       }
       if (mudouCampos) {
@@ -431,6 +438,8 @@ function FormularioLinkExtra({ id, nome, config, responsaveis, aoFechar, aoGrava
       <Campo rotulo="Texto de apresentação e privacidade (opcional)" valor={texto} aoMudar={setTexto} linhas={5}
         maxLength={LIMITES_INSCRICAO.texto}
         ajuda="Aparece na página de inscrição; com texto, a pessoa marca que leu antes de enviar." />
+      <Interruptor rotulo={`Mostrar o preço dos planos na ${nome.toLocaleLowerCase('pt-BR')}`} valor={mostrarPreco} aoMudar={setMostrarPreco}
+        ajuda={AJUDA_DO_PRECO} />
       <View style={estilos.secaoCampos}>
         <Texto variante="secao">Campos fixos visíveis</Texto>
         <Texto variante="pequeno">Nome, WhatsApp e a ciência do texto sempre aparecem.</Texto>

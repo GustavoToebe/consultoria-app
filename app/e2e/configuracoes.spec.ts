@@ -125,7 +125,7 @@ test('perfil restrito (1280): só os itens que ele pode abrir; Consultoria, Equi
   await abrir(page, 1280, restrito);
   const { grupos } = esperado(restrito);
   await expect.poll(() => gruposDaColuna(page)).toEqual(grupos);
-  for (const fora of ['Marca', 'Contato', 'Documentos (PDF)', 'Assinatura e faturas']) await expect(item(page, fora)).toHaveCount(0);
+  for (const fora of ['Marca', 'Contato', 'Padrões do acompanhamento', 'Documentos (PDF)', 'Assinatura e faturas']) await expect(item(page, fora)).toHaveCount(0);
 });
 
 test('1280: escolher empilha no histórico, o voltar do navegador volta ao item anterior e a coluna não remonta', async ({ page }) => {
@@ -240,13 +240,39 @@ test('1280, teclado: do campo, o Tab chega ao primeiro item com foco visível e 
   await expect(page).toHaveURL(/\/configuracoes\/seguranca$/);
 });
 
-test('1280: Contato abre a Marca dentro de Configurações, rolada até o cartão Contato', async ({ page }) => {
+test('1280: Contato e Padrões do acompanhamento são telas próprias dentro de Configurações (a busca acha os campos que saíram da Marca)', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, ADMIN);
   await busca(page).fill('remetente');
   await item(page, 'Contato').click();
   await expect(page).toHaveURL(/\/configuracoes\/contato$/);
-  await expect(h1(page)).toHaveText('Marca');
-  await expect(page.getByRole('heading', { level: 2, name: 'Contato' })).toBeInViewport();
+  await expect(h1(page)).toHaveText('Contato');
+  await expect(page.getByRole('textbox', { name: 'Responder para', exact: true })).toBeVisible();
+  await busca(page).fill('meta do peso');
+  await item(page, 'Padrões do acompanhamento').click();
+  await expect(page).toHaveURL(/\/configuracoes\/padroes-do-acompanhamento$/);
+  await expect(h1(page)).toHaveText('Padrões do acompanhamento');
+  await expect(page).toHaveTitle(/^Padrões do acompanhamento · /);
+  // No PC o item está na coluna: sem a seta de voltar.
+  await expect(page.getByRole('button', { name: 'Voltar' })).toHaveCount(0);
+  await expect(page.getByRole('radiogroup', { name: 'Meta do peso dos alunos' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Nome da consultoria' })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('390: Contato e Padrões do acompanhamento abrem no próprio endereço (sem rota inteira para onde ir)', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 390, ADMIN, '/treinador/configuracoes/contato');
+  await expect(h1(page)).toHaveText('Contato');
+  await expect(page).toHaveURL(/\/configuracoes\/contato$/);
+  await expect(page).toHaveTitle(/^Contato · /);
+  // A seta volta à lista de Configurações (não há rota inteira para onde ir).
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(/\/treinador\/configuracoes$/);
+  await page.goto('/treinador/configuracoes/padroes-do-acompanhamento');
+  await expect(h1(page)).toHaveText('Padrões do acompanhamento');
+  await expect(page).toHaveURL(/\/configuracoes\/padroes-do-acompanhamento$/);
+  await expect(page).toHaveTitle(/^Padrões do acompanhamento · /);
+  await expect(page.getByRole('button', { name: 'Voltar' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -383,35 +409,49 @@ async function colunasDaMarca(page: Page) {
     return { x: r.left, direita: r.right };
   });
   const nome = (await page.getByRole('textbox', { name: 'Nome da consultoria' }).boundingBox())!;
-  return { form: await caixa('coluna-do-formulario'), previa: await caixa('coluna-da-previa'), desenho: await caixa('previa-da-paleta'), nome, bloco };
+  return { form: await caixa('coluna-do-formulario'), previa: await caixa('coluna-da-previa'), inicio: await caixa('previa-da-paleta'), entrar: await caixa('previa-de-entrar'), nome, bloco };
 }
 
-// Item 5 (26/11): na tela larga o formulário inteiro fica em 640 px e a prévia vem colada ao lado (vão de 24), com o cartão
-// parando no desenho do app do aluno (720 + recuo) e o resto da linha vazio. Em Limitada o conjunto fica nos 1800 centrados.
+// 27/11: na tela larga o formulário fica em 720 à esquerda e a prévia ocupa o resto da linha (vão de 24), com os dois
+// celulares lado a lado (o Início e a tela de entrar), fixa ao rolar. Em Limitada o conjunto fica nos 1800 centrados.
 for (const [largura, larguraConteudo] of [[3440, 'AUTOMATICA'], [3440, 'LIMITADA'], [1920, 'AUTOMATICA']] as const) {
-  test(`${largura}, marca, ${larguraConteudo === 'LIMITADA' ? 'Limitada' : 'Automática'}: formulário de 640 e a prévia no resto`, async ({ page }) => {
+  test(`${largura}, marca, ${larguraConteudo === 'LIMITADA' ? 'Limitada' : 'Automática'}: formulário de 720 e a prévia dupla no resto`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, largura, { ...ADMIN, larguraConteudo }, '/treinador/configuracoes/marca');
-    await expect(page.getByTestId('coluna-do-formulario')).toBeVisible();
+    await expect(page.getByTestId('coluna-da-previa')).toBeVisible();
     await expect(page.getByTestId('previa-da-paleta')).toHaveCount(1);
     await expect(async () => {
-      const { form, previa, desenho, nome, bloco } = await colunasDaMarca(page);
-      expect(form.width).toBeLessThanOrEqual(640 + 1);
+      const { form, previa, inicio, entrar, nome, bloco } = await colunasDaMarca(page);
+      expect(Math.abs(form.width - 720)).toBeLessThanOrEqual(1);
       expect(nome.x + nome.width).toBeLessThanOrEqual(form.x + form.width + 1);
       expect(Math.abs(form.x - bloco.x)).toBeLessThanOrEqual(1);
       expect(Math.abs(previa.x - (form.x + form.width) - 24)).toBeLessThanOrEqual(1);
-      expect(previa.x - (form.x + form.width)).toBeLessThanOrEqual(48);
-      expect(previa.x + previa.width).toBeLessThanOrEqual(bloco.direita + 1);
-      expect(previa.width).toBeLessThanOrEqual(720 + 48 + 1);
-      if (largura === 3440) expect(previa.x).toBeLessThan((bloco.x + bloco.direita) / 2);
-      expect(desenho.width).toBeLessThanOrEqual(720 + 1);
-      expect(Math.abs(desenho.x + desenho.width / 2 - (previa.x + previa.width / 2))).toBeLessThanOrEqual(2);
+      expect(Math.abs(previa.x + previa.width - bloco.direita)).toBeLessThanOrEqual(1);
+      // Os dois celulares lado a lado, na mesma linha, dentro da prévia.
+      expect(Math.abs(inicio.y - entrar.y)).toBeLessThanOrEqual(1);
+      expect(entrar.x).toBeGreaterThan(inicio.x + inicio.width);
+      expect(entrar.x + entrar.width).toBeLessThanOrEqual(previa.x + previa.width);
       if (larguraConteudo === 'LIMITADA') expect(Math.abs(bloco.direita - bloco.x - 1800)).toBeLessThanOrEqual(1);
     }).toPass({ timeout: 10_000 });
-    // As cores prontas abrem as colunas que cabem nos 640 (duas), dentro da coluna do formulário.
-    const cores = (await page.getByRole('radiogroup', { name: 'Cores prontas' }).boundingBox())!;
+    // As bolinhas da cor ficam dentro da coluna do formulário.
+    const cores = (await page.getByRole('radiogroup', { name: 'Cor da marca' }).boundingBox())!;
     const { form } = await colunasDaMarca(page);
     expect(cores.x + cores.width).toBeLessThanOrEqual(form.x + form.width + 1);
+    // Fixa ao rolar: rolar a área do item até o fim não tira a prévia do topo da janela.
+    await page.getByRole('link', { name: /^Escolher o tema do meu painel/ }).scrollIntoViewIfNeeded();
+    await expect.poll(async () => (await page.getByTestId('coluna-da-previa').boundingBox())!.y).toBeGreaterThanOrEqual(0);
     await semRolagemLateral(page);
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+test('1280, marca: abaixo da faixa larga uma prévia só (o Início), embaixo do formulário', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, ADMIN, '/treinador/configuracoes/marca');
+  await expect(page.getByTestId('previa-da-paleta')).toHaveCount(1);
+  await expect(page.getByTestId('previa-de-entrar')).toHaveCount(0);
+  await expect(page.getByTestId('coluna-da-previa')).toHaveCount(0);
+  const tema = (await page.getByRole('radiogroup', { name: 'Tema padrão da consultoria' }).boundingBox())!;
+  const inicio = (await page.getByTestId('previa-da-paleta').boundingBox())!;
+  expect(inicio.y).toBeGreaterThan(tema.y + tema.height);
+  await semRolagemLateral(page);
+  expect(errosDaPagina).toEqual([]);
+});

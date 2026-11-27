@@ -29,13 +29,18 @@ public final class FiltrosDeLista {
 
     /** Os valores sem vazios, sem espaços nas pontas e sem repetir, na ordem recebida. Mais de {@value #MAXIMO_VALORES} = 400. */
     public static List<String> valores(List<String> crus, String campo) {
+        return valores(crus, campo, MAXIMO_VALORES);
+    }
+
+    /** Como {@link #valores(List, String)} com outro teto, para o endpoint que precisa de listas maiores (auditoria). */
+    public static List<String> valores(List<String> crus, String campo, int maximo) {
         if (crus == null) return List.of();
         Set<String> limpos = new LinkedHashSet<>();
         for (String v : crus) {
             if (v != null && !v.isBlank()) limpos.add(v.trim());
         }
-        if (limpos.size() > MAXIMO_VALORES) {
-            throw new BadRequestException("Escolha até " + MAXIMO_VALORES + " valores em " + campo + ".", CODIGO);
+        if (limpos.size() > maximo) {
+            throw new BadRequestException("Escolha até " + maximo + " valores em " + campo + ".", CODIGO);
         }
         return List.copyOf(limpos);
     }

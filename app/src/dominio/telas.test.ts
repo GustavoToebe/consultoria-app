@@ -281,6 +281,13 @@ describe('favoritos e legenda da busca', () => {
 });
 
 describe('nome da tela atual', () => {
+  it('Contato e Padrões do acompanhamento têm o próprio nome, não o da Marca de quem herdam a guarda', () => {
+    expect(nomeDaTela('/treinador/configuracoes/contato')).toBe('Contato');
+    expect(nomeDaTela('/treinador/configuracoes/padroes-do-acompanhamento')).toBe('Padrões do acompanhamento');
+    expect(nomeDaTela('/treinador/configuracoes/marca')).toBe('Marca');
+    expect(tituloDaPagina('/treinador/configuracoes/contato', 'Consultoria Fictícia')).toBe('Contato · Consultoria Fictícia');
+  });
+
   it('acha a tela do catálogo, também nas subpáginas, e as telas de edição', () => {
     expect(nomeDaTela('/treinador')).toBe('Início');
     expect(nomeDaTela('/treinador/alunos')).toBe('Alunos');
@@ -319,6 +326,11 @@ describe('voltar e item aceso fora da barra inferior', () => {
     expect(telasDaOrigem('/treinador/perfil')).toContain('/treinador/interessados');
     expect(telasDaOrigem('/treinador/perfil')).toContain('/treinador/financeiro');
     expect(voltarAutomatico('/treinador/financeiro', true)).toBe('/treinador/perfil');
+    // Telas só de Configurações (27/11): a seta do celular volta à lista de Configurações; no PC não há seta.
+    expect(voltarAutomatico('/treinador/configuracoes/contato', true)).toBe('/treinador/configuracoes');
+    expect(voltarAutomatico('/treinador/configuracoes/padroes-do-acompanhamento', true)).toBe('/treinador/configuracoes');
+    expect(voltarAutomatico('/treinador/configuracoes/contato', false)).toBeUndefined();
+    expect(voltarAutomatico('/treinador/configuracoes/marca', true)).toBeUndefined();
   });
 });
 

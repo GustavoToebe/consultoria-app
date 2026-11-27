@@ -157,11 +157,11 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(pagina.path("consultoria").path("nome").asString()).startsWith("Consultoria ");
         // A marca, o texto, os campos fixos visíveis e as perguntas: nada da fila nem da equipe.
         assertThat(pagina.propertyNames()).containsExactlyInAnyOrder("consultoria", "texto", "textoVersao", "aberta",
-                "campos", "perguntas", "questionarioId", "questionarioNome", "proximoQuestionarioCodigo");
+                "campos", "perguntas", "questionarioId", "questionarioNome", "proximoQuestionarioCodigo", "planos", "mostrarPrecoDosPlanos");
         String versaoDoTexto = pagina.path("textoVersao").asString();
         assertThat(versaoDoTexto).hasSize(64);
         assertThat(pagina.path("consultoria").propertyNames()).containsExactlyInAnyOrder("id", "nome", "corPrimaria",
-                "fonteTitulo", "temaPadrao", "logoUrl", "temaPdf", "opcoesPdf");
+                "fonteTitulo", "temaPadrao", "logoUrl", "temaPdf", "opcoesPdf", "redes");
 
         // Com texto, a ciência é obrigatória; telefone sem DDD é recusado.
         Map<String, Object> semCiencia = inscricao("Pessoa Fictícia", null);

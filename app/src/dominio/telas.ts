@@ -179,6 +179,9 @@ export function lerFavoritos(bruto: string | null): string[] {
 
 /** Nomes das telas que não estão no catálogo (editores e detalhes), do mais específico para o mais geral. */
 const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
+  // Telas só de Configurações (27/11): a guarda delas é a da Marca (`rotasDasConfiguracoes`), mas o nome é o delas.
+  ['/treinador/configuracoes/contato', 'Contato'],
+  ['/treinador/configuracoes/padroes-do-acompanhamento', 'Padrões do acompanhamento'],
   ['/treinador/documentos/personalizar', 'Personalizar documentos'],
   ['/treinador/planejamento/modelo', 'Modelo'],
   ['/treinador/planejamento/questionario', 'Questionário'],
@@ -199,7 +202,7 @@ export function nomeDaTela(caminhoPedido: string, telas: readonly TelaDoCatalogo
   // Item aberto dentro de Configurações: o nome da tela inteira dele (o h1 que está à direita).
   const caminho = rotaInteiraDoCaminho(caminhoPedido) ?? caminhoPedido;
   for (const [prefixo, nome] of TITULOS_DE_SUBTELAS) {
-    if (caminho === prefixo || caminho.startsWith(`${prefixo}/`)) return nome;
+    if (caminhoPedido === prefixo || caminho === prefixo || caminho.startsWith(`${prefixo}/`)) return nome;
   }
   const doCatalogo = telas.filter((t) => !t.acao)
     .filter((t) => {
@@ -238,6 +241,9 @@ const ORIGEM_NO_CELULAR: readonly [string, string][] = [
   ['/treinador/importacao', '/treinador/perfil'],
   ['/treinador/termos', '/treinador/perfil'],
   ['/treinador/configuracoes', '/treinador/perfil'],
+  // Telas só de Configurações: no celular não há rota inteira para onde ir; a seta volta à lista de Configurações.
+  ['/treinador/configuracoes/contato', '/treinador/configuracoes'],
+  ['/treinador/configuracoes/padroes-do-acompanhamento', '/treinador/configuracoes'],
   ['/treinador/meus-dados', '/treinador/perfil'],
   ['/treinador/seguranca', '/treinador/perfil'],
   ['/treinador/ajustes', '/treinador/perfil'],

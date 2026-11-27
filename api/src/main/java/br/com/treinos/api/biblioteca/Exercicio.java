@@ -12,6 +12,9 @@ import jakarta.persistence.Version;
 import org.hibernate.annotations.TenantId;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 /** Exercício da biblioteca da consultoria. Excluir = inativar: planos antigos continuam com a cópia do nome. */
@@ -22,6 +25,28 @@ public class Exercicio {
     public enum Modalidade { LIVRE, MAQUINA, ELASTICO, PESO_CORPORAL, CARDIO, OUTRO }
 
     public enum Origem { MANUAL, CATALOGO, IMPORTACAO }
+
+    /**
+     * Tipo do exercício de cardio (V199; só com modalidade {@code CARDIO}, CHECK no banco). O rótulo de equipamento é o
+     * que a publicação copia para o plano ({@code PlanoTreinoService.equipamentoDe}); nulo = sem equipamento.
+     */
+    public enum TipoDeCardio {
+        ESTEIRA("Esteira"), BIKE("Bike"), ELIPTICO("Elíptico"), ESCADA("Escada"), REMO("Remo"),
+        CORRIDA_AO_AR_LIVRE(null), NATACAO(null), OUTRO(null);
+
+        private final String rotuloDeEquipamento;
+
+        TipoDeCardio(String rotuloDeEquipamento) {
+            this.rotuloDeEquipamento = rotuloDeEquipamento;
+        }
+
+        public String rotuloDeEquipamento() {
+            return rotuloDeEquipamento;
+        }
+    }
+
+    /** Medidas que fazem sentido no cardio; duração e zona aparecem sempre. Só o editor as usa. */
+    public enum MedidaDeCardio { DISTANCIA, RITMO }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -47,6 +72,17 @@ public class Exercicio {
     private String videoUrl;
 
     private String observacoes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_de_cardio")
+    private TipoDeCardio tipoDeCardio;
+
+    // true por padrão (como no banco): o exercício antigo e o de fora do cardio mostram as duas medidas.
+    @Column(name = "cardio_mede_distancia", nullable = false)
+    private boolean cardioMedeDistancia = true;
+
+    @Column(name = "cardio_mede_ritmo", nullable = false)
+    private boolean cardioMedeRitmo = true;
 
     @Column(nullable = false)
     private boolean ativo = true;
@@ -111,6 +147,24 @@ public class Exercicio {
         this.observacoes = observacoes;
     }
 
+    /**
+     * Tipo e medidas do cardio. Fora do {@code CARDIO} o tipo fica nulo e as medidas voltam ao padrão (as duas), para a
+     * troca de modalidade nunca violar o CHECK do banco. {@code medidas} nulo mantém as gravadas.
+     */
+    public void definirCardio(TipoDeCardio tipo, Collection<MedidaDeCardio> medidas) {
+        if (modalidade != Modalidade.CARDIO) {
+            this.tipoDeCardio = null;
+            this.cardioMedeDistancia = true;
+            this.cardioMedeRitmo = true;
+            return;
+        }
+        this.tipoDeCardio = tipo;
+        if (medidas != null) {
+            this.cardioMedeDistancia = medidas.contains(MedidaDeCardio.DISTANCIA);
+            this.cardioMedeRitmo = medidas.contains(MedidaDeCardio.RITMO);
+        }
+    }
+
     public void inativar() {
         this.ativo = false;
     }
@@ -145,6 +199,25 @@ public class Exercicio {
 
     public String getObservacoes() {
         return observacoes;
+    }
+
+    public TipoDeCardio getTipoDeCardio() {
+        return tipoDeCardio;
+    }
+
+    /** Medidas do cardio na ordem do enum; vazia fora do {@code CARDIO}. */
+    public List<MedidaDeCardio> getMedidasDeCardio() {
+        if (modalidade != Modalidade.CARDIO) {
+            return List.of();
+        }
+        List<MedidaDeCardio> medidas = new ArrayList<>();
+        if (cardioMedeDistancia) {
+            medidas.add(MedidaDeCardio.DISTANCIA);
+        }
+        if (cardioMedeRitmo) {
+            medidas.add(MedidaDeCardio.RITMO);
+        }
+        return List.copyOf(medidas);
     }
 
     public boolean isAtivo() {
