@@ -10,7 +10,7 @@ import java.util.UUID;
 
 /**
  * Consultas da guarda do contrato assinado (D16, {@link GuardaDoContratoAssinado}). SQL nativo de propósito: a entidade
- * {@link ContratoAluno} não mapeia {@code apagado_em} e o apagar é um UPDATE dirigido que tira os campos {@code updatable = false}
+ * {@link ContratoAluno} só lê {@code apagado_em} e o apagar é um UPDATE dirigido, porque a entidade declara os campos {@code updatable = false}
  * da entidade. Toda consulta leva {@code consultoria_id} explícito (o {@code @TenantId} não protege SQL nativo) e, onde há aluno, o
  * {@code aluno_id} da própria linha. Só a lista de consultorias é global ({@code Consultoria} não tem tenant).
  */

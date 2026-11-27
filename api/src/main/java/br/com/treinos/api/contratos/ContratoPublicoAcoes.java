@@ -139,15 +139,19 @@ public class ContratoPublicoAcoes {
     /**
      * Confere o CPF digitado com o do responsável no cadastro (só dígitos, comparação em tempo constante) e devolve o do cadastro,
      * formatado, que é o que a assinatura grava. Sem responsável ou sem CPF cadastrado (ou com o financeiro desligado, onde ele mora)
-     * não há como conferir, e vale como CPF que não confere.
+     * não há com o que conferir: o link vale como inválido (o mesmo 404) e não conta tentativa de CPF, para o responsável legítimo
+     * não ser bloqueado por um cadastro que mudou (revisão independente, 26/11).
      */
     private String conferirCpf(ContratoAluno c, String informado) {
         String cadastrado = pagamentos.responsavelParaContrato(c.getAlunoId())
                 .map(PagamentosDoAluno.ResponsavelParaContrato::cpf).orElse(null);
         String esperado = digitos(cadastrado);
+        if (esperado.isEmpty()) {
+            throw linkInvalido();
+        }
         boolean confere = MessageDigest.isEqual(esperado.getBytes(StandardCharsets.US_ASCII),
                 digitos(informado).getBytes(StandardCharsets.US_ASCII));
-        if (!confere || esperado.isEmpty()) {
+        if (!confere) {
             throw new CpfNaoConfere();
         }
         return esperado.length() == 11

@@ -399,6 +399,24 @@ class ContratosResponsavelIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void responsavelRemovidoDepoisDeGerarDaOMesmo404SemContarTentativaDeCpf() throws Exception {
+        JsonNode criado = gerarParaOResponsavel();
+        String id = criado.get("id").asString();
+        String codigo = codigoDe(criado);
+        api.delete("/alunos/" + aluno + "/responsavel-financeiro", admin, 204);
+
+        // Sem cadastro para conferir, o link vale como inválido: sempre o 404 (nunca o 429 de tentativas), e nada é gravado.
+        for (int i = 0; i < 7; i++) {
+            abrir(codigo, cpfDoResponsavel, 404);
+        }
+        assertThat(contar("select count(*) from contrato_aluno where id = ?::uuid and situacao = 'PENDENTE'", id)).isEqualTo(1);
+
+        // Cadastrado de novo, o mesmo link volta a funcionar: ninguém foi bloqueado no meio.
+        definirResponsavel(aluno, "Responsavel Refeito", cpfDoResponsavel);
+        assertThat(abrir(codigo, cpfDoResponsavel, 200).get("sha256").asString()).isEqualTo(criado.get("sha256").asString());
+    }
+
+    @Test
     void hashTrocadoE409EAceiteDeclaracaoENomeFaltandoSao422SemGravarNada() throws Exception {
         JsonNode criado = gerarParaOResponsavel();
         String id = criado.get("id").asString();
