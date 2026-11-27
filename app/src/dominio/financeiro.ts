@@ -394,7 +394,7 @@ export function pagarPermitidoNaPlataforma(plataforma: PlataformaDoApp, chaves: 
 export type ComoPagar = 'botao' | 'informar' | 'combinar' | 'automatica';
 
 /** Ação de pagamento que o aluno pode ter numa cobrança em aberto. A `MANUAL` não é ação: só informa. */
-export type AcaoDePagamento = 'PAGAR_INFINITEPAY' | 'PAGAR_LINK_PROPRIO' | 'COPIAR_PIX';
+export type AcaoDePagamento = 'PAGAR_OVERTRAINING_PAY' | 'PAGAR_INFINITEPAY' | 'PAGAR_LINK_PROPRIO' | 'COPIAR_PIX';
 
 export interface OpcoesDePagamentoDoAluno {
   /** `FinanceiroDoAluno.formasDePagamento`. Ausente = só o que existia antes: InfinitePay (se `pagamentoOnline`) e Manual. */
@@ -403,13 +403,17 @@ export interface OpcoesDePagamentoDoAluno {
   temLinkProprio?: boolean;
   /** `CobrancaDoAluno.cobrancaAutomatica`: com `KIWIFY` não há ação nenhuma, em plataforma nenhuma (D18); no celular com a chave desligada, nem a frase (D16). */
   cobrancaAutomatica?: CobrancaAutomatica | null;
+  /** Overtraining Pay (Asaas) ativo e homologado: ação primária abre o Checkout Transparente no próprio app. */
+  overtrainingPayDisponivel?: boolean;
+  /** Indica se o aluno/responsável já possui CPF cadastrado para emissão do Pix/Cartão. */
+  cpfPagadorCadastrado?: boolean;
 }
 
 /**
  * As ações de pagamento de uma cobrança em aberto do aluno (D7 do `docs/planos/financeiro-em-fases.md`). Saída só informa e
  * celular sem a chave da plataforma não tem NENHUMA ação (nem o Pix: ele também pede ao aluno que pague). Fora isso, uma ação por
- * forma ligada: InfinitePay (precisa do `pagamentoOnline`), link próprio (só mensalidade, que tem plano, e só com o link) e Pix.
- * Lista vazia = só informar ou combinar com o treinador.
+ * forma ligada: Overtraining Pay (checkout transparente no app), InfinitePay (precisa do `pagamentoOnline`), link próprio (só
+ * mensalidade, que tem plano, e só com o link) e Pix. Lista vazia = só informar ou combinar com o treinador.
  */
 export function acoesDePagamentoDoAluno(
   plataforma: PlataformaDoApp,
@@ -420,8 +424,10 @@ export function acoesDePagamentoDoAluno(
 ): AcaoDePagamento[] {
   const t = tipo ?? 'MENSALIDADE';
   if (t === 'SAIDA' || opcoes.cobrancaAutomatica === 'KIWIFY' || !pagarPermitidoNaPlataforma(plataforma, chaves)) return [];
-  const formas = opcoes.formas ?? (pagamentoOnline ? ['INFINITEPAY'] : []);
+  const overtrainingPay = opcoes.overtrainingPayDisponivel === true;
+  const formas = opcoes.formas ?? (pagamentoOnline && !overtrainingPay ? ['INFINITEPAY'] : []);
   const acoes: AcaoDePagamento[] = [];
+  if (overtrainingPay) acoes.push('PAGAR_OVERTRAINING_PAY');
   if (pagamentoOnline && formas.includes('INFINITEPAY')) acoes.push('PAGAR_INFINITEPAY');
   if (t === 'MENSALIDADE' && opcoes.temLinkProprio === true && formas.includes('LINK_PROPRIO')) acoes.push('PAGAR_LINK_PROPRIO');
   if (formas.includes('PIX')) acoes.push('COPIAR_PIX');
@@ -429,12 +435,16 @@ export function acoesDePagamentoDoAluno(
 }
 
 /**
- * "Pagar" (um só) ou, com os dois "Pagar" ligados, o nome de cada um; "Copiar código Pix". `acoes` são as do cartão inteiro
+ * "Pagar" (um só) ou, com mais de um "Pagar" ligado, o nome de cada um; "Copiar código Pix". `acoes` são as do cartão inteiro
  * (todas as cobranças em aberto à vista), não só as da cobrança: a mesma ação tem o mesmo nome em todas.
  */
 export function rotuloDaAcaoDePagamento(acao: AcaoDePagamento, acoes: readonly AcaoDePagamento[]): string {
   if (acao === 'COPIAR_PIX') return 'Copiar código Pix';
-  if (!(acoes.includes('PAGAR_INFINITEPAY') && acoes.includes('PAGAR_LINK_PROPRIO'))) return 'Pagar';
+  const acoesDePagar = acoes.filter((a) => a !== 'COPIAR_PIX');
+  if (acao === 'PAGAR_OVERTRAINING_PAY') {
+    return acoesDePagar.length > 1 ? 'Pagar no app' : 'Pagar agora';
+  }
+  if (acoesDePagar.length <= 1) return 'Pagar';
   return acao === 'PAGAR_INFINITEPAY' ? 'Pagar pela InfinitePay' : 'Pagar pelo link do treinador';
 }
 

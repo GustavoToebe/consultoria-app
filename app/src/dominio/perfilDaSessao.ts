@@ -11,6 +11,7 @@ export interface PerfilDaSessao {
   funcionalidadesDoPlano?: string[];
   pagamentosHabilitados?: boolean;
   recebimentoOnlineHabilitado?: boolean;
+  overtrainingPayHabilitado?: boolean;
   kiwifyHabilitada?: boolean;
   pagarNoIos?: boolean;
   pagarNoAndroid?: boolean;
@@ -46,6 +47,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     funcionalidadesDoPlano: eu.funcionalidadesDoPlano,
     pagamentosHabilitados: eu.pagamentosHabilitados,
     recebimentoOnlineHabilitado: eu.recebimentoOnlineHabilitado,
+    overtrainingPayHabilitado: eu.overtrainingPayHabilitado ?? false,
     kiwifyHabilitada: eu.kiwifyHabilitada,
     pagarNoIos: eu.pagarNoIos,
     pagarNoAndroid: eu.pagarNoAndroid,

@@ -36,6 +36,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   LANCAMENTO_FINANCEIRO_CRIADO:'Lançamento financeiro criado',LANCAMENTO_FINANCEIRO_ALTERADO:'Lançamento financeiro editado',LANCAMENTO_FINANCEIRO_EXCLUIDO:'Lançamento financeiro excluído',
   FINANCEIRO_EXPORTADO:'Financeiro exportado em CSV',
   RECEBIMENTO_ONLINE_CONFIGURADO:'Recebimento online configurado',RECEBIMENTO_ONLINE_REMOVIDO:'Recebimento online removido',
+  OVERTRAINING_PAY_CONFIGURADO:'Overtraining Pay configurado',OVERTRAINING_PAY_SINCRONIZADO:'Situação da homologação Overtraining Pay atualizada',OVERTRAINING_PAY_TESTE_GERADO:'Cobrança de teste Overtraining Pay gerada',OVERTRAINING_PAY_HOMOLOGADO:'Conta Overtraining Pay homologada e ativada',OVERTRAINING_PAY_REMOVIDO:'Overtraining Pay desativado',
   LINK_DE_PAGAMENTO_GERADO:'Link de pagamento gerado',PAGAMENTO_ONLINE_CONFIRMADO:'Pagamento online confirmado',PAGAMENTO_ESTORNADO:'Estorno informado pela InfinitePay',
   PAGAMENTO_PARA_CONFERIR:'Pagamento enviado para conferir',PAGAMENTO_CONFERIDO:'Pagamento conferido',
   LEMBRETES_DE_COBRANCA_CONFIGURADOS:'Lembretes de cobrança configurados',

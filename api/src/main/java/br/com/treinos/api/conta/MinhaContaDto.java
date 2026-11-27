@@ -10,7 +10,17 @@ import java.util.UUID;
  * seção 6.3). Documento, CEP e telefone já vêm formatados; a tela mostra como veio. Na integração a
  * {@code FonteDaContaCentral} devolve este mesmo tipo.
  */
-public record MinhaContaDto(ClienteDto cliente, ContratacaoDto contratacao, List<CobrancaDto> cobrancas) {
+public record MinhaContaDto(ClienteDto cliente, ContratacaoDto contratacao, List<CobrancaDto> cobrancas,
+                            String provedorAtivo, PoliticaSplitResumo politicaSplit) {
+
+    public MinhaContaDto(ClienteDto cliente, ContratacaoDto contratacao, List<CobrancaDto> cobrancas) {
+        this(cliente, contratacao, cobrancas, null, null);
+    }
+
+    public record PoliticaSplitResumo(String modo, Integer percentualBps, Long metaMensalCentavos,
+                                      Long abatidoMesCentavos, Long restanteAbaterCentavos,
+                                      UUID cobrancaCentralId) {
+    }
 
     public record ClienteDto(String nome, String documento, EnderecoDto endereco, List<ContatoDto> contatos) {
     }

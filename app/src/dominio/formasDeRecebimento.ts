@@ -43,6 +43,7 @@ export const LIMITES_DO_PIX = { nomeRecebedor: 25, cidade: 15, chave: 77 } as co
 // ---- Estado do formulário ----
 
 export interface EstadoDasFormas {
+  overtrainingPay: boolean;
   infinitePay: boolean;
   linkProprio: boolean;
   pix: boolean;
@@ -62,6 +63,7 @@ export interface EstadoDasFormas {
 export function estadoDasFormas(r: FormasDeRecebimento | null | undefined): EstadoDasFormas {
   const p = r?.pixConfig ?? null;
   return {
+    overtrainingPay: r?.overtrainingPay ?? false,
     infinitePay: r?.infinitePay ?? true,
     linkProprio: r?.linkProprio ?? false,
     pix: r?.pix ?? false,
@@ -130,7 +132,7 @@ export function contadorDoPix(texto: string, limite: number): string {
  * campos do Pix (eles nem vão no corpo); a chave digitada sempre conta como mudança.
  */
 export function formasAlteradas(atual: EstadoDasFormas, gravado: EstadoDasFormas): boolean {
-  if (atual.infinitePay !== gravado.infinitePay || atual.linkProprio !== gravado.linkProprio || atual.pix !== gravado.pix) return true;
+  if (atual.overtrainingPay !== gravado.overtrainingPay || atual.infinitePay !== gravado.infinitePay || atual.linkProprio !== gravado.linkProprio || atual.pix !== gravado.pix) return true;
   if (!atual.pix) return false;
   return !!atual.chave.trim() || atual.tipoChave !== gravado.tipoChave
     || atual.nomeRecebedor.trim() !== gravado.nomeRecebedor.trim() || atual.cidade.trim() !== gravado.cidade.trim();
@@ -157,7 +159,14 @@ export type CorpoDasFormas = { ok: true; corpo: FormasDeRecebimentoRequest } | {
  * campo em branco mantém a gravada; trocar o tipo pede digitar a chave de novo. Nenhuma mensagem repete a chave.
  */
 export function corpoDasFormas(e: EstadoDasFormas): CorpoDasFormas {
-  const base = { infinitePay: e.infinitePay, linkProprio: e.linkProprio, pix: e.pix, manual: true as const, versao: e.versao };
+  const base: FormasDeRecebimentoRequest = {
+    ...(e.overtrainingPay ? { overtrainingPay: true } : {}),
+    infinitePay: e.infinitePay,
+    linkProprio: e.linkProprio,
+    pix: e.pix,
+    manual: true as const,
+    versao: e.versao,
+  };
   if (!e.pix) return { ok: true, corpo: base };
 
   const erros: ErrosDasFormas = {};
@@ -187,6 +196,8 @@ export function corpoDasFormas(e: EstadoDasFormas): CorpoDasFormas {
 export interface PreviaDoAluno {
   /** Os botões da cobrança em aberto, com os rótulos da Conta do aluno na web (`rotuloDaAcaoDePagamento`). */
   botoes: string[];
+  /** Resumo do checkout no aplicativo (Overtraining Pay), quando ativo e ligado. */
+  resumoOvertrainingPay?: string | null;
   /** Sem nenhum botão: a frase de combinar com o treinador, a mesma do aluno. */
   combinar: string | null;
   /** Forma ligada na tela que o aluno ainda não vê, e por quê. */
@@ -197,27 +208,40 @@ export interface PreviaDoAluno {
 
 export const FALTA_INFINITEPAY = 'InfinitePay: o aluno só vê este botão depois que a sua InfiniteTag estiver salva.';
 export const FALTA_PIX = 'Pix: preencha os dados do Pix para o aluno ver o código.';
+export const FALTA_OVERTRAINING_PAY = 'Overtraining Pay: conclua a homologação e a cobrança teste para o aluno pagar no aplicativo.';
 
 /**
  * A prévia simples de "O que o aluno vê", montada com o que está na tela (salvo ou não), pelas mesmas regras da Conta do aluno
- * na web (`acoesDePagamentoDoAluno`, D7): InfinitePay só com o módulo na instalação e a InfiniteTag salva (`pagamentoOnline`), Pix
+ * na web (`acoesDePagamentoDoAluno`, D7): Overtraining Pay quando habilitado, ligado e homologado; InfinitePay só com o módulo na instalação e a InfiniteTag salva (`pagamentoOnline`), Pix
  * só ligado e configurado (os dados do Pix na tela passam na validação do salvar) e o link próprio como mensalidade de plano com
  * link. No celular a regra das lojas pode tirar todos os botões; isso a tela diz à parte.
  */
-export function previaDoAluno(e: EstadoDasFormas, infinitePay: { naInstalacao: boolean; configurada: boolean }): PreviaDoAluno {
+export function previaDoAluno(
+  e: EstadoDasFormas,
+  infinitePay: { naInstalacao: boolean; configurada: boolean },
+  overtrainingPay?: { naInstalacao: boolean; ativa: boolean },
+): PreviaDoAluno {
   const pixValendo = e.pix && corpoDasFormas(e).ok;
+  const otPayAtivo = overtrainingPay?.naInstalacao === true && overtrainingPay.ativa && e.overtrainingPay;
   const formas: FormaDeRecebimento[] = [];
   if (infinitePay.naInstalacao && e.infinitePay) formas.push('INFINITEPAY');
   if (e.linkProprio) formas.push('LINK_PROPRIO');
   if (pixValendo) formas.push('PIX');
   formas.push('MANUAL');
   const acoes = acoesDePagamentoDoAluno('web', infinitePay.naInstalacao && infinitePay.configurada, {}, 'MENSALIDADE', { formas, temLinkProprio: true });
+  const botoes = [
+    ...(otPayAtivo ? ['Pagar no aplicativo (Pix ou Cartão)'] : []),
+    ...acoes.map((a) => rotuloDaAcaoDePagamento(a, acoes)),
+  ];
   const faltam: string[] = [];
+  if (overtrainingPay?.naInstalacao && e.overtrainingPay && !overtrainingPay.ativa) faltam.push(FALTA_OVERTRAINING_PAY);
   if (infinitePay.naInstalacao && e.infinitePay && !infinitePay.configurada) faltam.push(FALTA_INFINITEPAY);
   if (e.pix && !pixValendo) faltam.push(FALTA_PIX);
+  const resumoOvertrainingPay = otPayAtivo ? 'No aplicativo: Pix na hora, pelo QR Code, e cartão pela página do Asaas.' : null;
   return {
-    botoes: acoes.map((a) => rotuloDaAcaoDePagamento(a, acoes)),
-    combinar: acoes.length === 0 ? TEXTO_COMBINE_COM_O_TREINADOR : null,
+    botoes,
+    ...(resumoOvertrainingPay ? { resumoOvertrainingPay } : {}),
+    combinar: botoes.length === 0 ? TEXTO_COMBINE_COM_O_TREINADOR : null,
     faltam,
     notaDoLinkProprio: e.linkProprio,
   };

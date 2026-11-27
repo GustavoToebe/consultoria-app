@@ -36,6 +36,9 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
     private static final Pattern LINK_OU_PIX = Pattern.compile("^/aluno/financeiro/cobrancas/" + UUID_REGEX + "/(link|pix)$");
     private static final Pattern CONTRATO_DO_ALUNO = Pattern.compile("^/aluno/contratos/" + UUID_REGEX + "(/arquivo)?$");
     private static final Pattern ASSINAR_CONTRATO = Pattern.compile("^/aluno/contratos/" + UUID_REGEX + "/assinar$");
+    /** Overtraining Pay: Pix no app e fatura do Asaas (cartão fora do app); sem eles o aluno pausado não consegue regularizar. */
+    private static final Pattern OVERTRAINING_PAY = Pattern.compile("^/aluno/financeiro/cobrancas/" + UUID_REGEX + "/overtraining-pay/(pix|fatura)$");
+    private static final Pattern SITUACAO_COBRANCA = Pattern.compile("^/aluno/financeiro/cobrancas/" + UUID_REGEX + "/situacao$");
 
     private final AlunoRepository alunos;
     private final TravaPorContrato trava;
@@ -108,7 +111,8 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
                     || "/aluno/financeiro".equals(caminho)
                     || "/eu/contratacao".equals(caminho)
                     || "/aluno/contratacao".equals(caminho)
-                    || "/aluno/meus-dados".equals(caminho);
+                    || "/aluno/meus-dados".equals(caminho)
+                    || SITUACAO_COBRANCA.matcher(caminho).matches();
         }
         if ("PUT".equals(metodo)) {
             return "/eu/senha".equals(caminho);
@@ -120,7 +124,8 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
             return "/termos/aceite".equals(caminho)
                     || "/aluno/conta/excluir".equals(caminho)
                     || "/aluno/financeiro/retorno-pagamento".equals(caminho)
-                    || LINK_OU_PIX.matcher(caminho).matches();
+                    || LINK_OU_PIX.matcher(caminho).matches()
+                    || OVERTRAINING_PAY.matcher(caminho).matches();
         }
         return false;
     }

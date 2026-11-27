@@ -1,6 +1,9 @@
 package br.com.treinos.api.conta;
 
 import br.com.treinos.api.conta.ConsumoPlanoDto.Item;
+import br.com.treinos.api.conta.PagamentoTransparenteDto.GerarPixAsaasRequest;
+import br.com.treinos.api.conta.PagamentoTransparenteDto.PixAsaasResposta;
+import br.com.treinos.api.conta.PagamentoTransparenteDto.SituacaoCobrancaResposta;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.plataforma.comum.web.ForbiddenException;
 import org.springframework.stereotype.Service;
@@ -46,6 +49,16 @@ public class ContaService {
     }
 
     public record LinkDePagamento(String url) {}
+
+    /** Sem transação: chamada HTTP à Central para gerar Pix transparente (Asaas). */
+    public PixAsaasResposta gerarPixAsaas(UUID cobrancaId, GerarPixAsaasRequest request) {
+        return fonte.gerarPixAsaas(consultoria(), cobrancaId, request);
+    }
+
+    /** Sem transação: chamada HTTP à Central para consultar situação da cobrança. */
+    public SituacaoCobrancaResposta consultarSituacaoCobranca(UUID cobrancaId) {
+        return fonte.consultarSituacaoCobranca(consultoria(), cobrancaId);
+    }
 
     /** Uso real contado agora, na consultoria da sessão, contra os limites de {@code direitos_locais}. */
     @Transactional(readOnly = true)

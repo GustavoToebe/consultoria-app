@@ -147,6 +147,19 @@ class AcessoPausadoInterceptorTest {
     }
 
     @Test
+    void overtrainingPayLiberaPixFaturaESituacaoMasNaoCartao() {
+        assertThat(AcessoPausadoInterceptor.permitido("POST", COBRANCA + "/overtraining-pay/pix")).isTrue();
+        assertThat(AcessoPausadoInterceptor.permitido("POST", COBRANCA + "/overtraining-pay/fatura")).isTrue();
+        assertThat(AcessoPausadoInterceptor.permitido("GET", COBRANCA + "/situacao")).isTrue();
+        assertThat(AcessoPausadoInterceptor.permitido("POST", COBRANCA + "/overtraining-pay/cartao")).isFalse();
+        assertThat(AcessoPausadoInterceptor.permitido("GET", COBRANCA + "/overtraining-pay/fatura")).isFalse();
+        assertThat(AcessoPausadoInterceptor.permitido("POST", COBRANCA + "/overtraining-pay/fatura/")).isFalse();
+        assertThat(AcessoPausadoInterceptor.permitido("POST", "/aluno/financeiro/cobrancas/123/overtraining-pay/fatura"))
+                .isFalse();
+        assertThat(AcessoPausadoInterceptor.permitido("POST", COBRANCA + "/overtraining-pay/pix/x")).isFalse();
+    }
+
+    @Test
     void outroMetodoNoCaminhoLiberadoEBarrado() {
         assertThat(AcessoPausadoInterceptor.permitido("HEAD", "/eu")).isFalse();
         assertThat(AcessoPausadoInterceptor.permitido("OPTIONS", "/eu")).isFalse();

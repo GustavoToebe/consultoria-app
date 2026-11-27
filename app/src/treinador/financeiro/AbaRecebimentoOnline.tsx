@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { buscarOvertrainingPay } from '../../api/financeiroOvertrainingPay';
 import type { JurosDoParcelamento, RecebimentoOnline, RecebimentoOnlineRequest } from '../../api/financeiroTipos';
 import { buscarRecebimentoOnline, removerRecebimentoOnline, salvarRecebimentoOnline } from '../../api/rotas';
 import {
@@ -31,44 +32,85 @@ import { useCarregar } from '../../ui/useCarregar';
 import { BarraDeSalvar } from './AjustesDaAba';
 import { CartaoFormasDeRecebimento } from './CartaoFormasDeRecebimento';
 import { avisoDeConflito, ehConflito } from './comum';
+import { HomologacaoOvertrainingPay } from './HomologacaoOvertrainingPay';
 import { KiwifyConfiguracao } from './KiwifyConfiguracao';
 
 /**
- * Aba Recebimento (lembretes e recebimento, 19/11): na coluna de ajustes, as formas de recebimento (InfinitePay, link próprio,
- * Pix e Manual, `CartaoFormasDeRecebimento`) e, embaixo, só com o módulo da InfinitePay ligado na instalação
- * (`recebimentoOnlineHabilitado`), a conta InfinitePay; ao lado, "O que o aluno vê" (do cartão das formas). São dois cartões
- * com barras de salvar próprias: gravam coisas diferentes, em rotas diferentes.
- *
- * Conta InfinitePay: o treinador informa a InfiniteTag (e, se quiser, uma API Key). O aluno paga por Pix ou cartão por um
- * link e o dinheiro cai direto na conta InfinitePay do treinador: o app não recebe nem guarda dinheiro. A API Key é **só de
- * escrita**: a API nunca a devolve, o campo nasce vazio, o que foi digitado some do estado depois de salvar e a tela só sabe
- * dizer "Chave configurada". Quem paga os juros do parcelamento no cartão (Aluno, padrão, ou Você) também mora aqui; "Você"
- * só vale com a API Key (sem ela a opção fica apagada e a escolha volta para Aluno).
+ * Aba Recebimento (lembretes e recebimento, 19/11 + Overtraining Pay): na coluna de ajustes, as formas de recebimento
+ * (Overtraining Pay em destaque quando habilitado, InfinitePay, link próprio, Pix e Manual, `CartaoFormasDeRecebimento`),
+ * logo abaixo a homologação do Overtraining Pay (`HomologacaoOvertrainingPay`) e, recolhidas por padrão, as integrações
+ * externas opcionais (InfinitePay e Kiwify); ao lado, "O que o aluno vê".
  */
 export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) {
-  const { recebimentoOnlineHabilitado } = useSessao();
+  const { recebimentoOnlineHabilitado, overtrainingPayHabilitado, kiwifyHabilitada } = useSessao();
   const carga = useCarregar(recebimentoOnlineHabilitado ? 'recebimento-online' : null, () => buscarRecebimentoOnline());
+  const cargaOvertrainingPay = useCarregar(overtrainingPayHabilitado ? 'overtraining-pay' : null, () => buscarOvertrainingPay());
   const { dados, erro, recarregar, definir } = carga;
+  const otDados = cargaOvertrainingPay.dados;
+  const temIntegracoesExternas = recebimentoOnlineHabilitado || kiwifyHabilitada;
   return (
     <View style={estilos.coluna}>
-      <CartaoFormasDeRecebimento podeAlterar={podeAlterar} comInfinitePay={recebimentoOnlineHabilitado} infinitePayConfigurada={dados?.configurado}
+      <CartaoFormasDeRecebimento
+        podeAlterar={podeAlterar}
+        comInfinitePay={recebimentoOnlineHabilitado}
+        infinitePayConfigurada={dados?.configurado}
+        comOvertrainingPay={overtrainingPayHabilitado}
+        overtrainingPayAtivo={otDados?.situacao === 'ATIVA'}
+        overtrainingPaySituacao={otDados?.situacao}
         maisAjustes={(
           <>
-            {recebimentoOnlineHabilitado ? (
+            {overtrainingPayHabilitado ? (
               <>
-                {erro ? (
-                  <MensagemErro texto={codigoApi(erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' ? 'O recebimento online não está disponível agora.' : textoDoErro(erro)}
-                    erro={erro} tentarDeNovo={recarregar} />
+                {cargaOvertrainingPay.erro ? (
+                  <MensagemErro
+                    texto={codigoApi(cargaOvertrainingPay.erro) === 'OVERTRAINING_PAY_INDISPONIVEL'
+                      ? 'O Overtraining Pay não está disponível agora.'
+                      : textoDoErro(cargaOvertrainingPay.erro)}
+                    erro={cargaOvertrainingPay.erro}
+                    tentarDeNovo={cargaOvertrainingPay.recarregar}
+                  />
                 ) : null}
-                {!dados && carga.carregando ? <Esqueleto /> : null}
-                {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
-                {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+                {!otDados && cargaOvertrainingPay.carregando ? <Esqueleto /> : null}
+                {otDados ? (
+                  <HomologacaoOvertrainingPay
+                    key={otDados.versao ?? 'novo'}
+                    dados={otDados}
+                    podeAlterar={podeAlterar}
+                    aoMudar={cargaOvertrainingPay.definir}
+                    aoRecarregar={cargaOvertrainingPay.recarregar}
+                  />
+                ) : null}
               </>
             ) : null}
-            {/* Só com a Kiwify ligada na plataforma (o próprio cartão confere e some sem ela). */}
-            <KiwifyConfiguracao podeAlterar={podeAlterar} />
+            {temIntegracoesExternas ? (
+              <Cartao
+                titulo="Integrações externas opcionais"
+                descricao="InfinitePay e Kiwify para quem recebe fora do Overtraining Pay."
+                recolhivel
+              >
+                <View style={estilos.coluna}>
+                  {recebimentoOnlineHabilitado ? (
+                    <>
+                      {erro ? (
+                        <MensagemErro
+                          texto={codigoApi(erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' ? 'O recebimento online não está disponível agora.' : textoDoErro(erro)}
+                          erro={erro}
+                          tentarDeNovo={recarregar}
+                        />
+                      ) : null}
+                      {!dados && carga.carregando ? <Esqueleto /> : null}
+                      {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
+                      {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+                    </>
+                  ) : null}
+                  {/* Só com a Kiwify ligada na plataforma (o próprio cartão confere e some sem ela). */}
+                  <KiwifyConfiguracao podeAlterar={podeAlterar} />
+                </View>
+              </Cartao>
+            ) : null}
           </>
-        )} />
+        )}
+      />
     </View>
   );
 }

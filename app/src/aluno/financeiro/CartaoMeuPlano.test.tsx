@@ -23,6 +23,7 @@ jest.mock('expo-router', () => ({ useFocusEffect: () => undefined }));
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }));
 jest.mock('./InterruptorDeLembretes', () => ({ InterruptorDeLembretes: () => null }));
+jest.mock('./FolhaCheckoutTransparente', () => ({ FolhaCheckoutTransparente: () => null }));
 jest.mock('../../ui/abrirPagamento', () => ({ abrirPagamento: jest.fn() }));
 jest.mock('../../ui/Aviso', () => ({ useAviso: () => ({ avisar: jest.fn() }) }));
 jest.mock('../../tema/TemaProvider', () => ({
@@ -164,5 +165,49 @@ describe('CartaoMeuPlano: mensalidade cobrada pela Kiwify (D18)', () => {
     expect(t.match(/\[Pagar\]/g)).toHaveLength(1);
     expect(t.match(/\[Copiar código Pix\]/g)).toHaveLength(1);
     expect(t).toContain('Cobrança automática pela Kiwify');
+  });
+});
+
+describe('CartaoMeuPlano: Overtraining Pay (checkout transparente no app)', () => {
+  it('web com Overtraining Pay disponível: mostra "Pagar agora" para abrir checkout no app', async () => {
+    mockDados = {
+      ...financeiro({ pagamentoOnline: false, formasDePagamento: ['MANUAL'] }),
+      overtrainingPayDisponivel: true,
+      cpfPagadorCadastrado: false,
+    } as FinanceiroDoAluno;
+    const t = await textos('web');
+    expect(t).toContain('[Pagar agora]');
+    expect(t).not.toContain(TEXTO_COMBINE_COM_O_TREINADOR);
+  });
+
+  it('celular com chave desligada: mesmo com Overtraining Pay disponível, não exibe botão de pagamento', async () => {
+    mockDados = {
+      ...financeiro({ pagamentoOnline: false, formasDePagamento: ['MANUAL'] }),
+      overtrainingPayDisponivel: true,
+    } as FinanceiroDoAluno;
+    const t = await textos('ios');
+    expect(t).not.toMatch(/\[Pagar/);
+  });
+
+  it.each([
+    ['android', { pagarNoIos: true, pagarNoAndroid: false }],
+    ['ios', { pagarNoIos: false, pagarNoAndroid: true }],
+    ['ios', { pagarNoIos: false, pagarNoAndroid: false }],
+  ] as const)('%s (chaves %o): sem a chave da plataforma o Overtraining Pay não oferece Pix nem cartão, só a informação', async (os, chaves) => {
+    mockDados = { ...financeiro({ pagamentoOnline: false, formasDePagamento: ['MANUAL'] }), overtrainingPayDisponivel: true } as FinanceiroDoAluno;
+    mockChaves = { ...chaves };
+    const t = await textos(os);
+    expect(t).not.toMatch(/\[Pagar|\[Copiar|cartão|Pix/i);
+    expect(t).not.toContain(TEXTO_COMBINE_COM_O_TREINADOR);
+    expect(t).toMatch(/Mensalidade de R\$\s?150,00, vence em 05\/11/);
+  });
+
+  it.each([
+    ['android', { pagarNoIos: false, pagarNoAndroid: true }],
+    ['ios', { pagarNoIos: true, pagarNoAndroid: false }],
+  ] as const)('%s com a chave da própria plataforma ligada: o Overtraining Pay oferece "Pagar agora"', async (os, chaves) => {
+    mockDados = { ...financeiro({ pagamentoOnline: false, formasDePagamento: ['MANUAL'] }), overtrainingPayDisponivel: true } as FinanceiroDoAluno;
+    mockChaves = { ...chaves };
+    expect(await textos(os)).toContain('[Pagar agora]');
   });
 });

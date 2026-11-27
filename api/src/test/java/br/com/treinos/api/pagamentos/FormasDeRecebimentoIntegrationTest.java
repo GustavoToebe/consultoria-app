@@ -131,8 +131,9 @@ class FormasDeRecebimentoIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode r = api.get(ROTA, admin, 200);
 
-        assertThat(r.propertyNames()).containsExactlyInAnyOrder("infinitePay", "linkProprio", "pix", "manual", "pixConfig", "versao");
+        assertThat(r.propertyNames()).containsExactlyInAnyOrder("infinitePay", "overtrainingPay", "linkProprio", "pix", "manual", "pixConfig", "versao");
         assertThat(r.get("infinitePay").asBoolean()).isTrue();
+        assertThat(r.get("overtrainingPay").asBoolean()).isFalse();
         assertThat(r.get("linkProprio").asBoolean()).isFalse();
         assertThat(r.get("pix").asBoolean()).isFalse();
         assertThat(r.get("manual").asBoolean()).isTrue();

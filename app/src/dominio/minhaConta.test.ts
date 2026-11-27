@@ -4,6 +4,7 @@ import {
   enderecoParaTela,
   estadoDoConsumoParaTela,
   fracaoDoConsumo,
+  mostrarPagarNaConta,
   periodicidadeParaTela,
   podePagar,
   resumoFinanceiro,
@@ -98,5 +99,17 @@ describe('pagar cobrança', () => {
     expect(podePagar(cobranca('ABERTA'), true)).toBe(false);
     expect(podePagar(cobranca('PAGA'), false)).toBe(false);
     expect(podePagar({ ...cobranca('ABERTA'), valor: 0 }, false)).toBe(false);
+  });
+
+  it('regra das lojas: no celular sem a chave da plataforma não há Pix nem cartão, só informação', () => {
+    const aberta = cobranca('ABERTA');
+    expect(mostrarPagarNaConta(aberta, false, 'web', {})).toBe(true);
+    expect(mostrarPagarNaConta(aberta, false, 'ios', {})).toBe(false);
+    expect(mostrarPagarNaConta(aberta, false, 'android', { pagarNoIos: true })).toBe(false);
+    expect(mostrarPagarNaConta(aberta, false, 'ios', { pagarNoAndroid: true })).toBe(false);
+    expect(mostrarPagarNaConta(aberta, false, 'ios', { pagarNoIos: true })).toBe(true);
+    expect(mostrarPagarNaConta(aberta, false, 'android', { pagarNoAndroid: true })).toBe(true);
+    expect(mostrarPagarNaConta(cobranca('PAGA'), false, 'web', {})).toBe(false);
+    expect(mostrarPagarNaConta(aberta, true, 'android', { pagarNoAndroid: true })).toBe(false);
   });
 });

@@ -578,7 +578,8 @@ public final class PagamentosDtos {
 
     /** {@code pagamentoOnline}: o aluno pode pedir o link de pagamento (módulo, InfinitePay e credencial do treinador). A Tag nunca vem. */
     public record FinanceiroDoAluno(PlanoDoAluno plano, List<CobrancaDoAluno> abertas, List<CobrancaDoAluno> historico,
-                                    boolean pagamentoOnline, List<FormasDePagamentoDoAluno.Forma> formasDePagamento) { }
+                                    boolean pagamentoOnline, List<FormasDePagamentoDoAluno.Forma> formasDePagamento,
+                                    boolean overtrainingPayDisponivel, boolean cpfPagadorCadastrado) { }
 
     /** O link de pagamento de uma cobrança aberta. */
     public record LinkDePagamento(String url) { }

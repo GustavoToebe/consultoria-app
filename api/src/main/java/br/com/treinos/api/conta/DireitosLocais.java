@@ -14,5 +14,23 @@ import java.util.UUID;
 public record DireitosLocais(UUID consultoriaId, UUID contratacaoId, long versao, String situacao,
                              boolean acessoLiberado, String motivoBloqueio, LocalDate vigenteAte, String planoCodigo,
                              String planoNome, Map<String, Long> limites, List<String> funcionalidades,
-                             Instant confirmadoEm) {
+                             Instant confirmadoEm,
+                             String splitModo, int splitPercentualBps, long saldoAbaterCentavos,
+                             long metaMensalCentavos, UUID cobrancaCentralId) {
+
+    public DireitosLocais {
+        splitModo = (splitModo == null || splitModo.isBlank()) ? "ISENTO" : splitModo;
+        splitPercentualBps = Math.max(0, splitPercentualBps);
+        saldoAbaterCentavos = Math.max(0L, saldoAbaterCentavos);
+        metaMensalCentavos = Math.max(0L, metaMensalCentavos);
+    }
+
+    public DireitosLocais(UUID consultoriaId, UUID contratacaoId, long versao, String situacao,
+                          boolean acessoLiberado, String motivoBloqueio, LocalDate vigenteAte, String planoCodigo,
+                          String planoNome, Map<String, Long> limites, List<String> funcionalidades,
+                          Instant confirmadoEm) {
+        this(consultoriaId, contratacaoId, versao, situacao, acessoLiberado, motivoBloqueio, vigenteAte,
+                planoCodigo, planoNome, limites, funcionalidades, confirmadoEm,
+                "ISENTO", 0, 0L, 0L, null);
+    }
 }

@@ -105,6 +105,34 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     // Tags de aluno: nenhuma na consultoria nem no aluno nos testes que não conferem isso (o `e2e/tags-de-aluno.spec.ts` troca).
     'GET /tags-de-alunos': { corpo: [] },
     'PUT /alunos/{id}/tags': { corpo: [] },
+    // Overtraining Pay do aluno: cartão pela página de pagamento do Asaas (nunca formulário no app); URL https fictícia.
+    'POST /aluno/financeiro/cobrancas/{id}/overtraining-pay/fatura': { corpo: { url: 'https://pagamento.asaas.exemplo.invalid/i/fatura-ficticia' } },
+    // Overtraining Pay: não configurado por padrão quando a flag estiver ligada sem mock específico.
+    'GET /financeiro/overtraining-pay': {
+      corpo: {
+        situacao: 'NAO_CONFIGURADA',
+        etapas: { titular: false, contaRepasse: false, documentos: false, cobrancaTeste: false },
+        tipoPessoa: null,
+        documentoMascarado: null,
+        nomeTitular: null,
+        emailFinanceiro: null,
+        telefoneMascarado: null,
+        cep: null,
+        enderecoResumo: null,
+        rendaMensalCentavos: null,
+        bancoCodigo: null,
+        bancoNome: null,
+        tipoConta: null,
+        agenciaMascarada: null,
+        contaMascarada: null,
+        repasseAutomatico: true,
+        onboardingUrl: null,
+        cobrancasLiquidadas: 0,
+        homologadaEm: null,
+        cobrancaTesteAtiva: null,
+        versao: null,
+      },
+    },
     // Categorias da vitrine: nenhuma nos testes que não conferem isso (o `e2e/vitrine-categorias.spec.ts` troca).
     'GET /vitrine/categorias': { corpo: [] },
     ...respostas,

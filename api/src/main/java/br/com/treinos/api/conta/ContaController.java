@@ -1,16 +1,21 @@
 package br.com.treinos.api.conta;
 
+import br.com.treinos.api.conta.PagamentoTransparenteDto.GerarPixAsaasRequest;
+import br.com.treinos.api.conta.PagamentoTransparenteDto.PixAsaasResposta;
+import br.com.treinos.api.conta.PagamentoTransparenteDto.SituacaoCobrancaResposta;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
 /**
- * Minha conta e consumo do plano, só com {@code CONTA_LER} (nos perfis padrão, o Administrador). A única ação é pedir o
- * link de pagamento de uma cobrança aberta: o pagamento acontece no Mercado Pago, fora do app.
+ * Minha conta e consumo do plano, só com {@code CONTA_LER} (nos perfis padrão, o Administrador). Permite consultar a
+ * conta, pagar o Pix dentro do app (Asaas), consultar a situação da cobrança ou pedir o link de
+ * pagamento externo (cartão pela página do Asaas, InfinitePay ou Mercado Pago).
  */
 @RestController
 public class ContaController {
@@ -37,5 +42,18 @@ public class ContaController {
     @PostMapping("/minha-conta/cobrancas/{id}/pagar")
     public ContaService.LinkDePagamento pagar(@PathVariable UUID id) {
         return service.linkDePagamento(id);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_CONTA_LER')")
+    @PostMapping("/minha-conta/cobrancas/{id}/asaas/pix")
+    public PixAsaasResposta gerarPixAsaas(@PathVariable UUID id,
+                                          @RequestBody(required = false) GerarPixAsaasRequest corpo) {
+        return service.gerarPixAsaas(id, corpo);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_CONTA_LER')")
+    @GetMapping("/minha-conta/cobrancas/{id}/situacao")
+    public SituacaoCobrancaResposta consultarSituacao(@PathVariable UUID id) {
+        return service.consultarSituacaoCobranca(id);
     }
 }

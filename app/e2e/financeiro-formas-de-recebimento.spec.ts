@@ -61,6 +61,7 @@ test('configurar o Pix pela primeira vez: erros na tela sem chamar a API, o corp
   const { pedidos, errosDaPagina } = await abrirRecebimento(page, estado);
 
   await expect(page.getByText('Formas de recebimento', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
   await expect(page.getByText('Recebimento online pela InfinitePay', { exact: true })).toBeVisible();
   await expect(page.getByText('Sempre ligado', { exact: true })).toBeVisible();
   await semAlteracaoNasFormas(page);

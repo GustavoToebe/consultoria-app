@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, type ReactN
 import { AppState, Platform } from 'react-native';
 
 import type { CobrancaDoAluno, FinanceiroDoAluno } from '../../api/financeiroTipos';
+import { lerOpcoesOvertrainingPay } from '../../api/alunoOvertrainingPay';
 import { financeiroDoAluno } from '../../api/rotas';
 import { acoesDePagamentoDoAluno, comoPagar, plataformaDoApp, type AcaoDePagamento, type ComoPagar } from '../../dominio/financeiro';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -33,6 +34,10 @@ interface Valor {
    * as formas que o servidor diz que se aplicam e o link do plano. Celular sem a chave da plataforma, saída e Kiwify: nenhuma.
    */
   acoesDaCobranca: (c: DaCobranca) => AcaoDePagamento[];
+  /** Overtraining Pay (Asaas) ativo e homologado na consultoria. */
+  overtrainingPayDisponivel: boolean;
+  /** Indica se o aluno/responsável já tem CPF cadastrado para emissão transparente. */
+  cpfPagadorCadastrado: boolean;
   recarregar: () => void;
 }
 
@@ -76,16 +81,35 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
   // As formas que o servidor diz que se aplicam e se o plano tem link próprio (o link só vale para mensalidade: a regra pura decide).
   const formas = chave !== null ? carga.dados?.formasDePagamento : undefined;
   const temLinkProprio = chave !== null && !!carga.dados?.plano?.linkDePagamento;
-  const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', { formas, temLinkProprio });
+  const opcoesPay = lerOpcoesOvertrainingPay(chave !== null ? carga.dados : undefined);
+  const { overtrainingPayDisponivel, cpfPagadorCadastrado } = opcoesPay;
+  const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', {
+    formas,
+    temLinkProprio,
+    overtrainingPayDisponivel,
+    cpfPagadorCadastrado,
+  });
   const modoDaCobranca = useCallback(
     (c: DaCobranca) =>
-      comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, { formas, temLinkProprio, cobrancaAutomatica: c.cobrancaAutomatica }),
-    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio],
+      comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, {
+        formas,
+        temLinkProprio,
+        cobrancaAutomatica: c.cobrancaAutomatica,
+        overtrainingPayDisponivel,
+        cpfPagadorCadastrado,
+      }),
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio, overtrainingPayDisponivel, cpfPagadorCadastrado],
   );
   const acoesDaCobranca = useCallback(
     (c: DaCobranca) =>
-      acoesDePagamentoDoAluno(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, { formas, temLinkProprio, cobrancaAutomatica: c.cobrancaAutomatica }),
-    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio],
+      acoesDePagamentoDoAluno(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, {
+        formas,
+        temLinkProprio,
+        cobrancaAutomatica: c.cobrancaAutomatica,
+        overtrainingPayDisponivel,
+        cpfPagadorCadastrado,
+      }),
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio, overtrainingPayDisponivel, cpfPagadorCadastrado],
   );
   const valor = useMemo<Valor>(
     () => ({
@@ -97,9 +121,25 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
       modoDePagamento,
       modoDaCobranca,
       acoesDaCobranca,
+      overtrainingPayDisponivel,
+      cpfPagadorCadastrado,
       recarregar: carga.recarregar,
     }),
-    [pagamentosHabilitados, indisponivel, online, chave, carga.dados, carga.erro, carga.carregando, modoDePagamento, modoDaCobranca, acoesDaCobranca, carga.recarregar],
+    [
+      pagamentosHabilitados,
+      indisponivel,
+      online,
+      chave,
+      carga.dados,
+      carga.erro,
+      carga.carregando,
+      modoDePagamento,
+      modoDaCobranca,
+      acoesDaCobranca,
+      overtrainingPayDisponivel,
+      cpfPagadorCadastrado,
+      carga.recarregar,
+    ],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

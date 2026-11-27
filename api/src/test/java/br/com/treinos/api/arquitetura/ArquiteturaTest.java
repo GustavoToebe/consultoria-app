@@ -86,6 +86,9 @@ class ArquiteturaTest {
      * a busca do token do webhook de cada uma roda antes de se saber a consultoria, e a fila do conciliador (uma por provedor) e a
      * limpeza dos avisos antigos são globais, sem tenant; todo o resto leva {@code consultoria_id} explícito e nada guarda nem
      * devolve o corpo do aviso nem o e-mail do comprador, só ids, o hash e o andamento);
+     * {@code FilaDeCancelamentoAsaas} (V110, fila durável dos cancelamentos no Asaas das cobranças que ficaram órfãs: a operação do
+     * treinador só grava o pedido, na própria transação, e o worker varre e reserva de todas as consultorias, sem tenant; toda
+     * escrita leva {@code consultoria_id} ou o id da linha reservada, e a tabela só guarda ids, nunca valor, nome nem segredo);
      * {@code LembretesRepositorio} (fila dos lembretes de cobrança por e-mail: o job planeja e reserva de todas as consultorias,
      * sem tenant; toda escrita depois da reserva leva {@code consultoria_id} explícito e confere a posse, e nada lê ou grava
      * endereço, nome ou texto, só ids, datas, a configuração e o andamento; a Kiwify (D18) só acrescenta a exclusão da mensalidade de
@@ -118,6 +121,7 @@ class ArquiteturaTest {
             "br.com.treinos.api.vitrine.VitrinePublicaRepositorio",
             "br.com.treinos.api.pagamentos.VerificacaoDasCredenciais",
             "br.com.treinos.api.pagamentos.AvisoDePagamentoRepositorio",
+            "br.com.treinos.api.pagamentos.FilaDeCancelamentoAsaas",
             "br.com.treinos.api.pagamentos.LembretesRepositorio",
             "br.com.treinos.api.push.PushRepositorio",
             "br.com.treinos.api.whatsapp.WhatsAppRepositorio",
@@ -138,7 +142,7 @@ class ArquiteturaTest {
      */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
-            "InscricaoPublicaController", "AvisoInfinitePayController", "AvisoKiwifyController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController",
+            "InscricaoPublicaController", "AvisoInfinitePayController", "AvisoKiwifyController", "AvisoAsaasController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController",
             "WhatsAppWebhookController",
             // Página pública do contrato do responsável (V109): código no corpo, nunca no caminho; marca e título só com o link, texto e PDF só
             // com o CPF do responsável conferido; limite por IP e por código nos erros de CPF (LimiteTentativas); 503 com a chave desligada.

@@ -114,6 +114,11 @@ treinos:
     kiwify:
       habilitado: false
       conciliacao-ativa: false
+    # Overtraining Pay (Asaas) DESLIGADO na suíte padrão: os testes de integração ligam via @DynamicPropertySource apontando
+    # para AsaasFalsa. O conciliador agendado fica desligado.
+    asaas:
+      habilitado: false
+      conciliacao-ativa: false
     # O job dos lembretes de cobrança também: os testes chamam LembretesDeCobranca.rodar à mão.
     lembretes:
       agendados: false

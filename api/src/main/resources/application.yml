@@ -204,6 +204,17 @@ treinos:
       habilitado: ${TREINOS_PAGAMENTOS_KIWIFY_HABILITADO:false}
       url-api: ${TREINOS_PAGAMENTOS_KIWIFY_URL_API:https://public-api.kiwify.com}
       conciliacao-ativa: ${TREINOS_PAGAMENTOS_KIWIFY_CONCILIACAO_ATIVA:true}
+    # Overtraining Pay (Asaas): subconta por consultoria, checkout transparente Pix e cartão com split. Desligado por padrão:
+    # as rotas respondem 503 OVERTRAINING_PAY_INDISPONIVEL e GET /eu traz overtrainingPayHabilitado=false.
+    asaas:
+      habilitado: ${TREINOS_PAGAMENTOS_ASAAS_HABILITADO:false}
+      url-base: ${TREINOS_PAGAMENTOS_ASAAS_URL_BASE:https://api-sandbox.asaas.com/v3}
+      api-key-matriz: ${TREINOS_PAGAMENTOS_ASAAS_API_KEY_MATRIZ:}
+      url-publica: ${TREINOS_PAGAMENTOS_ASAAS_URL_PUBLICA:${TREINOS_PAGAMENTOS_URL_PUBLICA:}}
+      wallet-matriz: ${TREINOS_PAGAMENTOS_ASAAS_WALLET_MATRIZ:}
+      wallet-socio: ${TREINOS_PAGAMENTOS_ASAAS_WALLET_SOCIO:}
+      percentual-socio-bps: ${TREINOS_PAGAMENTOS_ASAAS_PERCENTUAL_SOCIO_BPS:3500}
+      conciliacao-ativa: ${TREINOS_PAGAMENTOS_ASAAS_CONCILIACAO_ATIVA:true}
     # Lembretes de cobrança por e-mail (a configuração é de cada consultoria, no Financeiro, e nasce desligada). Só os testes
     # desligam o job agendado (eles o chamam à mão). Sem o e-mail do app ligado (TREINOS_EMAIL_HABILITADO) nada é enviado.
     lembretes:

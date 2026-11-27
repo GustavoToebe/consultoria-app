@@ -1,13 +1,18 @@
 package br.com.treinos.api.integracao;
 
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.conta.FonteDaConta;
 import br.com.treinos.api.conta.MinhaContaDto;
 import br.com.treinos.api.conta.PagamentoIndisponivelException;
+import br.com.treinos.api.conta.PagamentoTransparenteDto.GerarPixAsaasRequest;
+import br.com.treinos.api.conta.PagamentoTransparenteDto.PixAsaasResposta;
+import br.com.treinos.api.conta.PagamentoTransparenteDto.SituacaoCobrancaResposta;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
@@ -111,6 +116,93 @@ public class FonteDaContaCentral implements FonteDaConta {
         return url;
     }
 
+    @Override
+    public PixAsaasResposta gerarPixAsaas(UUID consultoriaId, UUID cobrancaId, GerarPixAsaasRequest request) {
+        String caminho = "/integracao/v1/produtos/" + propriedades.produto() + "/instancias/" + consultoriaId
+                + "/cobrancas/" + cobrancaId + "/asaas/pix";
+        byte[] corpo = json.writeValueAsBytes(request == null ? new GerarPixAsaasRequest(null) : request);
+        CentralClient.Resposta resposta = enviarPostJson("Pix Asaas", caminho, corpo);
+        validarStatusPagamento("Pix Asaas", resposta, "Não foi possível gerar o Pix para esta cobrança.");
+        return desserializar("Pix Asaas", resposta.corpo(), PixAsaasResposta.class);
+    }
+
+    @Override
+    public SituacaoCobrancaResposta consultarSituacaoCobranca(UUID consultoriaId, UUID cobrancaId) {
+        String caminho = "/integracao/v1/produtos/" + propriedades.produto() + "/instancias/" + consultoriaId
+                + "/cobrancas/" + cobrancaId + "/situacao";
+        CentralClient.Resposta resposta;
+        try {
+            resposta = central.get(caminho);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw IntegracaoException.centralIndisponivel();
+        } catch (IOException e) {
+            LOG.warn("Situação da cobrança: a central não respondeu ({}).", e.getClass().getSimpleName());
+            throw IntegracaoException.centralIndisponivel();
+        }
+        switch (resposta.status()) {
+            case 404 -> throw new NaoEncontradoException("Cobrança não encontrada.");
+            case 503 -> throw new PagamentoIndisponivelException();
+            default -> {
+                if (!resposta.sucesso()) {
+                    LOG.warn("Situação da cobrança: a central respondeu {}.", resposta.status());
+                    throw IntegracaoException.centralIndisponivel();
+                }
+            }
+        }
+        return desserializar("Situação da cobrança", resposta.corpo(), SituacaoCobrancaResposta.class);
+    }
+
+    private CentralClient.Resposta enviarPostJson(String operacao, String caminho, byte[] corpo) {
+        try {
+            return central.postJson(caminho, corpo);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw IntegracaoException.centralIndisponivel();
+        } catch (IOException e) {
+            LOG.warn("{}: a central não respondeu ({}).", operacao, e.getClass().getSimpleName());
+            throw IntegracaoException.centralIndisponivel();
+        }
+    }
+
+    private void validarStatusPagamento(String operacao, CentralClient.Resposta resposta, String mensagem422) {
+        switch (resposta.status()) {
+            case 400 -> throw new BadRequestException(mensagemErro(resposta.corpo(), "Dados inválidos para o pagamento."));
+            case 404 -> throw new NaoEncontradoException("Cobrança não encontrada.");
+            case 409 -> throw new ConflictException("Esta cobrança não está em aberto.", "COBRANCA_NAO_ABERTA");
+            case 422 -> throw new IntegracaoException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    mensagemErro(resposta.corpo(), mensagem422), "PAGAMENTO_RECUSADO");
+            case 503 -> throw new PagamentoIndisponivelException();
+            default -> {
+                if (!resposta.sucesso()) {
+                    LOG.warn("{}: a central respondeu {}.", operacao, resposta.status());
+                    throw IntegracaoException.centralIndisponivel();
+                }
+            }
+        }
+    }
+
+    private <T> T desserializar(String operacao, byte[] corpo, Class<T> tipo) {
+        try {
+            return json.readValue(corpo, tipo);
+        } catch (JacksonException e) {
+            LOG.warn("{}: resposta da central ilegível.", operacao);
+            throw IntegracaoException.centralIndisponivel();
+        }
+    }
+
+    private String mensagemErro(byte[] corpo, String padrao) {
+        if (corpo == null || corpo.length == 0) {
+            return padrao;
+        }
+        try {
+            String msg = json.readTree(corpo).path("message").asString("");
+            return msg.isBlank() ? padrao : msg;
+        } catch (JacksonException e) {
+            return padrao;
+        }
+    }
+
     /**
      * Hosts dos checkouts que a Central pode devolver (contrato 6.4: o provedor é escolhido pela Central, por
      * {@code CENTRAL_PAGAMENTO_PROVEDOR}). Lista fechada e comparação exata do host: os da InfinitePay são os mesmos que a
@@ -118,7 +210,8 @@ public class FonteDaContaCentral implements FonteDaConta {
      * e a troca de provedor na Central derrubaria o "Pagar" da Minha conta com {@code CENTRAL_INDISPONIVEL}.
      */
     static final Set<String> HOSTS_DE_CHECKOUT = Set.of("www.mercadopago.com.br", "www.mercadopago.com",
-            "checkout.infinitepay.com.br", "checkout.infinitepay.io");
+            "checkout.infinitepay.com.br", "checkout.infinitepay.io",
+            "www.asaas.com", "sandbox.asaas.com");
 
     static boolean urlDeCheckout(String url) {
         try {

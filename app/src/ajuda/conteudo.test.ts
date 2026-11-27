@@ -71,6 +71,19 @@ describe('textos da ajuda', () => {
     }
   });
 
+  it('os guias do treinador e do aluno explicam Overtraining Pay, homologação, abatimento automático e pagamento no app', () => {
+    const treinador = textoDoGuia('treinador');
+    expect(treinador).toContain('Overtraining Pay');
+    expect(treinador).toContain('Homologação e Conta de Repasse');
+    expect(treinador).toContain('R$ 5,00');
+    expect(treinador).toContain('abatimento automático pelo Split');
+    const aluno = textoDoGuia('aluno');
+    expect(aluno).toContain('Overtraining Pay');
+    expect(aluno).toContain('Pix na hora, pelo QR Code');
+    expect(aluno).not.toContain('QR Code Pix imediato');
+    expect(aluno).not.toContain('até 12x');
+  });
+
   it('nenhum item fica sem título ou sem texto', () => {
     for (const g of Object.values(GUIAS)) {
       for (const s of g.secoes) for (const i of s.itens) expect(i.titulo.trim() && i.texto.trim()).toBeTruthy();

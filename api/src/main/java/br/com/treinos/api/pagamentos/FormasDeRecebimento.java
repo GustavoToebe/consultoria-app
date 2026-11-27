@@ -34,6 +34,8 @@ public class FormasDeRecebimento {
     private UUID consultoriaId;
     @Column(name = "infinite_pay", nullable = false)
     private boolean infinitePay;
+    @Column(name = "overtraining_pay", nullable = false)
+    private boolean overtrainingPay;
     @Column(name = "link_proprio", nullable = false)
     private boolean linkProprio;
     @Column(nullable = false)
@@ -76,8 +78,16 @@ public class FormasDeRecebimento {
 
     /** {@code pixNovo} nulo mantém os dados do Pix que já estão gravados. Devolve se algo mudou. */
     boolean alterar(boolean infinitePay, boolean linkProprio, boolean pix, DadosDoPix pixNovo, Instant agora) {
-        boolean mudou = this.infinitePay != infinitePay || this.linkProprio != linkProprio || this.pix != pix;
+        return alterar(infinitePay, this.overtrainingPay, linkProprio, pix, pixNovo, agora);
+    }
+
+    /** {@code pixNovo} nulo mantém os dados do Pix que já estão gravados. Devolve se algo mudou. */
+    boolean alterar(boolean infinitePay, boolean overtrainingPay, boolean linkProprio, boolean pix, DadosDoPix pixNovo,
+                    Instant agora) {
+        boolean mudou = this.infinitePay != infinitePay || this.overtrainingPay != overtrainingPay
+                || this.linkProprio != linkProprio || this.pix != pix;
         this.infinitePay = infinitePay;
+        this.overtrainingPay = overtrainingPay;
         this.linkProprio = linkProprio;
         this.pix = pix;
         if (pixNovo != null && !pixNovo.equals(dadosDoPix())) {
@@ -91,6 +101,15 @@ public class FormasDeRecebimento {
             this.atualizadoEm = agora;
         }
         return mudou;
+    }
+
+    boolean desligarOvertrainingPay(Instant agora) {
+        if (!this.overtrainingPay) {
+            return false;
+        }
+        this.overtrainingPay = false;
+        this.atualizadoEm = agora;
+        return true;
     }
 
     /** D12: desliga o Pix e zera chave, tipo, nome e cidade juntos (o CHECK exige os quatro com o Pix ligado). Devolve se mudou algo. */
@@ -121,6 +140,7 @@ public class FormasDeRecebimento {
 
     public UUID getConsultoriaId() { return id; }
     public boolean isInfinitePay() { return infinitePay; }
+    public boolean isOvertrainingPay() { return overtrainingPay; }
     public boolean isLinkProprio() { return linkProprio; }
     public boolean isPix() { return pix; }
     public ChavePix.Tipo getPixTipoChave() { return pixTipoChave; }

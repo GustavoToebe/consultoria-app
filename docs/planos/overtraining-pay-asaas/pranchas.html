@@ -1,0 +1,1414 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Overtraining Pay (Asaas) — Pranchas Visuais</title>
+<style>
+  @font-face { font-family: 'Geist'; src: url('file:///C:/Users/gusta/Documents/consultoria-app/docs/prototipos/visual-vendavel/fontes/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; }
+  @font-face { font-family: 'Metal Mania'; src: url('file:///C:/Users/gusta/Documents/consultoria-app/docs/prototipos/visual-vendavel/fontes/MetalMania_400Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #050506;
+    color: #F3F2EE;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .prancha {
+    width: 1440px;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid #262629;
+  }
+
+  /* Temas Overtraining (tokens.ts) */
+  .t-escuro {
+    --fundo: #070707;
+    --painel: #0B0B0D;
+    --sup: #111113;
+    --sup2: #17171A;
+    --sup3: #202024;
+    --divisor: #26262B;
+    --borda: #36363E;
+    --campo: #151518;
+    --borda-campo: #6E6E77;
+    --texto: #F3F2EE;
+    --suave: #A4A39D;
+    --sucesso: #5FE08A; --sucesso-bg: rgba(95, 224, 138, 0.13);
+    --atencao: #F1C96B; --atencao-bg: rgba(241, 201, 107, 0.14);
+    --perigo: #FF6B5B;  --perigo-bg: rgba(255, 107, 91, 0.14);
+    --info: #5BA3FF;    --info-bg: rgba(91, 163, 255, 0.14);
+    --acao: #8C9EFF;    --acao-bg: rgba(140, 158, 255, 0.14); --sobre-acao: #0B0B0A;
+    --primario-bg: #F3F2EE; --primario-fg: #0B0B0D;
+    background: var(--fundo);
+    color: var(--texto);
+  }
+
+  .t-claro {
+    --fundo: #ECEEF2;
+    --painel: #F5F6F8;
+    --sup: #FFFFFF;
+    --sup2: #F3F4F6;
+    --sup3: #E8EAEE;
+    --divisor: #DCDFE5;
+    --borda: #C2C6D0;
+    --campo: #FFFFFF;
+    --borda-campo: #858994;
+    --texto: #111114;
+    --suave: #565863;
+    --sucesso: #156E3B; --sucesso-bg: rgba(21, 110, 59, 0.11);
+    --atencao: #8C5808; --atencao-bg: rgba(140, 88, 8, 0.12);
+    --perigo: #B91C1C;  --perigo-bg: rgba(185, 28, 28, 0.10);
+    --info: #175CD3;    --info-bg: rgba(23, 92, 211, 0.10);
+    --acao: #4338CA;    --acao-bg: rgba(67, 56, 202, 0.10); --sobre-acao: #FFFFFF;
+    --primario-bg: #141417; --primario-fg: #FFFFFF;
+    background: var(--fundo);
+    color: var(--texto);
+  }
+
+  .app-shell {
+    display: grid;
+    grid-template-columns: 232px 1fr;
+    min-height: 920px;
+  }
+
+  .sidebar {
+    background: var(--fundo);
+    border-right: 1px solid var(--divisor);
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; padding: 2px 6px; }
+  .brand-badge {
+    width: 30px; height: 30px; border-radius: 999px;
+    background: #DC2626; color: #FFF; font-weight: 800; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-name { font-family: 'Metal Mania', cursive; font-size: 19px; letter-spacing: 0.6px; }
+  .search-box {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 10px; border-radius: 8px; background: var(--sup2);
+    border: 1px solid var(--divisor); color: var(--suave); font-size: 12.5px;
+  }
+  .search-box kbd {
+    font-family: inherit; font-size: 11px; padding: 1px 5px;
+    border-radius: 4px; border: 1px solid var(--divisor);
+  }
+  .nav-list { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .nav-group {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
+    color: var(--suave); padding: 12px 8px 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px; border-radius: 8px; font-size: 13.5px; color: var(--suave);
+  }
+  .nav-item.active {
+    background: var(--sup3); color: var(--texto); font-weight: 600;
+    border-left: 3px solid #DC2626; padding-left: 7px;
+  }
+  .nav-count { font-size: 11.5px; color: var(--suave); }
+  .nav-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--perigo); }
+  .sidebar-footer { display: flex; flex-direction: column; gap: 12px; padding-top: 10px; border-top: 1px solid var(--divisor); }
+  .theme-pills {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    background: var(--sup2); padding: 3px; border-radius: 8px; border: 1px solid var(--divisor);
+    font-size: 11.5px; text-align: center; color: var(--suave);
+  }
+  .theme-pills span { padding: 4px 0; border-radius: 6px; }
+  .theme-pills span.on { background: var(--sup); color: var(--texto); font-weight: 600; border: 1px solid var(--divisor); }
+  .user-row { display: flex; align-items: center; gap: 9px; padding: 2px 4px; }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 99px; background: rgba(220,38,38,0.18);
+    color: #F87171; font-weight: 700; font-size: 11.5px; display: flex; align-items: center; justify-content: center;
+  }
+  .user-name { font-size: 12.5px; font-weight: 600; }
+  .user-role { font-size: 11px; color: var(--suave); }
+
+  .main-area {
+    background: var(--painel);
+    padding: 28px 34px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .migalha { font-size: 12.5px; color: var(--suave); margin-bottom: 4px; }
+  .page-title { font-size: 25px; font-weight: 700; letter-spacing: -0.02em; }
+  .page-sub { font-size: 13.5px; color: var(--suave); margin-top: 4px; line-height: 1.45; }
+
+  .tabs-bar {
+    display: inline-flex; gap: 4px; background: var(--sup2);
+    padding: 4px; border-radius: 10px; border: 1px solid var(--divisor); align-self: flex-start;
+  }
+  .tab-btn {
+    padding: 6px 14px; border-radius: 7px; font-size: 13px; color: var(--suave); font-weight: 500;
+  }
+  .tab-btn.active {
+    background: var(--sup); color: var(--texto); font-weight: 600; border: 1px solid var(--divisor);
+  }
+
+  .card {
+    background: var(--sup);
+    border: 1px solid var(--divisor);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--divisor);
+    background: var(--sup3);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .card-title { font-size: 16px; font-weight: 700; }
+  .card-desc { font-size: 12.5px; color: var(--suave); margin-top: 3px; line-height: 1.4; }
+  .card-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+  .card-foot {
+    padding: 13px 20px;
+    border-top: 1px solid var(--divisor);
+    background: var(--sup2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill-dot { width: 6px; height: 6px; border-radius: 99px; background: currentColor; }
+  .p-sucesso { background: var(--sucesso-bg); color: var(--sucesso); }
+  .p-atencao { background: var(--atencao-bg); color: var(--atencao); }
+  .p-perigo  { background: var(--perigo-bg);  color: var(--perigo); }
+  .p-info    { background: var(--info-bg);    color: var(--info); }
+  .p-acao    { background: var(--acao-bg);    color: var(--acao); }
+  .p-neutro  { background: var(--sup2);       color: var(--suave); border: 1px solid var(--divisor); }
+
+  .sec-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--suave); margin-bottom: 8px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .col-ajustes { display: grid; grid-template-columns: 1.55fr 0.95fr; gap: 20px; align-items: start; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field-label { font-size: 12.5px; font-weight: 600; color: var(--texto); }
+  .field-input {
+    padding: 9px 12px; border-radius: 8px; background: var(--campo);
+    border: 1px solid var(--borda-campo); font-size: 13.5px; color: var(--texto);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .field-help { font-size: 11.5px; color: var(--suave); line-height: 1.35; }
+
+  .opt-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 14px; border-radius: 10px; background: var(--sup2); border: 1px solid var(--divisor);
+  }
+  .opt-row.featured {
+    border-color: var(--acao);
+    background: var(--acao-bg);
+  }
+  .opt-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .opt-desc { font-size: 12.5px; color: var(--suave); margin-top: 3px; line-height: 1.4; }
+
+  .switch {
+    width: 40px; height: 22px; border-radius: 99px; background: var(--sup3);
+    border: 1px solid var(--borda); position: relative; flex-shrink: 0;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 99px; background: var(--suave);
+  }
+  .switch.on { background: var(--sucesso); border-color: var(--sucesso); }
+  .switch.on::after { left: 20px; background: #09140D; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 9px 15px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .btn-primario { background: var(--primario-bg); color: var(--primario-fg); }
+  .btn-acao     { background: var(--acao-bg); color: var(--acao); border-color: var(--acao); }
+  .btn-sec      { background: var(--sup); color: var(--texto); border-color: var(--borda); }
+  .btn-perigo   { background: transparent; color: var(--perigo); border-color: var(--perigo); }
+
+  .steps-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .step-box {
+    padding: 10px 12px; border-radius: 10px; background: var(--sup2);
+    border: 1px solid var(--divisor); font-size: 12px;
+  }
+  .step-box.done { border-color: rgba(95, 224, 138, 0.35); }
+  .step-box.curr { border-color: var(--atencao); background: var(--atencao-bg); }
+  .step-num { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+
+  .kpi-painted {
+    padding: 14px 16px; border-radius: 12px; border: 1px solid var(--divisor);
+    background: var(--sup2); display: flex; flex-direction: column; gap: 4px;
+  }
+  .kpi-painted.sucesso {
+    border-color: var(--sucesso);
+    background: linear-gradient(180deg, var(--sucesso-bg) 0%, var(--sup) 100%);
+  }
+  .kpi-painted.atencao {
+    border-color: var(--atencao);
+    background: linear-gradient(180deg, var(--atencao-bg) 0%, var(--sup) 100%);
+  }
+  .kpi-painted.acao {
+    border-color: var(--acao);
+    background: linear-gradient(180deg, var(--acao-bg) 0%, var(--sup) 100%);
+  }
+  .kpi-val { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+
+  .homolog-banner {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    padding: 14px 16px; border-radius: 12px; background: var(--sup2); border: 1px solid var(--divisor);
+    align-items: center;
+  }
+
+  .table-clean { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table-clean th {
+    text-align: left; font-size: 11.5px; font-weight: 600; color: var(--suave);
+    padding: 9px 12px; border-bottom: 1px solid var(--divisor); background: var(--sup2);
+  }
+  .table-clean td {
+    padding: 11px 12px; border-bottom: 1px solid var(--divisor); vertical-align: middle;
+  }
+  .table-clean tr:last-child td { border-bottom: none; }
+
+  /* Molduras de celular (Prancha 4) */
+  .phones-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: start;
+  }
+  .phone-frame {
+    background: var(--sup);
+    border: 3px solid #2A2A30;
+    border-radius: 30px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    display: flex;
+    flex-direction: column;
+  }
+  .phone-notch {
+    height: 22px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; font-size: 11px; color: var(--suave); background: var(--sup3);
+    border-bottom: 1px solid var(--divisor);
+  }
+  .phone-body { padding: 16px; display: flex; flex-direction: column; gap: 13px; }
+
+  /* Diagrama da Prancha 1 */
+  .arch-box {
+    padding: 20px; border-radius: 14px; background: var(--sup); border: 1px solid var(--divisor);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .flow-arrow {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px; background: var(--sup2); border: 1px dashed var(--borda);
+    font-size: 12.5px; color: var(--suave);
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== PRANCHA 1: ARQUITETURA DAS DUAS CAMADAS E SPLIT ==================== -->
+<section id="prancha-1" class="prancha t-escuro" style="padding: 36px 42px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+    <div>
+      <div class="migalha" style="color:#8C9EFF; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">Arquitetura Alvo · Overtraining Pay + Central</div>
+      <h1 class="page-title" style="font-size:28px; margin-top:4px;">Duas camadas de dinheiro com o Asaas como motor principal</h1>
+      <p class="page-sub">Checkout transparente dentro do app, subconta com repasse automático para cada treinador e Split na fonte entre plataforma (65% / 35%) e consultoria.</p>
+    </div>
+    <span class="pill p-acao"><span class="pill-dot"></span>Branch separada · Sem afetar o piloto em produção</span>
+  </div>
+
+  <div class="grid-2" style="gap: 24px;">
+    <!-- CAMADA 1: CONSULTORIA-APP -->
+    <div class="arch-box" style="border-color:#8C9EFF;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div class="sec-label" style="color:#8C9EFF; margin-bottom:2px;">Camada 1 · Repositório consultoria-app</div>
+          <div style="font-size:19px; font-weight:700;">Treinador cobra seus Alunos</div>
+        </div>
+        <span class="pill p-sucesso"><span class="pill-dot"></span>Multi-tenant (@TenantId)</span>
+      </div>
+
+      <div class="opt-row featured" style="flex-direction:column; align-items:stretch; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="opt-title">★ Principal: Overtraining Pay (Asaas v3)</div>
+          <span class="pill p-acao">Checkout Transparente + Split</span>
+        </div>
+        <div class="opt-desc" style="color:var(--texto);">
+          • <b>Aluno não sai do app:</b> QR Code Pix dinâmico + Copia e Cola + Cartão (1x a 12x e recorrência) direto na Folha.<br>
+          • <b>Subconta White-Label (<code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">POST /v3/accounts</code>):</b> cada consultoria tem sua carteira (<code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">walletId</code>) e <b>Conta Bancária / Pix de Repasse</b>.<br>
+          • <b>Homologação guiada:</b> status passo a passo + botão <b>"Gerar cobrança de teste (R$ 5,00)"</b> antes de ativar.<br>
+          • <b>Baixa 100% segura:</b> Webhook com <code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">asaas-access-token</code> + consulta <code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">GET /v3/payments/{id}</code> fora da transação.
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="sec-label" style="margin-bottom:0;">Secundários mantidos 100% funcionais (se o treinador quiser usar)</div>
+        <div class="grid-2">
+          <div class="opt-row" style="flex-direction:column; align-items:flex-start; gap:4px;">
+            <div style="font-size:13px; font-weight:700;">InfinitePay (Link externo)</div>
+            <div style="font-size:12px; color:var(--suave);">Link por cobrança na conta do treinador + baixa via <code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">payment_check</code>. Sem Split.</div>
+          </div>
+          <div class="opt-row" style="flex-direction:column; align-items:flex-start; gap:4px;">
+            <div style="font-size:13px; font-weight:700;">Kiwify + Pix Manual / Link</div>
+            <div style="font-size:12px; color:var(--suave);">Kiwify para assinatura mensal externa; Pix estático EMV e baixa manual preservados.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAMADA 2: CENTRAL -->
+    <div class="arch-box" style="border-color:#5FE08A;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div class="sec-label" style="color:#5FE08A; margin-bottom:2px;">Camada 2 · Repositório unificado central</div>
+          <div style="font-size:19px; font-weight:700;">Você + Saraiva cobram o Treinador</div>
+        </div>
+        <span class="pill p-info"><span class="pill-dot"></span>Conta da Plataforma</span>
+      </div>
+
+      <div class="opt-row" style="border-color:var(--sucesso); background:var(--sucesso-bg); flex-direction:column; align-items:stretch; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="opt-title">★ Principal: Asaas na Central</div>
+          <span class="pill p-sucesso">Transparente + Recorrência + Split 65/35</span>
+        </div>
+        <div class="opt-desc" style="color:var(--texto);">
+          • <b>Na tela "Minha conta" do treinador:</b> QR Code Pix na tela, Boleto/Pix ou Cartão recorrente sem sair do painel.<br>
+          • <b>Split na fonte entre sócios:</b> cada fatura paga pelo treinador divide automaticamente <b>65% Gustavo</b> (conta matriz) e <b>35% Saraiva</b> (<code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">walletId</code> sócio).<br>
+          • <b>Abatimento opcional pelo Overtraining Pay:</b> as vendas dos alunos podem quitar sozinhas a mensalidade do treinador na Central!
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="sec-label" style="margin-bottom:0;">Secundário mantido e limpeza de legado</div>
+        <div class="grid-2">
+          <div class="opt-row" style="flex-direction:column; align-items:flex-start; gap:4px;">
+            <div style="font-size:13px; font-weight:700;">InfinitePay (Secundário · 100%)</div>
+            <div style="font-size:12px; color:var(--suave);">Código atual preservado intacto como contingência por link externo.</div>
+          </div>
+          <div class="opt-row" style="flex-direction:column; align-items:flex-start; gap:4px; opacity:0.75;">
+            <div style="font-size:13px; font-weight:700;">Mercado Pago (Aposentado)</div>
+            <div style="font-size:12px; color:var(--suave);">Nunca foi ligado na VPS nem no consultoria-app; sai do caminho padrão.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIMULAÇÃO DE FLUXO DO DINHEIRO -->
+  <div class="card" style="margin-top:22px;">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Exemplo real do Split na fonte — Aluno paga R$ 300,00 no Overtraining Pay (Pix)</div>
+        <div class="card-desc">A divisão ocorre dentro da instituição de pagamento autorizada pelo Banco Central, no exato segundo da liquidação.</div>
+      </div>
+      <span class="pill p-sucesso">Zero Pix manual no fim do mês</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-4">
+        <div class="kpi-painted">
+          <div class="sec-label" style="margin:0;">1 · Aluno paga no app</div>
+          <div class="kpi-val">R$ 300,00</div>
+          <div class="field-help">QR Code Pix dinâmico emitido na subconta da consultoria</div>
+        </div>
+        <div class="kpi-painted acao">
+          <div class="sec-label" style="margin:0; color:var(--acao);">2 · Tarifa Asaas + Taxa Plataforma</div>
+          <div class="kpi-val">R$ 15,00 <span style="font-size:13px; font-weight:600; color:var(--suave);">(5% ou abate fatura)</span></div>
+          <div class="field-help">Tarifa Pix Asaas (~R$ 1,99 fixo) + margem limpa da plataforma</div>
+        </div>
+        <div class="kpi-painted sucesso">
+          <div class="sec-label" style="margin:0; color:var(--sucesso);">3 · Conta de Repasse do Treinador</div>
+          <div class="kpi-val">R$ 285,00</div>
+          <div class="field-help">Transferido automático via Pix para o banco do treinador (Nubank, Itaú…)</div>
+        </div>
+        <div class="kpi-painted atencao">
+          <div class="sec-label" style="margin:0; color:var(--atencao);">4 · Split imediato dos Sócios</div>
+          <div class="kpi-val" style="font-size:19px;">R$ 8,46 <span style="font-size:12px;">(65%)</span> · R$ 4,55 <span style="font-size:12px;">(35%)</span></div>
+          <div class="field-help">Já separado entre Carteira Gustavo (65%) e Carteira Saraiva (35%)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== PRANCHA 2: TREINADOR · ABA RECEBIMENTO E HOMOLOGAÇÃO (ESCURO) ==================== -->
+<section id="prancha-2" class="prancha t-escuro">
+  <div class="app-shell">
+    
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-badge">ST</div>
+      <div class="brand-name">SARAIVA TEAM</div>
+    </div>
+    <div class="search-box">
+      <span>⌕ Buscar</span>
+      <kbd>Ctrl K</kbd>
+    </div>
+    <nav class="nav-list">
+      
+        
+        <div class="nav-item ">
+            <span>Início</span>
+            
+          </div>
+      
+        <div class="nav-group">ACOMPANHAMENTO</div>
+        <div class="nav-item ">
+            <span>Alunos</span>
+            <span class="nav-dot"></span>
+          </div><div class="nav-item ">
+            <span>Atualizações</span>
+            <span class="nav-count">14</span>
+          </div><div class="nav-item ">
+            <span>Agenda</span>
+            
+          </div><div class="nav-item ">
+            <span>Comunidade</span>
+            
+          </div>
+      
+        <div class="nav-group">CONTEÚDO</div>
+        <div class="nav-item ">
+            <span>Biblioteca</span>
+            
+          </div><div class="nav-item ">
+            <span>Planejamento</span>
+            
+          </div>
+      
+        <div class="nav-group">NEGÓCIO</div>
+        <div class="nav-item ">
+            <span>Interessados</span>
+            <span class="nav-count">5</span>
+          </div><div class="nav-item active">
+            <span>Financeiro</span>
+            
+          </div><div class="nav-item ">
+            <span>Vitrine</span>
+            
+          </div><div class="nav-item ">
+            <span>Números</span>
+            
+          </div>
+      
+        <div class="nav-group">CONFIGURAÇÕES</div>
+        <div class="nav-item ">
+            <span>Equipe</span>
+            
+          </div><div class="nav-item ">
+            <span>Importação</span>
+            
+          </div><div class="nav-item ">
+            <span>Ajuda</span>
+            
+          </div><div class="nav-item ">
+            <span>Auditoria</span>
+            
+          </div>
+      
+    </nav>
+    <div class="sidebar-footer">
+      <div class="theme-pills">
+        <span class="on">Escuro</span>
+        <span class="">Claro</span>
+        <span class="">Areia</span>
+      </div>
+      <div class="user-row">
+        <div class="avatar">GT</div>
+        <div>
+          <div class="user-name">Gustavo Toebe</div>
+          <div class="user-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+    <main class="main-area">
+      <div>
+        <div class="migalha">Negócio › Financeiro › Recebimento e homologação</div>
+        <h1 class="page-title">Financeiro</h1>
+        <p class="page-sub">Overtraining Pay como recebimento principal com conta de repasse; InfinitePay e Kiwify como opções secundárias.</p>
+      </div>
+
+      <div class="tabs-bar">
+        <span class="tab-btn">Visão geral</span>
+        <span class="tab-btn">Cobranças</span>
+        <span class="tab-btn">Planos</span>
+        <span class="tab-btn">Lançamentos</span>
+        <span class="tab-btn">Lembretes</span>
+        <span class="tab-btn active">Recebimento</span>
+      </div>
+
+      <div class="col-ajustes">
+        <!-- COLUNA ESQUERDA -->
+        <div style="display:flex; flex-direction:column; gap:18px;">
+          <!-- Formas de recebimento -->
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Formas de recebimento</div>
+                <div class="card-desc">Como o aluno pode pagar as cobranças na Conta dele.</div>
+              </div>
+              <span class="pill p-sucesso"><span class="pill-dot"></span>Tudo salvo</span>
+            </div>
+            <div class="card-body" style="gap:10px;">
+              <div class="opt-row featured">
+                <div>
+                  <div class="opt-title">
+                    Overtraining Pay
+                    <span class="pill p-acao" style="padding:2px 8px; font-size:11px;">Principal · No app</span>
+                  </div>
+                  <div class="opt-desc" style="color:var(--texto);">QR Code Pix e cartão de crédito transparente sem o aluno sair do app. Baixa automática e repasse direto na sua conta bancária.</div>
+                </div>
+                <div class="switch on"></div>
+              </div>
+
+              <div class="opt-row">
+                <div>
+                  <div class="opt-title">InfinitePay <span class="pill p-neutro" style="padding:2px 8px; font-size:11px;">Secundário · Link externo</span></div>
+                  <div class="opt-desc">Abre uma página externa da InfinitePay caso você prefira cobrar fora do checkout integrado.</div>
+                </div>
+                <div class="switch"></div>
+              </div>
+
+              <div class="opt-row">
+                <div>
+                  <div class="opt-title">Pix copia e cola manual · Link próprio · Manual</div>
+                  <div class="opt-desc">Formas sem baixa automática: você confere o comprovante e registra o pagamento à mão.</div>
+                </div>
+                <span class="pill p-neutro">Manual sempre ligado</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Homologação Bancária / Conta de Repasse Overtraining Pay -->
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Homologação bancária · Overtraining Pay</div>
+                <div class="card-desc">Cadastre os dados do titular e a conta bancária onde os pagamentos dos alunos serão depositados automaticamente.</div>
+              </div>
+              <span class="pill p-atencao"><span class="pill-dot"></span>Pronto para teste</span>
+            </div>
+
+            <div class="card-body">
+              <div class="steps-strip">
+                <div class="step-box done">
+                  <div class="step-num" style="color:var(--sucesso);">1 · Titular ✓</div>
+                  <div style="color:var(--suave);">CNPJ validado</div>
+                </div>
+                <div class="step-box done">
+                  <div class="step-num" style="color:var(--sucesso);">2 · Conta de repasse ✓</div>
+                  <div style="color:var(--suave);">Nubank · Pix diário</div>
+                </div>
+                <div class="step-box done">
+                  <div class="step-num" style="color:var(--sucesso);">3 · Documentos ✓</div>
+                  <div style="color:var(--suave);">Aprovado no Bacen</div>
+                </div>
+                <div class="step-box curr">
+                  <div class="step-num" style="color:var(--atencao);">4 · Cobrança teste</div>
+                  <div style="color:var(--texto); font-weight:600;">Falta testar R$ 5,00</div>
+                </div>
+              </div>
+
+              <div>
+                <div class="sec-label">Conta bancária de repasse automático</div>
+                <div class="grid-3">
+                  <div class="field">
+                    <span class="field-label">Instituição bancária</span>
+                    <div class="field-input"><span>260 · Nu Pagamentos S.A.</span><span>▾</span></div>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Agência e Conta corrente</span>
+                    <div class="field-input"><span>Ag. 0001 · Cc 984512-7</span></div>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Repasse automático</span>
+                    <div class="field-input"><span>Diário via Pix (sem tarifa)</span><span>▾</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="sec-label">Informações do emissor / titular da subconta</div>
+                <div class="grid-3">
+                  <div class="field">
+                    <span class="field-label">Nome ou Razão Social</span>
+                    <div class="field-input"><span>Saraiva Assessoria Esportiva Ltda</span></div>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">CPF ou CNPJ</span>
+                    <div class="field-input"><span>48.192.304/0001-90</span></div>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">E-mail de avisos financeiros</span>
+                    <div class="field-input"><span>financeiro@saraivateam.com.br</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="sec-label">Parcelamento no cartão e condições de recebimento</div>
+                <div class="grid-3">
+                  <div class="field">
+                    <span class="field-label">Máximo de parcelas no cartão</span>
+                    <div class="field-input"><span>Até 12x no cartão</span><span>▾</span></div>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Quem paga o acréscimo do cartão</span>
+                    <div class="field-input"><span>Aluno (você recebe o valor cheio)</span><span>▾</span></div>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Tarifa de processamento</span>
+                    <div class="field-input" style="background:var(--sup2); border-color:var(--divisor); color:var(--suave);">
+                      <span>Pix R$ 1,99 · Cartão 2,99%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Faixa estilo CondoConta: contador + status -->
+              <div class="homolog-banner">
+                <div>
+                  <div style="font-size:22px; font-weight:800;">0</div>
+                  <div class="field-help">Cobranças liquidadas com esta homologação</div>
+                </div>
+                <div style="text-align:right;">
+                  <span class="pill p-atencao"><span class="pill-dot"></span>Aguardando cobrança de teste</span>
+                  <div class="field-help" style="margin-top:4px;">Gere e pague uma cobrança de teste para ativar para os alunos</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-foot">
+              <span class="field-help">Dados bancários protegidos e cifrados (AES-GCM).</span>
+              <div style="display:flex; gap:10px;">
+                <span class="btn btn-sec">Descartar</span>
+                <span class="btn btn-acao">⚡ Gerar cobrança de teste</span>
+                <span class="btn btn-primario">Salvar homologação</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Provedores secundários recolhidos -->
+          <div class="card">
+            <div class="card-body" style="padding:14px 20px; flex-direction:row; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:14px; font-weight:600;">Integrações externas opcionais · InfinitePay e Kiwify</div>
+                <div class="field-help">Recolhidas · Configure apenas se quiser usar link externo da InfinitePay ou assinatura avulsa na Kiwify.</div>
+              </div>
+              <span class="btn btn-sec" style="padding:6px 12px; font-size:12px;">Expandir opções ▾</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUNA DIREITA: O QUE O ALUNO VÊ -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">O que o aluno vê</div>
+                <div class="card-desc">Prévia de uma cobrança aberta na Conta do aluno com o Overtraining Pay ativo.</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div style="padding:14px; border-radius:12px; background:var(--sup2); border:1px solid var(--divisor); display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:700; font-size:14px;">Parcela 2 · Contrato Trimestral</span>
+                  <span class="pill p-neutro">Em aberto</span>
+                </div>
+                <div style="font-size:13px; color:var(--suave);">R$ 800,00 · Vence em 24/12/2026</div>
+                <div class="btn btn-primario" style="width:100%;">Pagar agora (Pix ou cartão)</div>
+              </div>
+              <div class="field-help">
+                • Ao tocar em <b>Pagar agora</b>, abre a folha com o QR Code Pix e os campos do cartão dentro do próprio app, sem redirecionar para outro site.<br><br>
+                • Enquanto a homologação estiver em <b>Pronto para teste</b>, os alunos ainda não veem o botão até o primeiro teste confirmar o webhook.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ==================== PRANCHA 3: FOLHA DE COBRANÇA DE TESTE E CONTA ATIVA (CLARO) ==================== -->
+<section id="prancha-3" class="prancha t-claro">
+  <div class="app-shell" style="min-height:820px;">
+    
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-badge">ST</div>
+      <div class="brand-name">SARAIVA TEAM</div>
+    </div>
+    <div class="search-box">
+      <span>⌕ Buscar</span>
+      <kbd>Ctrl K</kbd>
+    </div>
+    <nav class="nav-list">
+      
+        
+        <div class="nav-item ">
+            <span>Início</span>
+            
+          </div>
+      
+        <div class="nav-group">ACOMPANHAMENTO</div>
+        <div class="nav-item ">
+            <span>Alunos</span>
+            <span class="nav-dot"></span>
+          </div><div class="nav-item ">
+            <span>Atualizações</span>
+            <span class="nav-count">14</span>
+          </div><div class="nav-item ">
+            <span>Agenda</span>
+            
+          </div><div class="nav-item ">
+            <span>Comunidade</span>
+            
+          </div>
+      
+        <div class="nav-group">CONTEÚDO</div>
+        <div class="nav-item ">
+            <span>Biblioteca</span>
+            
+          </div><div class="nav-item ">
+            <span>Planejamento</span>
+            
+          </div>
+      
+        <div class="nav-group">NEGÓCIO</div>
+        <div class="nav-item ">
+            <span>Interessados</span>
+            <span class="nav-count">5</span>
+          </div><div class="nav-item active">
+            <span>Financeiro</span>
+            
+          </div><div class="nav-item ">
+            <span>Vitrine</span>
+            
+          </div><div class="nav-item ">
+            <span>Números</span>
+            
+          </div>
+      
+        <div class="nav-group">CONFIGURAÇÕES</div>
+        <div class="nav-item ">
+            <span>Equipe</span>
+            
+          </div><div class="nav-item ">
+            <span>Importação</span>
+            
+          </div><div class="nav-item ">
+            <span>Ajuda</span>
+            
+          </div><div class="nav-item ">
+            <span>Auditoria</span>
+            
+          </div>
+      
+    </nav>
+    <div class="sidebar-footer">
+      <div class="theme-pills">
+        <span class="">Escuro</span>
+        <span class="on">Claro</span>
+        <span class="">Areia</span>
+      </div>
+      <div class="user-row">
+        <div class="avatar">GT</div>
+        <div>
+          <div class="user-name">Gustavo Toebe</div>
+          <div class="user-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+    <main class="main-area">
+      <div>
+        <div class="migalha">Negócio › Financeiro › Recebimento › Teste de homologação</div>
+        <h1 class="page-title">Homologação concluída com cobrança real</h1>
+        <p class="page-sub">O próprio treinador dispara um Pix de teste de R$ 5,00 na tela; quando o webhook do Asaas volta e passa na consulta oficial, o status muda sozinho para Ativo.</p>
+      </div>
+
+      <div class="grid-2" style="gap:22px; align-items:start;">
+        <!-- ESQUERDA: CONTA JÁ ATIVA -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Homologação bancária · Overtraining Pay</div>
+              <div class="card-desc">Saraiva Assessoria Esportiva Ltda · CNPJ 48.192.304/0001-90</div>
+            </div>
+            <span class="pill p-sucesso"><span class="pill-dot"></span>Ativo e homologado</span>
+          </div>
+          <div class="card-body">
+            <div class="grid-3">
+              <div class="kpi-painted sucesso">
+                <div class="sec-label" style="margin:0; color:var(--sucesso);">Status atual</div>
+                <div class="kpi-val" style="font-size:20px; color:var(--sucesso);">Homologado</div>
+                <div class="field-help">Teste confirmado hoje às 20:41</div>
+              </div>
+              <div class="kpi-painted">
+                <div class="sec-label" style="margin:0;">Cobranças pagas</div>
+                <div class="kpi-val" style="font-size:20px;">104</div>
+                <div class="field-help">Liquidadas nesta conta</div>
+              </div>
+              <div class="kpi-painted">
+                <div class="sec-label" style="margin:0;">Próximo repasse</div>
+                <div class="kpi-val" style="font-size:20px;">R$ 2.410,00</div>
+                <div class="field-help">Automático · Nubank 984512-7</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="sec-label">Resumo da conta de repasse vinculada</div>
+              <table class="table-clean">
+                <thead>
+                  <tr><th>Item</th><th>Configuração ativa</th><th>Situação</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><b>Subconta Asaas</b></td><td>Carteira vinculada · KYC aprovado</td><td><span class="pill p-sucesso">Verificada</span></td></tr>
+                  <tr><td><b>Destino do repasse</b></td><td>Nu Pagamentos (260) · Ag. 0001 · Cc 984512-7</td><td><span class="pill p-sucesso">Pix diário</span></td></tr>
+                  <tr><td><b>Webhook automático</b></td><td>Token exclusivo validado + conciliação ativa</td><td><span class="pill p-sucesso">Operacional</span></td></tr>
+                  <tr><td><b>Regra comercial Central</b></td><td>Consultoria sócia · Retenção de Split 0,00%</td><td><span class="pill p-neutro">Isenta</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-foot">
+            <span class="field-help">Última verificação de saúde do webhook: há 2 minutos.</span>
+            <div style="display:flex; gap:8px;">
+              <span class="btn btn-sec">Trocar conta bancária</span>
+              <span class="btn btn-acao">Gerar nova cobrança de teste</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIREITA: FOLHA DE COBRANÇA DE TESTE -->
+        <div class="card" style="border:2px solid var(--acao);">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Cobrança de teste da homologação</div>
+              <div class="card-desc">Valor mínimo do Asaas: R$ 5,00 · Cai direto na sua própria conta de repasse.</div>
+            </div>
+            <span class="pill p-sucesso"><span class="pill-dot"></span>Confirmada!</span>
+          </div>
+          <div class="card-body" style="align-items:center; text-align:center;">
+            <svg width="156" height="156" viewBox="0 0 29 29" xmlns="http://www.w3.org/2000/svg" style="border-radius:12px;display:block;background:#FFFFFF;border:1px solid #D4D4D8">
+    <rect width="29" height="29" fill="#FFFFFF" rx="1.5"/>
+    <rect x="2" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="26" width="1" height="1" fill="#111114" rx="0.15"/>
+  </svg>
+            <div>
+              <div style="font-size:22px; font-weight:800;">R$ 5,00</div>
+              <div class="field-help">Teste de ponta a ponta: QR Code → Asaas → Webhook → Repasse</div>
+            </div>
+
+            <div style="width:100%; text-align:left; display:flex; flex-direction:column; gap:8px; padding:14px; border-radius:12px; background:var(--sup2); border:1px solid var(--divisor);">
+              <div class="sec-label" style="margin-bottom:2px;">Verificação em tempo real</div>
+              <div style="font-size:13px; color:var(--sucesso); font-weight:600;">✓ 1. Cobrança criada na subconta (pay_9847201948)</div>
+              <div style="font-size:13px; color:var(--sucesso); font-weight:600;">✓ 2. Pix pago e recebido pelo Asaas às 20:41:12</div>
+              <div style="font-size:13px; color:var(--sucesso); font-weight:600;">✓ 3. Webhook autenticado + GET /v3/payments conferido</div>
+              <div style="font-size:13px; color:var(--sucesso); font-weight:600;">✓ 4. Repasse líquido liberado para Ag. 0001 · Cc 984512-7</div>
+            </div>
+          </div>
+          <div class="card-foot" style="justify-content:flex-end;">
+            <span class="btn btn-sec">Fechar</span>
+            <span class="btn btn-primario">Concluir e liberar para os alunos</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ==================== PRANCHA 4: ALUNO NO CELULAR · CHECKOUT TRANSPARENTE + ACESSO PAUSADO ==================== -->
+<section id="prancha-4" class="prancha t-escuro" style="padding: 34px 40px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+    <div>
+      <div class="migalha" style="color:#8C9EFF; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">Experiência do Aluno · Web e Celular (390 px)</div>
+      <h1 class="page-title" style="font-size:27px; margin-top:4px;">Checkout Transparente dentro do app — sem redirecionar para outro site</h1>
+      <p class="page-sub">Funciona para mensalidade recorrente, parcelas do Contrato Fechado (Fase 1), cobrança avulsa, renegociação e reativação imediata do Acesso Pausado (Fase 2).</p>
+    </div>
+    <span class="pill p-sucesso"><span class="pill-dot"></span>Respeita pagarNoAndroid / pagarNoIos</span>
+  </div>
+
+  <div class="phones-grid">
+    <!-- CELULAR 1: CONTA › MEU PLANO -->
+    <div class="phone-frame t-escuro">
+      <div class="phone-notch"><span>20:42</span><span>SARAIVA TEAM · 5G</span></div>
+      <div class="phone-body">
+        <div style="font-size:11.5px; color:var(--suave);">Conta › Meu plano</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:18px; font-weight:700;">Contrato Trimestral</div>
+          <span class="pill p-sucesso">Ativo</span>
+        </div>
+        <div class="grid-2" style="gap:8px;">
+          <div style="padding:10px; border-radius:9px; background:var(--sup2); border:1px solid var(--divisor);">
+            <div style="font-size:11px; color:var(--suave);">Valor do contrato</div>
+            <div style="font-size:15px; font-weight:700; margin-top:2px;">R$ 3.000,00</div>
+          </div>
+          <div style="padding:10px; border-radius:9px; background:var(--sup2); border:1px solid var(--divisor);">
+            <div style="font-size:11px; color:var(--suave);">Término vigência</div>
+            <div style="font-size:15px; font-weight:700; margin-top:2px;">24/02/2027</div>
+          </div>
+        </div>
+
+        <div class="sec-label" style="margin-top:4px; margin-bottom:0;">Em aberto</div>
+
+        <div style="padding:13px; border-radius:12px; background:var(--perigo-bg); border:1px solid var(--perigo); display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; font-size:14px;">Parcela 2 de 3</span>
+            <span class="pill p-perigo"><span class="pill-dot"></span>Vencida</span>
+          </div>
+          <div style="font-size:13px;"><b>R$ 800,00</b> · Venceu em 24/10/2026</div>
+          <div class="btn btn-primario" style="width:100%;">Pagar agora · R$ 800,00</div>
+        </div>
+
+        <div style="padding:13px; border-radius:12px; background:var(--sup2); border:1px solid var(--divisor); display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; font-size:14px;">Parcela 3 de 3</span>
+            <span class="pill p-neutro">Em aberto</span>
+          </div>
+          <div style="font-size:13px; color:var(--suave);">R$ 800,00 · Vence em 24/11/2026</div>
+          <div class="btn btn-sec" style="width:100%;">Pagar agora</div>
+        </div>
+
+        <div class="sec-label" style="margin-top:2px; margin-bottom:0;">Histórico recente</div>
+        <div style="padding:10px 12px; border-radius:10px; background:var(--sup2); border:1px solid var(--divisor); display:flex; justify-content:space-between; font-size:12.5px;">
+          <span>Entrada · R$ 600,00</span>
+          <span style="color:var(--sucesso); font-weight:600;">Paga · 24/08</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CELULAR 2: FOLHA CHECKOUT TRANSPARENTE PIX -->
+    <div class="phone-frame t-escuro" style="border-color:#8C9EFF;">
+      <div class="phone-notch"><span>20:42</span><span>Folha · Overtraining Pay</span></div>
+      <div class="phone-body">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:16px; font-weight:700;">Pagar Parcela 2 de 3</div>
+            <div style="font-size:12px; color:var(--suave);">Mariana Costa · R$ 800,00</div>
+          </div>
+          <span style="padding:4px 9px; border-radius:8px; background:var(--sup2); font-size:12px;">✕</span>
+        </div>
+
+        <div class="tabs-bar" style="width:100%; display:grid; grid-template-columns:1fr 1fr; text-align:center;">
+          <span class="tab-btn active">Pix imediato</span>
+          <span class="tab-btn">Cartão de crédito</span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px; border-radius:12px; background:var(--sup2); border:1px solid var(--divisor);">
+          <svg width="168" height="168" viewBox="0 0 29 29" xmlns="http://www.w3.org/2000/svg" style="border-radius:12px;display:block;background:#FFFFFF;border:1px solid #D4D4D8">
+    <rect width="29" height="29" fill="#FFFFFF" rx="1.5"/>
+    <rect x="2" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="26" width="1" height="1" fill="#111114" rx="0.15"/>
+  </svg>
+          <span class="pill p-atencao" style="font-size:11.5px;">Aguardando pagamento · expira em 29:48</span>
+        </div>
+
+        <div class="btn btn-primario" style="width:100%;">📋 Copiar código Pix copia e cola</div>
+
+        <div style="padding:11px 12px; border-radius:10px; background:var(--sup2); border:1px solid var(--divisor); font-size:12px; color:var(--suave); line-height:1.45;">
+          1. Abra o aplicativo do seu banco e escolha <b>Pix Copia e Cola</b>.<br>
+          2. Confirme o pagamento de <b>R$ 800,00</b>.<br>
+          3. <b>Não precisa mandar comprovante:</b> esta tela atualiza sozinha em alguns segundos.
+        </div>
+      </div>
+    </div>
+
+    <!-- CELULAR 3: ABA CARTÃO + REATIVAÇÃO DO ACESSO PAUSADO -->
+    <div class="phone-frame t-claro">
+      <div class="phone-notch"><span>20:43</span><span>Cartão + Fase 2 (Acesso Pausado)</span></div>
+      <div class="phone-body">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:16px; font-weight:700;">Pagar com cartão</div>
+            <div style="font-size:12px; color:var(--suave);">Tokenizado direto no Asaas (PCI-DSS)</div>
+          </div>
+          <span class="pill p-info" style="font-size:11px;">Ambiente seguro</span>
+        </div>
+
+        <div class="tabs-bar" style="width:100%; display:grid; grid-template-columns:1fr 1fr; text-align:center;">
+          <span class="tab-btn">Pix imediato</span>
+          <span class="tab-btn active">Cartão de crédito</span>
+        </div>
+
+        <div class="field">
+          <span class="field-label" style="font-size:11.5px;">Número do cartão</span>
+          <div class="field-input" style="padding:7px 10px; font-size:13px;"><span>5412 •••• •••• 8910</span><span>Mastercard</span></div>
+        </div>
+        <div class="grid-2" style="gap:8px;">
+          <div class="field">
+            <span class="field-label" style="font-size:11.5px;">Validade</span>
+            <div class="field-input" style="padding:7px 10px; font-size:13px;"><span>09/2030</span></div>
+          </div>
+          <div class="field">
+            <span class="field-label" style="font-size:11.5px;">CVV</span>
+            <div class="field-input" style="padding:7px 10px; font-size:13px;"><span>•••</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label" style="font-size:11.5px;">Parcelamento</span>
+          <div class="field-input" style="padding:7px 10px; font-size:13px;"><span>3x de R$ 278,40 (no cartão)</span><span>▾</span></div>
+        </div>
+        <div class="btn btn-primario" style="width:100%;">Confirmar pagamento</div>
+
+        <div style="margin-top:4px; padding:11px 12px; border-radius:12px; background:var(--sucesso-bg); border:1px solid var(--sucesso);">
+          <div style="font-size:12px; font-weight:700; color:var(--sucesso);">Integração direta com a Fase 2 (Acesso pausado)</div>
+          <div style="font-size:11.5px; color:var(--texto); margin-top:3px; line-height:1.35;">
+            Se o aluno estava com acesso pausado por atraso, quitar pelo QR Code ou cartão reativa o treino e a dieta na mesma hora!
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== PRANCHA 5: CENTRAL · HOMOLOGAÇÃO ASAAS, SPLIT 65/35 E REGRAS POR CONSULTORIA ==================== -->
+<section id="prancha-5" class="prancha t-escuro">
+  <div class="app-shell" style="min-height:860px;">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-badge" style="background:#4F46E5;">CE</div>
+        <div style="font-weight:800; font-size:16px; letter-spacing:-0.01em;">Central · SaaS</div>
+      </div>
+      <nav class="nav-list" style="margin-top:10px;">
+        <div class="nav-group">COMERCIAL</div>
+        <div class="nav-item"><span>Painel e Instâncias</span></div>
+        <div class="nav-item"><span>Clientes</span></div>
+        <div class="nav-item"><span>Contratações</span></div>
+        <div class="nav-item"><span>Cobranças</span></div>
+        <div class="nav-group">FINANCEIRO E SPLIT</div>
+        <div class="nav-item active" style="border-left-color:#8C9EFF;"><span>Homologação e Split</span></div>
+        <div class="nav-item"><span>Movimentos</span></div>
+        <div class="nav-group">SISTEMA</div>
+        <div class="nav-item"><span>Produtos e Planos</span></div>
+        <div class="nav-item"><span>Logs de Integração</span></div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-row">
+          <div class="avatar" style="background:rgba(140,158,255,0.2); color:#8C9EFF;">GT</div>
+          <div>
+            <div class="user-name">Gustavo Toebe</div>
+            <div class="user-role">Operador da Central</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <div class="migalha">Central (repositório unificado) › Financeiro › Homologação e Split</div>
+          <h1 class="page-title">Recebimento da Plataforma e Split entre Sócios</h1>
+          <p class="page-sub">Asaas como provedor principal da Central (com InfinitePay preservada como secundária) e divisão automática 65% / 35% na liquidação.</p>
+        </div>
+        <span class="pill p-sucesso"><span class="pill-dot"></span>Asaas Principal · InfinitePay Reserva</span>
+      </div>
+
+      <div class="grid-2" style="gap:18px;">
+        <!-- PROVEDORES DA CENTRAL -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Provedores de cobrança da Central</div>
+              <div class="card-desc">Define como os treinadores pagam a assinatura do Overtraining.</div>
+            </div>
+          </div>
+          <div class="card-body" style="gap:10px;">
+            <div class="opt-row featured">
+              <div>
+                <div class="opt-title">Asaas (Principal · Padrão)</div>
+                <div class="opt-desc" style="color:var(--texto);">QR Code Pix transparente em "Minha conta", Boleto/Pix e Cartão recorrente. Webhook <code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">/webhooks/asaas</code> ativo + reconciliador a cada 15 min.</div>
+              </div>
+              <span class="pill p-sucesso">Principal</span>
+            </div>
+            <div class="opt-row">
+              <div>
+                <div class="opt-title">InfinitePay (Secundário · Contingência)</div>
+                <div class="opt-desc">Mantida 100% funcional com o código que já existe na Central para gerar link externo quando desejado.</div>
+              </div>
+              <span class="pill p-neutro">Reserva pronta</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px;">
+              <span class="field-help">Ambiente: Sandbox (<code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">api-sandbox.asaas.com</code>) até abrir a conta PJ</span>
+              <span class="btn btn-acao" style="padding:7px 12px; font-size:12px;">⚡ Gerar cobrança teste na Central</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SPLIT ENTRE SÓCIOS -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Split automático entre Sócios da Plataforma</div>
+              <div class="card-desc">Aplicado na fonte sobre toda assinatura paga na Central e toda taxa retida pelo Overtraining Pay.</div>
+            </div>
+            <span class="pill p-acao">65% / 35%</span>
+          </div>
+          <div class="card-body" style="gap:12px;">
+            <div class="grid-2">
+              <div class="kpi-painted acao">
+                <div class="sec-label" style="margin:0; color:var(--acao);">Conta Matriz · Gustavo</div>
+                <div class="kpi-val">65,00%</div>
+                <div class="field-help">Permanece automaticamente na conta emissora principal do CNPJ</div>
+              </div>
+              <div class="kpi-painted sucesso">
+                <div class="sec-label" style="margin:0; color:var(--sucesso);">Carteira Sócio · Saraiva</div>
+                <div class="kpi-val">35,00%</div>
+                <div class="field-help">Enviado via <code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">split.walletId</code> no ato de cada pagamento liquidado</div>
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-label">Carteira Asaas do Sócio (<code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">CENTRAL_ASAAS_SOCIO_WALLET_ID</code>)</span>
+              <div class="field-input"><span>wal_8f4c19d2-77b1-49e0-9c21-saraiva35</span><span class="pill p-sucesso" style="padding:2px 8px; font-size:11px;">Validada</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABELA DE REGRAS COMERCIAIS POR CONSULTORIA -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Política de cobrança e Split por Consultoria (enviada nos direitos Central → consultoria-app)</div>
+            <div class="card-desc">Permite isentar o sócio, cobrar % sobre vendas no Overtraining Pay ou usar o Split dos alunos para abater automaticamente a mensalidade da Central!</div>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table class="table-clean">
+            <thead>
+              <tr>
+                <th>Consultoria</th>
+                <th>Plano na Central</th>
+                <th>Modo do Split no Overtraining Pay</th>
+                <th>Abatimento no mês atual</th>
+                <th>Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>Saraiva Team</b> <span class="field-help">(Sócio)</span></td>
+                <td>Ilimitado · Isenta</td>
+                <td><span class="pill p-neutro">0% · Sem retenção (100% vai p/ Saraiva)</span></td>
+                <td>Isento permanente</td>
+                <td><span class="pill p-sucesso">Ativa</span></td>
+              </tr>
+              <tr>
+                <td><b>Iron Club Consultoria</b></td>
+                <td>Profissional · R$ 189,90/mês</td>
+                <td><span class="pill p-acao">Abater mensalidade (retém 10% até R$ 189,90)</span></td>
+                <td><b>R$ 189,90 / R$ 189,90</b> (Quitada p/ Split!)</td>
+                <td><span class="pill p-sucesso">Em dia (automático)</span></td>
+              </tr>
+              <tr>
+                <td><b>Performance Lab</b></td>
+                <td>Essencial · R$ 99,90/mês</td>
+                <td><span class="pill p-info">Taxa da plataforma · 2,0% por cobrança</span></td>
+                <td>Fatura de R$ 99,90 aberta em Minha conta</td>
+                <td><span class="pill p-atencao">Vence dia 28/11</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ==================== PRANCHA 6: TREINADOR › MINHA CONTA (PAGANDO A CENTRAL TRANSPARENTE) ==================== -->
+<section id="prancha-6" class="prancha t-claro">
+  <div class="app-shell" style="min-height:780px;">
+    
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-badge">ST</div>
+      <div class="brand-name">SARAIVA TEAM</div>
+    </div>
+    <div class="search-box">
+      <span>⌕ Buscar</span>
+      <kbd>Ctrl K</kbd>
+    </div>
+    <nav class="nav-list">
+      
+        
+        <div class="nav-item ">
+            <span>Início</span>
+            
+          </div>
+      
+        <div class="nav-group">ACOMPANHAMENTO</div>
+        <div class="nav-item ">
+            <span>Alunos</span>
+            <span class="nav-dot"></span>
+          </div><div class="nav-item ">
+            <span>Atualizações</span>
+            <span class="nav-count">14</span>
+          </div><div class="nav-item ">
+            <span>Agenda</span>
+            
+          </div><div class="nav-item ">
+            <span>Comunidade</span>
+            
+          </div>
+      
+        <div class="nav-group">CONTEÚDO</div>
+        <div class="nav-item ">
+            <span>Biblioteca</span>
+            
+          </div><div class="nav-item ">
+            <span>Planejamento</span>
+            
+          </div>
+      
+        <div class="nav-group">NEGÓCIO</div>
+        <div class="nav-item ">
+            <span>Interessados</span>
+            <span class="nav-count">5</span>
+          </div><div class="nav-item ">
+            <span>Financeiro</span>
+            
+          </div><div class="nav-item ">
+            <span>Vitrine</span>
+            
+          </div><div class="nav-item ">
+            <span>Números</span>
+            
+          </div>
+      
+        <div class="nav-group">CONFIGURAÇÕES</div>
+        <div class="nav-item active">
+            <span>Equipe</span>
+            
+          </div><div class="nav-item ">
+            <span>Importação</span>
+            
+          </div><div class="nav-item ">
+            <span>Ajuda</span>
+            
+          </div><div class="nav-item ">
+            <span>Auditoria</span>
+            
+          </div>
+      
+    </nav>
+    <div class="sidebar-footer">
+      <div class="theme-pills">
+        <span class="">Escuro</span>
+        <span class="on">Claro</span>
+        <span class="">Areia</span>
+      </div>
+      <div class="user-row">
+        <div class="avatar">GT</div>
+        <div>
+          <div class="user-name">Gustavo Toebe</div>
+          <div class="user-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+    <main class="main-area">
+      <div>
+        <div class="migalha">Configurações › Minha conta (assinatura do Overtraining na Central)</div>
+        <h1 class="page-title">Minha conta</h1>
+        <p class="page-sub">Como um treinador cliente enxerga a própria assinatura da plataforma: abatimento automático pelo Split ou pagamento transparente via Asaas (com InfinitePay como reserva).</p>
+      </div>
+
+      <div class="grid-2" style="gap:22px; align-items:start;">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Plano Profissional · Overtraining</div>
+              <div class="card-desc">Até 100 alunos ativos · Treino, Dieta, Mobilidade, Equipe e PDF liberados</div>
+            </div>
+            <span class="pill p-sucesso"><span class="pill-dot"></span>Acesso liberado</span>
+          </div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div class="kpi-painted">
+                <div class="sec-label" style="margin:0;">Mensalidade do plano</div>
+                <div class="kpi-val" style="font-size:21px;">R$ 189,90</div>
+                <div class="field-help">Competência 11/2026 · Vence 30/11</div>
+              </div>
+              <div class="kpi-painted acao">
+                <div class="sec-label" style="margin:0; color:var(--acao);">Abatido via Overtraining Pay</div>
+                <div class="kpi-val" style="font-size:21px; color:var(--acao);">− R$ 120,00</div>
+                <div class="field-help">4 alunos pagaram este mês · Falta R$ 69,90</div>
+              </div>
+            </div>
+
+            <div style="padding:12px 14px; border-radius:10px; background:var(--sup2); border:1px solid var(--divisor);">
+              <div style="display:flex; justify-content:space-between; font-size:12.5px; font-weight:600; margin-bottom:6px;">
+                <span>Progresso do abatimento automático de 11/2026</span>
+                <span>63% quitado</span>
+              </div>
+              <div style="height:8px; border-radius:99px; background:var(--sup3); overflow:hidden;">
+                <div style="width:63%; height:100%; background:var(--acao); border-radius:99px;"></div>
+              </div>
+              <div class="field-help" style="margin-top:6px;">Quando mais alunos pagarem, o restante (R$ 69,90) é abatido sozinho — ou você pode quitar o saldo agora ao lado.</div>
+            </div>
+
+            <div>
+              <div class="sec-label">Histórico de faturas na Central</div>
+              <table class="table-clean">
+                <thead><tr><th>Competência</th><th>Valor</th><th>Como foi paga</th><th>Situação</th></tr></thead>
+                <tbody>
+                  <tr><td><b>11/2026</b></td><td>R$ 69,90 <span class="field-help">(saldo)</span></td><td>Abatimento parcial + Pix</td><td><span class="pill p-atencao">Aberta</span></td></tr>
+                  <tr><td><b>10/2026</b></td><td>R$ 189,90</td><td>100% abatida pelo Split</td><td><span class="pill p-sucesso">Paga</span></td></tr>
+                  <tr><td><b>09/2026</b></td><td>R$ 189,90</td><td>Pix Asaas na Central</td><td><span class="pill p-sucesso">Paga</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIREITA: PAGAMENTO TRANSPARENTE DA FATURA DA CENTRAL -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Quitar saldo da fatura 11/2026 · R$ 69,90</div>
+              <div class="card-desc">Checkout transparente Asaas vindo da Central (<code style="font-family:monospace;font-size:0.92em;padding:1px 5px;border-radius:4px;background:rgba(128,128,140,0.16);">POST /minha-conta/cobrancas/{id}/pagar</code>).</div>
+            </div>
+          </div>
+          <div class="card-body" style="align-items:center; text-align:center;">
+            <div class="tabs-bar" style="width:100%; display:grid; grid-template-columns:1fr 1fr; text-align:center;">
+              <span class="tab-btn active">Pix com QR Code</span>
+              <span class="tab-btn">Cartão recorrente</span>
+            </div>
+            <svg width="148" height="148" viewBox="0 0 29 29" xmlns="http://www.w3.org/2000/svg" style="border-radius:12px;display:block;background:#FFFFFF;border:1px solid #D4D4D8">
+    <rect width="29" height="29" fill="#FFFFFF" rx="1.5"/>
+    <rect x="2" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="2" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="3" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="4" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="5" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="6" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="7" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="8" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="10" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="11" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="12" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="13" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="14" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="15" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="16" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="17" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="18" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="19" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="20" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="10" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="21" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="22" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="11" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="24" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="25" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="23" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="15" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="16" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="20" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="22" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="24" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="13" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="19" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="26" y="25" width="1" height="1" fill="#111114" rx="0.15"/><rect x="2" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="3" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="4" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="5" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="6" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="7" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="8" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="12" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="14" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="17" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="18" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="21" y="26" width="1" height="1" fill="#111114" rx="0.15"/><rect x="23" y="26" width="1" height="1" fill="#111114" rx="0.15"/>
+  </svg>
+            <div class="btn btn-primario" style="width:100%;">📋 Copiar código Pix · R$ 69,90</div>
+            <div class="field-help">Assim que o Pix for pago, a Central confirma pelo webhook, divide 65% / 35% entre os sócios e atualiza os direitos da consultoria.</div>
+            <div style="width:100%; border-top:1px solid var(--divisor); padding-top:12px; display:flex; justify-content:space-between; align-items:center;">
+              <span class="field-help">Contingência configurada na Central:</span>
+              <span class="btn btn-sec" style="padding:6px 11px; font-size:12px;">Pagar por link externo (InfinitePay) ↗</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</section>
+
+</body>
+</html>

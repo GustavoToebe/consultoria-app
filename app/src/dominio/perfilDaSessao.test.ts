@@ -28,6 +28,11 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu(EU).whatsappDaConsultoria).toBeUndefined();
   });
 
+  it('guarda overtrainingPayHabilitado com padrão false quando ausente', () => {
+    expect(perfilDoEu({ ...EU, overtrainingPayHabilitado: true }).overtrainingPayHabilitado).toBe(true);
+    expect(perfilDoEu(EU).overtrainingPayHabilitado).toBe(false);
+  });
+
   it('guarda as redes da consultoria do aluno; ausentes ficam ausentes', () => {
     const redes = { instagram: 'https://www.instagram.com/exemplo', facebook: 'https://www.facebook.com/exemplo', telegram: 'https://t.me/exemplo', site: 'https://exemplo.test' };
     expect(perfilDoEu({ ...EU, redesSociaisDaConsultoria: redes }).redesSociaisDaConsultoria).toEqual(redes);

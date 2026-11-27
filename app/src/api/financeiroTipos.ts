@@ -648,6 +648,8 @@ export interface PixConfigResponse {
 
 /** `pixConfig` nulo = Pix nunca configurado. `versao` nula = a consultoria nunca gravou as formas (vale o padrão de hoje). */
 export interface FormasDeRecebimento {
+  /** Overtraining Pay (checkout no aplicativo). Ausente em payloads antigos = `false`. */
+  overtrainingPay?: boolean;
   infinitePay: boolean;
   linkProprio: boolean;
   pix: boolean;
@@ -667,6 +669,7 @@ export interface PixConfigRequest {
 
 /** `manual` sempre `true`; `pixConfig` obrigatório com `pix` ligado. */
 export interface FormasDeRecebimentoRequest {
+  overtrainingPay?: boolean;
   infinitePay: boolean;
   linkProprio: boolean;
   pix: boolean;

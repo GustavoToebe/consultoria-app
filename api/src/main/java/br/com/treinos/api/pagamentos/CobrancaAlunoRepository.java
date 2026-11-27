@@ -186,6 +186,26 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             + "c.linkGeradoEm = null, c.linkValidoAte = null where c.situacao = :aberta")
     int esquecerLinksDasAbertas(CobrancaAluno.Situacao aberta);
 
+    /** Tirou ou trocou a subconta: o id da cobrança vive na conta antiga, e a chave nova daria 404 para sempre. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update CobrancaAluno c set c.asaasCobrancaId = null where c.situacao = :aberta and c.asaasCobrancaId is not null")
+    int esquecerCobrancaAsaasDasAbertas(CobrancaAluno.Situacao aberta);
+
+    /**
+     * Compare-and-set do checkout do Asaas: grava o id da cobrança criada lá só se a linha ainda está ABERTA, com o valor usado
+     * e sem id. Devolve 0 se outra aba ou um reajuste chegou antes. Sem {@code versioned}: o id é metadado do provedor.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update CobrancaAluno c set c.asaasCobrancaId = :novo where c.id = :id and c.situacao = :aberta "
+            + "and c.valorCentavos = :valor and c.asaasCobrancaId is null")
+    int registrarPrimeiraCobrancaAsaas(UUID id, long valor, String novo, CobrancaAluno.Situacao aberta);
+
+    /** Igual ao anterior, trocando o id que o checkout viu ({@code anterior}) pelo novo. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update CobrancaAluno c set c.asaasCobrancaId = :novo where c.id = :id and c.situacao = :aberta "
+            + "and c.valorCentavos = :valor and c.asaasCobrancaId = :anterior")
+    int trocarCobrancaAsaas(UUID id, long valor, String anterior, String novo, CobrancaAluno.Situacao aberta);
+
     boolean existsByContratacaoIdAndCompetenciaAndTipo(UUID contratacaoId, LocalDate competencia, CobrancaAluno.Tipo tipo);
 
     boolean existsByContratacaoIdAndCompetenciaAndTipoAndSituacao(UUID contratacaoId, LocalDate competencia,
@@ -218,6 +238,8 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             Collection<CobrancaAluno.Situacao> situacoes);
 
     long countByVencimentoBetween(LocalDate de, LocalDate ate);
+
+    long countByProvedorAndSituacao(String provedor, CobrancaAluno.Situacao situacao);
 
     /** O aluno de cada cobrança pedida (sem travar): o que sobra do pedido é de outra consultoria ou não existe (o {@code @TenantId} filtra). */
     interface Dono {

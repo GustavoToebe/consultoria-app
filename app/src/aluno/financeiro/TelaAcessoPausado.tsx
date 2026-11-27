@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
+import { lerOpcoesOvertrainingPay } from '../../api/alunoOvertrainingPay';
 import type { CobrancaDoAluno } from '../../api/financeiroTipos';
 import { financeiroDoAluno, retornoDoPagamento } from '../../api/rotas';
 import { ordenarCobrancasParaRegularizacao } from '../../dominio/acessoPausado';
@@ -24,6 +25,7 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { AcoesDaCobranca, LinhaDaCobranca } from './CartaoMeuPlano';
+import { FolhaCheckoutTransparente } from './FolhaCheckoutTransparente';
 
 // Sem frase de pagamento (26/11): no celular com a chave da loja desligada a tela só informa.
 const AVISO_AINDA_NAO_CONFIRMADO =
@@ -42,6 +44,7 @@ export function TelaAcessoPausado() {
   const [verificando, setVerificando] = useState(false);
   const [saindo, setSaindo] = useState(false);
   const [avisoPendente, setAvisoPendente] = useState<string | null>(null);
+  const [cobrancaCheckout, setCobrancaCheckout] = useState<CobrancaDoAluno | null>(null);
   const montado = useRef(true);
   const retornoTratado = useRef(false);
 
@@ -133,11 +136,30 @@ export function TelaAcessoPausado() {
   const pagamentoOnline = carga.dados?.pagamentoOnline === true;
   const formas = carga.dados?.formasDePagamento;
   const temLinkProprio = !!carga.dados?.plano?.linkDePagamento;
-  const modoDePagamento = comoPagar(plataforma, pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', { formas, temLinkProprio });
+  const { overtrainingPayDisponivel, cpfPagadorCadastrado } =
+    lerOpcoesOvertrainingPay(carga.dados);
+  const modoDePagamento = comoPagar(plataforma, pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', {
+    formas,
+    temLinkProprio,
+    overtrainingPayDisponivel,
+    cpfPagadorCadastrado,
+  });
   const modoDaCobranca = (c: Pick<CobrancaDoAluno, 'tipo' | 'cobrancaAutomatica'>) =>
-    comoPagar(plataforma, pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, { formas, temLinkProprio, cobrancaAutomatica: c.cobrancaAutomatica });
+    comoPagar(plataforma, pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, {
+      formas,
+      temLinkProprio,
+      cobrancaAutomatica: c.cobrancaAutomatica,
+      overtrainingPayDisponivel,
+      cpfPagadorCadastrado,
+    });
   const acoesDaCobranca = (c: Pick<CobrancaDoAluno, 'tipo' | 'cobrancaAutomatica'>) =>
-    acoesDePagamentoDoAluno(plataforma, pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, { formas, temLinkProprio, cobrancaAutomatica: c.cobrancaAutomatica });
+    acoesDePagamentoDoAluno(plataforma, pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, {
+      formas,
+      temLinkProprio,
+      cobrancaAutomatica: c.cobrancaAutomatica,
+      overtrainingPayDisponivel,
+      cpfPagadorCadastrado,
+    });
 
   const abertas = ordenarCobrancasParaRegularizacao(carga.dados?.abertas ?? []);
   const acoesDoCartao = [...new Set(abertas.flatMap((c) => acoesDaCobranca(c)))];
@@ -179,6 +201,7 @@ export function TelaAcessoPausado() {
                           doCartao={acoesDoCartao}
                           linkProprio={carga.dados?.plano?.linkDePagamento ?? null}
                           aoMudar={recarregar}
+                          aoAbrirCheckout={setCobrancaCheckout}
                         />
                       ) : null}
                     </LinhaDaCobranca>
@@ -211,6 +234,16 @@ export function TelaAcessoPausado() {
           aoTocar={sairDaConta}
         />
       </LinhaDeAcoes>
+
+      <FolhaCheckoutTransparente
+        cobranca={cobrancaCheckout}
+        cpfPagadorCadastrado={cpfPagadorCadastrado}
+        aoFechar={() => setCobrancaCheckout(null)}
+        aoConfirmarPagamento={() => {
+          void recarregarPerfil().catch(() => undefined);
+          recarregar();
+        }}
+      />
     </Tela>
   );
 }

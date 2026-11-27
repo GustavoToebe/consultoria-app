@@ -14,7 +14,9 @@ class FonteDaContaCentralTest {
         "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=teste",
         "https://www.mercadopago.com/checkout/v1/redirect?pref_id=teste",
         "https://checkout.infinitepay.com.br/loja/abc123",
-        "https://checkout.infinitepay.io/loja/abc123"
+        "https://checkout.infinitepay.io/loja/abc123",
+        "https://www.asaas.com/i/abc123",
+        "https://sandbox.asaas.com/i/abc123"
     })
     void aceitaOsCheckoutsDaCentral(String url) {
         assertThat(FonteDaContaCentral.urlDeCheckout(url)).isTrue();

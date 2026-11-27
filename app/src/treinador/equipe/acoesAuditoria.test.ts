@@ -28,6 +28,10 @@ test('ações do recebimento online (InfinitePay) têm rótulo no filtro da audi
   for (const acao of ['RECEBIMENTO_ONLINE_CONFIGURADO', 'RECEBIMENTO_ONLINE_REMOVIDO', 'LINK_DE_PAGAMENTO_GERADO', 'PAGAMENTO_ONLINE_CONFIRMADO', 'PAGAMENTO_ESTORNADO', 'PAGAMENTO_PARA_CONFERIR', 'PAGAMENTO_CONFERIDO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
 
+test('ações do Overtraining Pay têm rótulo no filtro da auditoria', () => {
+  for (const acao of ['OVERTRAINING_PAY_CONFIGURADO', 'OVERTRAINING_PAY_SINCRONIZADO', 'OVERTRAINING_PAY_TESTE_GERADO', 'OVERTRAINING_PAY_HOMOLOGADO', 'OVERTRAINING_PAY_REMOVIDO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});
+
 test('ações da avaliação física têm rótulo no filtro da auditoria', () => {
   for (const acao of ['AVALIACAO_FISICA_REGISTRADA', 'AVALIACAO_FISICA_ALTERADA', 'AVALIACAO_FISICA_EXCLUIDA']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });

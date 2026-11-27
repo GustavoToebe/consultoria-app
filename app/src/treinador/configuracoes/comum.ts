@@ -15,9 +15,9 @@ export function useDuasColunas(): boolean {
 
 /** Cartões que o perfil vê (a mesma regra do menu e da guarda; tudo vem da sessão, sem carregar nada). */
 export function useCartoesDoPerfil() {
-  const { pode, perfilEquipe, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado, whatsappHabilitado, contratosHabilitados } = useSessao();
+  const { pode, perfilEquipe, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado, overtrainingPayHabilitado, whatsappHabilitado, contratosHabilitados } = useSessao();
   const administrador = !!perfilEquipe?.acessoTotal;
-  return cartoesVisiveis({ pode, administrador, pagamentosHabilitados, liberadas: funcionalidadesDoPlano, chaves: { recebimentoOnlineHabilitado, whatsappHabilitado, contratosHabilitados } });
+  return cartoesVisiveis({ pode, administrador, pagamentosHabilitados, liberadas: funcionalidadesDoPlano, chaves: { recebimentoOnlineHabilitado, overtrainingPayHabilitado, whatsappHabilitado, contratosHabilitados } });
 }
 
 export const textoDoResultado = (n: number) => (n === 1 ? '1 configuração encontrada' : `${n} configurações encontradas`);

@@ -3,6 +3,8 @@ package br.com.treinos.api.integracao;
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.EmailDeTeste;
+import br.com.treinos.api.conta.ContaLocalRepositorio;
+import br.com.treinos.api.conta.DireitosLocais;
 import br.com.treinos.api.receitas.ReceitaService;
 import br.com.treinos.api.receitas.SemanasPadrao;
 import br.com.treinos.api.tenant.TenantContext;
@@ -80,8 +82,13 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         final AtomicReference<String> minhaConta = new AtomicReference<>("{}");
         final AtomicReference<Integer> statusLink = new AtomicReference<>(200);
         final AtomicReference<String> link = new AtomicReference<>("{}");
+        final AtomicReference<Integer> statusTransparente = new AtomicReference<>(200);
+        final AtomicReference<String> respostaTransparente = new AtomicReference<>("{}");
+        final AtomicReference<Integer> statusAbatimento = new AtomicReference<>(200);
         final AtomicReference<String> ultimoMetodo = new AtomicReference<>();
         final AtomicReference<String> ultimoCaminho = new AtomicReference<>();
+        final AtomicReference<String> ultimoCorpo = new AtomicReference<>();
+        final AtomicReference<String> ultimoContentType = new AtomicReference<>();
         final AtomicReference<Boolean> assinaturaValida = new AtomicReference<>();
         /** Lida no instante em que a chamada de Minha conta chega (conexões do banco em uso naquela hora). */
         final AtomicReference<Supplier<Integer>> sonda = new AtomicReference<>(() -> null);
@@ -94,15 +101,18 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
                 throw new IllegalStateException(e);
             }
             servidor.createContext("/", troca -> {
+                byte[] corpoReq = troca.getRequestBody().readAllBytes();
                 String caminho = troca.getRequestURI().getRawPath()
                         + (troca.getRequestURI().getRawQuery() == null ? "" : "?" + troca.getRequestURI().getRawQuery());
                 var h = troca.getRequestHeaders();
                 String esperada = HmacAssinatura.assinar(BYTES_SAIDA, troca.getRequestMethod(), caminho,
-                        h.getFirst(IntegracaoFiltro.TIMESTAMP), h.getFirst(IntegracaoFiltro.NONCE), new byte[0]);
+                        h.getFirst(IntegracaoFiltro.TIMESTAMP), h.getFirst(IntegracaoFiltro.NONCE), corpoReq);
                 boolean valida = "saida-1".equals(h.getFirst(IntegracaoFiltro.CHAVE))
                         && esperada.equals(h.getFirst(IntegracaoFiltro.ASSINATURA));
                 ultimoCaminho.set(caminho);
                 ultimoMetodo.set(troca.getRequestMethod());
+                ultimoCorpo.set(new String(corpoReq, StandardCharsets.UTF_8));
+                ultimoContentType.set(h.getFirst("Content-Type"));
                 assinaturaValida.set(valida);
                 int codigo;
                 String corpo;
@@ -112,6 +122,13 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
                 } else if (caminho.endsWith("/link-de-pagamento")) {
                     codigo = statusLink.get();
                     corpo = link.get();
+                } else if (caminho.endsWith("/asaas/pix") || caminho.endsWith("/situacao")) {
+                    sondaNaChamada.set(sonda.get().get());
+                    codigo = statusTransparente.get();
+                    corpo = respostaTransparente.get();
+                } else if (caminho.endsWith("/abatimentos-split")) {
+                    codigo = statusAbatimento.get();
+                    corpo = "{\"ok\":true}";
                 } else if (caminho.contains("/minha-conta")) {
                     sondaNaChamada.set(sonda.get().get());
                     codigo = statusMinhaConta.get();
@@ -147,6 +164,8 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @MockitoSpyBean private ReceitaService receitas;
     @Autowired private SincronizacaoDireitosService sincronizacao;
+    @Autowired private ContaLocalRepositorio contas;
+    @Autowired private AbatimentoSplitCentralService abatimentoSplit;
 
     private ApiDeTeste api;
 
@@ -772,5 +791,107 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.post(rota, login, null, 503).path("codigo").asString()).isEqualTo("PAGAMENTO_INDISPONIVEL");
         CENTRAL.statusLink.set(500);
         assertThat(api.post(rota, login, null, 502).path("codigo").asString()).isEqualTo("CENTRAL_INDISPONIVEL");
+    }
+
+    @Test
+    void direitosComPoliticaSplitEAbatimentoAtomicoComHmac() throws Exception {
+        UUID contratacao = UUID.randomUUID();
+        UUID tenant = UUID.fromString(provisionar(contratacao, ApiDeTeste.emailUnico("admin-split")).path("tenantId").asString());
+        UUID cobrancaCentralId = UUID.randomUUID();
+
+        // Provisionado sem politicaSplit (v1) -> ISENTO
+        DireitosLocais inicial = contas.direitos(tenant).orElseThrow();
+        assertThat(inicial.splitModo()).isEqualTo("ISENTO");
+        assertThat(inicial.splitPercentualBps()).isZero();
+        assertThat(inicial.saldoAbaterCentavos()).isZero();
+
+        // Webhook com politicaSplit ABATER_MENSALIDADE
+        Map<String, Object> comSplit = direitos(contratacao, tenant, 2, "ATIVA", true);
+        comSplit.put("politicaSplit", Map.of(
+                "modo", "ABATER_MENSALIDADE",
+                "percentualBps", 1000,
+                "metaMensalCentavos", 19990,
+                "abatidoMesCentavos", 5000,
+                "restanteAbaterCentavos", 14990,
+                "cobrancaCentralId", cobrancaCentralId));
+        central("PUT", "/integracao/v1/instancias/" + tenant + "/direitos", comSplit, null, 200);
+
+        DireitosLocais atualizado = contas.direitos(tenant).orElseThrow();
+        assertThat(atualizado.splitModo()).isEqualTo("ABATER_MENSALIDADE");
+        assertThat(atualizado.splitPercentualBps()).isEqualTo(1000);
+        assertThat(atualizado.metaMensalCentavos()).isEqualTo(19990L);
+        assertThat(atualizado.saldoAbaterCentavos()).isEqualTo(14990L);
+        assertThat(atualizado.cobrancaCentralId()).isEqualTo(cobrancaCentralId);
+
+        // Abatimento via AbatimentoSplitCentralService -> POST JSON assinado + redução atômica
+        CENTRAL.statusAbatimento.set(200);
+        UUID cobrancaAlunoId = UUID.randomUUID();
+        boolean enviado = abatimentoSplit.registrarAbatimento(
+                tenant, "pay_asaas_001", cobrancaAlunoId, 4990L, Instant.parse("2026-11-24T15:00:00Z"));
+        assertThat(enviado).isTrue();
+        assertThat(CENTRAL.assinaturaValida.get()).isTrue();
+        assertThat(CENTRAL.ultimoMetodo.get()).isEqualTo("POST");
+        assertThat(CENTRAL.ultimoContentType.get()).isEqualTo("application/json");
+        assertThat(CENTRAL.ultimoCaminho.get())
+                .isEqualTo("/integracao/v1/produtos/TREINOS/instancias/" + tenant + "/abatimentos-split");
+        JsonNode enviadoJson = json.readTree(CENTRAL.ultimoCorpo.get());
+        assertThat(enviadoJson.path("asaasPaymentId").asString()).isEqualTo("pay_asaas_001");
+        assertThat(enviadoJson.path("cobrancaAlunoId").asString()).isEqualTo(cobrancaAlunoId.toString());
+        assertThat(enviadoJson.path("valorAbatidoCentavos").asLong()).isEqualTo(4990L);
+        assertThat(contas.direitos(tenant).orElseThrow().saldoAbaterCentavos()).isEqualTo(10000L);
+
+        // Redução maior que o saldo nunca fica negativa (GREATEST(0, ...))
+        contas.reduzirSaldoAbater(tenant, 999999L);
+        assertThat(contas.direitos(tenant).orElseThrow().saldoAbaterCentavos()).isZero();
+    }
+
+    @Test
+    void minhaContaTransparentePixESituacaoAssinadosComHmac() throws Exception {
+        JsonNode login = loginDoAdministrador();
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
+                login.path("usuario").path("id").asString());
+        UUID cobranca = UUID.randomUUID();
+
+        // Minha conta com provedorAtivo e politicaSplit
+        CENTRAL.minhaConta.set("""
+                {"cliente":{"nome":"Cliente Asaas","documento":"12.345.678/0001-90","endereco":null,"contatos":[]},
+                 "contratacao":{"planoNome":"Pro","periodicidade":"MENSAL","valor":199.90,"diaVencimento":10,
+                  "inicio":"2026-01-10","vigenteAte":null,"situacaoComercial":"ATIVA","nomeInstancia":"X","adicionais":[]},
+                 "cobrancas":[],
+                 "provedorAtivo":"ASAAS",
+                 "politicaSplit":{"modo":"ABATER_MENSALIDADE","percentualBps":1000,"metaMensalCentavos":19990,"abatidoMesCentavos":5000,"restanteAbaterCentavos":14990,"cobrancaCentralId":null}}""");
+        JsonNode conta = api.get("/minha-conta", login, 200);
+        assertThat(conta.path("provedorAtivo").asString()).isEqualTo("ASAAS");
+        assertThat(conta.path("politicaSplit").path("modo").asString()).isEqualTo("ABATER_MENSALIDADE");
+        assertThat(conta.path("politicaSplit").path("restanteAbaterCentavos").asLong()).isEqualTo(14990L);
+
+        // Pix transparente
+        CENTRAL.statusTransparente.set(200);
+        CENTRAL.respostaTransparente.set("""
+                {"cobrancaId":"%s","idExterno":"pay_pix_1","valorCentavos":19990,
+                 "qrCodeBase64":"iVBORw0KGgo=","codigoCopiaECola":"00020126...","expiraEm":"2026-11-25T00:00:00Z"}"""
+                .formatted(cobranca));
+        JsonNode pix = api.post("/minha-conta/cobrancas/" + cobranca + "/asaas/pix", login,
+                Map.of("cpfCnpj", "12345678909"), 200);
+        assertThat(pix.path("idExterno").asString()).isEqualTo("pay_pix_1");
+        assertThat(pix.path("codigoCopiaECola").asString()).isEqualTo("00020126...");
+        assertThat(CENTRAL.assinaturaValida.get()).isTrue();
+        assertThat(CENTRAL.ultimoContentType.get()).isEqualTo("application/json");
+        assertThat(CENTRAL.ultimoCaminho.get()).isEqualTo(
+                "/integracao/v1/produtos/TREINOS/instancias/" + consultoria + "/cobrancas/" + cobranca + "/asaas/pix");
+        assertThat(json.readTree(CENTRAL.ultimoCorpo.get()).path("cpfCnpj").asString()).isEqualTo("12345678909");
+
+        // Cartão não passa pelo app: a rota não existe mais (cartão é pela página do Asaas, no link externo)
+        api.post("/minha-conta/cobrancas/" + cobranca + "/asaas/cartao", login, Map.of("cpfCnpj", "12345678909"), 404);
+
+        // Situação da cobrança
+        CENTRAL.respostaTransparente.set("""
+                {"cobrancaId":"%s","situacao":"PAGA","pagoEm":"2026-11-24T16:00:00Z"}""".formatted(cobranca));
+        JsonNode situacao = api.get("/minha-conta/cobrancas/" + cobranca + "/situacao", login, 200);
+        assertThat(situacao.path("situacao").asString()).isEqualTo("PAGA");
+        assertThat(CENTRAL.assinaturaValida.get()).isTrue();
+        assertThat(CENTRAL.ultimoMetodo.get()).isEqualTo("GET");
+        assertThat(CENTRAL.ultimoCaminho.get()).isEqualTo(
+                "/integracao/v1/produtos/TREINOS/instancias/" + consultoria + "/cobrancas/" + cobranca + "/situacao");
     }
 }

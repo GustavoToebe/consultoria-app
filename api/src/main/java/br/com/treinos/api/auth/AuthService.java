@@ -57,6 +57,7 @@ public class AuthService {
     private final br.com.treinos.api.pagamentos.PagamentosProperties pagamentos;
     private final br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay;
     private final br.com.treinos.api.pagamentos.KiwifyProperties kiwify;
+    private final br.com.treinos.api.pagamentos.AsaasProperties asaas;
     private final br.com.treinos.api.ciclo.CicloProperties ciclo;
     private final br.com.treinos.api.retorno.RetornoProperties retorno;
     private final br.com.treinos.api.push.PushProperties push;
@@ -85,12 +86,14 @@ public class AuthService {
                        br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao,
                        br.com.treinos.api.vitrine.VitrineProperties vitrine,
                        br.com.treinos.api.pagamentos.KiwifyProperties kiwify,
+                       br.com.treinos.api.pagamentos.AsaasProperties asaas,
                        br.com.treinos.api.whatsapp.WhatsAppProperties whatsapp,
                        br.com.treinos.api.contratos.ContratosProperties contratos,
                        br.com.treinos.api.contratos.TravaPorContrato travaPorContrato) {
         this.travaPorContrato = travaPorContrato;
         this.contratos = contratos;
         this.whatsapp = whatsapp;
+        this.asaas = asaas;
         this.kiwify = kiwify;
         this.vitrine = vitrine;
         this.pagamentos = pagamentos;
@@ -210,6 +213,7 @@ public class AuthService {
                 termos.pendente(usuario.getId()), Termos.VERSAO,
                 plano.funcionalidadesLiberadas(usuario.getConsultoriaId()), pagamentos.habilitado(),
                 pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.habilitado() && kiwify.habilitado(),
+                pagamentos.habilitado() && asaas.habilitado(),
                 pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
                 ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado(),
                 vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(), whatsapp.habilitado(),
