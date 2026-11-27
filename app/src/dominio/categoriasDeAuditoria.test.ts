@@ -33,7 +33,7 @@ describe('categorias da auditoria', () => {
   // A `acao` de `GET /auditoria` aceita até 100 valores; "Sem logins" vai por `acaoExceto` (até 50) e não entra aqui.
   it('as categorias cabem no teto da acao (100)', () => {
     const tamanhos = Object.fromEntries((['ALUNOS', 'PLANOS', 'FINANCEIRO', 'EQUIPE'] as const).map((a) => [a, acoesDoAtalho(a, ACOES_AUDITORIA)!.length]));
-    expect(tamanhos).toEqual({ ALUNOS: 62, PLANOS: 24, FINANCEIRO: 55, EQUIPE: 11 });
+    expect(tamanhos).toEqual({ ALUNOS: 64, PLANOS: 24, FINANCEIRO: 55, EQUIPE: 11 });
     for (const n of Object.values(tamanhos)) expect(n).toBeLessThanOrEqual(100);
     expect(ACOES_DE_LOGIN.length).toBeLessThanOrEqual(50);
   });
