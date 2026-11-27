@@ -67,6 +67,33 @@ async function semTokenNoDom(page: Page) {
   expect(achou).toBe(false);
 }
 
+const AJUDA_DO_INTERRUPTOR = 'Lembretes de cobrança e avisos de compromisso enviados pelo WhatsApp da consultoria.';
+
+/** Rola cada caixa rolável acima do elemento até o fim (a folha da Conta rola por dentro). */
+async function rolarAteOFim(alvo: Locator) {
+  await alvo.evaluate((no) => {
+    for (let p = no.parentElement; p; p = p.parentElement) {
+      const estilo = getComputedStyle(p);
+      if (p.scrollHeight > p.clientHeight + 1 && /(auto|scroll)/.test(estilo.overflowY)) p.scrollTop = p.scrollHeight;
+    }
+  });
+}
+
+/** Nenhuma das caixas cruza a do aviso; a falha diz quantos px de altura se cruzam. */
+async function semSobreposicao(aviso: Locator, alvos: Locator[], quando: string) {
+  const a = await aviso.boundingBox();
+  expect(a, 'caixa do aviso').not.toBeNull();
+  for (const alvo of alvos) {
+    const b = await alvo.boundingBox();
+    expect(b, `caixa de ${alvo}`).not.toBeNull();
+    const largura = Math.min(a!.x + a!.width, b!.x + b!.width) - Math.max(a!.x, b!.x);
+    const altura = Math.min(a!.y + a!.height, b!.y + b!.height) - Math.max(a!.y, b!.y);
+    const cruza = largura > 0 && altura > 0 ? Math.round(altura) : 0;
+    console.log(`[medida ${quando}] aviso y=${Math.round(a!.y)}..${Math.round(a!.y + a!.height)} × ${alvo}: y=${Math.round(b!.y)}..${Math.round(b!.y + b!.height)}, cruza ${cruza} px`);
+    expect(cruza, `o aviso cobre ${alvo} (${quando})`).toBe(0);
+  }
+}
+
 const doWhatsApp = (pedidos: PedidoFalso[]) => pedidos.filter((p) => p.caminho.startsWith('/whatsapp'));
 const pedido = (pedidos: PedidoFalso[], metodo: string, caminho: string) => pedidos.filter((p) => p.metodo === metodo && p.caminho === caminho);
 
@@ -319,12 +346,19 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByText('Avisos pelo WhatsApp', { exact: true })).toBeVisible();
       const chave = interruptor(folha);
       await expect(chave).not.toBeChecked();
-      await chave.scrollIntoViewIfNeeded();
+      // Pior caso: a folha rolada até o fim, com o cartão (o último dela) colado no pé, onde o aviso aparece.
+      await rolarAteOFim(chave);
       await page.screenshot({ path: captura(`aluno-desligado-${largura}`) });
 
       await chave.click();
-      await expect(page.getByText('Avisos pelo WhatsApp ativados.')).toBeVisible();
+      const aviso = page.getByRole('alert').filter({ hasText: 'Avisos pelo WhatsApp ativados.' });
+      await expect(aviso).toBeVisible();
       await expect(chave).toBeChecked();
+      // O aviso (fixo no pé da folha, 4 s) não cobre o interruptor nem o texto dele, logo que aparece e depois de assentar.
+      const textos = [chave, folha.getByText('Receber avisos pelo WhatsApp', { exact: true }), folha.getByText(AJUDA_DO_INTERRUPTOR, { exact: true })];
+      await semSobreposicao(aviso, textos, 'logo');
+      await page.waitForTimeout(1000);
+      await semSobreposicao(aviso, textos, 'depois de 1 s');
       await page.screenshot({ path: captura(`aluno-ligado-${largura}`) });
       await chave.click();
       await expect(page.getByText('Avisos pelo WhatsApp desativados.')).toBeVisible();

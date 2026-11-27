@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { StyleSheet } from 'react-native';
 
 import { atualizarAvisosWhatsAppAluno, obterAvisosWhatsAppAluno } from '../servicos/whatsapp';
 import { useSessao } from '../sessao/SessaoProvider';
+import { ALVO_TOQUE, espaco } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { Interruptor } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
@@ -56,7 +58,7 @@ export function InterruptorDeWhatsApp() {
   };
 
   return (
-    <Cartao titulo="Avisos pelo WhatsApp">
+    <Cartao titulo="Avisos pelo WhatsApp" style={estilos.folgaDoAviso}>
       {estado.temTelefone ? (
         <Interruptor
           rotulo="Receber avisos pelo WhatsApp"
@@ -72,3 +74,10 @@ export function InterruptorDeWhatsApp() {
     </Cartao>
   );
 }
+
+const estilos = StyleSheet.create({
+  // Último cartão da folha de Aparência: com a folha rolada até o fim, o aviso de "ativados/desativados" (fixo no pé da
+  // folha, ~54 px) cobria o interruptor e o texto dele (e2e: 33 px em 390). A folga de uma altura do aviso deixa o
+  // interruptor acima dele. shortcut: folga só neste cartão; trocar pela reserva de espaço na Folha se outra folha tiver o mesmo caso.
+  folgaDoAviso: { marginBottom: ALVO_TOQUE + espaco(3) },
+});
