@@ -322,14 +322,17 @@ function ConteudoWhatsApp() {
                     </Texto>
 
                     <LinhaDeAcoes>
+                      {/* Seis cartões com os mesmos botões: o nome acessível diz de qual aviso é (começa pelo rótulo visível). */}
                       <Botao
                         rotulo={m.configurado ? 'Editar modelo' : 'Configurar modelo'}
+                        rotuloAcessivel={`${m.configurado ? 'Editar modelo' : 'Configurar modelo'}: ${ROTULOS_TIPO_AVISO[m.tipo] ?? m.tipo}`}
                         tipo="secundario"
                         aoTocar={() => abrirEdicaoModelo(m)}
                       />
                       {m.configurado ? (
                         <Botao
                           rotulo="Remover"
+                          rotuloAcessivel={`Remover modelo: ${ROTULOS_TIPO_AVISO[m.tipo] ?? m.tipo}`}
                           tipo="fantasma"
                           aoTocar={() => setModeloParaRemover(m)}
                         />
