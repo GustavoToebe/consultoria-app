@@ -35,7 +35,7 @@ async function abrir(page: Page, largura: number, o: Opcoes = {}) {
   await page.setViewportSize({ width: largura, height: o.altura ?? (largura < 768 ? 844 : 900) });
   if (o.tema) await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, o.tema]);
   if (o.recolhido) await page.addInitScript(() => localStorage.setItem('menu-lateral-recolhido', '1'));
-  // Registro das navegações: o editor (outra frente) tira o `?modelo=` do endereço ao chegar, e a rota pode nem existir ainda.
+  // Registro das navegações (só as de `pushState`): o editor tira o `?modelo=` do endereço ao chegar, então o endereço final não o traz.
   await page.addInitScript(() => {
     const w = window as unknown as { navegacoes: string[] };
     w.navegacoes = [];
@@ -114,7 +114,8 @@ for (const caso of MATRIZ) {
     // O toque em cima da miniatura (inerte) chega ao cartão.
     await cartao(page, 'Minimalista').getByTestId('previa-pdf').click({ force: true });
     if (caso.modo === 'editor') {
-      await expect.poll(() => navegacoes(page)).toContain('/treinador/documentos/personalizar?modelo=MINIMALISTA');
+      await expect(page).toHaveURL(/\/treinador\/documentos\/personalizar$/);
+      await expect(page.getByLabel(/no modelo Minimalista, com dados de exemplo/)).toBeVisible();
       expect(escritas(pedidos)).toEqual([]);
     } else {
       const painel = page.getByRole('alertdialog', { name: 'Usar o modelo Minimalista?' });
@@ -261,7 +262,8 @@ test('(1280) o hub leva à galeria, que cabe na coluna e também abre o editor a
   await semRolagemLateral(page);
   await capturar(page, 'hub-1280');
   await cartao(page, 'Compacto').click();
-  await expect.poll(() => navegacoes(page)).toContain('/treinador/documentos/personalizar?modelo=COMPACTO');
+  await expect(page).toHaveURL(/\/treinador\/documentos\/personalizar$/);
+      await expect(page.getByLabel(/no modelo Compacto, com dados de exemplo/)).toBeVisible();
 });
 
 for (const [largura, tema] of [[1280, 'ESCURO'], [1280, 'CLARO'], [1280, 'AREIA'], [1920, 'ESCURO'], [1920, 'CLARO'], [390, 'AREIA']] as const) {

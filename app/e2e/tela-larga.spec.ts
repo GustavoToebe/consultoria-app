@@ -641,7 +641,7 @@ for (const c of [
   { largura: 3440, menuRecolhido: false, total: 400, larguraConteudo: 'LIMITADA' as const },
 ]) {
   test(`dieta ${c.largura} px (menu ${c.menuRecolhido ? 'recolhido' : 'aberto'}, ${c.larguraConteudo ?? 'AUTOMATICA'}): 3 colunas até a borda, total fixo ao rolar`, async ({ page }) => {
-    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: 900, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo });
+    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: c.largura >= 1920 ? 700 : 900, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo }); // a partir de 1920 a dieta cabe quase toda em 900 de altura: 700 garante rolagem para provar a coluna fixa
     await page.goto(`/treinador/dietas/${DIETA_ID}`);
     const coluna = page.getByTestId('coluna-total-dieta');
     // "Por refeição" escolhe a refeição no editor (a escolhida abre com as abas das opções).
