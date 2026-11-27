@@ -89,7 +89,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
 
     /**
      * Conteúdo como sai nas respostas do treinador (detalhe, versão): o plano pode esconder o que o perfil não vê.
-     * Nunca vale para o que vai ao aluno ({@code versaoAtiva}, {@code versaoPublicadaDaPasta}). Padrão: igual.
+     * Nunca vale para o que vai ao aluno ({@code versaoAtiva}, {@code versaoLiberadaDaPasta}). Padrão: igual.
      */
     protected C paraLeitura(C conteudo) {
         return conteudo;
@@ -398,16 +398,6 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
                 .filter(p -> !p.isArquivado() && p.getVersaoLiberada() > 0 && alunoId.equals(p.getAlunoId()))
                 .max(Comparator.comparing(PlanoBase::getPublicadoEm))
                 .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoLiberada())
-                        .map(v -> new VersaoAtiva<>(p, v, ler(v.getConteudo()))));
-    }
-
-    /** Versão publicada mais recente (liberada ou agendada) entre os planos do aluno na pasta: leitura do treinador; sem plano publicado, vazio. */
-    @Transactional(readOnly = true)
-    public Optional<VersaoAtiva<P, V, C>> versaoPublicadaDaPasta(UUID alunoId, UUID pastaId) {
-        return planos.findByPastaId(pastaId).stream()
-                .filter(p -> !p.isArquivado() && p.getVersaoPublicada() > 0 && alunoId.equals(p.getAlunoId()))
-                .max(Comparator.comparing(PlanoBase::getPublicadoEm))
-                .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoPublicada())
                         .map(v -> new VersaoAtiva<>(p, v, ler(v.getConteudo()))));
     }
 

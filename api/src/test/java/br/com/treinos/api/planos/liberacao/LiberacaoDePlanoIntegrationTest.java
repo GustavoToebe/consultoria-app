@@ -438,6 +438,112 @@ class LiberacaoDePlanoIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
+    // ---- rodadas repetidas (a rotina é horária) ----
+
+    @Test
+    void variasRodadasNoMesmoDiaEnviamUmPushSoPorPlano() throws Exception {
+        UUID outroAluno = api.criarAluno(treinador, "Outro Aluno Fictício Rodadas");
+        JsonNode outroLogin = api.convidarEEntrar(treinador, outroAluno);
+        UUID outroUsuario = UUID.fromString(outroLogin.path("usuario").path("id").asString());
+        registrarTokenDoAparelho();
+        api.put("/aluno/push-token", outroLogin, Map.of("token", "ExponentPushToken[" + UUID.randomUUID().toString().replace("-", "") + "]",
+                "plataforma", "ANDROID"), 204);
+        LocalDate dia = hoje.plusDays(2);
+        publicarTreino(rascunhoDeTreino(alunoId, null), dia, null, 200);
+        publicarTreino(rascunhoDeTreino(outroAluno, null), dia, null, 200);
+
+        // 00:05, 01:05 e 02:05 do dia, mais uma passada com a data pura: só a primeira libera e avisa.
+        assertThat(rotina.rodarNa(consultoriaId, emBrasilia(dia, 0, 5, 0)).liberados()).isEqualTo(2);
+        assertThat(rotina.rodarNa(consultoriaId, emBrasilia(dia, 1, 5, 0)).liberados()).isZero();
+        assertThat(rotina.rodarNa(consultoriaId, emBrasilia(dia, 2, 5, 0)).liberados()).isZero();
+        assertThat(rotina.rodarNa(consultoriaId, dia).liberados()).isZero();
+
+        assertThat(pushsDePlano()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from push_envio where usuario_id = ? and tipo = 'PLANO_LIBERADO'",
+                Integer.class, outroUsuario)).isEqualTo(1);
+        assertThat(avisosCriados()).isEqualTo(1);
+    }
+
+    @Test
+    void planoVigenteComVersaoAgendadaDesativadoPorOutroLiberadoNaoVoltaNaRotina() throws Exception {
+        UUID pastaA = pasta("Ciclo A");
+        JsonNode a = rascunhoDeTreino(alunoId, pastaA);
+        publicarTreino(a, null, null, 200);
+        LocalDate dia = hoje.plusDays(2);
+        publicarTreino(detalheDoTreino(a), dia, null, 200); // v2 agendada; A segue vigente
+        assertThat(detalheDoTreino(a).path("plano").path("liberarEm").asString()).isEqualTo(dia.toString());
+
+        JsonNode b = rascunhoDeTreino(alunoId, pasta("Ciclo B"));
+        publicarTreino(b, null, null, 200); // B vira o vigente e desativa A
+
+        JsonNode planoA = detalheDoTreino(a).path("plano");
+        assertThat(planoA.path("ativo").asBoolean()).isFalse();
+        assertThat(planoA.path("liberarEm").isNull()).isTrue();
+        // A rotina na data não religa A por cima de B.
+        assertThat(rotina.rodarNa(consultoriaId, dia).liberados()).isZero();
+        assertThat(detalheDoTreino(a).path("plano").path("ativo").asBoolean()).isFalse();
+        assertThat(painel().path("treino").path("planoId").asString()).isEqualTo(b.path("plano").path("id").asString());
+    }
+
+    @Test
+    void liberarAgoraDeUmLiberaZeraOAgendamentoPendenteDoVigenteQueSai() throws Exception {
+        JsonNode a = rascunhoDeTreino(alunoId, pasta("Ciclo A"));
+        publicarTreino(a, null, null, 200);
+        publicarTreino(detalheDoTreino(a), hoje.plusDays(3), null, 200);
+        JsonNode b = rascunhoDeTreino(alunoId, pasta("Ciclo B"));
+        publicarTreino(b, hoje.plusDays(2), null, 200);
+
+        api.post("/planos-treino/" + b.path("plano").path("id").asString() + "/liberar-agora", treinador, Map.of(), 200);
+
+        JsonNode planoA = detalheDoTreino(a).path("plano");
+        assertThat(planoA.path("ativo").asBoolean()).isFalse();
+        assertThat(planoA.path("liberarEm").isNull()).isTrue();
+        assertThat(rotina.rodarNa(consultoriaId, hoje.plusDays(10)).liberados()).isZero();
+    }
+
+    // ---- permissão por tipo, mobilidade e arquivado ----
+
+    @Test
+    void liberacaoExigeAPermissaoDePublicarDoTipo() throws Exception {
+        UUID qualquer = UUID.randomUUID();
+        Map<String, Object> data = Map.of("liberarEm", hoje.plusDays(5).toString());
+        JsonNode soTreino = membroComPerfil("Só treino fictício", "TREINO_LER", "TREINO_ALTERAR", "TREINO_PUBLICAR");
+        JsonNode soDieta = membroComPerfil("Só dieta fictícia", "DIETA_LER", "DIETA_ALTERAR", "DIETA_PUBLICAR");
+
+        // Quem publica treino não mexe na dieta; quem publica dieta não mexe no treino nem na mobilidade (que usa a do treino).
+        api.put("/planos-dieta/" + qualquer + "/liberacao", soTreino, data, 403);
+        api.post("/planos-dieta/" + qualquer + "/liberar-agora", soTreino, Map.of(), 403);
+        api.put("/planos-treino/" + qualquer + "/liberacao", soDieta, data, 403);
+        api.post("/planos-treino/" + qualquer + "/liberar-agora", soDieta, Map.of(), 403);
+        api.put("/planos-mobilidade/" + qualquer + "/liberacao", soDieta, data, 403);
+        api.post("/planos-mobilidade/" + qualquer + "/liberar-agora", soDieta, Map.of(), 403);
+        // Com a permissão certa a porta abre (o plano não existe: 404, e não 403).
+        api.put("/planos-treino/" + qualquer + "/liberacao", soTreino, data, 404);
+        api.post("/planos-mobilidade/" + qualquer + "/liberar-agora", soTreino, Map.of(), 404);
+        api.put("/planos-dieta/" + qualquer + "/liberacao", soDieta, data, 404);
+        api.post("/planos-dieta/" + qualquer + "/liberar-agora", soDieta, Map.of(), 404);
+    }
+
+    @Test
+    void liberarAgoraEAlterarDataDePlanoArquivadoDao404() throws Exception {
+        JsonNode agendado = publicarTreino(rascunhoDeTreino(alunoId, null), hoje.plusDays(3), null, 200);
+        String id = agendado.path("plano").path("id").asString();
+        api.delete("/planos-treino/" + id, treinador, 204);
+
+        api.post("/planos-treino/" + id + "/liberar-agora", treinador, Map.of(), 404);
+        api.put("/planos-treino/" + id + "/liberacao", treinador, Map.of("liberarEm", hoje.plusDays(6).toString()), 404);
+        assertThat(semTreino()).isTrue();
+        assertThat(avisosCriados()).isZero();
+    }
+
+    private JsonNode membroComPerfil(String nome, String... permissoes) throws Exception {
+        JsonNode perfil = api.post("/perfis", treinador, Map.of("nome", nome, "permissoes", java.util.Set.of(permissoes)), 200);
+        JsonNode convite = api.post("/usuarios/convites", treinador, Map.of("nome", "Membro fictício",
+                "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil.path("id").asString()), 200);
+        return api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
+    }
+
     // ---- LGPD ----
 
     @Test
