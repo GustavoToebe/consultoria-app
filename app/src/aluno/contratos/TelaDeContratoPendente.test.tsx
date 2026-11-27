@@ -14,7 +14,7 @@ jest.mock('expo-router', () => ({ router: { push: (h: string) => mockPush(h) } }
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
 jest.mock('../../sessao/SessaoProvider', () => ({ useSessao: () => mockSessao }));
 jest.mock('../../offline/AlunoProvider', () => ({ useAluno: () => ({ online: mockOnline, tentarDeNovo: () => Promise.resolve() }) }));
-jest.mock('./ContratosDoAlunoProvider', () => ({ useContratosDoAluno: () => mockContratos }));
+jest.mock('./ContratosDoAlunoProvider', () => ({ useContratosDoAluno: () => mockContratos, useRecarregarContratosAoFocar: () => undefined }));
 jest.mock('../useAvisoAoSair', () => ({ useAvisoAoSair: () => null }));
 const texto = (t: string) => require('react').createElement(require('react-native').Text, null, t);
 const passa = ({ children }: { children?: unknown }) => require('react').createElement(require('react-native').View, null, children);

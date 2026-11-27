@@ -69,6 +69,11 @@ async function abrirAluno(page: Page, largura: number, estado: EstadoDoAluno, ro
     }),
     // Como a API: fora da lista fechada, a trava responde 403 (o plano só volta depois de assinar). Sem a chave, nunca trava.
     'GET /aluno/painel': (_p, r) => (estado.travado && estado.chave !== false ? json(r, TRAVA.corpo, 403) : json(r, painel)),
+    // O que o Início e o resto do layout pedem quando a trava sai (ou nunca houve): nada publicado.
+    'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
+    'GET /aluno/dieta': erroApi(404, 'Nenhuma dieta publicada.', 'NAO_ENCONTRADO'),
+    'GET /aluno/atualizacao': erroApi(404, 'Nenhuma atualização.', 'NAO_ENCONTRADO'),
+    'GET /aluno/anamnese': erroApi(404, 'Nenhuma anamnese.', 'NAO_ENCONTRADO'),
     'GET /aluno/contratos': (_p, r) => json(r, estado.lista),
     'GET /aluno/contratos/{id}': (p, r) => {
       const c = estado.lista.find((x) => x.id === p.caminho.split('/').at(-1));
@@ -115,7 +120,9 @@ for (const largura of [390, 1280]) {
       await assinar(page);
       // Sem outro vencido, o /eu novo tira a trava: o menu volta e o plano é buscado de novo, já sem o 403.
       await expect(page.getByRole('link', { name: /^Início/ }).first()).toBeVisible();
-      await expect(page.getByText(HASH)).toBeVisible();
+      // Tirar a trava remonta o layout (o que deu 403 é buscado de novo) e a tela cai no Início, não na tela do contrato.
+      await expect(page.getByRole('heading', { level: 1, name: /^Olá, / })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: TITULO_ASSINAR })).toHaveCount(0);
       const indiceDaAssinatura = api.pedidos.findIndex((p) => p.metodo === 'POST' && p.caminho.endsWith('/assinar'));
       await expect.poll(() => api.pedidos.findLastIndex((p) => p.metodo === 'GET' && p.caminho === '/aluno/painel')).toBeGreaterThan(indiceDaAssinatura);
       await capturar(page, `trava-assinada-${largura}`);

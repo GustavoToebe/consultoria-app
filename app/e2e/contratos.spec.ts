@@ -71,6 +71,7 @@ async function abrirModelos(page: Page, o: Opcoes, caminho = '/treinador/contrat
     ...(await sessao(page, TREINADOR, { permissoes: o.permissoes ?? PERMISSOES, contratosHabilitados: o.chave ?? true })),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /consultoria/contratos': { corpo: { prazoDias: null } },
     'GET /contratos/modelos': (_p, r) => json(r, modelos),
     'POST /contratos/modelos': (p, r) => {
       const c = p.corpo as { nome: string; texto: string };
@@ -105,11 +106,13 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Nenhum modelo de contrato')).toBeVisible();
       await page.getByRole('button', { name: 'Novo modelo' }).click();
       const folha = page.getByRole('dialog', { name: 'Novo modelo de contrato' });
+      // Sem mexer em nada, o rodapé só orienta; a dica sai assim que o nome entra (aí vira "Alterações não salvas").
+      await expect(folha.getByText('Dê um nome ao modelo e ajuste o texto de exemplo.')).toBeVisible();
       await folha.getByLabel('Nome do modelo').fill('Prestação de serviço');
+      await expect(folha.getByText('Alterações não salvas')).toBeVisible();
       const texto = folha.getByLabel('Texto do contrato');
       // D27: o modelo novo nasce com o texto de exemplo e a cláusula de aceite eletrônico; sem mexer, nada a salvar.
       await expect(texto).toHaveValue(/Medida Provisória nº 2\.200-2\/2001 e da Lei nº 14\.063\/2020\./);
-      await expect(folha.getByText('Dê um nome ao modelo e ajuste o texto de exemplo.')).toBeVisible();
       await texto.fill('Contratante: ');
       await folha.getByRole('button', { name: 'Inserir campo Nome do aluno' }).click();
       await expect(texto).toHaveValue('Contratante: {aluno_nome}');

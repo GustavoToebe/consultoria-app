@@ -16,7 +16,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useAvisoAoSair } from '../useAvisoAoSair';
-import { useContratosDoAluno } from './ContratosDoAlunoProvider';
+import { useContratosDoAluno, useRecarregarContratosAoFocar } from './ContratosDoAlunoProvider';
 
 const TEXTOS = {
   assinar: {
@@ -41,6 +41,8 @@ export function TelaDeContratoPendente() {
   const { acessoPausado, contratoPendenteVencido, recarregarPerfil } = useSessao();
   const { online, tentarDeNovo } = useAluno();
   const { contratos, erro, recarregar } = useContratosDoAluno();
+  // O push da tela de assinar empilha outro layout e este fica por baixo com a lista velha: ao voltar, busca de novo.
+  useRecarregarContratosAoFocar();
   const avisoAoSair = useAvisoAoSair();
   const [saindo, setSaindo] = useState(false);
   const [verificando, setVerificando] = useState(false);
