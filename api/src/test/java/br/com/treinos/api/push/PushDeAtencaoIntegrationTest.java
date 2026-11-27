@@ -177,7 +177,12 @@ class PushDeAtencaoIntegrationTest extends AbstractIntegrationTest {
 
         List<ExpoFalso.Chamada> minhas = minhasChamadas();
         assertThat(minhas).hasSize(1);
-        JsonNode mensagem = json.readTree(minhas.get(0).corpo()).get(0);
+        // O lote da fila pode levar envios pendentes de outros testes (o banco é compartilhado): acha a mensagem do meu token.
+        JsonNode mensagem = null;
+        for (JsonNode m : json.readTree(minhas.get(0).corpo())) {
+            if (token.equals(m.path("to").asString())) mensagem = m;
+        }
+        assertThat(mensagem).isNotNull();
         assertThat(mensagem.path("to").asString()).isEqualTo(token);
         assertThat(mensagem.path("title").asString()).isEqualTo("Atualização com pontos de atenção");
         assertThat(mensagem.path("body").asString()).isEqualTo("Abra o app para ver.");

@@ -1,6 +1,6 @@
 # App do aluno na web: reorganizar o layout (pedido do Gustavo de 26/11/2026)
 
-Situação: Em execução, sem commit (contêiner novo e telas em refação, 27/11) · Onde: `main` · Atualizado: 27/11/2026
+Situação: Integrado na branch `leva-1` (27/11), aguardando verificação final e push; sobram os itens do registro abaixo · Onde: `leva-1` · Atualizado: 27/11/2026
 
 Briefing para outra IA executar. As capturas estão em [`aluno-web-layout/`](aluno-web-layout/), tiradas em 1920 px com o
 menu aberto e o tema escuro. Remédios, fotos de corpo, peso, objetivo e o valor da cobrança foram borrados (dado sensível
@@ -14,7 +14,7 @@ Ou seja: **mesmo conteúdo, mesmos campos, mesmas regras; muda só a organizaç�
 **Antes de começar:** leia o `AGENTS.md` (item "Tela larga" e "Tela larga, revisão 2"), a seção 4.10 de
 `docs/design-e-front.md` e [tela-larga-revisao-app-do-aluno.md](tela-larga-revisao-app-do-aluno.md): as decisões D1 a D7
 de lá (teto de 1688 px em três faixas de 552, grade de cartões de célula mínima 360, três colunas no Início) **são o que
-o Gustavo está achando feio agora**. Elas podem ser revistas; as regras de base da 4.10 continuam valendo (espaço extra
+o Gustavo achava feio** (os tetos de 1120, 1688 e 1312 saíram em 27/11). Elas podem ser revistas; as regras de base da 4.10 continuam valendo (espaço extra
 vira colunas, nunca elemento esticado; medir a área de conteúdo, não a janela). Se tiver dúvida, pergunte ao Gustavo numa
 rodada só, com a opção recomendada primeiro.
 
@@ -196,19 +196,20 @@ Não veio captura. Já segue a regra de formulário (320 + 640, decisão D6 de
 
 ## Passos
 
-- [ ] 1. Plano de tela (`plano-front`) cobrindo as sete telas — commit: —
-- [ ] 2. Início — em andamento, sem commit (27/11)
-- [ ] 3. Dieta — em andamento, sem commit (27/11)
-- [ ] 4. Exercício — em andamento, sem commit (27/11)
-- [ ] 5. Treino e Treino do dia — em andamento, sem commit (27/11)
-- [ ] 6. Histórico — em andamento, sem commit (27/11)
-- [ ] 7. Comunidade — em andamento, sem commit (27/11)
-- [ ] 8. Conferência final (Conta, capturas, e2e inteira) — Conta em andamento, sem commit (27/11); capturas e e2e pendentes
+- [ ] 1. Plano de tela (`plano-front`) cobrindo as sete telas — commit: — (não gerado como arquivo)
+- [x] 2. Início — integrado na leva 1: três colunas medidas na `larga` e na `ultralarga` (`dominio/arranjoDoInicioLargo`, `aluno/inicio/ColunasMedidas`), sem apoio fixo e sem o marco `complementary`; mapa e vitrine lado a lado em 2560 e 3440 — commit: leva 1 (hash no relatório da leva)
+- [x] 3. Dieta — integrado na leva 1: duas colunas pela altura medida, Medicação, plano, Orientações e Observações como peças separadas (`aluno/OrientacoesEObservacoesDaDieta` com a formatação do treinador) — commit: leva 1 (hash no relatório da leva)
+- [x] 4. Exercício — integrado na leva 1 — commit: leva 1 (hash no relatório da leva)
+- [x] 5. Treino e Treino do dia — integrado na leva 1; fica: Treino do dia sem "próximo" e histórico, Mobilidade fora do apoio (em 3440 ocupa ~40%) — commit: leva 1 (hash no relatório da leva)
+- [x] 6. Histórico — parcial na leva 1 (abas e colunas; fica o lado a lado com o treinador) — commit: leva 1 (hash no relatório da leva)
+- [x] 7. Comunidade — integrado na leva 1 — commit: leva 1 (hash no relatório da leva)
+- [ ] 8. Conferência final (Conta, capturas, e2e inteira) — Conta ainda com `ColunasEquilibradas` local e sem Grade de indicadores; capturas e e2e completa pendentes
 
-## Registro de execução (27/11, sem commit)
+## Registro de execução (27/11)
 - Contêiner novo do aluno na web: `useAreaDaTela` (medição da área de conteúdo); apoio de 380, 420 e 440 px; o teto de 1312 px foi removido.
-- `apoioGruda` existe e está disponível, mas o fixo ao rolar da `PrincipalComApoio` ficou como estava.
-- Telas sendo refeitas nesse contêiner, sem commit: Início, Treino, Treino do dia/Exercício, Dieta, Comunidade, Conta e Histórico.
+- Buracos visíveis da auditoria de 27/11 (Início 3440: ~120 px sob o Hoje e ~170 px sob a Dieta; Início 1920: ~160 px sob o Nível e ~200 px sob a Água; Dieta 3440: Lanche esticado) corrigidos com as colunas medidas: vão de 65/34 px em 1920/2560 e 0 a 6 px em 3440. Os tetos de 1120 (vitrine, ciclo, lista de compras e concluído) saíram. Relato da entrega: tsc e lint ok, jest 489, e2e 132 ok, `tela-larga-app-do-aluno.spec.ts` 4/4 ok (o marco antigo virou `inicio-coluna-hoje`).
+- `apoioGruda` existe e está disponível, mas o fixo ao rolar da `PrincipalComApoio` ficou como estava nas telas que o usam; Início, Água, Semana e Nível ficaram sem apoio fixo.
+- Nenhuma spec verifica altura de colunas (lacuna da auditoria). Faltam também o botão cheio na água da Dieta e o relatório por tela com a tabela de 12 itens.
 
 ## Fora do escopo
 
@@ -217,8 +218,8 @@ Não veio captura. Já segue a regra de formulário (320 + 640, decisão D6 de
 - Mudança de conteúdo, texto ou regra.
 
 ## Decisões do Gustavo de 26/11 (rodada de respostas)
-- **Teto do aluno na web:** 1312 px, centralizado, em todas as telas do aluno, inclusive o Início. O Início pode subir para 1688 depois, se ficar vazio no monitor grande (pendência de avaliação visual; não implementada).
+- **Teto do aluno na web:** 1312 px, centralizado (decisão de 26/11). **Substituída em 27/11: sem teto próprio**; o contêiner é o da `Tela` (Limitada para em 1800) e os de 1120, 1688 e 1312 saíram.
 - **Histórico:** abas Treinos | Corpo | Atualizações, com `?aba=` no endereço (`treinos`, `corpo`, `atualizacoes`).
-- **Dieta:** as refeições ficam sempre numa coluna só, inclusive na faixa ultralarga; o espaço extra vira margem.
+- **Dieta:** as refeições ficam sempre numa coluna só, inclusive na faixa ultralarga; o espaço extra vira margem. **Substituída em 27/11:** na `larga` e na `ultralarga` são duas colunas pela altura medida.
 - **Exercício:** Próximo continua `secundario` (um primário por área); ver `orientacoes-de-design-26-11.md`, item 1.4.
 - **Editor do PDF:** abaixo da área mínima o editor mostra "Personalize numa tela maior" e não se mexe no layout do treinador (limitação aceita; detalhe em `documentos-pdf-motor.md`).

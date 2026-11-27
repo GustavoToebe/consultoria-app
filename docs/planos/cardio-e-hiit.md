@@ -1,6 +1,6 @@
 # Cardio e HIIT
 
-Situação: Em andamento (etapa 0: contrato e regras puras) · Onde: main (sem commit) · Atualizado: 27/11/2026
+Situação: Em andamento: P1, P3 e P4a feitos e integrados na `leva-1` (27/11); P2, P4b e P5 pendentes (leva 2) · Onde: branch `leva-1` · Atualizado: 27/11/2026
 
 Base: `main` em `fb57efa9`, com trabalho não commitado de outras frentes na árvore. Validade: este contrato vale enquanto
 `ConteudoTreino.Cardio`, `formatoDoPacote.cardio` e `exercicio` (biblioteca) estiverem como no mapa abaixo. Se alguém mexer
@@ -27,7 +27,7 @@ intervalos. Na Biblioteca, o exercício de cardio tem "Tipo de cardio" e "Medida
 - `BibliotecaService.java`:195/206: criar e alterar.
 - Catálogo V003:56-58 e outras: 15 cardios com grupo "Cardio" e equipamento "Esteira", "Bicicleta", "Máquina"…
 - O conteúdo do plano é `jsonb` (`plano_versao.conteudo`, V001). **A prescrição do treino não precisa de migration.**
-- Migrations: a última é a V111, provisória. O total nos testes é **110** (`FlywayMigrationIntegrationTest`:26 e `PapeisBancoIntegrationTest`:302; a V078 não existe).
+- Migrations (estado de antes do P1, 27/11): a última era a V111 e o total nos testes, **110** (a V078 não existe). Hoje a cardio é a **V113** e o total é **113** (renumerada no merge da leva 1, 27/11).
 
 **App**
 - `app/src/api/tipos.ts`: `Cardio`, `IntervalosDeCardio`, `Serie.cardio`, `Exercicio`, `ExercicioRequest`.
@@ -67,7 +67,7 @@ intervalos. Na Biblioteca, o exercício de cardio tem "Tipo de cardio" e "Medida
 | D12 | Biblioteca: tipo e medidas | `tipo_de_cardio` (nulo = não informado) e `cardio_mede_distancia`/`cardio_mede_ritmo`, `boolean NOT NULL DEFAULT true`, para o exercício antigo continuar mostrando tudo. Na API, `tipoDeCardio` e `medidasDeCardio: ['DISTANCIA','RITMO']`. Duração e zona aparecem sempre. O editor esconde a medida desmarcada, **nunca um valor já gravado** (`mostraMedida`). Cardio manual (sem `exercicioId`) mostra as duas. | Executor |
 | D13 | Grupo e equipamento do cardio | Criar ou alterar com `CARDIO` grava `grupo_muscular` e `equipamento` **nulos** (o formulário não os mostra). O que já está gravado não é apagado em massa (nada de UPDATE na migration): só muda quando o treinador salvar de novo. A importação do catálogo mantém o que o catálogo traz. | Executor |
 | D14 | Tipo de cardio no plano publicado | **Sem chave nova** no `ExercicioPlano`: uma chave nova faria o APK velho recusar o pacote. Na publicação, `equipamentoDe` passa a usar, para `CARDIO` com tipo, o rótulo do tipo de máquina (Esteira, Bike, Elíptico, Escada, Remo). Corrida ao ar livre, Natação e Outro saem sem equipamento; sem tipo, usa o `equipamento` gravado (legado). Assim "Equipamentos do dia" do aluno continua com "Esteira" depois de editar o exercício. As medidas não vão ao plano: só o editor as usa, lendo da biblioteca pelo `exercicioId`. | Executor |
-| D15 | Migration | **`V199` provisória** (renumerar no merge; a V111 e a V190 também são provisórias em outras frentes). Só a biblioteca muda. `exercicio` já tem `@TenantId` e não há entidade nova. O total vai de **110 para 111** em `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`: confira o número no arquivo na hora, porque outra frente pode tê-lo subido. | Executor |
+| D15 | Migration | **`V113`, antes V199, renumerada no merge da leva 1 (27/11)**. Só a biblioteca muda. `exercicio` já tem `@TenantId` e não há entidade nova. O total nos testes (`FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`) é **113**. | Executor |
 | D16 | APK e ordem de lançamento | O contínuo, novo ou antigo, sai com as mesmas chaves de hoje (D3), e o APK instalado continua aceitando. **Só o bloco intervalado novo** (`modo`, `protocolo`, aquecimento…) é recusado pelo `formatoDoPacote` do APK velho. O efeito real está em `offline/repositorioLocal.ts`:378-387 e `repositorioSqlite.ts`:277-286: ao ler, o pacote fora do formato é **apagado** e marcado `pacoteRecusado`, e o aluno perde o plano offline inteiro (a tela pede para atualizar o app). O P3 amplia o `formatoDoPacote` com as chaves novas e os enums. **Ordem de lançamento: o APK com o P3 precisa estar nas lojas (e instalado) antes de o treinador poder salvar intervalado em produção.** P1 e P2 podem ir ao main antes, mas sem uso real de intervalado até lá. O coordenador decide como garantir isso. | Executor |
 | D17 | Vibração e tela acesa | `expo-haptics ~57.0.3` e `expo-keep-awake ~57.0.2` já estão no `package.json`, e `useTelaAcesa` e `vibrar` já existem. **Nada a instalar.** O P3 reaproveita os dois (o `vibrar` pode ganhar um método para a troca de fase). | Executor |
 
@@ -169,7 +169,7 @@ Enum desconhecido dá 400 na leitura do corpo, como os outros enums. O número d
 - `Exercicio.TipoDeCardio { ESTEIRA, BIKE, ELIPTICO, ESCADA, REMO, CORRIDA_AO_AR_LIVRE, NATACAO, OUTRO }` e `MedidaDeCardio { DISTANCIA, RITMO }`.
 - `ExercicioRequest` ganha `TipoDeCardio tipoDeCardio` e `@Size(max = 2) List<MedidaDeCardio> medidasDeCardio`. Os dois só contam em `CARDIO`; fora dele são ignorados (tipo nulo, medidas no padrão). Medidas ausentes: na criação, as duas; na edição, mantém as gravadas. Com `CARDIO`, `grupoMuscular` e `equipamento` do corpo são ignorados e gravados nulos (D13).
 - `ExercicioResponse` ganha `tipoDeCardio` (nulo) e `medidasDeCardio` (lista; vazia fora do `CARDIO`).
-- Migration `V199__cardio_na_biblioteca.sql` (provisória):
+- Migration `V113__cardio_na_biblioteca.sql` (antes V199; renumerada no merge da leva 1):
 
 ```sql
 ALTER TABLE exercicio
@@ -207,13 +207,13 @@ offline. Em Java, todo `new Cardio(` com os 11 componentes precisa receber os ca
 `serieNormalizada` precisam copiá-los.
 
 - [x] 0. Contrato, regras puras e tipos: este plano, `dominio/cardio.ts` e `cardio.test.ts` (38 testes) e `api/tipos.ts` — commit/run: — (sem commit; jest, eslint e tsc verdes em 27/11)
-- [ ] P1. API (só `api/`):
+- [x] P1. API (só `api/`):
   - `ConteudoTreino.Cardio` (componentes novos, construtor antigo, `problemas()` da tabela acima), mais os enums.
   - Os `new Cardio(` de `IndiceVersao`, `TiposDaMetodologia`, `ValidadorTreino` e dos testes.
   - `Exercicio` (colunas e enums), `BibliotecaDtos`, `BibliotecaService` (D12, D13) e `PlanoTreinoService.equipamentoDe` (D14).
-  - `V199`, o total 110 → 111 nos dois testes e a linha da V199 no `AGENTS.md` (o coordenador aplica).
+  - A migration (hoje `V113`, antes V199), o total nos dois testes (hoje 113) e a linha dela no `AGENTS.md` (o coordenador aplica).
   - Testes: `ValidadorTreinoTest`, com os casos espelhados de `cardio.test.ts`, incluindo o legado sem `modo`; um teste de integração da biblioteca (criar e editar cardio; grupo e equipamento nulos; modalidade trocada zera o tipo); um teste de JSON: plano antigo sai sem chave nova; publicação com tipo vira equipamento; e protocolo que sobrevive a copiar para outro aluno e a replicar.
-  - `mvn verify` — commit/run: —
+  - `mvn verify` — **feito na leva 1** (27/11): `Cardio` com os campos novos, V113, biblioteca com `tipoDeCardio` e medidas, `CardioIntegrationTest` e `ValidadorTreinoTest`; os resultados do `mvn verify` completo ficam para a verificação final da leva (ainda não registrada aqui). — commit: leva 1 (hash no relatório da leva)
 - [ ] P2. Editor de treino (`app/src/treinador/treino/*`, **depois** que o agente das séries liberar `EditorSeries`, `CamposDaPrescricao`, `TabelaDeBlocos`, `InspetorDoExercicio` e `CartaoExercicio`; também `dominio/editorTreino.ts`, `dominio/inspetorDoTreino.ts` e `dominio/validacaoDeSerie.ts`):
   - O inspetor do cardio deixa de ter tabela de séries. No lugar, a seção "PRESCRIÇÃO DO CARDIO" com o segmento Contínuo · Intervalado.
   - Contínuo: os campos com `mostraMedida`. Intervalado: o select de protocolo com o ⓘ (`definicao` + "Saiba mais" na seção da Ajuda), os campos com `segundosDoTexto`, o resumo `resumoDoBloco` e o aviso `avisoForaDaFaixa` (não bloqueia).
@@ -223,19 +223,20 @@ offline. Em Java, todo `new Cardio(` com os 11 componentes precisa receber os ca
   - A lista à esquerda mostra o coração e `resumoDaLista`.
   - `novaSerieDeCardio` nasce com `blocoContinuo()`, e `copiarCardio`/`serieNormalizada` levam os campos novos (aceite comum).
   - Abrir um bloco antigo mostra o modo dado por `modoDoBloco`. O contínuo nunca grava `modo`. O intervalado antigo só passa a `modo: "INTERVALADO"` (e às regras novas) quando o treinador mexer nele. Nesse momento a duração, a distância e o ritmo antigos saem, e o editor avisa antes, se houver valor neles.
-  - Specs e2e do editor e capturas — commit/run: —
-- [ ] P3. App do aluno e timer (`app/src/aluno/*`, `offline/formatoDoPacote.ts` e o teste dele, `dominio/agrupamento.ts` (`textoCardio`), `aluno/serieDoAluno.ts`):
+  - Specs e2e do editor e capturas — **pendente (leva 2)**: editor de blocos de cardio ainda não feito; depende de liberar o arquivo do editor de séries.
+- [x] P3. App do aluno e timer (`app/src/aluno/*`, `offline/formatoDoPacote.ts` e o teste dele, `dominio/agrupamento.ts` (`textoCardio`), `aluno/serieDoAluno.ts`):
   - O `formatoDoPacote` aceita as chaves novas de `cardio` (enums conferidos, números pelo tipo).
   - `textoCardio` e `linhasDoCardio` usam `previaDoBloco` quando há `modo`, e o legado segue igual. Isso também cobre o PDF, que passa pelo `resumoDaSerie`.
   - O cartão mostra o protocolo e os blocos.
   - O timer do intervalado segue `fasesDoBloco`: contagem regressiva do estímulo e da recuperação, volta atual "3 de 10", `vibrar` na troca de fase e `useTelaAcesa`. O estilo é o da `BarraDescanso`, e o relógio vem de `dominio/descanso`, sem `setInterval` novo fora do padrão da barra.
   - O timer só existe no aparelho, sem registro novo na API: o aluno continua só marcando "feito".
-  - Specs e capturas do aluno — commit/run: —
-- [ ] P4. Biblioteca, Escolher cardio e Ajuda (`treinador/biblioteca/*`, a folha "Escolher cardio" (arquivo novo ao lado da `FolhaBiblioteca`, **depois** que o agente da Biblioteca liberar `FolhaBiblioteca`/`EscolhaDoExercicio`) e `ajuda/conteudo.ts` com o teste):
+  - Specs e capturas do aluno — **feito na leva 1** (27/11): `aluno/cardio/TimerDoIntervalado` e `CartaoSerieDeCardio`, `offline/formatoDoPacote` com as chaves novas e `copiarCardio` levando os campos novos (`dominio/editorTreino.ts`; o bloqueio que perdia `modo`, `protocolo` e aquecimento no aluno saiu). Relato da entrega: 354 jest e e2e 5 ok, com 2 bloqueados por esse `copiarCardio` na hora, que foi corrigido depois; esses 2 e2e e a suíte completa ainda não foram reexecutados na verificação final. — commit: leva 1 (hash no relatório da leva)
+- [ ] P4. (P4a feito, P4b pendente) Biblioteca, Escolher cardio e Ajuda (`treinador/biblioteca/*`, a folha "Escolher cardio" (arquivo novo ao lado da `FolhaBiblioteca`, **depois** que o agente da Biblioteca liberar `FolhaBiblioteca`/`EscolhaDoExercicio`) e `ajuda/conteudo.ts` com o teste):
   - Com Modalidade = Cardio, somem "Grupo muscular" e "Equipamento" e aparecem "Tipo de cardio" (`TIPOS_DE_CARDIO`) e "Medidas que fazem sentido" (`MEDIDAS_DE_CARDIO`).
   - A folha "Escolher cardio" usa a mesma peça da "Escolher exercício", com filtro `modalidade=CARDIO`, escolha **única** e "+ Usar 'texto' como cardio manual".
-  - A Ajuda ganha a seção "Cardio e HIIT", com as 4 categorias (as definições de `PROTOCOLOS`), e o id dela é o alvo do "Saiba mais" do ⓘ — commit/run: —
-- [ ] P5. PDF, exportação e modelos:
+  - A Ajuda ganha a seção "Cardio e HIIT", com as 4 categorias (as definições de `PROTOCOLOS`), e o id dela é o alvo do "Saiba mais" do ⓘ.
+  - **P4a feito na leva 1** (27/11): campos do cardio na Biblioteca (`treinador/biblioteca/CamposDoCardio`). **P4b pendente (leva 2)**: folha "Escolher cardio", rótulo do tipo e a seção da Ajuda/guia do aluno — commit (P4a): leva 1 (hash no relatório da leva)
+- [ ] P5. (pendente, leva 2) PDF, exportação e modelos:
   - Conferir `pdf/pdfTreino.ts` e `pdf/exemplos.ts` (um exemplo com SIT), o PDF do aluno e o do treinador (o texto vem do P3).
   - Exportação: o JSON do plano sai inteiro, sem mudança esperada; só conferir.
   - Modelos e receitas padrão (`SemanasPadrao`, `receitas-padrao/semanas/*.json`) só têm o texto antigo e não mudam.
@@ -265,4 +266,6 @@ Mais `typecheck`, `lint`, `jest` e `mvn verify`.
 - Preencher em massa o `tipo_de_cardio` dos cardios existentes pelo nome.
 
 ## O que ficou para trás
-- (nada ainda)
+- **Ordem de lançamento (D16):** o APK com o timer precisa estar nas lojas ANTES de o treinador salvar cardio intervalado em produção; o app antigo recusa o pacote offline com chave desconhecida e o aluno perderia o plano. Decisão do Gustavo/lançamento, registrada no README dos planos.
+- P2 (editor de blocos de cardio), P4b (folha "Escolher cardio", rótulo do tipo, Ajuda/guia do aluno) e P5: leva 2.
+- Grupos musculares parecidos no catálogo (o "Cardio" como grupo duplica a modalidade): decisão de dados do Gustavo (README, Pendências soltas).

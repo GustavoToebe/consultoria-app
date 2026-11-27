@@ -1,6 +1,6 @@
 # Atualização, pasta do aluno e questionários (pedido do Gustavo de 26/11/2026)
 
-Situação: Planejando (análise e recomendações, nada implementado) · Onde: `main` · Atualizado: 26/11/2026
+Situação: Blocos A a E na `main` (lote de 26/11); rodada de 28/11, onda 1 (itens do plano na atualização, folha da pasta, `Abas` com tabpanel) na branch `leva-1` (27/11); onda 2 (prescrição da época, bloco G parcial) só na branch `onda2-rodada`, NÃO publicada: leva 2 · Onde: `leva-1` · Atualizado: 27/11/2026
 
 Este documento é o briefing para outra IA executar. Ele junta o que o Gustavo pediu (um PDF de 23 páginas com capturas),
 a análise do código de hoje e o que recomendamos fazer. As capturas estão em
@@ -377,14 +377,17 @@ Ações do ⋯:
 
 ## Passos
 
-- [ ] A. Teclado no Android/iOS (peça compartilhada) — commit: —
-- [ ] B. Leitura das respostas (aluno e treinador) — commit: —
-- [ ] C1. Tipo `ITENS_DO_PLANO` na API, app, fixtures e editor — commit: —
-- [ ] C2. Script `atualizacao-saraiva.mjs` (simular; gravar só com o Gustavo) — commit: —
-- [ ] D. Revisão do treinador: prescrito ao lado, aba Evolução, "o que mudou" — commit: —
-- [ ] E. Data de liberação + aviso ao aluno (migration, rotina, push, telas; revisão do `revisor`) — commit: —
-- [ ] F. Folha da pasta redesenhada — commit: —
-- [ ] G. Criação e edição de questionários — commit: —
+- [x] A. Teclado no Android/iOS (peça compartilhada) — lote de 26/11, na `main`; teclado no aparelho não conferido (`lote-26-11-retomada.md`)
+- [x] B. Leitura das respostas (aluno e treinador) — lote de 26/11, na `main`; o vão pergunta/resposta de 4 px já vale via `arranjoDaLeitura.entre=4`
+- [x] C1. Tipo `ITENS_DO_PLANO`: API e validação (lote de 26/11) e, na onda 1 da rodada de 28/11 (leva 1, 27/11), o campo do aluno (`aluno/atualizacao/CampoItensDoPlano`, `dominio/campoItensDoPlano`) — commit: leva 1 (hash no relatório da leva)
+- [ ] C2. Script `atualizacao-saraiva.mjs` (simular; gravar só com o Gustavo) — o script não foi rodado contra a API local; nenhum `--gravar` em produção
+- [x] D. Revisão do treinador: prescrito ao lado, aba Evolução, "o que mudou" (lote de 26/11). **Leva 2:** a prescrição da época na revisão (`GET /atualizacoes/{id}/prescricao/{tipo}`, "Prescrição no envio" × "Prescrição atual") está só na branch `onda2-rodada`, não publicada
+- [x] E. Data de liberação + aviso ao aluno (migration V106, rotina, push, telas; revisão do `revisor`) — lote de 26/11, na `main`
+- [x] F. Folha da pasta redesenhada — onda 1 da rodada de 28/11, na `leva-1` (27/11); `ui/Abas` com `tabpanel` — commit: leva 1 (hash no relatório da leva)
+- [ ] G. Criação e edição de questionários — **leva 2**: bloco G PARCIAL só na branch `onda2-rodada` (modal Novo único, galeria de 7 grupos, estado vazio, `FolhaDeAcoes`, "editado em"); ficou fora: editor lista + inspetor com arrastar, "Instruções" no cartão Sobre, campos fixos da inscrição no editor, Selo/data como peças
+
+### Leva 2 (rodada de 28/11, onda 2)
+Branch `onda2-rodada` da worktree `consultoria-app-rodada-28-11`, sem commit publicado: prescrição da época na revisão (decisão do Gustavo sobre os títulos "Prescrição no envio" e "Prescrição atual"), bloco G parcial e e2e "Histórico: não enviados". Relato da entrega nessa worktree: typecheck e lint ok, jest 1358, e2e 117 + 26 ok, `ArquiteturaTest` 20, `ItensDoPlano` 11 e Flyway 4. Falta a captura Areia, 1536, 2560 e 3440 (item 12) e a suíte completa com `mvn verify`.
 
 ## Fora do escopo
 
