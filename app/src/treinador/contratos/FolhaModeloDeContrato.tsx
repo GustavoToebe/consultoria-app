@@ -5,7 +5,7 @@ import {
   alterarModeloDeContrato, criarModeloDeContrato, LIMITES_DO_CONTRATO, listarModelosDeContrato, previaDoModeloDeContrato, type ModeloDeContrato,
 } from '../../api/contratos';
 import { useFecharComAviso } from '../../comunidade/useFecharComAviso';
-import { CAMPOS_DO_CONTRATO, erroDosCamposDesconhecidos, GRUPOS_DOS_CAMPOS, inserirCampo, type SelecaoDoTexto } from '../../dominio/contratos';
+import { CAMPOS_DO_CONTRATO, erroDosCamposDesconhecidos, GRUPOS_DOS_CAMPOS, inserirCampo, TEXTO_DE_EXEMPLO_DO_MODELO, type SelecaoDoTexto } from '../../dominio/contratos';
 import { inteiroComMilhar } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_FOLHA_LARGA, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
@@ -45,8 +45,10 @@ export function FolhaModeloDeContrato({ modelo, abaInicial, podeAlterar, aoSalva
   const { avisar } = useAviso();
   const { width } = useWindowDimensions();
   const [atual, setAtual] = useState(modelo);
-  const [nome, setNome] = useState(modelo?.nome ?? '');
-  const [texto, setTexto] = useState(modelo?.texto ?? '');
+  // O modelo novo nasce com o texto de exemplo e a cláusula de aceite eletrônico (D27); "não mudou" é em relação a ele.
+  const base = atual ?? { nome: '', texto: TEXTO_DE_EXEMPLO_DO_MODELO };
+  const [nome, setNome] = useState(base.nome);
+  const [texto, setTexto] = useState(base.texto);
   const [arquivou, setArquivou] = useState(false);
   const editavel = podeAlterar && !atual?.arquivadoEm && !arquivou;
   const [aba, setAba] = useState<AbaDoModelo>(editavel ? abaInicial : 'texto');
@@ -58,7 +60,7 @@ export function FolhaModeloDeContrato({ modelo, abaInicial, podeAlterar, aoSalva
   // Onde o cursor está no texto; o chip insere ali. `cursor` é aplicado uma vez depois de inserir e solto na próxima mudança.
   const selecao = useRef<SelecaoDoTexto>({ inicio: texto.length, fim: texto.length });
   const [cursor, setCursor] = useState<{ start: number; end: number } | undefined>(undefined);
-  const mudou = nome !== (atual?.nome ?? '') || texto !== (atual?.texto ?? '');
+  const mudou = nome !== base.nome || texto !== base.texto;
   const { fechar, aviso } = useFecharComAviso(true, editavel && mudou, aoFechar);
   const previa = useCarregar(aba === 'previa' && atual && editavel ? `previa-modelo-contrato:${atual.id}:${atual.versao}` : null, (c) => previaDoModeloDeContrato(c.split(':')[1]));
 
@@ -77,8 +79,8 @@ export function FolhaModeloDeContrato({ modelo, abaInicial, podeAlterar, aoSalva
   };
 
   const descartar = () => {
-    setNome(atual?.nome ?? '');
-    setTexto(atual?.texto ?? '');
+    setNome(base.nome);
+    setTexto(base.texto);
     setErros({});
     setAlerta(null);
   };
@@ -158,7 +160,7 @@ export function FolhaModeloDeContrato({ modelo, abaInicial, podeAlterar, aoSalva
   const statusDoRodape = editavel ? (
     <View aria-live="polite">
       <Texto variante="suave" cor={mudou ? cores.texto : undefined}>
-        {mudou ? 'Alterações não salvas' : atual ? 'Tudo salvo' : 'Escreva o nome e o texto do modelo.'}
+        {mudou ? 'Alterações não salvas' : atual ? 'Tudo salvo' : 'Dê um nome ao modelo e ajuste o texto de exemplo.'}
       </Texto>
     </View>
   ) : undefined;

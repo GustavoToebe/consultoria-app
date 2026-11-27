@@ -26,12 +26,15 @@ export interface DadosPdfContrato {
   ip?: string | null;
   agente?: string | null;
   geradoPorNome?: string | null;
+  /** Assinado pelo link do responsável, que declarou ser o responsável legal do aluno (D28). */
+  responsavelLegal?: boolean;
   emitidoEm: Date;
 }
 
 export function documentoContrato(d: DadosPdfContrato): Documento {
   const evidencias = linhasDeEvidencia({
     nome: d.nome, assinadoEm: d.assinadoEm, sha256: d.sha256, ip: d.ip, agente: d.agente, geradoPorNome: d.geradoPorNome,
+    responsavelLegal: d.responsavelLegal,
   });
   const corpo = [
     cabecalhoDoPdf({ marca: d.marca, logoDataUri: d.logoDataUri, documento: 'Comprovante do contrato', titulo: d.titulo, aluno: d.aluno, emitidoEm: d.emitidoEm }),

@@ -6,6 +6,7 @@ import {
   acoesDoContrato, camposDesconhecidos, CAMPOS_DO_CONTRATO, contratacoesParaEscolher, erroDosCamposDesconhecidos, GRUPOS_DOS_CAMPOS,
   erroDoPdfEscolhido, htmlDoTextoFormatado, inserirCampo, instanteDeBrasilia, linhasDeEvidencia, notaDasFaltas, PADRAO_DO_CAMPO, podeCompletarOCadastro,
   rotuloDaContratacao, seloDoContrato, seloDoContratoDoAluno, TEXTO_DA_NOTA_DAS_FALTAS,
+  CLAUSULA_DE_ACEITE_ELETRONICO, faixaDoMenor, podeCompletarOResponsavel, rotuloDoSignatario, TEXTO_DE_EXEMPLO_DO_MODELO,
 } from './contratos';
 
 /** Paridade com o Java: a lista dos 12 campos e o padrão do campo (T5), como em `catalogoDePermissoesParidade.test.ts`. */
@@ -201,5 +202,58 @@ describe('erroDoPdfEscolhido', () => {
   });
   it('recusa acima de 921.600 bytes', () => {
     expect(erroDoPdfEscolhido({ nome: 'grande.pdf', tipo: 'application/pdf', tamanho: 921_601, inicio: pdf })).toBe('O PDF passa de 900 KB.');
+  });
+});
+
+describe('passo 4: responsável', () => {
+  const tudo = () => true;
+  it('"Gerar novo link do responsável" só no RESPONSAVEL pendente, com CONTRATO_ALTERAR, antes do cancelar', () => {
+    expect(acoesDoContrato({ situacao: 'PENDENTE', signatario: 'RESPONSAVEL' }, tudo).map((a) => a.id)).toEqual(['novoLink', 'cancelar']);
+    expect(acoesDoContrato({ situacao: 'PENDENTE', signatario: 'ALUNO' }, tudo).map((a) => a.id)).toEqual(['cancelar']);
+    expect(acoesDoContrato({ situacao: 'ASSINADO', signatario: 'RESPONSAVEL' }, tudo).map((a) => a.id)).toEqual(['comprovante']);
+    expect(acoesDoContrato({ situacao: 'PENDENTE', signatario: 'RESPONSAVEL' }, (p) => p === 'CONTRATO_LER')).toEqual([]);
+  });
+
+  it('rótulo do signatário', () => {
+    expect(rotuloDoSignatario('ALUNO')).toBe('Assina: aluno');
+    expect(rotuloDoSignatario('RESPONSAVEL')).toBe('Assina: responsável');
+  });
+
+  it('faixa do menor na data de Brasília, aniversário no próprio dia já conta', () => {
+    expect(faixaDoMenor('2010-11-26', '2026-11-26')).toBe('DE_16_A_17');
+    expect(faixaDoMenor('2010-11-27', '2026-11-26')).toBe('MENOR_DE_16');
+    expect(faixaDoMenor('2008-11-26', '2026-11-26')).toBeNull();
+    expect(faixaDoMenor('2008-11-27', '2026-11-26')).toBe('DE_16_A_17');
+    expect(faixaDoMenor(null, '2026-11-26')).toBeNull();
+    expect(faixaDoMenor('26/11/2010', '2026-11-26')).toBeNull();
+    expect(faixaDoMenor('2030-01-01', '2026-11-26')).toBeNull();
+  });
+
+  it('completar o responsável: FINANCEIRO_ALTERAR, e o CPF também com ALUNO_SENSIVEL_LER', () => {
+    const cpf = [{ campo: 'responsavel_cpf', mensagem: 'Falta o CPF do responsável.' }];
+    expect(podeCompletarOResponsavel(cpf, tudo)).toBe(true);
+    expect(podeCompletarOResponsavel(cpf, (p) => p === 'FINANCEIRO_ALTERAR')).toBe(false);
+    expect(podeCompletarOResponsavel([{ campo: 'responsavel_nome', mensagem: 'x' }], (p) => p === 'FINANCEIRO_ALTERAR')).toBe(true);
+    expect(podeCompletarOResponsavel([{ campo: 'aluno_cpf', mensagem: 'x' }], tudo)).toBe(false);
+  });
+
+  it('a declaração de responsável legal entra nas evidências depois do nome', () => {
+    const linhas = linhasDeEvidencia({ nome: 'Maria Souza', assinadoEm: '2026-11-26T17:03:09Z', sha256: 'abc', responsavelLegal: true });
+    expect(linhas.map((l) => l.rotulo)).toEqual(['Assinado por', 'Declaração', 'Data e hora', 'Código de verificação (SHA-256)']);
+    expect(linhas[1].valor).toBe('Declarou ser o responsável legal do aluno.');
+  });
+});
+
+describe('texto de exemplo do modelo (D27)', () => {
+  it('leva a cláusula de aceite eletrônico inteira', () => {
+    expect(TEXTO_DE_EXEMPLO_DO_MODELO).toContain(CLAUSULA_DE_ACEITE_ELETRONICO);
+    expect(CLAUSULA_DE_ACEITE_ELETRONICO).toContain('art. 10, § 2º, da Medida Provisória nº 2.200-2/2001 e da Lei nº 14.063/2020.');
+  });
+
+  it('só usa campos da lista fechada, e só os que todo aluno tem (campo sem valor impede gerar)', () => {
+    expect(camposDesconhecidos(TEXTO_DE_EXEMPLO_DO_MODELO)).toEqual([]);
+    const usados = [...TEXTO_DE_EXEMPLO_DO_MODELO.matchAll(PADRAO_DO_CAMPO)].map((m) => m[1]);
+    expect([...new Set(usados)].sort()).toEqual(['aluno_nome', 'consultoria', 'data']);
+    expect(TEXTO_DE_EXEMPLO_DO_MODELO.length).toBeLessThanOrEqual(50_000);
   });
 });

@@ -56,6 +56,12 @@ class ArquiteturaTest {
      * {@code consultoria_id} explícito; a linha não guarda o arquivo nem valor de célula);
      * {@code ConviteEquipeBusca} (descobre apenas o tenant pelo hash, e se o convite é do sistema, para o aceite público da equipe);
      * {@code ConviteBusca} (convite público: descobre só a consultoria do convite antes de abrir a sessão nela);
+     * {@code ContratoPublicoBusca} (página pública do contrato do responsável: descobre só a consultoria do link, pelo hash do código e
+     * só de contrato pendente com link vigente, como {@code ConviteBusca}; devolve apenas o id da consultoria, e consulta, conferência do CPF
+     * e assinatura rodam dentro dela com {@code @TenantId});
+     * {@code ContratoGuardaRepository} (guarda do contrato assinado, D16: lista os assinados de aluno anonimizado e apaga texto, evidências,
+     * link e o PDF; a entidade não escreve o apagado e os campos são imutáveis; toda consulta filtra {@code consultoria_id} explícito e
+     * confere o aluno anonimizado);
      * {@code ContaLocalRepositorio} (tabelas globais da Minha conta, lidas também fora do tenant pela integração futura:
      * todo método recebe e filtra {@code consultoria_id});
      * {@code IntegracaoRepositorio} (nonce, operações idempotentes e provisionamento da integração com a Central: roda
@@ -99,6 +105,8 @@ class ArquiteturaTest {
             "br.com.treinos.api.agua.AguaDoDiaUpsert",
             "br.com.treinos.api.consultoria.LogoRepositorio",
             "br.com.treinos.api.alunos.ConviteBusca",
+            "br.com.treinos.api.contratos.ContratoPublicoBusca",
+            "br.com.treinos.api.contratos.ContratoGuardaRepository",
             "br.com.treinos.api.equipe.ConviteEquipeBusca",
             "br.com.treinos.api.auditoria.AuditoriaGravacao",
             "br.com.treinos.api.importacao.ImportacaoRetencao",
@@ -131,7 +139,10 @@ class ArquiteturaTest {
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
             "InscricaoPublicaController", "AvisoInfinitePayController", "AvisoKiwifyController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController",
-            "WhatsAppWebhookController");
+            "WhatsAppWebhookController",
+            // Página pública do contrato do responsável (V109): código no corpo, nunca no caminho; marca e título só com o link, texto e PDF só
+            // com o CPF do responsável conferido; limite por IP e por código nos erros de CPF (LimiteTentativas); 503 com a chave desligada.
+            "ContratoPublicoController");
 
     @BeforeAll
     static void importar() {

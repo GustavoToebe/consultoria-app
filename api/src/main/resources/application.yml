@@ -149,6 +149,11 @@ treinos:
     loja-ip: 600
     loja-foto-ip: 3000
     marketplace-ip: 600
+    # Página pública do contrato do responsável (sem login; 429 + Retry-After): teto por IP das quatro rotas e, à parte, os erros de CPF
+    # por IP e por código (janela de 10 min). Os padrões de código são os mesmos, aqui só ficam à vista.
+    contrato-publico-ip: 30
+    contrato-cpf-ip: 10
+    contrato-cpf-codigo: 5
   # Escolha de kg ou lb para o aluno ver e digitar a carga. Desligado por padrão: o app esconde a escolha e usa kg (GET /eu traz
   # unidadeDeCargaHabilitada). A carga é guardada sempre em kg; nenhuma rota depende desta chave.
   unidade-carga:

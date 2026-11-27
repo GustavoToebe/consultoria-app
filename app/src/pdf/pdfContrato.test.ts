@@ -32,6 +32,13 @@ describe('comprovante do contrato', () => {
     expect(corpo).toContain(`<td class="codigo">${HASH}</td>`);
   });
 
+  it('versão do responsável: a declaração de responsável legal, sem IP, aparelho nem nome do aluno', () => {
+    const { corpo } = documentoContrato({ ...base, aluno: null, responsavelLegal: true });
+    expect(corpo).toContain('<th>Declaração</th><td>Declarou ser o responsável legal do aluno.</td>');
+    expect(corpo).not.toContain('<th>IP</th>');
+    expect(corpo).not.toContain('Maria Aluna<');
+  });
+
   it('versão do aluno não leva IP, aparelho nem quem gerou', () => {
     const { corpo } = documentoContrato(base);
     for (const rotulo of ['IP', 'Aparelho', 'Gerado por']) expect(corpo).not.toContain(`<th>${rotulo}</th>`);

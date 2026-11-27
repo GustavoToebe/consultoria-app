@@ -1,5 +1,5 @@
 import type { ContratacaoResponse } from '../api/financeiroTipos';
-import { LIMITES_DO_CONTRATO, type FaltaDoContrato, type SituacaoDoContrato } from '../api/contratos';
+import { LIMITES_DO_CONTRATO, type FaltaDoContrato, type SignatarioDoContrato, type SituacaoDoContrato } from '../api/contratos';
 import { esc } from '../pdf/html';
 import type { TipoSelo } from '../ui/Selo';
 import { dataEmBrasilia } from './agendaPresencial';
@@ -102,7 +102,7 @@ export function seloDoContratoDoAluno(c: { situacao: SituacaoDoContrato; prazoAt
   return { texto: c.prazoAte ? `Assine até ${prazoCurto(c.prazoAte)}` : 'Para assinar', tipo: 'atencao' };
 }
 
-export type IdDaAcaoDoContrato = 'comprovante' | 'prorrogar' | 'cancelar';
+export type IdDaAcaoDoContrato = 'novoLink' | 'comprovante' | 'prorrogar' | 'cancelar';
 
 export interface AcaoDoContrato {
   id: IdDaAcaoDoContrato;
@@ -110,17 +110,51 @@ export interface AcaoDoContrato {
   perigo?: boolean;
 }
 
-/** O que o ⋯ do contrato oferece a quem tem `CONTRATO_LER` e/ou `CONTRATO_ALTERAR`; vazio = sem ⋯. */
-export function acoesDoContrato(c: { situacao: SituacaoDoContrato; prazoAte?: string | null }, pode: (permissao: string) => boolean): AcaoDoContrato[] {
+/**
+ * O que o ⋯ do contrato oferece a quem tem `CONTRATO_LER` e/ou `CONTRATO_ALTERAR`; vazio = sem ⋯. O link do responsável só
+ * existe no contrato `RESPONSAVEL` pendente, e o código só aparece na resposta: perdido, gera-se outro (o anterior deixa de valer).
+ */
+export function acoesDoContrato(c: { situacao: SituacaoDoContrato; prazoAte?: string | null; signatario?: SignatarioDoContrato }, pode: (permissao: string) => boolean): AcaoDoContrato[] {
   const acoes: AcaoDoContrato[] = [];
   if (c.situacao === 'ASSINADO' && pode('CONTRATO_LER')) acoes.push({ id: 'comprovante', rotulo: 'Baixar comprovante' });
   if (c.situacao === 'PENDENTE' && pode('CONTRATO_ALTERAR')) {
+    if (c.signatario === 'RESPONSAVEL') acoes.push({ id: 'novoLink', rotulo: 'Gerar novo link do responsável' });
     // O prazo só existe a partir do passo 5 do plano: sem ele não há o que prorrogar.
     if (c.prazoAte) acoes.push({ id: 'prorrogar', rotulo: 'Prorrogar prazo' });
     acoes.push({ id: 'cancelar', rotulo: 'Cancelar contrato', perigo: true });
   }
   return acoes;
 }
+
+/** "Assina: aluno" / "Assina: responsável", para as duas linhas do par de 16 a 17 anos e o contrato do responsável. */
+export const rotuloDoSignatario = (s: SignatarioDoContrato): string => (s === 'RESPONSAVEL' ? 'Assina: responsável' : 'Assina: aluno');
+
+// ---- quem assina (D1, D12, D28) ----
+
+export type FaixaDoMenor = 'MENOR_DE_16' | 'DE_16_A_17';
+
+/**
+ * A faixa do menor pela data de nascimento (`AAAA-MM-DD`) e o dia de hoje em Brasília (`AAAA-MM-DD`), só para a nota da tela:
+ * quem decide o signatário é o servidor (S2). Maior de idade, sem data ou data ilegível = `null`. Faz aniversário hoje = já
+ * tem a idade nova.
+ */
+export function faixaDoMenor(dataNascimento: string | null | undefined, hoje: string): FaixaDoMenor | null {
+  const n = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dataNascimento ?? '');
+  const h = /^(\d{4})-(\d{2})-(\d{2})$/.exec(hoje);
+  if (!n || !h) return null;
+  const idade = Number(h[1]) - Number(n[1]) - (`${h[2]}${h[3]}` < `${n[2]}${n[3]}` ? 1 : 0);
+  if (idade < 0) return null;
+  if (idade < 16) return 'MENOR_DE_16';
+  return idade < 18 ? 'DE_16_A_17' : null;
+}
+
+export const NOTA_DO_MENOR: Record<FaixaDoMenor, string> = {
+  MENOR_DE_16: 'Menor de 16 anos: assina só o responsável.',
+  DE_16_A_17: 'De 16 a 17 anos: o aluno e o responsável assinam.',
+};
+
+/** Sem a data de nascimento à mão, a tela só explica a regra. */
+export const NOTA_DOS_MENORES = 'Para menores de idade o app pede também a assinatura do responsável.';
 
 // ---- faltas da prévia ----
 
@@ -136,6 +170,15 @@ export const notaDasFaltas = (faltas: readonly FaltaDoContrato[], podeFinanceiro
 /** "Completar o cadastro do aluno" só com a permissão que grava CPF e endereço e alguma dessas faltas. */
 export const podeCompletarOCadastro = (faltas: readonly FaltaDoContrato[], pode: (permissao: string) => boolean): boolean =>
   pode('ALUNO_SENSIVEL_ALTERAR') && faltas.some((f) => f.campo === 'aluno_cpf' || f.campo === 'aluno_endereco');
+
+/**
+ * "Completar o cadastro do responsável": o responsável financeiro mora no cartão "Plano contratado" da ficha e só se grava com
+ * `FINANCEIRO_ALTERAR` (o CPF também pede `ALUNO_SENSIVEL_LER`).
+ */
+export function podeCompletarOResponsavel(faltas: readonly FaltaDoContrato[], pode: (permissao: string) => boolean): boolean {
+  if (!pode('FINANCEIRO_ALTERAR')) return false;
+  return faltas.some((f) => f.campo === 'responsavel_nome' || (f.campo === 'responsavel_cpf' && pode('ALUNO_SENSIVEL_LER')));
+}
 
 // ---- contratação ----
 
@@ -183,12 +226,15 @@ export function linhasDeEvidencia(e: {
   ip?: string | null;
   agente?: string | null;
   geradoPorNome?: string | null;
+  /** Quem assinou pelo link declarou ser o responsável legal do aluno (D28). */
+  responsavelLegal?: boolean;
 }): LinhaDeEvidencia[] {
   const opcional = (rotulo: string, valor: string | null | undefined): LinhaDeEvidencia[] =>
     (valor === undefined || valor === null ? [] : [{ rotulo, valor: valor.trim() === '' ? NAO_REGISTRADO : valor }]);
   const data = instanteDeBrasilia(e.assinadoEm);
   return [
     { rotulo: 'Assinado por', valor: e.nome },
+    ...(e.responsavelLegal ? [{ rotulo: 'Declaração', valor: 'Declarou ser o responsável legal do aluno.' }] : []),
     { rotulo: 'Data e hora', valor: data ? `${data} (horário de Brasília)` : NAO_REGISTRADO },
     ...opcional('IP', e.ip),
     ...opcional('Aparelho', e.agente),
@@ -214,6 +260,27 @@ export function htmlDoTextoFormatado(texto: string | null | undefined): string {
       .join('<br>')}</p>`)
     .join('');
 }
+
+// ---- texto de exemplo do modelo (D27) ----
+
+/**
+ * O texto com que nasce o "Novo modelo": um esqueleto curto e a cláusula de aceite eletrônico (D27), que todo modelo leva. Só
+ * campos que todo aluno tem (`{aluno_nome}`, `{consultoria}`, `{data}`): campo usado e sem valor impede gerar (D9), então CPF,
+ * endereço, responsável e os do Financeiro ficam para o treinador inserir quando quiser.
+ */
+export const CLAUSULA_DE_ACEITE_ELETRONICO = 'As partes concordam que o aceite deste contrato é feito pelo aplicativo, com a digitação do nome '
+  + 'completo e a confirmação de que leram e concordam, e que o aceite fica registrado com data, hora, endereço de IP, aparelho e código '
+  + 'de verificação do documento. As partes reconhecem esse registro como forma válida de assinatura, nos termos do art. 10, § 2º, da '
+  + 'Medida Provisória nº 2.200-2/2001 e da Lei nº 14.063/2020.';
+
+export const TEXTO_DE_EXEMPLO_DO_MODELO = [
+  '**CONTRATO DE PRESTAÇÃO DE SERVIÇO DE CONSULTORIA**',
+  '**Contratada:** {consultoria}.\n**Contratante:** {aluno_nome}.',
+  '**1. Objeto.** A contratada presta ao contratante o serviço de consultoria de treino e/ou dieta pelo aplicativo, conforme o plano escolhido.',
+  '**2. Obrigações.** Escreva aqui as obrigações das partes, a forma de pagamento e as regras de cancelamento.',
+  `**3. Aceite eletrônico.** ${CLAUSULA_DE_ACEITE_ELETRONICO}`,
+  'Gerado em {data}.',
+].join('\n\n');
 
 // ---- PDF próprio (passo 3) ----
 

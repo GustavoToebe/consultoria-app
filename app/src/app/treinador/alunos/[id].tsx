@@ -193,7 +193,7 @@ export default function FichaAluno() {
         return <CartaoPlanoContratado key={geracaoFinanceiro} alunoId={a.id} ativo={a.ativo} anonimizado={a.anonimizado} alunoNome={a.nome} telefoneAluno={a.telefone}
           alunoAcessoMotivo={a.acessoDesativadoMotivo} aoAlterarAluno={definir} />;
       // Contrato digital (tela B): modelos gerados para o aluno assinar no app.
-      case 'contratos': return <CartaoContratos alunoId={a.id} alunoNome={a.nome} ativo={a.ativo} anonimizado={a.anonimizado} />;
+      case 'contratos': return <CartaoContratos alunoId={a.id} alunoNome={a.nome} dataNascimento={a.dataNascimento} ativo={a.ativo} anonimizado={a.anonimizado} />;
       case 'anamnese':
         return <CartaoAnamnese alunoId={a.id} anonimizado={a.anonimizado} aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} />;
       // As lesões são do `BlocosDaFicha`: ele as busca uma vez e põe as ativas no topo quando a aba fica numa coluna.
