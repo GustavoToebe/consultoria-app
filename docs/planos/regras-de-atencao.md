@@ -53,7 +53,7 @@ O treinador define as próprias regras ("me avise quando…") e o servidor só a
 
 ## Passos
 - [x] 0. Plano (este arquivo) e mapas de API e app — commit: local na branch regras-de-atencao
-- [~] 0b. revisão do plano pelo revisor incorporada (27/11); plano-front das telas ainda em andamento — commit: —
+- [x] 0b. revisão do plano (revisor) e plano-front das telas incorporados (27/11) — commit: local na branch regras-de-atencao
 - [ ] 1. Etapa 1 API: migration provisória V190, entidades, avaliador, envio, rotas, permissão, auditoria, push, chave — commit/run: —
 - [ ] 2. Etapa 1 app: Configurações, lista, revisão, preferências, Ajuda e guias — commit/run: —
 - [ ] 3. Etapa 2: exceção por aluno (API e ficha) — commit/run: —
@@ -68,3 +68,17 @@ O treinador define as próprias regras ("me avise quando…") e o servidor só a
 
 ## O que ficou para trás
 - (preencher na entrega)
+
+## Decisões do plano-front (27/11)
+Plano de telas completo (agente `ae708a1046ecc7747`): 5 telas no molde da aba Lembretes do Financeiro (`AbaLembretes` sobre `AjustesDaAba`, peças importadas sem mover). Passos de implementação: 1 tipos, rotas e regras puras (`dominio/regrasDeAtencao.ts`, `dominio/pontosDeAtencao.ts`, fila, permissões, telas, ajuda) → 2A Configurações › Regras de atenção → 2B selo na lista e destaque na revisão (paralelo ao 2A) → 2C interruptor do push (cartão em `TelaAjustes` pela prop `extras`) → 3 Ajuda e guias → 4 etapa 2 (ficha).
+Contrato que a API passa a entregar (fechado pela sessão):
+- C1 salvar em lote atômico: `PUT /regras-de-atencao {versao, regras:[{id?, tipo, perguntaId?, limite?, ativa}]}`, resposta igual ao GET; 409 `CONFLITO_EDICAO` pela versão da lista; 422 `REGRA_INVALIDA` com `fieldErrors` em `regras[i].perguntaId|limite`; desligar = `ativa:false`; regra que sai do corpo é apagada (as exceções vão em cascata). Substitui `POST`/`PUT /{id}`/`DELETE /{id}` por regra.
+- C2 `GET /regras-de-atencao` traz `versao`, `teto` (50), `alunosComExcecao` por regra (etapa 2) e `perguntas: [{perguntaId, tipo, rotulo, escala:{min,max}|null, questionarios:[{id,nome}]}]` (NOTA, SIM_NAO e ITENS_DO_PLANO dos questionários de atualização publicados e ativos).
+- C3 faixas (limite, nunca sugestão): nota abaixo = dentro da escala da pergunta; nota caiu = inteiro 1 a 10; peso mudou = 0,1 a 50 kg, 1 casa; poucos treinos = inteiro 1 a 31.
+- C4 operador **inclusivo**, igual no servidor e no app, escrito em palavras ("Sono 5 ou menos", "caiu 2 pontos ou mais", "mudou 2 kg ou mais", "3 dias com treino ou menos"), seguindo o exemplo do Gustavo ("sono ≤ 5"); mapa único em `dominio/`, e o avaliador usa o mesmo (isto substitui o `<` do N1 da revisão). POUCOS_TREINOS conta `resumo.diasComTreino`, a mesma medida da tela.
+- C5 lista: `pontosDeAtencao` nulo sem permissão ou com a chave desligada (nunca 0 inventado) e o filtro `comAtencao` (o "filtro na lista" pedido); a ordem "ver primeiro" fica fora desta etapa.
+- C6 detalhe: `atencao[]` com `perguntaId` (no PESO_MUDOU, o id da pergunta PESO quando o peso veio dela, senão nulo).
+- C7 `GET /eu` traz `regrasAtencaoHabilitada`; `GET|PUT /eu/preferencias-de-push {atencao}`; registro do token do treinador no app nativo. O interruptor aparece também na web (a preferência é da conta), com o texto "chega pelo app no celular".
+- C8 etapa 2: `GET /alunos/{id}/regras-de-atencao` (regras ligadas e a exceção do aluno) exige `ALUNO_SENSIVEL_LER` também.
+- Na revisão, os pontos de atenção são um grupo próprio no topo do "O que mudou" (vêm do detalhe, sem esperar o histórico; a linha ganha "anterior → atual" quando o histórico traz), porque a maioria dos fatos não tem linha de mudança.
+- Pendências para o Gustavo: nenhuma nova além de R7 e R8.
