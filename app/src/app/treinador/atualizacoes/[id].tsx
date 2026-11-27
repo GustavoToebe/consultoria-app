@@ -9,7 +9,7 @@ import { ErroApi } from '../../../api/cliente';
 import { atualizacaoDoAluno, baixarFotoDoTreinador, detalheAtualizacao, listarAtualizacoes, responderAtualizacao } from '../../../api/rotas';
 import type { Atualizacao } from '../../../api/tipos';
 import { arranjoPrincipalComApoio, TOPO_DO_APOIO } from '../../../dominio/arranjoPrincipalComApoio';
-import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, filaDosParametros, filtroDaFila, type FilaDeAtualizacoes, proximaDaFila, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
+import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, filaDosParametros, filtroDaFila, type FilaDeAtualizacoes, pontosDeAtencaoVisiveis, proximaDaFila, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
 import { dataParaTela } from '../../../dominio/formatos';
 import { abaDaRevisao, apoioDaRevisao, tetoDaRevisao, type AbaDaRevisao } from '../../../dominio/revisaoDaAtualizacao';
@@ -37,7 +37,7 @@ import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 import { useFaixaDeLargura } from '../../../ui/useFaixaDeLargura';
 
-type Params = { id: string; alunoId?: string; situacao?: string; meus?: string; responsavel?: string; de?: string; ate?: string; busca?: string; aba?: string };
+type Params = { id: string; alunoId?: string; situacao?: string; meus?: string; responsavel?: string; de?: string; ate?: string; busca?: string; comAtencao?: string; aba?: string };
 
 /**
  * Revisão da atualização pelo treinador (bloco D de `docs/planos/atualizacao-pasta-e-questionarios.md`, 2.2 de
@@ -45,16 +45,18 @@ type Params = { id: string; alunoId?: string; situacao?: string; meus?: string; 
  * Resumo do período com "O que mudou" no topo e as respostas em ordem) e Evolução (os cartões da ficha); o apoio, fixo ao rolar,
  * tem o Feedback e a navegação da fila em cima e "O que está prescrito" embaixo, com rolagem própria. Sem espaço, empilha:
  * Resumo, Feedback, Prescrito e Respostas. O texto do feedback mora aqui, fora das duas composições: cruzar o limite (girar o
- * tablet, redimensionar a janela) não perde o que foi digitado.
+ * tablet, redimensionar a janela) não perde o que foi digitado. Os pontos de atenção (regras de atenção) abrem o "O que mudou"
+ * (`treinador/revisao/PontosDeAtencao`) e o "Próxima ›" respeita o filtro `comAtencao` da lista.
  */
 export default function AtualizacaoTreinador() {
   return <Tela largura={LARGURA_LISTA} bordas={['top']}><RevisaoDaAtualizacao /></Tela>;
 }
 
 function RevisaoDaAtualizacao() {
-  const {pode}=useSessao();
-  const {id,alunoId,situacao,meus,responsavel,de,ate,busca,aba:abaDaUrl}=useLocalSearchParams<Params>();
-  const fila=filaDosParametros(situacao,meus,{responsavel,de,ate,busca});
+  const {pode,regrasAtencaoHabilitada}=useSessao();
+  const {id,alunoId,situacao,meus,responsavel,de,ate,busca,comAtencao,aba:abaDaUrl}=useLocalSearchParams<Params>();
+  // A fila segue o "Só com pontos de atenção" da lista só quando a pessoa vê os pontos (falha fechada).
+  const fila=filaDosParametros(situacao,meus,{responsavel,de,ate,busca,comAtencao},pontosDeAtencaoVisiveis(regrasAtencaoHabilitada,pode));
   const detalhe=useCarregar(id==='previa'?alunoId??null:id??null,()=>
     id==='previa' ? atualizacaoDoAluno(alunoId!) : detalheAtualizacao(id));
   const a=detalhe.dados;

@@ -83,6 +83,26 @@ class PushRepositorio {
         }
     }
 
+    /** O responsável do aluno (o critério de "Meus alunos"), ou nulo. */
+    UUID responsavelDoAluno(UUID consultoriaId, UUID alunoId) {
+        return jdbc.query("select responsavel_id from aluno where consultoria_id = ? and id = ?",
+                rs -> rs.next() ? rs.getObject(1, UUID.class) : null, consultoriaId, alunoId);
+    }
+
+    /**
+     * Enfileira um aviso para o membro ATIVO da equipe, com a preferência ligada e com token; quem já tem um PENDENTE do tipo fica
+     * como está. As permissões já foram conferidas em Java ({@code PermissoesDoUsuario}: o Administrador não guarda linhas em
+     * {@code perfil_permissao}). Roda na transação de quem chama (mesma conexão).
+     */
+    void enfileirarParaMembro(UUID consultoriaId, UUID usuarioId, TipoDePush tipo) {
+        jdbc.update("insert into push_envio (id, consultoria_id, usuario_id, tipo) "
+                + "select ?, u.consultoria_id, u.id, ? from usuario u where u.consultoria_id = ? and u.id = ? "
+                + "and u.ativo and u.papel = 'TREINADOR' and u.push_atencao "
+                + "and exists (select 1 from push_token t where t.consultoria_id = u.consultoria_id and t.usuario_id = u.id) "
+                + "on conflict (consultoria_id, usuario_id, tipo) where situacao = 'PENDENTE' do nothing",
+                UUID.randomUUID(), tipo.name(), consultoriaId, usuarioId);
+    }
+
     /** Arrenda um lote de pendentes vencidos num comando só ({@code skip locked}); quem não concluir devolve à fila sozinho. */
     List<Reservado> reservar(UUID dono, int limite, int segundos) {
         return jdbc.query("update push_envio p set reservado_por = ?, reserva_ate = now() + make_interval(secs => ?) "
@@ -94,7 +114,11 @@ class PushRepositorio {
                 dono, (double) segundos, limite);
     }
 
-    /** O usuário ainda é um aluno ativo, não anonimizado, com a conta ativa? Senão o push não vai e os tokens saem. */
+    /**
+     * Tipos do aluno ({@code COMPROMISSO}, {@code PLANO_LIBERADO}): o usuário ainda é um aluno ativo, não anonimizado, com a conta
+     * ativa? Senão o push não vai e os tokens saem. O membro da equipe ({@code ATUALIZACAO_ATENCAO}) é conferido em
+     * {@link PushService#situacaoDoMembro}.
+     */
     boolean elegivel(UUID consultoriaId, UUID usuarioId) {
         Integer n = jdbc.queryForObject("select count(*) from usuario u join aluno a on a.consultoria_id = u.consultoria_id "
                 + "and a.usuario_id = u.id where u.consultoria_id = ? and u.id = ? and u.ativo and a.ativo "

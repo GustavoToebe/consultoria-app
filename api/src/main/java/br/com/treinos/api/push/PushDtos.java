@@ -1,6 +1,7 @@
 package br.com.treinos.api.push;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -34,6 +35,9 @@ public final class PushDtos {
             return "RemoverRequest[]";
         }
     }
+
+    /** {@code GET|PUT /eu/preferencias-de-push}: o aviso de pontos de atenção na conta do membro ({@code usuario.push_atencao}). */
+    public record PreferenciasDePush(@NotNull(message = "Informe se quer o aviso.") Boolean atencao) { }
 
     /** Exportação do aluno (LGPD): só que existe, de que aparelho e desde quando; nunca o valor. */
     public record PushExportado(String plataforma, Instant registradoEm) { }

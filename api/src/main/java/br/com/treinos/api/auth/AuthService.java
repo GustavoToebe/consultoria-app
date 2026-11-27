@@ -68,6 +68,7 @@ public class AuthService {
     private final br.com.treinos.api.whatsapp.WhatsAppProperties whatsapp;
     private final br.com.treinos.api.contratos.ContratosProperties contratos;
     private final br.com.treinos.api.contratos.TravaPorContrato travaPorContrato;
+    private final br.com.treinos.api.atencao.RegrasAtencaoProperties regrasAtencao;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -89,7 +90,9 @@ public class AuthService {
                        br.com.treinos.api.pagamentos.AsaasProperties asaas,
                        br.com.treinos.api.whatsapp.WhatsAppProperties whatsapp,
                        br.com.treinos.api.contratos.ContratosProperties contratos,
-                       br.com.treinos.api.contratos.TravaPorContrato travaPorContrato) {
+                       br.com.treinos.api.contratos.TravaPorContrato travaPorContrato,
+                       br.com.treinos.api.atencao.RegrasAtencaoProperties regrasAtencao) {
+        this.regrasAtencao = regrasAtencao;
         this.travaPorContrato = travaPorContrato;
         this.contratos = contratos;
         this.whatsapp = whatsapp;
@@ -217,7 +220,7 @@ public class AuthService {
                 pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
                 ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado(),
                 vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(), whatsapp.habilitado(),
-                contratos.habilitado(),
+                contratos.habilitado(), regrasAtencao.habilitado(),
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())
                         .map(br.com.treinos.api.consultoria.Consultoria::whatsappParaLink).orElse(null) : null,
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())

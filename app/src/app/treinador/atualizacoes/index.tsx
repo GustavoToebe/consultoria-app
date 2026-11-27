@@ -1,16 +1,19 @@
+import { Flag } from 'lucide-react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { contagensAtualizacoes, listarAtualizacoesPagina, responsaveisEquipe, TAMANHO_DA_PAGINA_DE_ATUALIZACOES } from '../../../api/rotas';
 import { ErroApi } from '../../../api/cliente';
 import type { SituacaoAtualizacao } from '../../../api/tipos';
-import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
+import { caminhoAtualizacaoTreinador, pontosDeAtencaoVisiveis, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
 import { paraSetParams } from '../../../dominio/filtrosComuns';
 import {
   CHAVES_DO_ENDERECO, chaveDosFiltros, chipsDosFiltros, lerDoEndereco, MAXIMO_DIAS, opcoesDeResponsavel,
-  paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro, type ChaveDoFiltro, type FiltrosDeAtualizacoes,
+  paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro, TEXTO_DO_FILTRO_DE_ATENCAO, type ChaveDoFiltro, type FiltrosDeAtualizacoes,
 } from '../../../dominio/filtrosDeAtualizacoes';
+import { textoDosPontos } from '../../../dominio/pontosDeAtencao';
+import { CaixaSelecao } from '../../../ui/CaixaSelecao';
 import { CamposDePeriodo } from '../../../treinador/SeletoresDeFiltro';
 import { SelecaoMultiplaSuspensa } from '../../../ui/SelecaoMultiplaSuspensa';
 import { BarraDeFiltros, GrupoDoPainel } from '../../../ui/BarraDeFiltros';
@@ -46,13 +49,16 @@ const VAZIO_DA_ABA:Record<SituacaoAtualizacao,string>={
  * pelo nome, os responsáveis (vários) e a data (`docs/planos/filtros-nas-listas.md`, D5 e lote 2). Tudo vai à API (a
  * busca 300 ms depois de digitar); as abas contam com os mesmos filtros (`GET /atualizacoes/contagens`). Responsáveis e
  * data moram no endereço (`?meus=true` ou `?responsavel=<id>,nenhum`, `?de=&ate=`) e seguem, com a busca, para a
- * revisão em fila.
+ * revisão em fila. Com as regras de atenção (`docs/planos/regras-de-atencao.md`, C5): o selo neutro "N pontos de atenção"
+ * na linha e o filtro "Só com pontos de atenção" (`?comAtencao=true`), que também segue para a fila; só com a chave e as
+ * permissões (`pontosDeAtencaoVisiveis`).
  */
 export default function ListaAtualizacoes() {
-  const parametros=useLocalSearchParams<{situacao?:string;meus?:string;responsavel?:string;de?:string;ate?:string;busca?:string}>();
+  const parametros=useLocalSearchParams<{situacao?:string;meus?:string;responsavel?:string;de?:string;ate?:string;busca?:string;comAtencao?:string}>();
   const filtro=ABAS.find(a=>a.valor===parametros.situacao)?.valor??'PARA_REVISAR';
-  const filtros=lerDoEndereco(parametros);
-  const {usuario}=useSessao();
+  const {usuario,pode,regrasAtencaoHabilitada}=useSessao();
+  const atencao=pontosDeAtencaoVisiveis(regrasAtencaoHabilitada,pode);
+  const filtros=lerDoEndereco(parametros,atencao);
   const {fatorTexto}=useTema();
   // A busca vem do endereço só ao abrir (o "Voltar para a lista" da fila a traz); depois é digitada aqui.
   const [busca,setBusca]=useState(()=>typeof parametros.busca==='string'?parametros.busca.slice(0,100):'');
@@ -85,9 +91,11 @@ export default function ListaAtualizacoes() {
   const aplicar=(novos:FiltrosDeAtualizacoes)=>router.setParams(paraSetParams(CHAVES_DO_ENDERECO,paraEndereco(novos)));
   const chips=chipsDosFiltros(filtros,nomeDe);
   const responsavelDaFila=pedido.filtro.responsavel&&typeof pedido.filtro.responsavel!=='string'?pedido.filtro.responsavel.join(','):undefined;
-  const fila={situacao:filtro,meus:pedido.meus,...(responsavelDaFila?{responsavel:responsavelDaFila}:{}),...(pedido.filtro.de&&pedido.filtro.ate?{de:pedido.filtro.de,ate:pedido.filtro.ate}:{}),...(buscaAtrasada?{busca:buscaAtrasada}:{})};
+  const fila={situacao:filtro,meus:pedido.meus,...(responsavelDaFila?{responsavel:responsavelDaFila}:{}),...(pedido.filtro.de&&pedido.filtro.ate?{de:pedido.filtro.de,ate:pedido.filtro.ate}:{}),...(buscaAtrasada?{busca:buscaAtrasada}:{}),...(pedido.filtro.comAtencao?{comAtencao:true as const}:{})};
   // A busca que vale é a que já foi à API (a lista na tela é dela).
   const filtrado=chips.length>0||!!buscaAtrasada;
+  // Só o filtro de atenção ligado: o vazio diz o porquê e devolve a lista inteira.
+  const soAtencao=!buscaAtrasada&&chips.length===1&&chips[0].chave==='atencao';
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
     <Cabecalho titulo="Atualizações" descricao="Revise os envios e acompanhe os prazos." mostrarMarca="celular" />
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome do aluno'}} valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS}
@@ -100,6 +108,10 @@ export default function ListaAtualizacoes() {
         <GrupoDoPainel titulo="Datas">
           <CamposDePeriodo rotulo="Data da atualização" regra="PLANEJAMENTO" osDois maximoDias={MAXIMO_DIAS} valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})} />
         </GrupoDoPainel>
+        {atencao?<GrupoDoPainel titulo="Regras de atenção">
+          <CaixaSelecao rotulo={TEXTO_DO_FILTRO_DE_ATENCAO} ajuda="Envios que bateram em alguma regra sua." marcado={atuais.comAtencao===true}
+            aoMudar={(marcado)=>mudar(marcado?{...atuais,comAtencao:true}:semOFiltro(atuais,'atencao'))} />
+        </GrupoDoPainel>:null}
       </>} />
     {/* A aba (situação) é um passo do histórico; os filtros da barra vão junto. */}
     <Abas abas={ABAS.map(a=>({...a,contagem:contagens[a.valor]}))} ativa={filtro} aoMudar={valor=>{ if(valor!==filtro) router.push({pathname:'/treinador/atualizacoes',params:{situacao:valor,...paraEndereco(filtros)}}); }} />
@@ -108,7 +120,9 @@ export default function ListaAtualizacoes() {
     {lista.erro?<MensagemErro texto={`Não foi possível carregar as atualizações. ${textoDoErro(lista.erro)}`} erro={lista.erro} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}
     {!lista.carregando && lista.dados && total===0?(filtrado
-      ?<Vazio titulo={buscaAtrasada?`Nenhuma atualização para "${buscaAtrasada}"`:'Nenhuma atualização com esses filtros'} texto={!buscaAtrasada?'Tire algum filtro para ver mais atualizações.':chips.length?'Confira o nome ou tire algum filtro.':'Confira o nome ou limpe a busca.'}
+      ?soAtencao?<Vazio titulo="Nenhuma atualização com pontos de atenção" texto="Aparecem aqui os envios que bateram em alguma regra sua."
+        acao={{rotulo:'Ver todas as atualizações',aoTocar:()=>aplicar(semOFiltro(filtros,'atencao'))}} />
+      :<Vazio titulo={buscaAtrasada?`Nenhuma atualização para "${buscaAtrasada}"`:'Nenhuma atualização com esses filtros'} texto={!buscaAtrasada?'Tire algum filtro para ver mais atualizações.':chips.length?'Confira o nome ou tire algum filtro.':'Confira o nome ou limpe a busca.'}
         // "Limpar filtros" tira só os filtros (a busca é independente, D5); só com a busca, a saída é limpá-la.
         acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>aplicar(SEM_FILTROS)}:{rotulo:'Limpar a busca',aoTocar:()=>setBusca('')}} />
       :<Vazio texto={VAZIO_DA_ABA[filtro]} />):null}
@@ -116,7 +130,14 @@ export default function ListaAtualizacoes() {
         que espera há mais tempo). Sem título o cartão não tinha faixa e a descrição nem aparecia. */}
     {itens.length?<Cartao titulo={`${total} ${total===1?'atualização':'atualizações'}`} descricao="Da mais antiga para a mais nova.">
       {/* Tela larga: revisão (24/11): as linhas em caixa ganham colunas com o espaço (antes esticavam até a borda). */}
-      <Grade gap={VAO_DA_LISTA} colunas={(l)=>colunasDaListaDeAtualizacoes(l,fatorTexto)}>{itens.map(a=>{const selo=statusAtualizacaoTreinador(a);const data=dataSemAnoCorrente(a.dataAtualizacao);return <LinhaDaLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} metadados={`Data: ${data}`} selos={[{texto:selo.curto,tipo:selo.tipo,Icone:ICONE_DO_SELO[selo.tipo]}]} href={caminhoAtualizacaoTreinador(a,fila)} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${data}, ${selo.curto}`} />;})}</Grade>
+      <Grade gap={VAO_DA_LISTA} colunas={(l)=>colunasDaListaDeAtualizacoes(l,fatorTexto)}>{itens.map(a=>{
+        const selo=statusAtualizacaoTreinador(a);const data=dataSemAnoCorrente(a.dataAtualizacao);
+        // Selo neutro (plano, App): é informação da regra do treinador; quem pede a ação é o "Para revisar" ao lado.
+        const pontos=atencao?textoDosPontos(a.pontosDeAtencao):null;
+        return <LinhaDaLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} metadados={`Data: ${data}`}
+          selos={[{texto:selo.curto,tipo:selo.tipo,Icone:ICONE_DO_SELO[selo.tipo]},...(pontos?[{texto:pontos,tipo:'neutro' as const,Icone:Flag}]:[])]}
+          href={caminhoAtualizacaoTreinador(a,fila)} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${data}, ${selo.curto}${pontos?`, ${pontos}`:''}`} />;
+      })}</Grade>
       {total>TAMANHO_DA_PAGINA_DE_ATUALIZACOES?<View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:espaco(1),flexWrap:'wrap'}}>
         <Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina===0} aoTocar={()=>irParaPagina(pagina-1)} />
         <Texto variante="suave">Página {pagina+1} de {paginas} · {total} atualizações</Texto>

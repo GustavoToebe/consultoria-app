@@ -29,6 +29,8 @@ import { pode as conferirPermissao } from '../dominio/permissoes';
 import { varrerFilasRetidas } from '../offline/filasRetidas';
 import { avisoNoCelularLigado } from '../aluno/push/avisoLigado';
 import { registrarPushDoAparelho, removerPushDoAparelho } from '../aluno/push/pushNativo';
+import { registrarPushDoTreinador, removerPushDoTreinadorAoSair } from '../treinador/push/pushDoTreinador';
+import { recebePushDeAtencao } from '../treinador/push/regraDoPushDoTreinador';
 import { limparDadosDoAluno } from '../offline/limparDadosDoAluno';
 import { apagarArquivosTemporarios } from '../offline/arquivosTemporarios';
 import { limparLogosEmMemoria } from '../pdf/logoEmMemoria';
@@ -92,6 +94,8 @@ interface ValorSessao {
   whatsappHabilitado: boolean;
   /** Contrato digital ligado? Desligado ou desconhecido, o app esconde tudo dele e não o consulta. */
   contratosHabilitados: boolean;
+  /** Regras de atenção do treinador ligadas? Desligado ou desconhecido, o app esconde tudo delas e não as consulta. */
+  regrasAtencaoHabilitada: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos; nulo = sem "Falar com o treinador". */
   whatsappDaConsultoria: string | null;
   /** Só do aluno: links das redes preenchidas da consultoria; nulo = nenhuma (a fileira não aparece). */
@@ -145,6 +149,14 @@ const Contexto = createContext<ValorSessao | null>(null);
 /** Aluno com o push ligado na plataforma e o aviso ligado neste aparelho: só ele fala com o Expo (registrar, apagar). */
 async function comAvisoNoCelular(perfil: Perfil | null): Promise<boolean> {
   return perfil?.usuario.papel === 'ALUNO' && perfil.pushHabilitado === true && (await avisoNoCelularLigado(perfil.usuario.id));
+}
+
+/** Treinador que registra o token do push de atenção (C7): a mesma regra do `SincronizarPushDoTreinador`. */
+function treinadorRecebeAtencao(perfil: Perfil | null): boolean {
+  return perfil?.usuario.papel === 'TREINADOR' && recebePushDeAtencao({
+    os: Platform.OS, pushHabilitado: perfil.pushHabilitado === true, regrasAtencaoHabilitada: perfil.regrasAtencaoHabilitada === true,
+    podeVer: conferirPermissao(perfil.permissoes, 'ATUALIZACAO_LER') && conferirPermissao(perfil.permissoes, 'ALUNO_SENSIVEL_LER'),
+  });
 }
 
 /**
@@ -486,6 +498,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
       whatsappHabilitado:perfil?.whatsappHabilitado===true,
       contratosHabilitados:perfil?.contratosHabilitados===true,
+      regrasAtencaoHabilitada:perfil?.regrasAtencaoHabilitada===true,
       whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
       redesSociaisDaConsultoria:perfil?.redesSociaisDaConsultoria??null,
       acessoPausado:perfil?.acessoPausado===true,
@@ -503,6 +516,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         await abrir(await rotas.trocarSenha(atual, nova));
         // A API apaga os tokens de push do usuário ao trocar a senha: quem tem o aviso ligado registra o deste aparelho de novo.
         if (await comAvisoNoCelular(perfilAtual.current)) await registrarPushDoAparelho().catch(() => undefined);
+        // O do treinador também (C7), só se o aparelho já deixa notificar; com a chave desligada o PUT daria 503.
+        else if (treinadorRecebeAtencao(perfilAtual.current)) await registrarPushDoTreinador().catch(() => undefined);
       },
       ativarMfa: async (senha, codigo) => {
         const ativacao = await rotas.mfaAtivar(senha, codigo);
@@ -520,6 +535,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         // da plataforma desligada depois. Quem não ligou nem toca no Expo. Falha ou demora não bloqueiam a saída (o token sem
         // uso vence sozinho no servidor em 30 dias).
         if (await ligouOAvisoNesteAparelho(perfilAtual.current)) await removerPushDoAparelho().catch(() => undefined);
+        // Treinador: só o token deste aparelho (`DELETE /eu/push-token` com corpo), com ou sem a chave ligada, sem bloquear.
+        else if (perfilAtual.current?.usuario.papel === 'TREINADOR') await removerPushDoTreinadorAoSair().catch(() => undefined);
         try {
           await rotas.sairDaApi(await lerRefresh());
         } catch {

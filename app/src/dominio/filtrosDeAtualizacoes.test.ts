@@ -36,6 +36,20 @@ describe('filtros das atualizações', () => {
     expect(pedidoDaApi({ ...SEM_FILTROS, responsaveis: [MEUS, ID] }, '', null)).toEqual({ meus: false, filtro: { responsavel: [ID] } });
   });
 
+  test('com atenção: só com a chave disponível; endereço, pedido, chip, chave e tirar', () => {
+    expect(lerDoEndereco({ comAtencao: 'true' })).toEqual(SEM_FILTROS);
+    expect(lerDoEndereco({ comAtencao: 'sim' }, true)).toEqual(SEM_FILTROS);
+    const f = lerDoEndereco({ comAtencao: ['true'] }, true);
+    expect(f).toEqual({ ...SEM_FILTROS, comAtencao: true });
+    expect(paraEndereco(f)).toEqual({ comAtencao: 'true' });
+    expect(lerDoEndereco(paraEndereco(f), true)).toEqual(f);
+    expect(pedidoDaApi(f, '', EU)).toEqual({ meus: false, filtro: { comAtencao: true } });
+    expect(chipsDosFiltros(f)).toEqual([{ chave: 'atencao', texto: 'Só com pontos de atenção' }]);
+    expect(chaveDosFiltros(f)).not.toBe(chaveDosFiltros(SEM_FILTROS));
+    expect(semOFiltro(f, 'atencao')).toEqual(SEM_FILTROS);
+    expect(semOFiltro(f, 'periodo').comAtencao).toBe(true);
+  });
+
   test('chave muda com a busca e não com a ordem das pessoas', () => {
     expect(chaveDosFiltros({ ...SEM_FILTROS, responsaveis: [ID, MEUS] })).toBe(chaveDosFiltros({ ...SEM_FILTROS, responsaveis: [MEUS, ID] }));
     expect(chaveDosFiltros(SEM_FILTROS, 'ana')).not.toBe(chaveDosFiltros(SEM_FILTROS));

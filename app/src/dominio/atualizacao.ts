@@ -65,14 +65,19 @@ export function atualizacaoDaPasta(pastaId: string, atual: Atualizacao | null | 
 }
 /**
  * Lista de onde o treinador veio: a revisão em fila segue o mesmo filtro (`?situacao=&meus=`, e os responsáveis, o
- * período e a busca da barra de filtros, `?responsavel=<id>,nenhum&de=&ate=&busca=`).
+ * período e a busca da barra de filtros, `?responsavel=<id>,nenhum&de=&ate=&busca=`, e o "Só com pontos de atenção",
+ * `&comAtencao=true`).
  */
-export interface FilaDeAtualizacoes { situacao: SituacaoAtualizacao; meus: boolean; responsavel?: string; de?: string; ate?: string; busca?: string }
+export interface FilaDeAtualizacoes { situacao: SituacaoAtualizacao; meus: boolean; responsavel?: string; de?: string; ate?: string; busca?: string; comAtencao?: true }
 const SITUACOES_DA_FILA: readonly SituacaoAtualizacao[] = ['PARA_REVISAR', 'ATRASADAS', 'AVISARAM_ATRASO', 'PROXIMAS'];
 const ID_DA_FILA = /^([0-9a-z-]{8,64}|nenhum)$/i;
 const DATA_DA_FILA = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * `atencaoDisponivel`: a tela vê os pontos de atenção (`pontosDeAtencaoVisiveis`). Sem ela o `comAtencao` do endereço é
+ * ignorado (falha fechada, como o `lerDoEndereco` da lista).
+ */
 export function filaDosParametros(situacao: string | undefined, meus: string | undefined,
-  extra: { responsavel?: string; de?: string; ate?: string; busca?: string } = {}): FilaDeAtualizacoes | null {
+  extra: { responsavel?: string; de?: string; ate?: string; busca?: string; comAtencao?: string } = {}, atencaoDisponivel = false): FilaDeAtualizacoes | null {
   const achada = SITUACOES_DA_FILA.find((s) => s === situacao);
   if (!achada) return null;
   const fila: FilaDeAtualizacoes = { situacao: achada, meus: meus === 'true' };
@@ -81,17 +86,26 @@ export function filaDosParametros(situacao: string | undefined, meus: string | u
   if (extra.de && extra.ate && DATA_DA_FILA.test(extra.de) && DATA_DA_FILA.test(extra.ate)) { fila.de = extra.de; fila.ate = extra.ate; }
   const busca = extra.busca?.trim().slice(0, 100);
   if (busca) fila.busca = busca;
+  if (atencaoDisponivel && extra.comAtencao === 'true') fila.comAtencao = true;
   return fila;
 }
-/** O resto do endereço da fila: `&responsavel=`, `&de=&ate=` e `&busca=` quando há. */
+/** O resto do endereço da fila: `&responsavel=`, `&de=&ate=`, `&busca=` e `&comAtencao=true` quando há. */
 const restoDaFila = (fila: FilaDeAtualizacoes) =>
-  `${fila.responsavel ? `&responsavel=${encodeURIComponent(fila.responsavel)}` : ''}${fila.de && fila.ate ? `&de=${fila.de}&ate=${fila.ate}` : ''}${fila.busca ? `&busca=${encodeURIComponent(fila.busca)}` : ''}`;
+  `${fila.responsavel ? `&responsavel=${encodeURIComponent(fila.responsavel)}` : ''}${fila.de && fila.ate ? `&de=${fila.de}&ate=${fila.ate}` : ''}${fila.busca ? `&busca=${encodeURIComponent(fila.busca)}` : ''}${fila.comAtencao ? '&comAtencao=true' : ''}`;
 /** O filtro da API da fila (os responsáveis da vírgula viram parâmetros repetidos). */
 export const filtroDaFila = (fila: FilaDeAtualizacoes) => ({
   ...(fila.responsavel ? { responsavel: fila.responsavel.split(',') } : {}),
   ...(fila.de && fila.ate ? { de: fila.de, ate: fila.ate } : {}),
   ...(fila.busca ? { busca: fila.busca } : {}),
+  ...(fila.comAtencao ? { comAtencao: true } : {}),
 });
+/**
+ * Os pontos de atenção (selo da lista, filtro e bloco da revisão) só aparecem com a chave `regrasAtencaoHabilitada` ligada
+ * e com as permissões de ler as atualizações (R6: `ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER`). A API já manda nulo fora disso;
+ * a tela confere também (falha fechada).
+ */
+export const pontosDeAtencaoVisiveis = (habilitada: boolean, pode: (codigo: string) => boolean) =>
+  habilitada && pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
 export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>, fila?: FilaDeAtualizacoes | null) => {
   const base = a.id ? `/treinador/atualizacoes/${a.id}` : `/treinador/atualizacoes/previa?alunoId=${a.alunoId}`;
   if (!fila) return base;

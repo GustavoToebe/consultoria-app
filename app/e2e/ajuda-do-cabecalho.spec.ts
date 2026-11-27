@@ -216,6 +216,7 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/documentos', titulo: 'Documentos (PDF)', secao: null },
   { caminho: '/treinador/documentos/personalizar', titulo: 'Personalizar documentos', secao: null },
   { caminho: '/treinador/contratos', titulo: 'Contratos', secao: 'contratos' },
+  { caminho: '/treinador/regras-de-atencao', titulo: 'Regras de atenção', secao: 'regras-de-atencao' },
   { caminho: '/treinador/termos', titulo: 'Termos e privacidade', secao: 'privacidade' },
   { caminho: '/treinador/seguranca', titulo: 'Segurança', secao: null },
   { caminho: '/treinador/minha-conta', titulo: 'Assinatura e faturas', secao: null },
@@ -234,7 +235,7 @@ async function abrirVarredura(page: Page, largura: number, caminho: string, extr
   await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 800 });
   const { errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, {
-      permissoes: PERMISSOES_DA_VARREDURA, pagamentosHabilitados: true, vitrineHabilitada: true, whatsappHabilitado: true, contratosHabilitados: true,
+      permissoes: PERMISSOES_DA_VARREDURA, pagamentosHabilitados: true, vitrineHabilitada: true, whatsappHabilitado: true, contratosHabilitados: true, regrasAtencaoHabilitada: true,
       perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true },
     })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },

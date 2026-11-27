@@ -34,11 +34,12 @@ public class EquipeService {
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
     private final PermissoesDoUsuario permissoesDoUsuario;
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
+    private final br.com.treinos.api.push.PushService push;
     public EquipeService(PerfilRepository perfis,UsuarioRepository usuarios,UsuarioConviteRepository convites,
                         ConsultoriaRepository consultorias,Autenticador autenticador,
                         PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl,br.com.treinos.api.auditoria.Auditoria auditoria,PermissoesDoUsuario permissoesDoUsuario,
-                        br.com.treinos.api.conta.PlanoDaConsultoria plano) {
-        this.plano=plano;this.auditoria=auditoria;this.permissoesDoUsuario=permissoesDoUsuario;
+                        br.com.treinos.api.conta.PlanoDaConsultoria plano,br.com.treinos.api.push.PushService push) {
+        this.plano=plano;this.push=push;this.auditoria=auditoria;this.permissoesDoUsuario=permissoesDoUsuario;
         this.perfis=perfis;this.usuarios=usuarios;this.convites=convites;this.consultorias=consultorias;
         this.autenticador=autenticador;this.senhas=senhas;this.appUrl=appUrl.replaceAll("/+$","");
     }
@@ -70,7 +71,7 @@ public class EquipeService {
         // Desativar o perfil ou tirar permissões derruba a sessão de quem o usa (como trocar de perfil ou desativar o membro).
         boolean perdeAcesso=(p.isAtivo() && !ativo) || !permissoes.containsAll(antes);
         p.alterar(r.nome().trim(),Buscas.opcional(r.descricao()),ativo,permissoes);
-        if(perdeAcesso) usuarios.findByConsultoriaIdAndPerfilId(TenantContext.get(),p.getId()).forEach(m -> { m.invalidarCredenciais();autenticador.encerrarSessoes(m.getId().toString()); });
+        if(perdeAcesso) usuarios.findByConsultoriaIdAndPerfilId(TenantContext.get(),p.getId()).forEach(m -> { m.invalidarCredenciais();autenticador.encerrarSessoes(m.getId().toString());push.apagarDoUsuario(TenantContext.get(),m.getId()); });
         return perfilResponse(perfis.saveAndFlush(p));
     }
     @Transactional
@@ -155,7 +156,8 @@ public class EquipeService {
         }
         boolean troca=!u.getPerfilId().equals(p.getId());boolean desativar=u.isAtivo() && !r.ativo();
         u.alterarNome(r.nome().trim());u.alterarPerfil(p.getId());u.alterarAtivo(r.ativo());
-        if(troca || desativar) autenticador.encerrarSessoes(u.getId().toString());
+        // Quem perdeu ou mudou de acesso deixa de receber push (o aviso de atenção depende do perfil); o app registra de novo ao abrir.
+        if(troca || desativar) { autenticador.encerrarSessoes(u.getId().toString());push.apagarDoUsuario(TenantContext.get(),u.getId()); }
         if(troca) auditoria.registrarEvento("USUARIO_PERFIL_ALTERADO","USUARIO",u.getId(),"Trocou o perfil de um membro.");
         if(desativar) auditoria.registrarEvento("USUARIO_DESATIVADO","USUARIO",u.getId(),"Desativou um membro.");
         usuarios.saveAndFlush(u);return usuarioResponse(u);

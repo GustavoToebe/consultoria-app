@@ -21,6 +21,8 @@ describe('perfilDoEu', () => {
   it('guarda a chave do contrato digital; ausente fica ausente (a sessão a lê como desligada)', () => {
     expect(perfilDoEu({ ...EU, contratosHabilitados: true }).contratosHabilitados).toBe(true);
     expect(perfilDoEu(EU).contratosHabilitados).toBeUndefined();
+    expect(perfilDoEu({ ...EU, regrasAtencaoHabilitada: true }).regrasAtencaoHabilitada).toBe(true);
+    expect(perfilDoEu(EU).regrasAtencaoHabilitada).toBeUndefined();
   });
 
   it('guarda o WhatsApp da consultoria do aluno; ausente fica ausente', () => {

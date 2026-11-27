@@ -328,7 +328,7 @@ public class ValidadorAtualizacao {
     }
 
     /** {@code {min, max}} da NOTA: o que a pergunta traz dentro da regra ou 0 a 10. Igual a {@code escalaDaNota} do app. */
-    static int[] escalaDaNota(JsonNode p) {
+    public static int[] escalaDaNota(JsonNode p) {
         return new int[] {
                 inteiroOu(p.path("min"), 0, LimitesQuestionario.NOTA_MIN_MAXIMO, LimitesQuestionario.NOTA_MIN_PADRAO),
                 inteiroOu(p.path("max"), LimitesQuestionario.NOTA_MAX_MINIMO, LimitesQuestionario.NOTA_MAX_PADRAO,

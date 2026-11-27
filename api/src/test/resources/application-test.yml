@@ -61,6 +61,9 @@ treinos:
     habilitado: true
     # A rotina de guarda do assinado (D16) fica sem agenda: os testes chamam GuardaDoContratoAssinado.rodar à mão.
     guarda-agendada: false
+  # Regras de atenção ligadas na suíte; o modo desligado tem a sua classe (RegrasDeAtencaoDesligadasIntegrationTest).
+  regras-atencao:
+    habilitado: true
   # Vitrine ligada na suíte; o modo desligado tem a sua classe (VitrineDesligadaIntegrationTest).
   vitrine:
     habilitada: true

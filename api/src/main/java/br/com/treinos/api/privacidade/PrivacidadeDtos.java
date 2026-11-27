@@ -34,7 +34,9 @@ public final class PrivacidadeDtos {
     public record AtualizacaoExportada(UUID id, UUID pastaId, LocalDate dataAtualizacao, String estado,
                                        UUID questionarioVersaoId, JsonNode respostas, Instant enviadaEm,
                                        LocalDate atrasoAte, String atrasoMotivo, String feedback, Instant feedbackEm,
-                                       List<FotoService.FotoExportada> fotos) { }
+                                       List<FotoService.FotoExportada> fotos,
+                                       /* Pontos de atenção do envio (V190): tipo, perguntaId, limiteVigente e valorObservado. */
+                                       List<br.com.treinos.api.atencao.AvaliadorDeAtencao.Fato> atencao) { }
 
     /**
      * Tudo o que a consultoria guarda do aluno e que quem exporta pode ler. Seção que a pessoa não pode ler fica fora
@@ -68,7 +70,9 @@ public final class PrivacidadeDtos {
                              /** Avisos de "plano liberado" (V106): só as datas de criação e de visto, sem texto; com {@code ALUNO_LER}. */
                              Secao<br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado.AvisoExportado> avisosDePlanoLiberado,
                              /** Os contratos digitais do aluno (V105): texto, hash e evidências de assinatura; só com {@code CONTRATO_LER}. */
-                             Secao<br.com.treinos.api.contratos.ContratoDtos.ContratoExportado> contratos) { }
+                             Secao<br.com.treinos.api.contratos.ContratoDtos.ContratoExportado> contratos,
+                             /** Exceções de regra de atenção do aluno (V191): regraId, ativa e limite; mesma permissão de {@code atualizacoes}. */
+                             Secao<br.com.treinos.api.atencao.AtencaoDaAtualizacao.ExcecaoExportada> regrasDeAtencao) { }
 
     /**
      * O código do link de indicação do próprio aluno (V081) e nada mais: a lista de quem ele indicou é dado de terceiros (nome e

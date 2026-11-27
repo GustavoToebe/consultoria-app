@@ -2,6 +2,7 @@ package br.com.treinos.api.push;
 
 import br.com.treinos.api.push.ExpoCliente.FalhaNoEnvio;
 import br.com.treinos.api.push.PushRepositorio.Reservado;
+import br.com.treinos.api.tenant.TenantContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,7 +25,7 @@ import java.util.UUID;
  * <li><b>limpa</b> a fila (pendente com mais de {@value #HORAS_DE_VALIDADE} h vira CANCELADO; concluído some em 7 dias);</li>
  * <li><b>reserva</b> lotes de pendentes ({@code skip locked}, lease de {@value #RESERVA_EM_SEGUNDOS} s);</li>
  * <li><b>confere</b> cada um de novo: usuário ainda ativo e aluno não anonimizado (senão apaga os tokens dele e CANCELA, para
- * nunca deixar token órfão) e com token (senão CANCELA);</li>
+ * nunca deixar token órfão) e com token (senão CANCELA); o aviso de atenção ao membro, por {@link #situacao};</li>
  * <li><b>envia fora de qualquer transação</b>, em chamadas de até 100 mensagens, e conclui numa transação curta conferindo a
  * posse da reserva.</li>
  * </ol>
@@ -67,13 +68,16 @@ public class PushDoExpo {
     private final PushRepositorio fila;
     private final ExpoCliente expo;
     private final PushProperties propriedades;
+    private final PushService push;
     private final TransactionTemplate transacao;
     private final EntreguesNoEnvio entregues = new EntreguesNoEnvio(Clock.systemUTC());
 
-    PushDoExpo(PushRepositorio fila, ExpoCliente expo, PushProperties propriedades, PlatformTransactionManager transacoes) {
+    PushDoExpo(PushRepositorio fila, ExpoCliente expo, PushProperties propriedades, PushService push,
+            PlatformTransactionManager transacoes) {
         this.fila = fila;
         this.expo = expo;
         this.propriedades = propriedades;
+        this.push = push;
         this.transacao = new TransactionTemplate(transacoes);
     }
 
@@ -129,10 +133,14 @@ public class PushDoExpo {
         List<Grupo> grupos = new ArrayList<>();
         for (Reservado envio : lote) {
             try {
-                if (!fila.elegivel(envio.consultoriaId(), envio.usuarioId())) {
+                PushService.Membro situacao = situacao(envio);
+                if (situacao != PushService.Membro.RECEBE) {
                     transacao.executeWithoutResult(s -> {
-                        fila.apagarDoUsuario(envio.consultoriaId(), envio.usuarioId());
-                        fila.cancelar(envio.consultoriaId(), envio.id(), dono, "USUARIO_INATIVO");
+                        if (situacao == PushService.Membro.INATIVO) {
+                            fila.apagarDoUsuario(envio.consultoriaId(), envio.usuarioId());
+                        }
+                        fila.cancelar(envio.consultoriaId(), envio.id(), dono,
+                                situacao == PushService.Membro.INATIVO ? "USUARIO_INATIVO" : "NAO_ELEGIVEL");
                     });
                     entregues.esquecer(envio.id());
                     cancelados++;
@@ -208,6 +216,18 @@ public class PushDoExpo {
         }
         int falhas = porCodigo.values().stream().mapToInt(Integer::intValue).sum();
         return new Resultado(true, enviados, cancelados, falhas, apagados, porCodigo);
+    }
+
+    /**
+     * Elegibilidade por tipo. Os do aluno: aluno ativo e não anonimizado, senão INATIVO (os tokens saem). O do membro
+     * ({@code ATUALIZACAO_ATENCAO}, B1): conta inativa = INATIVO; ativa sem as permissões, sem a preferência ou que não é da
+     * equipe = NAO_RECEBE, que só cancela e guarda os tokens (o join com {@code aluno} apagaria o token de todo treinador).
+     */
+    private PushService.Membro situacao(Reservado envio) {
+        if (envio.tipo() == TipoDePush.ATUALIZACAO_ATENCAO) {
+            return TenantContext.executarComo(envio.consultoriaId(), () -> push.situacaoDoMembro(envio.consultoriaId(), envio.usuarioId()));
+        }
+        return fila.elegivel(envio.consultoriaId(), envio.usuarioId()) ? PushService.Membro.RECEBE : PushService.Membro.INATIVO;
     }
 
     /**

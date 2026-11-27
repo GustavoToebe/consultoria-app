@@ -20,7 +20,7 @@ const ACESSO_TOTAL = [
 const CONSULTORIA: ConsultoriaResponse = { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
 
 interface Perfil {
-  permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; contratos?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO';
+  permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; contratos?: boolean; regras?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO';
   larguraConteudo?: 'AUTOMATICA' | 'LIMITADA';
 }
 
@@ -40,6 +40,7 @@ async function abrir(page: Page, largura: number, perfil: Perfil, caminho = '/tr
       recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false,
       whatsappHabilitado: perfil.whatsapp ?? false,
       contratosHabilitados: perfil.contratos ?? false,
+      regrasAtencaoHabilitada: perfil.regras ?? false,
     })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
@@ -55,7 +56,7 @@ function esperado(perfil: Perfil) {
     pode: (c) => perfil.permissoes.includes(c),
     administrador: !!perfil.administrador,
     pagamentosHabilitados: perfil.pagamentos ?? false,
-    chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false, whatsappHabilitado: perfil.whatsapp ?? false, contratosHabilitados: perfil.contratos ?? false },
+    chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false, whatsappHabilitado: perfil.whatsapp ?? false, contratosHabilitados: perfil.contratos ?? false, regrasAtencaoHabilitada: perfil.regras ?? false },
   });
   return { grupos: gruposDeCartoes(visiveis).map((g) => g.grupo), visiveis };
 }
@@ -110,6 +111,25 @@ test('Contratos (1280 e 390): com CONTRATO_LER e a chave, o item abre dentro (12
   await expect(page).toHaveURL(/\/treinador\/contratos$/);
   await expect(h1(page)).toHaveText('Contratos');
   expect(errosDaPagina).toEqual([]);
+});
+
+test('Regras de atenção (1280 e 390): com a chave e ATUALIZACAO_LER + ALUNO_SENSIVEL_LER, o cartão abre a tela inteira; sem a chave, some', async ({ page }) => {
+  const comRegras: Perfil = { ...ADMIN, permissoes: [...ACESSO_TOTAL, 'ALUNO_SENSIVEL_LER'], regras: true };
+  const { errosDaPagina } = await abrir(page, 1280, comRegras);
+  expect(esperado(comRegras).visiveis.map((c) => c.id)).toContain('regras-de-atencao');
+  await item(page, 'Regras de atenção, abre a tela inteira').click();
+  await expect(page).toHaveURL(/\/treinador\/regras-de-atencao$/);
+  await expect(h1(page)).toHaveText('Regras de atenção');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/treinador/configuracoes');
+  await linha(page, 'Regras de atenção').click();
+  await expect(page).toHaveURL(/\/treinador\/regras-de-atencao$/);
+  await expect(h1(page)).toHaveText('Regras de atenção');
+  expect(errosDaPagina).toEqual([]);
+  const semChave: Perfil = { ...ADMIN, permissoes: [...ACESSO_TOTAL, 'ALUNO_SENSIVEL_LER'], regras: false };
+  await abrir(page, 1280, semChave);
+  expect(esperado(semChave).visiveis.map((c) => c.id)).not.toContain('regras-de-atencao');
+  await expect(item(page, 'Regras de atenção, abre a tela inteira')).toHaveCount(0);
 });
 
 test('Contratos (1280): sem a chave da plataforma o item não aparece, mesmo com CONTRATO_LER', async ({ page }) => {

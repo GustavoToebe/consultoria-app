@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { atrasoEmTexto, DIAS_MAXIMOS_PARA_CONTAR_ATRASO, desdeQuandoAtrasou, statusAtualizacao, atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, fraseDeTreinosNoPeriodo, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
+import { atrasoEmTexto, DIAS_MAXIMOS_PARA_CONTAR_ATRASO, desdeQuandoAtrasou, statusAtualizacao, atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, fraseDeTreinosNoPeriodo, pontosDeAtencaoVisiveis, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -104,6 +104,24 @@ describe('revisão em fila', () => {
       .toBe(`/treinador/atualizacoes/c1?situacao=ATRASADAS&responsavel=${encodeURIComponent(`${id},nenhum`)}&busca=ana`);
     expect(filtroDaFila(varios!)).toEqual({ responsavel: [id, 'nenhum'], busca: 'ana' });
     expect(filaDosParametros('ATRASADAS', undefined, { responsavel: `${id},../x` })).toEqual({ situacao: 'ATRASADAS', meus: false });
+  });
+
+  it('a fila leva o "Só com pontos de atenção" só quando a tela os vê (falha fechada)', () => {
+    expect(filaDosParametros('PARA_REVISAR', undefined, { comAtencao: 'true' })).toEqual({ situacao: 'PARA_REVISAR', meus: false });
+    expect(filaDosParametros('PARA_REVISAR', undefined, { comAtencao: 'sim' }, true)).toEqual({ situacao: 'PARA_REVISAR', meus: false });
+    const fila = filaDosParametros('PARA_REVISAR', 'true', { comAtencao: 'true' }, true)!;
+    expect(fila).toEqual({ situacao: 'PARA_REVISAR', meus: true, comAtencao: true });
+    expect(filtroDaFila(fila)).toEqual({ comAtencao: true });
+    expect(caminhoAtualizacaoTreinador({ id: 'c1', alunoId: 'a1' }, fila)).toBe('/treinador/atualizacoes/c1?situacao=PARA_REVISAR&meus=true&comAtencao=true');
+    expect(caminhoListaAtualizacoes('PARA_REVISAR', true, fila)).toBe('/treinador/atualizacoes?situacao=PARA_REVISAR&meus=true&comAtencao=true');
+  });
+
+  it('pontos de atenção só com a chave e as duas permissões', () => {
+    const todas = () => true;
+    expect(pontosDeAtencaoVisiveis(true, todas)).toBe(true);
+    expect(pontosDeAtencaoVisiveis(false, todas)).toBe(false);
+    expect(pontosDeAtencaoVisiveis(true, (c) => c === 'ATUALIZACAO_LER')).toBe(false);
+    expect(pontosDeAtencaoVisiveis(true, (c) => c === 'ALUNO_SENSIVEL_LER')).toBe(false);
   });
 
   it('a próxima é a primeira diferente da atual; fila acabou = nula', () => {

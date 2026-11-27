@@ -38,6 +38,7 @@ import { copiarTexto } from './financeiro/comum';
 import { GrupoDoAlunoNaFicha } from './comunidade/GrupoDoAlunoNaFicha';
 import { FormAluno, TITULO_DAS_REDES } from './FormAluno';
 import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
+import { RegrasDoAlunoNaFicha } from './regras/RegrasDoAlunoNaFicha';
 import { CampoDeTags } from './tags/CampoDeTags';
 import { ChipDeTag } from './tags/ChipDeTag';
 import { nomesDasTags } from './tags/textosDasTags';
@@ -205,6 +206,7 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
               <Par rotulo="Tags" valor={nomesDasTags(tags)}
                 conteudo={tags.length ? <View style={estilos.tags}>{tags.map((t) => <ChipDeTag key={t.id} tag={t} />)}</View> : undefined} />
             ) : null}
+            <RegrasDoAlunoNaFicha aluno={aluno} />
             {/* Por último no grupo: some sozinha (acompanhamento desligado), e o fio só fica entre linhas que existem. */}
             <LinhaDoCicloNaFicha alunoId={aluno.id} />
             {linhaDosPlanos ? <SubtituloDeDados>Plano</SubtituloDeDados> : null}

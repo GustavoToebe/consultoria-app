@@ -52,6 +52,16 @@ public interface AtualizacaoRepository extends JpaRepository<Atualizacao, UUID> 
     List<LinhaEvolucao> linhasDaEvolucao(UUID alunoId, Pageable pagina);
 
     /**
+     * A atualização anterior das regras de atenção, a mesma de {@code atualizacaoAnterior} do app ({@code mudancasDaAtualizacao.ts}):
+     * enviada ou revisada, data estritamente menor, a de data mais recente e, na mesma data, a de envio mais recente. Peça uma linha.
+     */
+    @Query("select new br.com.treinos.api.atualizacoes.LinhaEvolucao(a.id, a.dataAtualizacao, a.respostas, v.conteudo) "
+            + "from Atualizacao a join QuestionarioVersao v on v.id = a.questionarioVersaoId "
+            + "where a.alunoId = :alunoId and a.estado in ('ENVIADA', 'REVISADA') and a.enviadaEm is not null "
+            + "and a.dataAtualizacao < :data order by a.dataAtualizacao desc, a.enviadaEm desc")
+    List<LinhaEvolucao> anteriores(UUID alunoId, LocalDate data, Pageable pagina);
+
+    /**
      * A data da atualização acompanha o fim da pasta enquanto ela estiver ABERTA; enviada ou revisada não muda.
      * Update condicional (não carrega a entidade), para não disputar a versão com o envio do aluno.
      */

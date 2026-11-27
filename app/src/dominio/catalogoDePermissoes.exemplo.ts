@@ -30,6 +30,7 @@ export const CATALOGO_DE_EXEMPLO: PermissaoEquipe[] = [
   p('DIETA_PUBLICAR', 'Planos', 'Dieta', 'Publicar versões: dieta.'),
   p('ATUALIZACAO_LER', 'Atualizações', 'Check-in', 'Consultar: check-in.', true),
   p('ATUALIZACAO_RESPONDER', 'Atualizações', 'Check-in', 'Enviar e editar feedback: check-in.'),
+  p('REGRA_ATENCAO_ALTERAR', 'Atualizações', 'Regras de atenção', 'Criar, editar e desligar: regras de atenção das atualizações.'),
   p('ANAMNESE_LER', 'Atualizações', 'Anamnese', 'Consultar: anamnese dos alunos.', true),
   p('ANAMNESE_ALTERAR', 'Atualizações', 'Anamnese', 'Enviar, dispensar e marcar revisada: anamnese dos alunos.', true),
   p('BIBLIOTECA_LER', 'Conteúdo', 'Biblioteca', 'Consultar: biblioteca.'),

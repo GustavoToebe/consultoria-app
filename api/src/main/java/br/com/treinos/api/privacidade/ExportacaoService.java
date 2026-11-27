@@ -70,6 +70,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp;
     private final br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano;
     private final br.com.treinos.api.contratos.ContratoService contratosDoAluno;
+    private final br.com.treinos.api.atencao.AtencaoDaAtualizacao atencao;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -89,7 +90,9 @@ public class ExportacaoService {
                              br.com.treinos.api.tags.TagsDeAlunoService tags,
                              br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp,
                              br.com.treinos.api.planos.liberacao.AvisosDePlanoLiberado avisosDePlano,
-                             br.com.treinos.api.contratos.ContratoService contratosDoAluno) {
+                             br.com.treinos.api.contratos.ContratoService contratosDoAluno,
+                             br.com.treinos.api.atencao.AtencaoDaAtualizacao atencao) {
+        this.atencao = atencao;
         this.avisosDePlano = avisosDePlano;
         this.contratosDoAluno = contratosDoAluno;
         this.avisosPeloWhatsApp = avisosPeloWhatsApp;
@@ -200,10 +203,13 @@ public class ExportacaoService {
                 () -> avisosDePlano.exportar(alunoId));
         // Contratos digitais (V105): o texto leva CPF e endereço, então só com a permissão que os mostra à equipe.
         var contratos = secao(AcessoAtual.pode("CONTRATO_LER"), "contratos", omitidas, () -> contratosDoAluno.exportar(alunoId));
+        // Exceções de regra de atenção do aluno (regraId, ativa, limite): com a mesma permissão das atualizações; roda com a chave desligada.
+        var regrasDeAtencao = secao(AcessoAtual.pode("ATUALIZACAO_LER") && AcessoAtual.pode("ALUNO_SENSIVEL_LER"),
+                "regrasDeAtencao", omitidas, () -> atencao.excecoesParaExportar(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
                 cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno, indicacao,
-                tagsDoAluno, avisosWhatsApp, avisosDePlanoLiberado, contratos);
+                tagsDoAluno, avisosWhatsApp, avisosDePlanoLiberado, contratos, regrasDeAtencao);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {
@@ -219,13 +225,18 @@ public class ExportacaoService {
     /** As fotos saem só como metadados (pergunta e data de envio); os bytes não vão no arquivo. */
     private List<AtualizacaoExportada> atualizacoesExportadas(UUID alunoId) {
         List<Atualizacao> todas = atualizacoes.findByAlunoIdOrderByDataAtualizacaoDesc(alunoId);
-        var fotosPorAtualizacao = fotos.metadados(todas.stream().map(Atualizacao::getId).toList());
-        return todas.stream().map(a -> atualizacao(a, fotosPorAtualizacao.getOrDefault(a.getId(), List.of()))).toList();
+        var ids = todas.stream().map(Atualizacao::getId).toList();
+        var fotosPorAtualizacao = fotos.metadados(ids);
+        // Pontos de atenção congelados no envio (tipo, pergunta, limite e valor; sem legenda), também com a chave desligada.
+        var pontos = atencao.paraExportar(ids);
+        return todas.stream().map(a -> atualizacao(a, fotosPorAtualizacao.getOrDefault(a.getId(), List.of()),
+                pontos.getOrDefault(a.getId(), List.of()))).toList();
     }
 
-    private AtualizacaoExportada atualizacao(Atualizacao a, List<FotoService.FotoExportada> fotosDela) {
+    private AtualizacaoExportada atualizacao(Atualizacao a, List<FotoService.FotoExportada> fotosDela,
+            List<br.com.treinos.api.atencao.AvaliadorDeAtencao.Fato> pontos) {
         return new AtualizacaoExportada(a.getId(), a.getPastaId(), a.getDataAtualizacao(), a.getEstado(),
                 a.getQuestionarioVersaoId(), json.readTree(a.getRespostas()), a.getEnviadaEm(), a.getAtrasoAte(),
-                a.getAtrasoMotivo(), a.getFeedback(), a.getFeedbackEm(), fotosDela);
+                a.getAtrasoMotivo(), a.getFeedback(), a.getFeedbackEm(), fotosDela, pontos);
     }
 }

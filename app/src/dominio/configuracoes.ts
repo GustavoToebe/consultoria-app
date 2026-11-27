@@ -11,10 +11,10 @@ export type GrupoDeConfiguracao = (typeof GRUPOS_DE_CONFIGURACAO)[number];
  * Booleanos do `GET /eu` (já na sessão) que ligam ou desligam um cartão. Ausente ou `false` = o cartão some. A frente
  * Contato (passo 3 do plano) acrescenta aqui `emailDominioProprioHabilitado` e `whatsappHabilitado`. A aba Recebimento do
  * Financeiro vale sempre (Pix, link próprio e Manual não dependem da InfinitePay): só o cartão da InfinitePay dentro dela
- * usa `recebimentoOnlineHabilitado`, e isso é da tela, não do cartão do hub. Nenhum cartão usa chave hoje.
+ * usa `recebimentoOnlineHabilitado`, e isso é da tela, não do cartão do hub. Só o cartão "Regras de atenção" usa chave hoje (`regrasAtencaoHabilitada`).
  * `pagamentosHabilitados` não entra: já vive dentro de `podeAcessarTela`.
  */
-export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado' | 'overtrainingPayHabilitado' | 'whatsappHabilitado' | 'contratosHabilitados';
+export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado' | 'overtrainingPayHabilitado' | 'whatsappHabilitado' | 'contratosHabilitados' | 'regrasAtencaoHabilitada';
 
 export interface CartaoDeConfiguracao {
   id: string;
@@ -56,6 +56,8 @@ export const CARTOES_DE_CONFIGURACAO: readonly CartaoDeConfiguracao[] = [
   { id: 'whatsapp-oficial', grupo: 'Consultoria', titulo: 'WhatsApp oficial', descricao: 'Conexão com a Meta e modelos de avisos automáticos.', href: '/treinador/whatsapp', palavras: ['whatsapp', 'meta', 'cloud api', 'modelos', 'avisos', 'lembretes', 'waba'], permissao: 'WHATSAPP_ALTERAR', chave: 'whatsappHabilitado' },
   // A mesma regra da Marca e, além dela, o PDF no plano (como os botões de PDF).
   { id: 'documentos-pdf', grupo: 'Consultoria', titulo: 'Documentos (PDF)', descricao: 'Modelo dos PDFs de treino, dieta e demais documentos, com miniaturas de exemplo.', href: '/treinador/documentos', palavras: ['pdf', 'documentos', 'tema', 'modelo', 'tema do pdf', 'impressao'], permissao: 'MARCA_ALTERAR', funcionalidade: 'PDF' },
+  // ATUALIZACAO_LER vem da guarda da rota; ALUNO_SENSIVEL_LER porque o GET da API hoje também a exige (rever se o C2 prevalecer). A chave nasce desligada.
+  { id: 'regras-de-atencao', grupo: 'Alunos e atendimento', titulo: 'Regras de atenção', descricao: 'Quando a atualização de um aluno deve chamar a sua atenção.', href: '/treinador/regras-de-atencao', palavras: ['atencao', 'alerta', 'avisar', 'me avise', 'nota baixa', 'peso', 'dias com treino', 'check-in', 'regra'], permissao: 'ALUNO_SENSIVEL_LER', chave: 'regrasAtencaoHabilitada' },
   { id: 'equipe-membros', grupo: 'Equipe', titulo: 'Membros e convites', descricao: 'Quem trabalha com você e os convites pendentes.', href: '/treinador/equipe?aba=membros', palavras: ['equipe', 'usuarios', 'convidar', 'novo membro', 'desativar'] },
   { id: 'equipe-perfis', grupo: 'Equipe', titulo: 'Perfis e permissões', descricao: 'O que cada perfil pode ver e fazer no app.', href: '/treinador/equipe?aba=perfis', palavras: ['equipe', 'permissoes', 'acesso', 'administrador', 'nutricionista', 'assistente'] },
   { id: 'auditoria', grupo: 'Equipe', titulo: 'Auditoria', descricao: 'Histórico das ações feitas na consultoria.', href: '/treinador/auditoria', palavras: ['historico', 'registro de acoes', 'log', 'eventos'] },
