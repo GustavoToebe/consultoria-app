@@ -298,9 +298,11 @@ for (const largura of [390, 1280]) {
       // O cartão da seção (o Resumo também mostra as fotos): o da pergunta Sim/Não, que só a leitura tem.
       const secao = page.getByTestId('cartao').filter({ has: page.getByText('Teve algum exercício que substituiu por não ter o maquinário?', { exact: true }) });
       await expect(secao.getByText('Sim', { exact: true })).toBeVisible();
-      // Um item por linha, com o motivo atrás do rótulo do motivo da pergunta; só leitura.
-      await expect(secao.getByText('Supino reto — O que usou no lugar? Supino com halteres.', { exact: false })).toBeVisible();
-      await expect(secao.getByText(/Agachamento livre — O que usou no lugar\? Leg press\./)).toBeVisible();
+      // Um item por bloco: o nome e, embaixo, o rótulo do motivo da pergunta com o motivo; só leitura.
+      for (const [nome, motivo] of [['Supino reto', 'Supino com halteres.'], ['Agachamento livre', 'Leg press.']]) {
+        await expect(secao.getByText(nome, { exact: true })).toBeVisible();
+        await expect(secao.getByText(`O que usou no lugar? ${motivo}`, { exact: true })).toBeVisible();
+      }
       // Sem motivo na pergunta, só o nome (a busca fica na linha da leitura: o item pode aparecer em outro bloco).
       await expect(page.getByLabel('Quer trocar algum alimento?:').getByText('Batata-doce', { exact: true })).toBeVisible();
       await expect(secao.getByRole('textbox')).toHaveCount(0);
