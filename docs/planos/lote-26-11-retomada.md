@@ -84,3 +84,10 @@ Acrescentados em 26/11 (noite, respostas do Gustavo): três colunas da revisão 
 - Miniatura do P5 sem `MESA_DA_PREVIA`: aceito; registrado na 3.1 de `orientacoes-de-design-26-11.md`.
 - Revisão (D): cartão "Prescrição atual" (versão de hoje), registrado na 2.2 da orientação; três colunas e prescrição da época ficam para o próximo lote.
 - Migrations: V106 (liberação de plano) e V107 (documentos PDF), confirmadas no merge depois do `git fetch`; o Overtraining Pay fica com a V108.
+
+## Estado de entrega (26/11, fim da noite) — branch `lote-tres-frentes-26-11`, local, sem push
+
+- **Contido:** `origin/main` (`fef5f250`, pintura lisa) está na branch (merge `03a128cf`; conflitos em `BarraDescanso`, `ExercicioAluno` e `tokens.test.ts`, resolvidos com a estrutura do lote + as linhas da main). Migrations: V106 liberação de plano e V107 documentos PDF (106 no total; a V078 nunca existiu).
+- **Correções das revisões (E e PDF)** em `f15dfb5f` (rotina de liberação de hora em hora, falha isolada por consultoria, `desativarOutros` zera `liberarEm`, ordem estável, painel sem sucessor falso) e `a366c207` (PUT documentos-pdf com `@ExigeFuncionalidade`, editor sem perder mudança durante o salvar, comprovante do contrato neutro). Os arquivos das revisões chegaram vazios ao executor da API: o item 2 da revisão E foi inferido (cenários de plano desativado com agendamento pendente); **pede conferência na revisão da CI**.
+- **Validação** (último estado): `mvn clean verify` 3649 testes, 0 falhas, JaCoCo ok (27 min 47 s); jest 479 suítes/13962 testes; typecheck e lint limpos (10 avisos antigos); e2e das áreas afetadas (exercício, Início, atualização, cores por situação, documentos PDF, liberação agendada, ficha, financeiro visão geral, tela larga) verde. O e2e completo (3554 passou, 8 falhas, 326 puladas) valeu para o estado **antes** do merge e das correções.
+- **Pendências soltas** novas no README: Publicar tudo × liberação agendada, paridade Java×TS dos modelos de PDF, `@Version` compartilhado Marca/Documentos, prova do PDF no celular e fontes.
