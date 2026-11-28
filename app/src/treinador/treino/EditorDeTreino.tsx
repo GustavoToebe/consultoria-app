@@ -251,6 +251,14 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     editor.alterarConteudo(mudanca);
   };
 
+  /** Receita de séries aplicada (Gustavo, leva 2): o "Desfazer" vem no aviso (toast), não na faixa; a faixa anterior sai para não desfazer duas mudanças. */
+  const comDesfazerNoAviso = (rotulo: string, mudanca: (c: ConteudoTreino) => ConteudoTreino) => {
+    const anterior = c;
+    setDesfazer(null);
+    editor.alterarConteudo(mudanca);
+    avisar(rotulo, 'neutro', { rotulo: 'Desfazer', aoTocar: () => editor.alterarConteudo(() => anterior) });
+  };
+
   const mudarSessoes = (fn: (s: ConteudoTreino['sessoes']) => ConteudoTreino['sessoes']) =>
     editor.alterarConteudo((atual) => ({ ...atual, sessoes: fn(atual.sessoes) }));
 
@@ -514,7 +522,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       }}</ListaArrastavel>}</ComColunas> : null}
 
       <FolhasDoTreino folha={folha} abrir={setFolha} fechar={() => setFolha(null)} conteudo={c} config={config} modelo={modelo} unica={unica}
-        planoId={id} salvar={editor.salvar} comDesfazer={comDesfazer} abrirGrupo={abrirGrupo} />
+        planoId={id} salvar={editor.salvar} comDesfazer={comDesfazer} comDesfazerNoAviso={comDesfazerNoAviso} abrirGrupo={abrirGrupo} />
       {colando ? (
         <FolhaImportarDeTexto
           conteudo={c}

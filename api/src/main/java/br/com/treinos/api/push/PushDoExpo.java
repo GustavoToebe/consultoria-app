@@ -25,7 +25,8 @@ import java.util.UUID;
  * <li><b>limpa</b> a fila (pendente com mais de {@value #HORAS_DE_VALIDADE} h vira CANCELADO; concluído some em 7 dias);</li>
  * <li><b>reserva</b> lotes de pendentes ({@code skip locked}, lease de {@value #RESERVA_EM_SEGUNDOS} s);</li>
  * <li><b>confere</b> cada um de novo: usuário ainda ativo e aluno não anonimizado (senão apaga os tokens dele e CANCELA, para
- * nunca deixar token órfão) e com token (senão CANCELA); o aviso de atenção ao membro, por {@link #situacao};</li>
+ * nunca deixar token órfão) e com token (senão CANCELA); o aviso de atenção ao membro, por {@link #situacao}, e o corpo dele, com o
+ * primeiro nome do aluno quando o aviso é de um aluno só ({@link #corpo});</li>
  * <li><b>envia fora de qualquer transação</b>, em chamadas de até 100 mensagens, e conclui numa transação curta conferindo a
  * posse da reserva.</li>
  * </ol>
@@ -33,7 +34,7 @@ import java.util.UUID;
  * guarda a classe ou o código do erro; na {@value #MAXIMO_DE_TENTATIVAS}ª vira FALHOU. Qualquer outro código do ticket
  * ({@code InvalidCredentials}, {@code MessageTooBig}, ...) é falha definitiva: FALHOU na hora, com o código do Expo (um enum,
  * não dado pessoal) em {@code erro}. Nunca desfaz nada: o compromisso já foi gravado quando a linha da fila nasceu.
- * {@code DeviceNotRegistered} apaga o token. Nada de token, usuário ou texto em log: só contagens e o código ou a classe do erro.
+ * {@code DeviceNotRegistered} apaga o token. Nada de token, usuário, nome ou texto em log: só contagens e o código ou a classe do erro.
  * Envio que falhou só em parte (um aparelho com {@code MessageRateExceeded}, ou a conclusão que não gravou depois de o Expo
  * aceitar) tenta de novo só com os aparelhos que ainda não receberam ({@link EntreguesNoEnvio}, em memória).
  */
@@ -61,9 +62,20 @@ public class PushDoExpo {
         static final Resultado NADA = new Resultado(false, 0, 0, 0, 0, Map.of());
     }
 
-    record Mensagem(Reservado envio, String token) { }
+    /** {@code corpo} pode levar o primeiro nome do aluno: fora do {@code toString}, como o token. */
+    record Mensagem(Reservado envio, String token, String corpo) {
+        @Override
+        public String toString() {
+            return "Mensagem[" + envio.id() + "]";
+        }
+    }
 
-    record Grupo(Reservado envio, List<String> tokens) { }
+    record Grupo(Reservado envio, List<String> tokens, String corpo) {
+        @Override
+        public String toString() {
+            return "Grupo[" + envio.id() + ", " + tokens.size() + "]";
+        }
+    }
 
     private final PushRepositorio fila;
     private final ExpoCliente expo;
@@ -163,7 +175,7 @@ public class PushDoExpo {
                     continue;
                 }
                 // Um usuário tem no máximo 5 aparelhos; o corte é só para um envio nunca estourar sozinho o limite do Expo.
-                grupos.add(new Grupo(envio, faltam.subList(0, Math.min(faltam.size(), ExpoCliente.MAXIMO_POR_CHAMADA))));
+                grupos.add(new Grupo(envio, faltam.subList(0, Math.min(faltam.size(), ExpoCliente.MAXIMO_POR_CHAMADA)), corpo(envio)));
             } catch (RuntimeException e) {
                 falhou(envio, dono, e.getClass().getSimpleName(), false, porCodigo);
             }
@@ -173,7 +185,7 @@ public class PushDoExpo {
         for (List<Mensagem> parte : emChamadas(grupos)) {
             try {
                 List<String> erros = expo.enviar(parte.stream().map(Mensagem::token).toList(),
-                        parte.stream().map(m -> m.envio().tipo()).toList());
+                        parte.stream().map(m -> m.envio().tipo()).toList(), parte.stream().map(Mensagem::corpo).toList());
                 for (int i = 0; i < parte.size(); i++) {
                     String erro = erros.get(i);
                     Mensagem m = parte.get(i);
@@ -231,6 +243,18 @@ public class PushDoExpo {
     }
 
     /**
+     * O corpo do push. O de atenção leva o primeiro nome quando o aviso (que junta os pendentes do membro) é de um aluno só; de
+     * nenhum ou de mais de um, o corpo sem nome (nomear um esconderia o outro).
+     */
+    private String corpo(Reservado envio) {
+        if (envio.tipo() != TipoDePush.ATUALIZACAO_ATENCAO) {
+            return envio.tipo().corpo();
+        }
+        List<String> nomes = fila.nomesDaAtencao(envio.consultoriaId(), envio.id());
+        return TipoDePush.corpoDaAtencao(nomes.size() == 1 ? nomes.get(0) : null);
+    }
+
+    /**
      * Marca ENVIADO e esquece quem já recebeu. Se nem isso grava, a reserva vence sozinha e o envio volta à fila; quem já
      * recebeu fica lembrado, e a nova tentativa só conclui, sem avisar os aparelhos de novo.
      */
@@ -255,7 +279,7 @@ public class PushDoExpo {
                 atual = new ArrayList<>();
             }
             for (String token : g.tokens()) {
-                atual.add(new Mensagem(g.envio(), token));
+                atual.add(new Mensagem(g.envio(), token, g.corpo()));
             }
         }
         if (!atual.isEmpty()) {

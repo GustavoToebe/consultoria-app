@@ -279,7 +279,7 @@ for (const largura of [390, 1280]) {
       });
       const interruptor = page.getByRole('switch', { name: ROTULO_DO_PUSH });
       await expect(interruptor).toBeChecked();
-      await expect(page.getByText('Chega pelo app no celular, sem o nome do aluno. Vale para a sua conta, em todos os aparelhos.')).toBeVisible();
+      await expect(page.getByText('Chega pelo app no celular, só com o primeiro nome do aluno. Vale para a sua conta, em todos os aparelhos.')).toBeVisible();
       await interruptor.click();
       await expect(interruptor).not.toBeChecked();
       expect(api.pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === '/eu/preferencias-de-push').map((p) => p.corpo)).toEqual([{ atencao: false }]);

@@ -105,7 +105,7 @@ class DetalheDaInscricao {
                 respostas(i),
                 i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i), i.getInstagram(),
                 i.isAceitaSemCobranca(), i.getPlanoComercialId(),
-                planosComerciais.nome(i.getPlanoComercialId()));
+                planosComerciais.nome(i.getPlanoComercialId()), i.getPlanoOutroTexto());
     }
 
     /** Indicação conferida pela API: o nome só para quem vê alunos, os demais veem só que foi um aluno (sem nome nem id). */
@@ -137,7 +137,7 @@ class DetalheDaInscricao {
                 i.getCiclo(), i.getOrigem(), i.getPropostaPlanoNome(), proximos.get(i.getId()), i.getVersao(),
                 duplicidades.getOrDefault(i.getId(), Duplicidade.NENHUMA),
                 i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), i.isAceitaSemCobranca(),
-                i.getPlanoComercialId(), planos.get(i.getPlanoComercialId()))).toList();
+                i.getPlanoComercialId(), planos.get(i.getPlanoComercialId()), i.getPlanoOutroTexto())).toList();
     }
 
     static Retorno retorno(InscricaoRetorno r, Map<UUID, String> nomes) {

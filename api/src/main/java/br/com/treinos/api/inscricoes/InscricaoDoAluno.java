@@ -14,7 +14,7 @@ import java.util.UUID;
 /**
  * A inscrição que virou o aluno, para a privacidade: a exportação do aluno a leva (revisão de segurança de 19/10: antes
  * ficava fora, e o arquivo não trazia tudo o que a consultoria guarda da pessoa) e, ao anonimizar o aluno, ela (nome,
- * WhatsApp, e-mail, objetivo, observação, respostas às perguntas do treinador e notas) é apagada inteira, dentro da
+ * WhatsApp, e-mail, objetivo, observação, texto de "Outro" do plano, respostas às perguntas do treinador e notas) é apagada inteira, dentro da
  * transação da anonimização. As respostas vão na exportação com o id da versão respondida, como as da anamnese.
  */
 @Service
@@ -41,7 +41,8 @@ public class InscricaoDoAluno {
                 i.getPrevisaoInicio(), i.getOrigemInformada(), i.temProposta() ? new PropostaExportada(
                         i.getPropostaPlanoNome(), i.getPropostaModalidade(), i.getPropostaPeriodicidade(),
                         i.getPropostaValorCentavos(), i.getPropostaCondicoes()) : null,
-                i.getQuestionarioVersaoId(), i.getRespostas() == null ? null : json.readTree(i.getRespostas()), i.getInstagram())))
+                i.getQuestionarioVersaoId(), i.getRespostas() == null ? null : json.readTree(i.getRespostas()), i.getInstagram(),
+                i.getPlanoOutroTexto())))
                 .orElse(List.of());
     }
 

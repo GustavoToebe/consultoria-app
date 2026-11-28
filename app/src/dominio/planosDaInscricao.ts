@@ -9,7 +9,7 @@ export { ID_DA_PERGUNTA_DO_PLANO };
  * Sugestão de planos comerciais na página pública (link completo e Ficha rápida, 27/11). A API manda os planos ativos da
  * consultoria (`planos`) e, só com "Mostrar o preço dos planos" ligado no link, o `valorCentavos` de cada um; o app nunca
  * mostra preço sem valor. A pessoa escolhe um cartão ou "Outro / ainda não sei"; o id vai em `planoComercialId` e o texto
- * de "Outro" continua sendo a resposta da pergunta do plano.
+ * de "Outro" é a resposta da pergunta do plano (Ficha rápida) ou o `planoOutroTexto` (página completa).
  */
 
 /** Valor do cartão "Outro / ainda não sei" na escolha (nunca vai à API). */
@@ -18,10 +18,12 @@ export const PLANO_OUTRO = 'OUTRO';
 export const ROTULO_DA_ESCOLHA_SEM_PERGUNTA = 'Qual plano combinou?';
 export const ROTULO_DO_OUTRO = 'Outro / ainda não sei';
 /**
- * "Outro" sem onde guardar o texto (página completa: a API só guarda o texto como resposta da pergunta do plano, que só a
- * Ficha rápida tem): em vez do campo, uma linha que diz o que acontece, para a escolha não ficar sem retorno.
+ * "Outro" na página completa (sem a pergunta do plano, que só a Ficha rápida tem; V116): campo próprio, obrigatório com
+ * "Outro" e até 120 caracteres, que vai em `planoOutroTexto`. Na Ficha rápida o texto continua sendo a resposta da pergunta.
  */
-export const AVISO_DO_OUTRO_SEM_CAMPO = 'Tudo bem: a equipe conversa com você sobre os planos pelo WhatsApp.';
+export const ROTULO_DO_TEXTO_DO_OUTRO = 'Qual plano?';
+export const LIMITE_DO_TEXTO_DO_OUTRO = 120;
+export const ERRO_DO_OUTRO_VAZIO = 'Escreva qual plano combinou ou escolha um da lista.';
 
 const PERIODO: Record<Periodicidade, string> = {
   MENSAL: 'todo mês',
@@ -84,4 +86,28 @@ export function respostasComPlano(respostas: RespostasAtualizacao, efetiva: stri
   const resto = { ...respostas };
   delete resto[ID_DA_PERGUNTA_DO_PLANO];
   return resto;
+}
+
+/**
+ * O `planoOutroTexto` do envio (página completa, sem a pergunta do plano): o texto sem espaços nas pontas só com "Outro"
+ * marcado; com plano da lista, nada marcado ou na Ficha rápida (`comPergunta`), `null`.
+ */
+export function textoDoOutroDoEnvio(efetiva: string | null, texto: string, comPergunta: boolean): string | null {
+  if (comPergunta || efetiva !== PLANO_OUTRO) return null;
+  return texto.trim() || null;
+}
+
+/** Erro do campo "Qual plano?": com "Outro" marcado na página completa o texto é obrigatório (a API não sabe do "Outro"). */
+export function errosDoOutro(efetiva: string | null, texto: string, comPergunta: boolean): Record<string, string> {
+  if (comPergunta || efetiva !== PLANO_OUTRO) return {};
+  const t = texto.trim();
+  if (!t) return { planoOutroTexto: ERRO_DO_OUTRO_VAZIO };
+  if (t.length > LIMITE_DO_TEXTO_DO_OUTRO) return { planoOutroTexto: `Use até ${LIMITE_DO_TEXTO_DO_OUTRO} caracteres.` };
+  return {};
+}
+
+/** O plano escolhido na página, para a equipe: o nome do plano da lista, senão "Outro: <texto>"; `null` sem nenhum. */
+export function planoEscolhidoNaPagina(d: { planoComercialNome: string | null; planoOutroTexto?: string | null }): string | null {
+  if (d.planoComercialNome) return d.planoComercialNome;
+  return d.planoOutroTexto ? `Outro: ${d.planoOutroTexto}` : null;
 }

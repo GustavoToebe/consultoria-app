@@ -12,8 +12,8 @@ import java.util.UUID;
  * todas as consultorias de uma vez, sem {@code TenantContext}. Toda escrita leva {@code consultoria_id} explícito e, depois da
  * reserva, confere a posse ({@code reservado_por}). Duas são globais de propósito: {@link #registrar} apaga o mesmo token de
  * qualquer outra conta ou consultoria (o token é único no banco) e {@link #limpar} apaga o token vencido e a fila antiga de
- * todas. O valor do token só sai daqui para o envio ({@link #tokens}); nada daqui
- * lê nome, texto ou compromisso.
+ * todas. O valor do token só sai daqui para o envio ({@link #tokens}); nada daqui lê texto ou compromisso, e o único nome lido é o
+ * do aluno do aviso de atenção ({@link #nomesDaAtencao}), que vai só ao corpo do push do responsável.
  */
 @Component
 class PushRepositorio {
@@ -90,17 +90,35 @@ class PushRepositorio {
     }
 
     /**
-     * Enfileira um aviso para o membro ATIVO da equipe, com a preferência ligada e com token; quem já tem um PENDENTE do tipo fica
-     * como está. As permissões já foram conferidas em Java ({@code PermissoesDoUsuario}: o Administrador não guarda linhas em
-     * {@code perfil_permissao}). Roda na transação de quem chama (mesma conexão).
+     * Enfileira o aviso de atenção para o membro ATIVO da equipe, com a preferência ligada e com token; quem já tem um PENDENTE do
+     * tipo fica como está (o aviso junta os alunos). As permissões já foram conferidas em Java ({@code PermissoesDoUsuario}: o
+     * Administrador não guarda linhas em {@code perfil_permissao}). Roda na transação de quem chama (mesma conexão), depois de os
+     * fatos do envio serem gravados: o {@code criado_em} do envio é o dos fatos deste aluno (o mesmo relógio, o da API), e é dele
+     * que {@link #nomesDaAtencao} conta os alunos do aviso.
      */
-    void enfileirarParaMembro(UUID consultoriaId, UUID usuarioId, TipoDePush tipo) {
-        jdbc.update("insert into push_envio (id, consultoria_id, usuario_id, tipo) "
-                + "select ?, u.consultoria_id, u.id, ? from usuario u where u.consultoria_id = ? and u.id = ? "
+    void enfileirarAtencao(UUID consultoriaId, UUID usuarioId, UUID alunoId) {
+        jdbc.update("insert into push_envio (id, consultoria_id, usuario_id, tipo, criado_em) "
+                + "select ?, u.consultoria_id, u.id, ?, coalesce((select max(f.criado_em) from atualizacao_atencao f "
+                + "join atualizacao t on t.consultoria_id = f.consultoria_id and t.id = f.atualizacao_id "
+                + "where f.consultoria_id = u.consultoria_id and t.aluno_id = ?), now()) "
+                + "from usuario u where u.consultoria_id = ? and u.id = ? "
                 + "and u.ativo and u.papel = 'TREINADOR' and u.push_atencao "
                 + "and exists (select 1 from push_token t where t.consultoria_id = u.consultoria_id and t.usuario_id = u.id) "
                 + "on conflict (consultoria_id, usuario_id, tipo) where situacao = 'PENDENTE' do nothing",
-                UUID.randomUUID(), tipo.name(), consultoriaId, usuarioId);
+                UUID.randomUUID(), TipoDePush.ATUALIZACAO_ATENCAO.name(), alunoId, consultoriaId, usuarioId);
+    }
+
+    /**
+     * Os nomes dos alunos (no máximo 2: só importa se é um só) com pontos de atenção gravados desde que o envio nasceu, ainda
+     * ativos, não anonimizados e que ainda têm o membro do envio como responsável. Quem deixou de ser o responsável não vê o nome.
+     */
+    List<String> nomesDaAtencao(UUID consultoriaId, UUID envioId) {
+        return jdbc.queryForList("select a.nome from push_envio p "
+                + "join atualizacao_atencao f on f.consultoria_id = p.consultoria_id and f.criado_em >= p.criado_em "
+                + "join atualizacao t on t.consultoria_id = f.consultoria_id and t.id = f.atualizacao_id "
+                + "join aluno a on a.consultoria_id = t.consultoria_id and a.id = t.aluno_id "
+                + "where p.consultoria_id = ? and p.id = ? and a.responsavel_id = p.usuario_id and a.ativo and a.anonimizado_em is null "
+                + "group by a.id, a.nome limit 2", String.class, consultoriaId, envioId);
     }
 
     /** Arrenda um lote de pendentes vencidos num comando só ({@code skip locked}); quem não concluir devolve à fila sozinho. */

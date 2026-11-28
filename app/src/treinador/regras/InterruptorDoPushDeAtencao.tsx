@@ -15,7 +15,7 @@ import { useCarregar } from '../../ui/useCarregar';
 import { ativarPushDoTreinador, pushPermitido } from '../push/pushDoTreinador';
 
 export const ROTULO_DO_PUSH_DE_ATENCAO = 'Avisar quando a atualização de um aluno tiver pontos de atenção';
-const AJUDA = 'Chega pelo app no celular, sem o nome do aluno. Vale para a sua conta, em todos os aparelhos.';
+const AJUDA = 'Chega pelo app no celular, só com o primeiro nome do aluno. Vale para a sua conta, em todos os aparelhos.';
 const ERRO_AO_SALVAR = 'Não foi possível mudar o aviso. Tente de novo.';
 export const ROTULO_RECEBER_NESTE_CELULAR = 'Receber neste celular';
 const AVISO_ATIVADO = 'Este celular vai receber o aviso.';

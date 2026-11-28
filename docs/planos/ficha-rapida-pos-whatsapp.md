@@ -2,6 +2,8 @@
 
 Situação: Feito em 25/11/2026; passo 5 (Confirmar pagamento e Gerar cobrança) feito na leva 2, 27/11/2026, aguardando verificação final e push · Onde: `financeiro-fases-2-e-3` e branch `leva-2` · Atualizado: 27/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e **antes** da Fase 2 ([pausar-acesso-por-atraso.md](pausar-acesso-por-atraso.md))
 
+Leva 2 (27/11): "Outro" da inscrição completa ganhou campo próprio (V116 `inscricao.plano_outro_texto`, `planoOutroTexto` na API; obrigatório com "Outro" no app; aparece na folha, no Kanban e na exportação). Pendência: decidir se o cartão continua "Outro / ainda não sei" com o texto obrigatório.
+
 Fonte: roteiro do Saraiva de 24/11/2026 (`R1030-C62` e `R1121-C04`) e as correções do Gustavo na mesma data. Validade: a leitura do código é de 24/11/2026 sobre `9918601b`; reler `InscricaoService`, `PagamentoInscricao` e o cartão "Link" antes de começar.
 
 ## Objetivo

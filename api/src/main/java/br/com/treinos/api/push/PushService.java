@@ -103,9 +103,10 @@ public class PushService {
     }
 
     /**
-     * Gancho das regras de atenção (R7, R8): na MESMA transação do envio da atualização que teve pontos de atenção, deixa um
-     * {@code ATUALIZACAO_ATENCAO} (texto fixo, sem nome nem quantos) para o responsável do aluno, se ele é membro ativo, tem
-     * {@link #PERMISSOES_DA_ATENCAO}, a preferência ligada e token. Sem responsável, ninguém. Chave do push desligada: nada.
+     * Gancho das regras de atenção (R7, R8): na MESMA transação do envio da atualização que teve pontos de atenção (depois de os
+     * fatos serem gravados), deixa um {@code ATUALIZACAO_ATENCAO} para o responsável do aluno, se ele é membro ativo, tem
+     * {@link #PERMISSOES_DA_ATENCAO}, a preferência ligada e token. Sem responsável, ninguém; nenhum outro membro da equipe. O corpo
+     * (primeiro nome do aluno, sem quantos nem o que bateu) é montado pelo job na hora do envio. Chave do push desligada: nada.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void enfileirarAtencaoAoResponsavel(UUID consultoriaId, UUID alunoId) {
@@ -117,12 +118,12 @@ public class PushService {
             return;
         }
         usuarios.findById(responsavel).filter(u -> consultoriaId.equals(u.getConsultoriaId())).filter(this::recebeAtencao)
-                .ifPresent(u -> repositorio.enfileirarParaMembro(consultoriaId, u.getId(), TipoDePush.ATUALIZACAO_ATENCAO));
+                .ifPresent(u -> repositorio.enfileirarAtencao(consultoriaId, u.getId(), alunoId));
     }
 
     /**
-     * O job confere de novo o membro de um {@code ATUALIZACAO_ATENCAO} (a fila não guarda o aluno: "ainda responsável" só é
-     * conferido ao enfileirar). Quem chama já está em {@code TenantContext.executarComo(consultoriaId)}, com a transação aberta
+     * O job confere de novo o membro de um {@code ATUALIZACAO_ATENCAO} (a fila não guarda o aluno: "ainda responsável" é conferido
+     * ao enfileirar e, para pôr o nome no corpo, em {@code PushRepositorio.nomesDaAtencao}). Quem chama já está em {@code TenantContext.executarComo(consultoriaId)}, com a transação aberta
      * aqui dentro: o perfil tem {@code @TenantId} e, sem o contexto, ninguém teria permissão.
      */
     @Transactional(readOnly = true)

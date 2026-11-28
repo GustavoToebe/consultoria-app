@@ -29,6 +29,7 @@ import type { OpcaoQuestionario } from '../../api/tipos';
 import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
 import { corpoDaConfirmacao, planoDoInteressado, podeConfirmarPagamento, podeGerarCobranca } from '../../dominio/cobrancaDoInteressado';
 import { centavosParaTela, dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
+import { planoEscolhidoNaPagina } from '../../dominio/planosDaInscricao';
 import { linkDoPerfilDoAluno } from '../../dominio/redesSociais';
 import { rotuloDoSexo } from '../../dominio/sexo';
 import {
@@ -199,6 +200,8 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
   aoRecarregar: () => void;
   aoAbrirOutra: (id: string) => void;
 }) {
+  // Plano da lista ou o texto de "Outro" da página completa (V116).
+  const planoDaPagina = planoEscolhidoNaPagina(dados);
   const { pode, marca, pagamentosHabilitados } = useSessao();
   const { avisar } = useAviso();
   const avisoDoPlano = useAvisoDoPlano(aoFechar);
@@ -452,7 +455,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       <Cartao titulo="O que a pessoa escreveu">
         <CampoLeitura rotulo="Sexo" valor={dados.sexo ? rotuloDoSexo(dados.sexo) : 'Prefiro não informar'} />
         <CampoLeitura rotulo="Objetivo" valor={dados.objetivo} />
-        {dados.planoComercialNome ? <CampoLeitura rotulo="Plano escolhido na página" valor={dados.planoComercialNome} /> : null}
+        {planoDaPagina ? <CampoLeitura rotulo="Plano escolhido na página" valor={planoDaPagina} /> : null}
         {/* A "Observação" deixou de ser campo fixo (virou pergunta do treinador); só as inscrições de antes a têm. */}
         {dados.observacao ? <CampoLeitura rotulo="Observação" valor={dados.observacao} /> : null}
         <CampoLeitura rotulo="O que procura" valor={rotuloOpcional(INTERESSES, dados.interesse)} />
@@ -564,7 +567,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
           {/* O Instagram vai para as redes do cadastro do aluno; sem ele, a linha não aparece. */}
           {dados.instagram ? <Texto variante="pequeno">Instagram: @{dados.instagram} (vai para as redes do aluno)</Texto> : null}
           <Texto variante="pequeno">Responsável: {dados.responsavelNome ?? 'Sem responsável'}</Texto>
-          {dados.planoComercialNome ? <Texto variante="pequeno">Plano escolhido na página: {dados.planoComercialNome}</Texto> : null}
+          {planoDaPagina ? <Texto variante="pequeno">Plano escolhido na página: {planoDaPagina}</Texto> : null}
           <Texto variante="pequeno">Proposta: {resumoDaProposta}</Texto>
           <Texto variante="pequeno">Pagamento (registro manual): {pagamentoTela.texto}</Texto>
         </View>
@@ -599,7 +602,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
           <Texto variante="pequeno">Nome: {dados.nome}</Texto>
           <Texto variante="pequeno">E-mail: {dados.email ?? SEM_DADO}</Texto>
           <Texto variante="pequeno">Responsável: {dados.responsavelNome ?? 'Sem responsável'}</Texto>
-          {dados.planoComercialNome ? <Texto variante="pequeno">Plano escolhido na página: {dados.planoComercialNome}</Texto> : null}
+          {planoDaPagina ? <Texto variante="pequeno">Plano escolhido na página: {planoDaPagina}</Texto> : null}
           <Texto variante="pequeno">Proposta: {resumoDaProposta}</Texto>
           <Texto variante="pequeno">Condição: Aceite sem cobrança (cortesia)</Texto>
         </View>
@@ -675,6 +678,7 @@ function ResultadoDoAceite({ aceite, dados, podeVerAluno, pagamentosHabilitados,
   const pagamento = dados.pagamento === 'CONFIRMADO_MANUAL' ? 'Confirmado manualmente'
     : dados.pagamento === 'AGUARDANDO' ? 'Aguardando' : 'Não controlado';
   const cortesia = !!aceite.aceitaSemCobranca;
+  const planoDaPagina = planoEscolhidoNaPagina(dados);
   return (
     <View style={estilos.corpo}>
       <View style={estilos.selos}>
@@ -709,7 +713,7 @@ function ResultadoDoAceite({ aceite, dados, podeVerAluno, pagamentosHabilitados,
           : 'Sem proposta registrada'} />
         {pagamentosHabilitados && cortesia ? (
           <Texto variante="pequeno">
-            Para cobrar pelo app, cadastre a contratação no Financeiro, na ficha do aluno{dados.planoComercialNome ? ` (plano escolhido na página: ${dados.planoComercialNome})` : ''}.
+            Para cobrar pelo app, cadastre a contratação no Financeiro, na ficha do aluno{planoDaPagina ? ` (plano escolhido na página: ${planoDaPagina})` : ''}.
           </Texto>
         ) : null}
         {!cortesia ? (

@@ -198,6 +198,10 @@ public class Inscricao {
     @Column(name = "plano_comercial_id", updatable = false)
     private UUID planoComercialId;
 
+    /** Texto de "Outro" da escolha do plano (V116), já normalizado; nulo com plano da lista ou sem texto. Só na criação. */
+    @Column(name = "plano_outro_texto", updatable = false)
+    private String planoOutroTexto;
+
     /** Coluna gerada no banco (nome sem acento, em minúsculas), lida pela busca. */
     @Column(name = "nome_busca", insertable = false, updatable = false)
     private String nomeBusca;
@@ -304,6 +308,10 @@ public class Inscricao {
     public UUID getPlanoComercialId() { return planoComercialId; }
     /** Só antes de gravar a linha nova, com um plano ativo da mesma consultoria já conferido. */
     void escolherPlanoComercial(UUID planoId) { this.planoComercialId = planoId; }
+
+    public String getPlanoOutroTexto() { return planoOutroTexto; }
+    /** Só antes de gravar a linha nova, com o texto já normalizado (ou nulo). */
+    void escreverPlanoOutro(String texto) { this.planoOutroTexto = texto; }
 
     /** Só na criação, com o usuário já normalizado (ou nulo). */
     void informarInstagram(String instagram) {

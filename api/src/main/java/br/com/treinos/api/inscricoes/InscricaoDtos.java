@@ -102,14 +102,21 @@ public final class InscricaoDtos {
              * {@code INSCRICAO_INVALIDA} no campo, com mensagem fixa. Vale mais que o texto de "Outro" ({@code plano_combinado} nas
              * respostas): com o id, o texto é descartado.
              */
-            UUID planoComercialId) {
+            UUID planoComercialId,
+            /**
+             * Texto de "Outro" na escolha do plano da página completa (V116; a Ficha rápida usa a resposta {@code plano_combinado}).
+             * Opcional para a API (o envio não diz se a pessoa marcou "Outro"; a página exige o texto): strip, vazio vira nulo,
+             * acima de 120 depois do strip é 422 {@code INSCRICAO_INVALIDA} no campo, com mensagem fixa. Com
+             * {@code planoComercialId} é descartado. Dado pessoal: nunca em log nem auditoria.
+             */
+            String planoOutroTexto) {
         public InscricaoPublicaRequest(String nome, String whatsapp, String email, String objetivo,
                                        Boolean cienciaPrivacidade, String textoVersao, String turnstileToken,
                                        String sexo, Interesse interesse, ModalidadeDesejada modalidade,
                                        PrevisaoInicio previsaoInicio, OrigemInformada origem, String origemLink,
                                        UUID questionarioVersaoId, JsonNode respostas) {
             this(nome, whatsapp, email, objetivo, cienciaPrivacidade, textoVersao, turnstileToken, sexo, interesse,
-                    modalidade, previsaoInicio, origem, origemLink, questionarioVersaoId, respostas, null, null, null, null);
+                    modalidade, previsaoInicio, origem, origemLink, questionarioVersaoId, respostas, null, null, null, null, null);
         }
 
         /** Nada do pedido vai a log: nem o código de indicação (identifica um aluno) nem os dados da pessoa. */
@@ -184,7 +191,9 @@ public final class InscricaoDtos {
                                   UUID questionarioId, String questionarioNome, String indicadoPor,
                                   boolean aceitaSemCobranca,
                                   /** Plano comercial que a pessoa escolheu na página; o nome é resolvido na hora (nulo se o plano foi apagado). */
-                                  UUID planoComercialId, String planoComercialNome) {
+                                  UUID planoComercialId, String planoComercialNome,
+                                  /** Texto de "Outro" que a pessoa escreveu na página completa (V116); nulo sem ele. */
+                                  String planoOutroTexto) {
     }
 
     /** Contagens no escopo dos filtros (sem a situação). */
@@ -240,7 +249,9 @@ public final class InscricaoDtos {
                                    String instagram,
                                    boolean aceitaSemCobranca,
                                    /** Plano comercial que a pessoa escolheu na página; o nome é resolvido na hora (nulo se o plano foi apagado). */
-                                   UUID planoComercialId, String planoComercialNome) {
+                                   UUID planoComercialId, String planoComercialNome,
+                                   /** Texto de "Outro" que a pessoa escreveu na página completa (V116); nulo sem ele. */
+                                   String planoOutroTexto) {
     }
 
     /**
@@ -371,7 +382,9 @@ public final class InscricaoDtos {
                                      List<NotaExportada> notas, String sexo, Interesse interesse,
                                      ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
                                      OrigemInformada origemInformada, PropostaExportada proposta,
-                                     UUID questionarioVersaoId, JsonNode respostas, String instagram) {
+                                     UUID questionarioVersaoId, JsonNode respostas, String instagram,
+                                     /** Texto de "Outro" na escolha do plano (V116): o que a pessoa escreveu é dela. */
+                                     String planoOutroTexto) {
     }
 
     /** Os termos que a consultoria propôs à pessoa (nulo sem proposta). */

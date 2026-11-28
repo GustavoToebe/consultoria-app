@@ -156,6 +156,34 @@ for (const largura of [390, 1280]) {
     });
   }
 
+  test(`${largura}px: "Outro" com texto aparece na folha e, depois do aceite, a cobrança fica para o Contratar plano da ficha`, async ({ page }) => {
+    const item = resumoFalso(4, {
+      nome: 'Otávio Outro', email: 'otavio@exemplo.test', situacao: 'EM_NEGOCIACAO', pagamento: 'CONFIRMADO_MANUAL', versao: 3,
+      planoComercialId: null, planoComercialNome: null, planoOutroTexto: 'Plano de um amigo',
+    });
+    const resposta: AceiteInscricao = { id: item.id, alunoId: ALUNO_ID, convite: null, anamneseId: null };
+    const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, largura, {
+      'GET /inscricoes/contagens': { corpo: contagensFalsas({ EM_NEGOCIACAO: 1 }) },
+      'GET /inscricoes': { corpo: { itens: [item], total: 1 } },
+      [`GET /inscricoes/${item.id}`]: { corpo: detalheFalso(item, { pagamentoConfirmadoPorNome: TREINADOR.nome, pagamentoConfirmadoEm: '2026-11-27T12:00:00Z' }) },
+      [`POST /inscricoes/${item.id}/aceitar`]: { corpo: resposta },
+    }, { sessao: COM_FINANCEIRO });
+
+    await page.getByRole('button', { name: 'Abrir inscrição de Otávio Outro' }).click();
+    await expect(page.getByText('O que a pessoa escreveu')).toBeVisible();
+    await expect(page.getByText('Outro: Plano de um amigo').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Aceitar', exact: true }).click();
+    await page.getByRole('alertdialog', { name: 'Aceitar inscrição?' }).getByRole('button', { name: 'Aceitar e cadastrar' }).click();
+    await expect(page.getByText('Inscrição aceita: o aluno foi cadastrado.')).toBeVisible();
+    // Sem plano do Financeiro não há "Gerar cobrança": a frase leva ao Contratar plano da ficha do aluno.
+    await expect(page.getByRole('button', { name: 'Gerar cobrança', exact: true })).toHaveCount(0);
+    await expect(page.getByText('Para cobrar pelo app, cadastre a contratação no Financeiro, na ficha do aluno.')).toBeVisible();
+    expect(pedidos.some((p) => p.caminho.includes('contratacoes'))).toBe(false);
+    await semRolagemLateral(page);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
   test(`${largura}px: Kanban, aceitar sem pagamento confirmado abre o Confirmar pagamento; 409 de versão recarrega`, async ({ page }) => {
     const item = aguardando({ situacao: 'NOVA' });
     const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, largura, {

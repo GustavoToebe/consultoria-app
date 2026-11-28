@@ -30,27 +30,27 @@ describe('abas da folha "Usar receita"', () => {
   });
 
   it('a contagem segue a busca e ignora o que não é receita de séries', () => {
-    expect(contagemPorAba(todas, '', config)).toEqual({ COMPLETAS: 2, PARTES: 2, MINHAS: 2 });
-    expect(contagemPorAba(todas, 'back off', config)).toEqual({ COMPLETAS: 1, PARTES: 1, MINHAS: 1 });
-    expect(contagemPorAba(todas, 'nada assim', config)).toEqual({ COMPLETAS: 0, PARTES: 0, MINHAS: 0 });
+    expect(contagemPorAba(todas, '', config)).toEqual({ COMPLETAS: 2, PARTES: 2, CONSULTORIA: 2 });
+    expect(contagemPorAba(todas, 'back off', config)).toEqual({ COMPLETAS: 1, PARTES: 1, CONSULTORIA: 1 });
+    expect(contagemPorAba(todas, 'nada assim', config)).toEqual({ COMPLETAS: 0, PARTES: 0, CONSULTORIA: 0 });
   });
 });
 
-describe('aba "Minhas"', () => {
+describe('aba "Da consultoria"', () => {
   it('só as de séries que a equipe criou (origem CONSULTORIA), completas ou partes; elas seguem nas outras abas', () => {
-    expect(receitasDaAba(todas, 'MINHAS', config).map((r) => r.id)).toEqual(['volume', 'cluster']);
+    expect(receitasDaAba(todas, 'CONSULTORIA', config).map((r) => r.id)).toEqual(['volume', 'cluster']);
     expect(receitasDaAba(todas, 'COMPLETAS', config).map((r) => r.id)).toEqual(['forca', 'volume']);
-    expect(estaNaAba(volume, 'MINHAS', config)).toBe(true);
-    expect(estaNaAba(forca, 'MINHAS', config)).toBe(false);
+    expect(estaNaAba(volume, 'CONSULTORIA', config)).toBe(true);
+    expect(estaNaAba(forca, 'CONSULTORIA', config)).toBe(false);
   });
 
   it('busca e chip valem dentro dela; chip que ela não tem vale como "Todos"', () => {
-    const ids = (busca: string, filtro: string) => receitasDaLista(todas, { aba: 'MINHAS', busca, filtro }, config).map((r) => r.id);
+    const ids = (busca: string, filtro: string) => receitasDaLista(todas, { aba: 'CONSULTORIA', busca, filtro }, config).map((r) => r.id);
     expect(ids('', SEM_FILTRO)).toEqual(['volume', 'cluster']);
     expect(ids('cluster', SEM_FILTRO)).toEqual(['cluster']);
     expect(ids('', 'TECNICA:CLUSTER')).toEqual(['cluster']);
     expect(ids('', 'TIPO:WARM_UP')).toEqual(['volume', 'cluster']);
-    expect(receitasDaLista([forca, backOff], { aba: 'MINHAS', busca: '', filtro: SEM_FILTRO }, config)).toEqual([]);
+    expect(receitasDaLista([forca, backOff], { aba: 'CONSULTORIA', busca: '', filtro: SEM_FILTRO }, config)).toEqual([]);
   });
 
   it('a folha nunca abre nela: Completas, ou Partes quando só há partes', () => {

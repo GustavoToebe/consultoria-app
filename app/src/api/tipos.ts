@@ -777,7 +777,7 @@ export interface ImportacaoDesfeita {
 
 export type TipoReceita = 'SERIES' | 'PLANO_TREINO' | 'PLANO_DIETA' | 'METODOLOGIA' | 'SESSAO_TREINO' | 'REFEICAO' | 'PASTA_PLANO' | 'MOBILIDADE';
 
-/** Quem criou a receita (V115): `PADRAO` do sistema, `CONSULTORIA` da equipe (aba "Minhas"). Só o servidor decide. */
+/** Quem criou a receita (V115): `PADRAO` do sistema, `CONSULTORIA` da equipe (aba "Da consultoria"). Só o servidor decide. */
 export type OrigemReceita = 'PADRAO' | 'CONSULTORIA';
 
 export interface Receita {

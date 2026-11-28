@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.net.URI;
 
 /**
- * Push do Expo para compromisso marcado, remarcado ou cancelado ({@code TREINOS_PUSH_HABILITADO}). Desligado por padrão: as
+ * Push do Expo para compromisso marcado, remarcado ou cancelado ({@code TREINOS_PUSH_HABILITADO}). Ligado por padrão (leva 1, 27/11; em produção vale o `consultoria.env`). Com a chave desligada, as
  * rotas {@link ExigePush} respondem 503 {@code PUSH_INDISPONIVEL}, nada entra na fila nem é enviado e o app não pede
  * permissão ({@code pushHabilitado} no {@code GET /eu}).
  *

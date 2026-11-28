@@ -7,37 +7,37 @@ import { filtrarReceitasDeSeries, secaoDaReceita } from './receitasDeSeries';
 /**
  * A lista da folha "Usar receita" (27/11): três abas, chips de tipo e técnica, a receita escolhida e as setas. Só leitura.
  * "Completas" são as de mais de um papel (`secaoDaReceita`, a mesma regra das seções de antes); o resto são "Partes".
- * "Minhas" é um recorte à parte: as receitas que a equipe criou ou salvou (`origem` `CONSULTORIA`, decidida pela API),
- * completas ou partes; por isso uma receita sua aparece também em "Completas" ou "Partes".
+ * "Da consultoria" é um recorte à parte: as receitas que a equipe criou ou salvou (`origem` `CONSULTORIA`, decidida pela API),
+ * completas ou partes; por isso uma receita da consultoria aparece também em "Completas" ou "Partes".
  */
 
-export type AbaDeReceitas = 'COMPLETAS' | 'PARTES' | 'MINHAS';
+export type AbaDeReceitas = 'COMPLETAS' | 'PARTES' | 'CONSULTORIA';
 
 export const ABAS_DE_RECEITAS: readonly { valor: AbaDeReceitas; rotulo: string }[] = [
   { valor: 'COMPLETAS', rotulo: 'Completas' },
   { valor: 'PARTES', rotulo: 'Partes' },
-  { valor: 'MINHAS', rotulo: 'Minhas' },
+  { valor: 'CONSULTORIA', rotulo: 'Da consultoria' },
 ];
 
 /** Chip "Todos" (nenhum filtro de tipo ou técnica). */
 export const SEM_FILTRO = 'TODOS';
 
-/** A aba pela forma da receita: completa ou partes ("Minhas" não é forma, é origem: `estaNaAba`). */
+/** A aba pela forma da receita: completa ou partes ("Da consultoria" não é forma, é origem: `estaNaAba`). */
 export function abaDaReceita(conteudo: unknown, config?: Configuracao | null): 'COMPLETAS' | 'PARTES' {
   return secaoDaReceita(conteudo, config).chave === 'COMPLETAS' ? 'COMPLETAS' : 'PARTES';
 }
 
-/** Se a receita entra na aba: "Minhas" pela origem; as outras pela forma. */
+/** Se a receita entra na aba: "Da consultoria" pela origem; as outras pela forma. */
 export function estaNaAba(r: Receita, aba: AbaDeReceitas, config?: Configuracao | null): boolean {
-  return aba === 'MINHAS' ? r.origem === 'CONSULTORIA' : abaDaReceita(r.conteudo, config) === aba;
+  return aba === 'CONSULTORIA' ? r.origem === 'CONSULTORIA' : abaDaReceita(r.conteudo, config) === aba;
 }
 
 /** Quantas receitas de cada aba batem com a busca (o chip é da aba e não entra na contagem). */
 export function contagemPorAba(receitas: readonly Receita[], busca: string, config?: Configuracao | null): Record<AbaDeReceitas, number> {
-  const contagem: Record<AbaDeReceitas, number> = { COMPLETAS: 0, PARTES: 0, MINHAS: 0 };
+  const contagem: Record<AbaDeReceitas, number> = { COMPLETAS: 0, PARTES: 0, CONSULTORIA: 0 };
   for (const r of filtrarReceitasDeSeries(receitas, busca, config)) {
     contagem[abaDaReceita(r.conteudo, config)] += 1;
-    if (r.origem === 'CONSULTORIA') contagem.MINHAS += 1;
+    if (r.origem === 'CONSULTORIA') contagem.CONSULTORIA += 1;
   }
   return contagem;
 }
@@ -47,7 +47,7 @@ export function receitasDaAba(receitas: readonly Receita[], aba: AbaDeReceitas, 
   return receitas.filter((r) => r.tipo === 'SERIES' && estaNaAba(r, aba, config));
 }
 
-/** A aba em que a folha abre: Completas, senão Partes, se só houver partes. "Minhas" nunca é a primeira. */
+/** A aba em que a folha abre: Completas, senão Partes, se só houver partes. "Da consultoria" nunca é a primeira. */
 export function abaInicial(receitas: readonly Receita[], config?: Configuracao | null): AbaDeReceitas {
   const series = receitas.filter((r) => r.tipo === 'SERIES');
   return series.length && !series.some((r) => abaDaReceita(r.conteudo, config) === 'COMPLETAS') ? 'PARTES' : 'COMPLETAS';

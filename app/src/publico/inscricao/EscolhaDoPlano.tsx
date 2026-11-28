@@ -1,9 +1,9 @@
 import { Check } from 'lucide-react-native';
-import { useImperativeHandle, useRef, type Ref } from 'react';
+import { useEffect, useImperativeHandle, useRef, type Ref, type RefObject } from 'react';
 import { Platform, Pressable, StyleSheet, View, type TextInput } from 'react-native';
 
 import type { PlanoDaPagina } from '../../api/inscricoesTipos';
-import { AVISO_DO_OUTRO_SEM_CAMPO, PLANO_OUTRO, precoDoPlano, ROTULO_DO_OUTRO, textoDoPeriodo } from '../../dominio/planosDaInscricao';
+import { PLANO_OUTRO, precoDoPlano, ROTULO_DO_OUTRO, ROTULO_DO_TEXTO_DO_OUTRO, textoDoPeriodo } from '../../dominio/planosDaInscricao';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, marcaParaPeca, RAIO_CONTROLE, textoSobre } from '../../tema/tokens';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
@@ -15,8 +15,9 @@ interface Opcao { valor: string; titulo: string; periodo: string | null; preco: 
 
 /**
  * "Qual plano combinou?" em cartões de escolha única (27/11): um por plano comercial ativo (nome, período e, só com a opção
- * do link ligada, o preço) e, por último, "Outro / ainda não sei", que abre o campo de texto logo abaixo quando a página tem
- * onde guardá-lo (`outro`). Cartões na largura da coluna, 44 px de altura mínima; o escolhido ganha borda e ✓ na cor da
+ * do link ligada, o preço) e, por último, "Outro / ainda não sei", que abre o campo "Qual plano?" logo abaixo (opcional na
+ * Ficha rápida, obrigatório na página completa) e, quando a pessoa toca o cartão, leva o foco até ele (as setas não: o foco
+ * fica no grupo, como manda a APG). Cartões na largura da coluna, 44 px de altura mínima; o escolhido ganha borda e ✓ na cor da
  * marca da consultoria (peça a 3:1, `marcaParaPeca`; pedido do Gustavo para as páginas públicas) e fundo neutro `sobre`.
  * Teclado: o `radiogroup` da APG, como `EscolhaDoQueImportar` (um cartão no Tab, setas movem foco e escolha).
  */
@@ -28,9 +29,9 @@ export function EscolhaDoPlano({ rotulo, planos, mostrarPreco, valor, aoMudar, c
   valor: string | null;
   aoMudar: (valor: string) => void;
   cor: string;
-  /** Texto de "Outro" (a resposta da pergunta do plano); sem ele (página completa), "Outro" não abre campo, só o aviso. */
-  outro?: { valor: string; aoMudar: (t: string) => void; erro?: string; maxLength: number } | null;
-  refDoOutro?: Ref<TextInput>;
+  /** Texto de "Outro": a resposta da pergunta do plano (Ficha rápida, opcional) ou o `planoOutroTexto` (página completa, `obrigatorio`). */
+  outro: { valor: string; aoMudar: (t: string) => void; erro?: string; maxLength: number; obrigatorio?: boolean };
+  refDoOutro?: RefObject<TextInput | null>;
   erro?: string;
   ref?: Ref<Focavel | null>;
 }) {
@@ -45,6 +46,13 @@ export function EscolhaDoPlano({ rotulo, planos, mostrarPreco, valor, aoMudar, c
   const noTab = marcada >= 0 ? marcada : 0;
   useImperativeHandle(ref, () => ({ focus: () => refs.current[noTab]?.focus() }), [noTab]);
   const peca = marcaParaPeca(cor, [cores.superficie, cores.sobre]);
+  // O toque em "Outro" leva o foco ao campo que aparece; a escolha pelas setas (ou o "Outro" que já vinha marcado) não.
+  const focarOutro = useRef(false);
+  useEffect(() => {
+    if (valor !== PLANO_OUTRO || !focarOutro.current) return;
+    focarOutro.current = false;
+    refDoOutro?.current?.focus();
+  }, [valor, refDoOutro]);
 
   const mover = (passo: number) => {
     const n = opcoes.length;
@@ -77,7 +85,10 @@ export function EscolhaDoPlano({ rotulo, planos, mostrarPreco, valor, aoMudar, c
               aria-checked={escolhida}
               accessibilityLabel={descricao ? `${o.titulo}. ${descricao}` : o.titulo}
               tabIndex={i === noTab ? 0 : -1}
-              onPress={() => aoMudar(o.valor)}
+              onPress={() => {
+                focarOutro.current = o.valor === PLANO_OUTRO;
+                aoMudar(o.valor);
+              }}
               style={(estado) => [estilos.cartao, {
                 backgroundColor: escolhida ? cores.sobre : sobre(estado) ? cores.superficie2 : cores.superficie,
                 borderColor: escolhida ? peca : erro ? cores.perigo : cores.bordaCampo,
@@ -102,11 +113,11 @@ export function EscolhaDoPlano({ rotulo, planos, mostrarPreco, valor, aoMudar, c
         })}
       </View>
       {erro ? <MensagemDeErro erro={erro} /> : null}
-      {valor === PLANO_OUTRO && outro ? (
-        <Campo ref={refDoOutro} rotulo="Qual plano? (opcional)" valor={outro.valor} aoMudar={outro.aoMudar} erro={outro.erro}
-          maxLength={outro.maxLength} ajuda="Se ainda não sabe, pode deixar em branco." />
-      ) : valor === PLANO_OUTRO ? (
-        <Texto variante="suave" accessibilityLiveRegion="polite">{AVISO_DO_OUTRO_SEM_CAMPO}</Texto>
+      {valor === PLANO_OUTRO ? (
+        <Campo ref={refDoOutro} rotulo={outro.obrigatorio ? ROTULO_DO_TEXTO_DO_OUTRO : `${ROTULO_DO_TEXTO_DO_OUTRO} (opcional)`}
+          rotuloAcessivel={`${outro.obrigatorio ? ROTULO_DO_TEXTO_DO_OUTRO : `${ROTULO_DO_TEXTO_DO_OUTRO} (opcional)`} Escreva o plano que você escolheu.`}
+          valor={outro.valor} aoMudar={outro.aoMudar} erro={outro.erro} maxLength={outro.maxLength}
+          ajuda={outro.obrigatorio ? `O nome ou o que combinou com a equipe. Até ${outro.maxLength} caracteres.` : 'Se ainda não sabe, pode deixar em branco.'} />
       ) : null}
     </View>
   );

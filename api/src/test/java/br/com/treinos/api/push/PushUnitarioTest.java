@@ -23,7 +23,7 @@ class PushUnitarioTest {
         for (int i = 0; i < tokens; i++) {
             lista.add("ExponentPushToken[" + UUID.randomUUID() + "]");
         }
-        return new Grupo(envio, lista);
+        return new Grupo(envio, lista, TipoDePush.COMPROMISSO.corpo());
     }
 
     @Test
@@ -77,6 +77,32 @@ class PushUnitarioTest {
                 .satisfies(e -> assertThat(e.getMessage()).doesNotContain("segredo-de-teste-xyz"));
         assertThat(new PushProperties(true, "https://exp.host/push", "segredo-de-teste-xyz", null, null).toString())
                 .doesNotContain("segredo-de-teste-xyz");
+    }
+
+    @Test
+    void oCorpoDaAtencaoLevaSoOPrimeiroNomeESemNomeUtilizavelCaiNoGenerico() {
+        assertThat(TipoDePush.corpoDaAtencao("Ana Fictícia Souza")).isEqualTo("Novo ponto de atenção: Ana. Abra o app para ver.");
+        assertThat(TipoDePush.corpoDaAtencao("  Bia  ")).isEqualTo("Novo ponto de atenção: Bia. Abra o app para ver.");
+        assertThat(TipoDePush.corpoDaAtencao("Ana\tSouza")).isEqualTo("Novo ponto de atenção: Ana. Abra o app para ver.");
+        assertThat(TipoDePush.corpoDaAtencao(null)).isEqualTo("Novo ponto de atenção. Abra o app para ver.");
+        assertThat(TipoDePush.corpoDaAtencao("   ")).isEqualTo("Novo ponto de atenção. Abra o app para ver.");
+        assertThat(TipoDePush.ATUALIZACAO_ATENCAO.corpo()).isEqualTo("Novo ponto de atenção. Abra o app para ver.");
+    }
+
+    /** Item 4 do Gustavo (ciclo): nenhum push fala de ciclo menstrual, nem o título, nem o corpo, nem o de atenção com nome. */
+    @Test
+    void nenhumTextoDePushFalaDeCiclo() {
+        List<String> textos = new ArrayList<>();
+        for (TipoDePush t : TipoDePush.values()) {
+            textos.add(t.titulo());
+            textos.add(t.corpo());
+        }
+        textos.add(TipoDePush.corpoDaAtencao("Ana"));
+        for (String texto : textos) {
+            String normal = java.text.Normalizer.normalize(texto, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                    .toLowerCase(java.util.Locale.ROOT);
+            assertThat(normal).as(texto).doesNotContain("ciclo").doesNotContain("menstru").doesNotContain("fase").doesNotContain("tpm");
+        }
     }
 
     /** Relógio que o teste avança. */

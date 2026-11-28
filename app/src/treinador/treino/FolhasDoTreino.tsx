@@ -36,11 +36,13 @@ interface Props {
   planoId: string | undefined;
   salvar: () => Promise<boolean>;
   comDesfazer: (rotulo: string, mudanca: (c: ConteudoTreino) => ConteudoTreino) => void;
+  /** Como `comDesfazer`, com o "Desfazer" no aviso (toast): usado ao aplicar uma receita de séries. */
+  comDesfazerNoAviso: (rotulo: string, mudanca: (c: ConteudoTreino) => ConteudoTreino) => void;
   /** Abre a aba de séries do exercício (a receita aplicada abre a do último grupo, D12). */
   abrirGrupo: (exercicioUid: string, serieUid: string | null) => void;
 }
 
-export function FolhasDoTreino({ folha: aberta, abrir, fechar, conteudo: c, config, modelo, unica, planoId, salvar, comDesfazer, abrirGrupo }: Props) {
+export function FolhasDoTreino({ folha: aberta, abrir, fechar, conteudo: c, config, modelo, unica, planoId, salvar, comDesfazer, comDesfazerNoAviso, abrirGrupo }: Props) {
   const { avisar } = useAviso();
   const folha = aberta as FolhaDoTreino | null;
   switch (folha?.tipo) {
@@ -96,7 +98,7 @@ export function FolhasDoTreino({ folha: aberta, abrir, fechar, conteudo: c, conf
             const daReceita = seriesDaReceita(r.conteudo);
             const alvo = c.sessoes[si]?.exercicios[ei];
             if (alvo) abrirGrupo(alvo.uid, agrupar(seriesComReceita(alvo.series, daReceita, modo)).at(-1)?.series[0].uid ?? null);
-            comDesfazer(modo === 'acrescentar' ? `Receita “${r.nome}” acrescentada ao fim.` : `Receita “${r.nome}” aplicada.`, (a) => {
+            comDesfazerNoAviso(modo === 'acrescentar' ? `Receita “${r.nome}” acrescentada ao fim.` : `Receita “${r.nome}” aplicada.`, (a) => {
               const sessao = a.sessoes[si];
               const exercicio = sessao?.exercicios[ei];
               if (!exercicio) return a;

@@ -7,7 +7,8 @@ import { CODIGO, contagensFalsas, detalheFalso, paginaPublica, resumoFalso, rota
 
 /**
  * Sugestão de planos na página pública e o layout novo (27/11): os cartões dos planos ativos na Ficha rápida (uma parte
- * só) e na inscrição completa (parte 2), o preço só com a opção do link ligada, "Outro / ainda não sei" com o texto, o
+ * só) e na inscrição completa (parte 2), o preço só com a opção do link ligada, "Outro / ainda não sei" com o texto (na
+ * completa, o campo próprio `planoOutroTexto`, obrigatório com "Outro"), o
  * interruptor da opção nas folhas do link e o plano escolhido na equipe (Kanban, folha e proposta). Só dados fictícios.
  */
 
@@ -36,8 +37,8 @@ const DO_TREINADOR: ConteudoQuestionario = {
     ] },
   ],
 };
-/** O aviso de "Outro" sem campo (`AVISO_DO_OUTRO_SEM_CAMPO`; o domínio puxa o Expo, que o Playwright não carrega). */
-const AVISO_DO_OUTRO_SEM_CAMPO = 'Tudo bem: a equipe conversa com você sobre os planos pelo WhatsApp.';
+/** O erro de "Outro" sem texto na página completa (`ERRO_DO_OUTRO_VAZIO`; o domínio puxa o Expo, que o Playwright não carrega). */
+const ERRO_DO_OUTRO_VAZIO = 'Escreva qual plano combinou ou escolha um da lista.';
 const PERGUNTAS_DO_TREINADOR = { versaoId: 'v-treinador-1', conteudo: DO_TREINADOR };
 
 /** Ficha rápida: só o e-mail entre os fixos e a pergunta do plano. */
@@ -167,7 +168,7 @@ for (const largura of [390, 1280]) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('inscrição completa: os planos entram na parte 2, "Outro" sem campo (só o aviso); a barrinha marca a parte 1 com ✓', async ({ page }) => {
+    test('inscrição completa: os planos entram na parte 2, "Outro" abre "Qual plano?" com o foco; a barrinha marca a parte 1 com ✓', async ({ page }) => {
       const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, largura, paginaPublica({ planos: TRES }));
       await expect(page.getByRole('radiogroup')).toHaveCount(0);
       await preencherContato(page);
@@ -179,16 +180,42 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('button', { name: 'Voltar ao contato' })).toBeVisible();
       const grupo = page.getByRole('radiogroup', { name: 'Qual plano combinou? (opcional)' });
       await grupo.getByRole('radio', { name: 'Outro / ainda não sei' }).click();
-      // A API não tem onde guardar o texto na página completa (só a Ficha rápida tem a pergunta do plano): o aviso no lugar do campo.
+      // Campo próprio (V116), obrigatório com "Outro", logo abaixo da escolha e com o foco.
+      const qualPlano = page.getByRole('textbox', { name: /^Qual plano\?/ });
+      await expect(qualPlano).toBeFocused();
       await expect(page.getByLabel('Qual plano? (opcional)')).toHaveCount(0);
-      await expect(page.getByText(AVISO_DO_OUTRO_SEM_CAMPO)).toBeVisible();
-      // Teclado: as setas movem a escolha (radiogroup da APG).
+      // Teclado: as setas movem a escolha (radiogroup da APG) e o foco fica no cartão.
       await grupo.getByRole('radio', { name: 'Outro / ainda não sei' }).press('ArrowDown');
       await expect(grupo.getByRole('radio', { name: /Consultoria mensal/ })).toHaveAttribute('aria-checked', 'true');
       await expect(grupo.getByRole('radio', { name: /Consultoria mensal/ })).toBeFocused();
+      await expect(qualPlano).toHaveCount(0);
       await page.getByRole('button', { name: 'Enviar inscrição' }).click();
       await expect(page.getByRole('heading', { name: 'Inscrição enviada', level: 1 })).toBeVisible();
       expect(envios(pedidos)[0].corpo).toMatchObject({ planoComercialId: MENSAL.id, respostas: null });
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('inscrição completa: "Outro" sem texto bloqueia o envio; com texto vai em planoOutroTexto, sem plano', async ({ page }) => {
+      const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, largura, paginaPublica({ planos: TRES }));
+      await preencherContato(page);
+      await page.getByRole('button', { name: 'Continuar' }).click();
+      const grupo = page.getByRole('radiogroup', { name: 'Qual plano combinou? (opcional)' });
+      await grupo.getByRole('radio', { name: 'Outro / ainda não sei' }).click();
+      const qualPlano = page.getByRole('textbox', { name: /^Qual plano\?/ });
+      await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+      // Sem texto: o erro no campo, o foco nele e nada enviado.
+      await expect(page.getByText(ERRO_DO_OUTRO_VAZIO)).toBeVisible();
+      await expect(qualPlano).toBeFocused();
+      expect(envios(pedidos)).toHaveLength(0);
+      await qualPlano.fill('  Plano de um amigo  ');
+      await expect(page.getByText(ERRO_DO_OUTRO_VAZIO)).toHaveCount(0);
+      await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+      await expect(page.getByRole('heading', { name: 'Inscrição enviada', level: 1 })).toBeVisible();
+      const corpo = envios(pedidos)[0].corpo as Record<string, unknown>;
+      expect(corpo.planoOutroTexto).toBe('Plano de um amigo');
+      expect('planoComercialId' in corpo).toBe(false);
+      await semRolagemLateral(page);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
@@ -227,6 +254,7 @@ for (const largura of [390, 1280]) {
 
     test('equipe: o interruptor do preço nas duas folhas do link; o plano escolhido no Kanban, na folha e na proposta', async ({ page }) => {
       const comPlano = resumoFalso(1, { nome: 'Pessoa Com Plano', planoComercialId: TRIMESTRAL.id, planoComercialNome: TRIMESTRAL.nome });
+      const comOutro = resumoFalso(2, { nome: 'Pessoa Com Outro', planoComercialId: null, planoComercialNome: null, planoOutroTexto: 'Plano de um amigo' });
       const FICHA_ID = 'q0000000-0000-4000-8000-0000000000f3';
       let configFicha: ConfiguracaoInscricao = {
         aberta: true, codigo: 'ficha-rapida-teste-12345678', link: 'https://consultoria.exemplo.test/inscricao/ficha-rapida-teste-12345678',
@@ -251,16 +279,19 @@ for (const largura of [390, 1280]) {
           return json(route, configFicha);
         },
         'GET /questionarios/opcoes': { corpo: [] },
-        'GET /inscricoes/contagens': { corpo: contagensFalsas({ NOVA: 1 }) },
+        'GET /inscricoes/contagens': { corpo: contagensFalsas({ NOVA: 2 }) },
         'GET /inscricoes': (p, route) => json(route, !p.busca.get('situacao') || p.busca.get('situacao') === 'NOVA' || p.busca.get('situacao') === 'ABERTAS'
-          ? { itens: [comPlano], total: 1 } : { itens: [], total: 0 }),
+          ? { itens: [comPlano, comOutro], total: 2 } : { itens: [], total: 0 }),
         [`GET /inscricoes/${comPlano.id}`]: { corpo: detalheFalso(comPlano) },
+        [`GET /inscricoes/${comOutro.id}`]: { corpo: detalheFalso(comOutro) },
         'GET /inscricoes/planos-de-referencia': { corpo: [{ ...MENSAL, valorCentavos: 39700 }, { ...TRIMESTRAL, valorCentavos: 99700 }] },
       });
       await page.goto('/treinador/interessados?visao=kanban');
       await expect(page.getByRole('heading', { name: 'Interessados', level: 1 })).toBeVisible();
       // Kanban: sem proposta, o cartão mostra o plano que a pessoa escolheu.
       await expect(page.getByText(`Plano: ${TRIMESTRAL.nome}`)).toBeVisible();
+      // "Outro" com texto (V116): o texto que a pessoa escreveu.
+      await expect(page.getByText('Plano: Outro: Plano de um amigo')).toBeVisible();
 
       // Folha do link padrão: o interruptor entra no PUT.
       await page.getByRole('button', { name: 'Configurar', exact: true }).click();
@@ -285,6 +316,11 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Registrar proposta' }).click();
       await expect(page.getByText('R$ 997,00').first()).toBeVisible();
       await semRolagemLateral(page);
+      // A folha de quem escolheu "Outro" mostra o texto como o plano escolhido na página.
+      await page.goto('/treinador/interessados?visao=kanban');
+      await page.getByRole('button', { name: 'Abrir inscrição de Pessoa Com Outro' }).click();
+      await expect(page.getByText('O que a pessoa escreveu')).toBeVisible();
+      await expect(page.getByText('Outro: Plano de um amigo').first()).toBeVisible();
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });

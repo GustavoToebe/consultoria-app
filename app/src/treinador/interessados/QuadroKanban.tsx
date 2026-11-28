@@ -23,6 +23,7 @@ import {
   textoDaColuna,
   type DestinoDoCartao,
 } from '../../dominio/inscricoes';
+import { planoEscolhidoNaPagina } from '../../dominio/planosDaInscricao';
 import { alvoSobOPonteiro } from '../../dominio/reordenar';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -284,9 +285,9 @@ function CartaoDoQuadro({ item, arraste, movendo, aoAbrir, aoMover }: {
               </View>
             ) : null}
             <Texto variante="pequeno">{item.responsavelNome ?? (item.responsavelId ? 'Membro inativo' : 'Sem responsável')} · {instanteRelativo(item.ultimaAtividadeEm)}</Texto>
-            {/* A proposta vale mais; sem ela, o plano que a pessoa escolheu na página. */}
-            {item.propostaPlanoNome || item.planoComercialNome
-              ? <Texto variante="pequeno" numberOfLines={1}>Plano: {item.propostaPlanoNome ?? item.planoComercialNome}</Texto> : null}
+            {/* A proposta vale mais; sem ela, o plano que a pessoa escolheu na página (ou o texto de "Outro"). */}
+            {item.propostaPlanoNome || planoEscolhidoNaPagina(item)
+              ? <Texto variante="pequeno" numberOfLines={1}>Plano: {item.propostaPlanoNome ?? planoEscolhidoNaPagina(item)}</Texto> : null}
             {item.indicadoPor ? <Texto variante="pequeno" numberOfLines={1}>Indicado por: {item.indicadoPor}</Texto> : null}
           </Pressable>
           <IconeBotao Icone={Ellipsis} rotulo={`Mover ${item.nome} para`} aoTocar={aoMover} />

@@ -411,13 +411,15 @@ export interface RespostasDoEnvio {
 /**
  * Corpo do envio: textos sem espaços nas pontas e vazio = nulo. O token só vai quando há. `textoVersao` é a do texto que
  * a página mostrou (a API recusa a ciência de um texto que mudou). Campo fixo escondido (`campos` são os visíveis) vai
- * nulo. `perguntas` nulo = a página não tinha perguntas. `codigoIndicacao` (link de um aluno) e `planoComercialId` (plano
- * escolhido nos cartões; "Outro" ou nada = ausente, que a API lê como nulo) só vão quando há.
+ * nulo. `perguntas` nulo = a página não tinha perguntas. `codigoIndicacao` (link de um aluno), `planoComercialId` (plano
+ * escolhido nos cartões; "Outro" ou nada = ausente, que a API lê como nulo) e `planoOutroTexto` (o texto de "Outro" da
+ * página completa, `textoDoOutroDoEnvio`) só vão quando há.
  */
 export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: string | null,
   textoVersao: string | null = null, origemLink: string | null = null,
   campos: readonly CampoDaInscricao[] = TODOS_OS_CAMPOS, perguntas: RespostasDoEnvio | null = null,
-  codigoIndicacao: string | null = null, planoComercialId: string | null = null): InscricaoPublicaRequest {
+  codigoIndicacao: string | null = null, planoComercialId: string | null = null,
+  planoOutroTexto: string | null = null): InscricaoPublicaRequest {
   const opcional = (t: string) => (t.trim() ? t.trim() : null);
   const mostra = (c: CampoDaInscricao) => campos.includes(c);
   const corpo: InscricaoPublicaRequest = {
@@ -441,6 +443,7 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
   if (token) corpo.turnstileToken = token;
   if (codigoIndicacao) corpo.codigoIndicacao = codigoIndicacao;
   if (planoComercialId) corpo.planoComercialId = planoComercialId;
+  else if (planoOutroTexto?.trim()) corpo.planoOutroTexto = planoOutroTexto.trim();
   return corpo;
 }
 

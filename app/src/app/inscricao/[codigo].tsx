@@ -33,13 +33,16 @@ import {
   type ParteDaInscricao,
 } from '../../dominio/inscricoes';
 import {
+  errosDoOutro,
   escolhaEfetiva,
   ID_DA_PERGUNTA_DO_PLANO,
+  LIMITE_DO_TEXTO_DO_OUTRO,
   perguntaDoPlano,
   planoDoEnvio,
   respostasComPlano,
   ROTULO_DA_ESCOLHA_SEM_PERGUNTA,
   semAPerguntaDoPlano,
+  textoDoOutroDoEnvio,
 } from '../../dominio/planosDaInscricao';
 import { redesPreenchidas, usuarioDaRede } from '../../dominio/redesSociais';
 import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../../dominio/verificacaoHumana';
@@ -102,6 +105,8 @@ export default function Inscricao() {
   const [respostas, setRespostas] = useState<RespostasAtualizacao>({});
   // Só a escolha que a pessoa fez nos cartões; a que vale (com um plano só, ele já vem marcado) é calculada.
   const [escolhaDoPlano, setEscolhaDoPlano] = useState<string | null>(null);
+  // Texto de "Outro" da página completa (`planoOutroTexto`); na Ficha rápida ele é a resposta da pergunta do plano.
+  const [textoDoOutroPlano, setTextoDoOutroPlano] = useState('');
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -131,7 +136,7 @@ export default function Inscricao() {
   const focarErros = useCallback((locais: Record<string, string>) => focarPrimeiroComErro(locais, [
     ['nome', refNome], ['whatsapp', refWhatsapp], ['email', refEmail], ['instagram', refInstagram], ['sexo', refSexo], ['objetivo', refObjetivo],
     ['interesse', refInteresse], ['modalidade', refModalidade], ['previsaoInicio', refPrevisao], ['origem', refOrigem], ['indicadoPor', refIndicadoPor],
-    ['planoComercialId', refPlano], [ID_DA_PERGUNTA_DO_PLANO, refOutroPlano],
+    ['planoComercialId', refPlano], [ID_DA_PERGUNTA_DO_PLANO, refOutroPlano], ['planoOutroTexto', refOutroPlano],
   ]), []);
   useEffect(() => {
     if (paraFocar) focarErros(paraFocar);
@@ -242,6 +247,7 @@ export default function Inscricao() {
     const locais = {
       ...errosDaInscricao(dados, !!texto, ciencia, visiveis),
       ...(perguntas ? errosRespostasAtualizacao(perguntas.conteudo, doEnvio) : {}),
+      ...errosDoOutro(planoEscolhido, textoDoOutroPlano, !!doPlano),
     };
     setCampos(locais);
     if (Object.keys(locais).length) {
@@ -258,7 +264,8 @@ export default function Inscricao() {
       const resposta = await enviarInscricao(codigo,
         corpoDaInscricao(dados, !!texto && ciencia, verificacao.token, pagina.dados?.textoVersao ?? null, origemLink, visiveis,
           perguntas ? { versaoId: perguntas.versaoId, respostas: respostasDaPagina(perguntas.conteudo, doEnvio) } : null,
-          indicacaoGuardada(guardaDaGuia()), planoDoEnvio(planoEscolhido)));
+          indicacaoGuardada(guardaDaGuia()), planoDoEnvio(planoEscolhido),
+          textoDoOutroDoEnvio(planoEscolhido, textoDoOutroPlano, !!doPlano)));
       apagarIndicacao(guardaDaGuia());
       setRecebida(resposta.mensagem);
       if (resposta.proximoQuestionarioCodigo) setProximoCodigo(resposta.proximoQuestionarioCodigo);
@@ -419,7 +426,10 @@ export default function Inscricao() {
           outro={doPlano ? {
             valor: textoDoOutro, aoMudar: (t) => responder(ID_DA_PERGUNTA_DO_PLANO, t), erro: campos[ID_DA_PERGUNTA_DO_PLANO],
             maxLength: limiteDoOutro,
-          } : null} refDoOutro={refOutroPlano} />
+          } : {
+            valor: textoDoOutroPlano, aoMudar: (t) => { setTextoDoOutroPlano(t); limparErro('planoOutroTexto'); },
+            erro: campos.planoOutroTexto, maxLength: LIMITE_DO_TEXTO_DO_OUTRO, obrigatorio: true,
+          }} refDoOutro={refOutroPlano} />
       ) : doPlano ? (
         <Campo ref={refOutroPlano} rotulo={doPlano.pergunta.obrigatoria ? doPlano.pergunta.rotulo : `${doPlano.pergunta.rotulo} (opcional)`}
           valor={textoDoOutro} aoMudar={(t) => responder(ID_DA_PERGUNTA_DO_PLANO, t)} erro={campos[ID_DA_PERGUNTA_DO_PLANO]}

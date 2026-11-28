@@ -3,7 +3,7 @@ package br.com.treinos.api.pagamentos;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Pagamentos do aluno ao treinador ({@code TREINOS_PAGAMENTOS_HABILITADO}). Desligado por padrão: as rotas do financeiro
+ * Pagamentos do aluno ao treinador ({@code TREINOS_PAGAMENTOS_HABILITADO}). Ligado por padrão (leva 1, 27/11; em produção vale o `consultoria.env`). Com a chave desligada, as rotas do financeiro
  * respondem 503 {@code FINANCEIRO_INDISPONIVEL}. Exportar, apagar (LGPD) e encerrar a contratação do aluno que saiu
  * ({@link PagamentosDoAluno}) rodam sempre, com a chave ligada ou não.
  *

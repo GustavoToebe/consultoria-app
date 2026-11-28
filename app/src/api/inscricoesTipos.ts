@@ -87,6 +87,8 @@ export interface InscricaoPublicaRequest {
   respostas: RespostasAtualizacao | null;
   /** Plano escolhido nos cartões (tem de ser um dos `planos` da página: 422 `INSCRICAO_INVALIDA` no campo, senão). Vale mais que o texto de "Outro". */
   planoComercialId?: string | null;
+  /** Texto de "Outro" da página completa (até 120; com `planoComercialId` a API o descarta; 422 `INSCRICAO_INVALIDA` no campo acima do limite). */
+  planoOutroTexto?: string | null;
 }
 
 /** `GET /inscricoes/configuracao` (= `GET /questionarios/{id}/link` do formulário padrão; 404 se não há padrão). */
@@ -194,6 +196,8 @@ export interface InscricaoResumo {
   /** Plano comercial que a pessoa escolheu na página; o nome vem resolvido (nulo se não escolheu ou o plano foi apagado). */
   planoComercialId: string | null;
   planoComercialNome: string | null;
+  /** Texto de "Outro" que a pessoa escreveu na página completa (V116); nulo sem ele. */
+  planoOutroTexto?: string | null;
 }
 
 export interface PaginaInscricoes {
@@ -346,6 +350,8 @@ export interface InscricaoDetalhe {
   /** Plano comercial que a pessoa escolheu na página (pré-seleciona o "Plano do Financeiro" da proposta). */
   planoComercialId: string | null;
   planoComercialNome: string | null;
+  /** Texto de "Outro" que a pessoa escreveu na página completa (V116); nulo sem ele. */
+  planoOutroTexto?: string | null;
   criadaEm: string;
   atualizadaEm: string;
   ultimaAtividadeEm: string;

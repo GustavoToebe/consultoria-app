@@ -6,7 +6,7 @@ import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } fr
 import { linhaDaSerie } from './linhaDaSerie';
 
 /*
- * Folha "Usar receita" do editor de treino (27/11): no PC, lista (busca, abas Completas, Partes e Minhas, chips de tipo e
+ * Folha "Usar receita" do editor de treino (27/11): no PC, lista (busca, abas Completas, Partes e Da consultoria, chips de tipo e
  * técnica, uma linha por receita com os selos) e prévia fixa lado a lado, rodapé fixo com substituir e acrescentar; no
  * celular, a lista e a prévia em passos, com "Voltar". Só dados fictícios; nada chega ao banco. Capturas com
  * `E2E_CAPTURAS`: `<base>/usar-receita-<caso>-<largura>-<tema>.png`.
@@ -139,7 +139,11 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
       await expect(f).toHaveCount(0);
       await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toHaveCount(1);
       await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
-      await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+      // O "Desfazer" vem no aviso (toast), não na faixa do editor.
+      const aviso = page.getByRole('alert').filter({ hasText: 'Receita “Volume fictício” aplicada.' });
+      await expect(aviso).toBeVisible();
+      await aviso.getByRole('button', { name: 'Desfazer', exact: true }).click();
+      await expect(aviso).toHaveCount(0);
       await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(1);
       expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
       expect(api.errosDaPagina).toEqual([]);
@@ -261,24 +265,24 @@ for (const largura of [1024, 1280]) {
   });
 }
 
-// Aba "Minhas" (V115): as receitas que a equipe criou ou salvou (`origem` CONSULTORIA), completas ou partes; seguem
+// Aba "Da consultoria" (V115): as receitas que a equipe criou ou salvou (`origem` CONSULTORIA), completas ou partes; seguem
 // também em Completas e Partes. A folha nunca abre nela, a busca vale ao trocar de aba e, vazia, diz como criar uma.
-const COM_MINHAS: Receita[] = RECEITAS.map((r) => (['Volume fictício', 'Cluster fictício'].includes(r.nome) ? { ...r, origem: 'CONSULTORIA' } : r));
+const DA_CONSULTORIA: Receita[] = RECEITAS.map((r) => (['Volume fictício', 'Cluster fictício'].includes(r.nome) ? { ...r, origem: 'CONSULTORIA' } : r));
 for (const tema of ['ESCURO', 'CLARO'] as const) {
   for (const largura of [1280, 390]) {
-    test(`usar receita: aba Minhas com contagem, busca preservada, setas e estado vazio (${largura}px, ${tema.toLowerCase()})`, async ({ page }) => {
-      const api = await abrir(page, { largura, tema, receitas: COM_MINHAS });
+    test(`usar receita: aba Da consultoria com contagem, busca preservada, setas e estado vazio (${largura}px, ${tema.toLowerCase()})`, async ({ page }) => {
+      const api = await abrir(page, { largura, tema, receitas: DA_CONSULTORIA });
       const f = folha(page);
       await expect(f.getByRole('tab', { name: 'Completas (3)', exact: true })).toHaveAttribute('aria-selected', 'true');
       await expect(f.getByRole('tab', { name: 'Partes (2)', exact: true })).toBeVisible();
-      const minhas = f.getByRole('tab', { name: 'Minhas (2)', exact: true });
-      await minhas.click();
-      await expect(minhas).toHaveAttribute('aria-selected', 'true');
+      const daConsultoria = f.getByRole('tab', { name: 'Da consultoria (2)', exact: true });
+      await daConsultoria.click();
+      await expect(daConsultoria).toHaveAttribute('aria-selected', 'true');
       await expect(f.getByRole('option')).toHaveCount(2);
       await expect(opcao(page, 'Volume fictício')).toBeVisible();
       await expect(opcao(page, 'Cluster fictício')).toBeVisible();
       expect(await semRolagemDeLado(page)).toBe(true);
-      await capturar(page, 'minhas', largura, tema);
+      await capturar(page, 'da-consultoria', largura, tema);
       if (largura >= 1280) {
         await expect(opcao(page, 'Volume fictício')).toHaveAttribute('aria-selected', 'true');
         await expect(f.getByRole('region', { name: 'Prévia da receita' }).getByRole('heading', { name: 'Volume fictício' })).toBeVisible();
@@ -289,7 +293,7 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
       }
       // A busca fica ao trocar de aba e as contagens a seguem.
       await f.getByRole('textbox', { name: 'Buscar receita', exact: true }).fill('cluster');
-      await expect(f.getByRole('tab', { name: 'Minhas (1)', exact: true })).toBeVisible();
+      await expect(f.getByRole('tab', { name: 'Da consultoria (1)', exact: true })).toBeVisible();
       await expect(f.getByRole('option')).toHaveCount(1);
       await f.getByRole('tab', { name: 'Completas (0)', exact: true }).click();
       await expect(f.getByText('Nenhuma receita com essa busca.', { exact: true })).toBeVisible();
@@ -303,11 +307,11 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
       const outra = await page.context().newPage();
       await abrir(outra, { largura, tema });
       const g = folha(outra);
-      await g.getByRole('tab', { name: 'Minhas (0)', exact: true }).click();
-      await expect(g.getByText('Você ainda não tem receitas suas', { exact: true })).toBeVisible();
+      await g.getByRole('tab', { name: 'Da consultoria (0)', exact: true }).click();
+      await expect(g.getByText('Nenhuma receita da consultoria ainda', { exact: true })).toBeVisible();
       await expect(g.getByText('Num exercício com séries, toque em “Salvar como receita” para guardar a estrutura; ela aparece aqui.', { exact: true })).toBeVisible();
       await expect(g.getByRole('option')).toHaveCount(0);
-      await capturar(outra, 'minhas-vazia', largura, tema);
+      await capturar(outra, 'da-consultoria-vazia', largura, tema);
     });
   }
 }

@@ -17,8 +17,8 @@ import java.util.List;
 
 /**
  * Chamada à API de push do Expo, SEMPRE fora de transação. Conexão e resposta com tempo máximo curto, sem redirecionamento
- * (o token de acesso iria junto) e em lotes de até {@value #MAXIMO_POR_CHAMADA} mensagens (limite do Expo). O texto é fixo e
- * sem dado pessoal; o {@code data} leva só o tipo. A resposta é lida só pelo status e pelos tickets (status e
+ * (o token de acesso iria junto) e em lotes de até {@value #MAXIMO_POR_CHAMADA} mensagens (limite do Expo). O título é o fixo
+ * do tipo e o corpo vem pronto de quem chama (fixo, ou com o primeiro nome do aluno no de atenção); o {@code data} leva só o tipo. A resposta é lida só pelo status e pelos tickets (status e
  * {@code details.error}); nada dela, nem o token, vai a log ou à exceção.
  */
 @Component
@@ -46,11 +46,11 @@ class ExpoCliente {
     }
 
     /**
-     * Envia até 100 mensagens e devolve, na ordem dos tokens, o erro do ticket de cada uma ({@code null} = aceita).
-     * Lança {@link FalhaNoEnvio} se a chamada falhar.
+     * Envia até 100 mensagens (token, tipo e corpo de cada uma, na mesma ordem) e devolve, na ordem dos tokens, o erro do ticket
+     * de cada uma ({@code null} = aceita). Lança {@link FalhaNoEnvio} se a chamada falhar.
      */
-    List<String> enviar(List<String> tokens, List<TipoDePush> tipos) {
-        if (tokens.isEmpty() || tokens.size() > MAXIMO_POR_CHAMADA || tipos.size() != tokens.size()) {
+    List<String> enviar(List<String> tokens, List<TipoDePush> tipos, List<String> corpos) {
+        if (tokens.isEmpty() || tokens.size() > MAXIMO_POR_CHAMADA || tipos.size() != tokens.size() || corpos.size() != tokens.size()) {
             throw new IllegalArgumentException("Lote fora do limite.");
         }
         ArrayNode mensagens = json.createArrayNode();
@@ -58,7 +58,7 @@ class ExpoCliente {
             ObjectNode m = mensagens.addObject();
             m.put("to", tokens.get(i));
             m.put("title", tipos.get(i).titulo());
-            m.put("body", tipos.get(i).corpo());
+            m.put("body", corpos.get(i));
             m.put("sound", "default");
             m.put("priority", "high");
             m.putObject("data").put("tipo", tipos.get(i).codigoNoApp());

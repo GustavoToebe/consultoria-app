@@ -70,6 +70,8 @@ public class InscricaoService {
     /** O {@code objetivo} do aluno tem até 200 caracteres; maior que isso fica só na inscrição. */
     static final int OBJETIVO_DO_ALUNO = 200;
     /** Janela do teto de inscrições por consultoria ({@code treinos.limites.inscricao-consultoria-dia}). */
+    /** Limite do texto de "Outro" do plano (V116, {@code varchar(120)}). */
+    static final int PLANO_OUTRO_MAXIMO = 120;
     static final Duration JANELA_DO_TETO = Duration.ofHours(24);
 
     private final InscricaoRepository inscricoes;
@@ -213,6 +215,8 @@ public class InscricaoService {
         if (r.planoComercialId() != null) {
             planosComerciais.exigirAtivo(r.planoComercialId());
             nova.escolherPlanoComercial(r.planoComercialId());
+        } else {
+            nova.escreverPlanoOutro(planoOutroDaInscricao(r.planoOutroTexto()));
         }
         responderPerguntas(nova, q, r.questionarioVersaoId(), r.respostas(), r.planoComercialId() != null);
         Inscricao gravada = inscricoes.saveAndFlush(nova);
@@ -235,6 +239,20 @@ public class InscricaoService {
             throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
                     List.of(new br.com.plataforma.comum.web.ApiError.FieldError("instagram", recusada.getMessage())));
         }
+    }
+
+    /**
+     * Texto de "Outro" do plano (só sem plano da lista): strip, vazio = nulo; acima de 120 é 422 no campo, com a mensagem fixa e
+     * sem o valor. Obrigatório só na página (o envio não diz se a pessoa marcou "Outro").
+     */
+    private static String planoOutroDaInscricao(String bruto) {
+        String texto = bruto == null || bruto.isBlank() ? null : bruto.strip();
+        if (texto != null && texto.length() > PLANO_OUTRO_MAXIMO) {
+            throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
+                    List.of(new br.com.plataforma.comum.web.ApiError.FieldError("planoOutroTexto",
+                            "Use até " + PLANO_OUTRO_MAXIMO + " caracteres.")));
+        }
+        return texto;
     }
 
     /** O Instagram da inscrição já foi normalizado ao entrar; se por algum motivo não vale mais, o aceite segue sem ele. */

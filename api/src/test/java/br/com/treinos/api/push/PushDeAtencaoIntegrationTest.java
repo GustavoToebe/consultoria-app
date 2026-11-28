@@ -32,7 +32,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Push das regras de atenção ao membro da equipe (R7, R8, C7): só o responsável do aluno, ativo, com {@code ATUALIZACAO_LER} +
  * {@code ALUNO_SENSIVEL_LER} (o Administrador incluso, sem linhas em {@code perfil_permissao}), com a preferência ligada e token;
- * texto fixo sem nome nem quantos; na mesma transação do envio; o job confere de novo sem apagar o token de quem só não recebe;
+ * corpo com só o primeiro nome do aluno (sem quantos nem o que bateu; de mais de um aluno ou de quem já não é do responsável, sem
+ * nome), cada consultoria com o seu; na mesma transação do envio; o job confere de novo sem apagar o token de quem só não recebe;
  * a preferência ({@code /eu/preferencias-de-push}), o token do treinador ({@code /eu/push-token}) e a equipe que apaga o token de
  * quem perdeu acesso. Expo de mentira; cada teste só afirma sobre os próprios usuários e tokens. Dados fictícios.
  */
@@ -40,7 +41,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PushDeAtencaoIntegrationTest extends AbstractIntegrationTest {
 
     private static final ExpoFalso EXPO = new ExpoFalso();
-    private static final String SENTINELA_NOME = "Aluno Sentinela At7";
+    private static final String SENTINELA_NOME = "Iracema Sentinela At7";
+    private static final String CORPO_SEM_NOME = "Novo ponto de atenção. Abra o app para ver.";
     private static final String CONTEUDO = """
         {"formato":2,"instrucoes":[],"secoes":[{"uid":"s1","titulo":"Geral","perguntas":[
           {"id":"dor","tipo":"SIM_NAO","rotulo":"Dor","obrigatoria":false}]}]}
@@ -67,7 +69,10 @@ class PushDeAtencaoIntegrationTest extends AbstractIntegrationTest {
     private UUID questionario;
     private final Set<String> meusTokens = new HashSet<>();
 
-    record AlunoDeTeste(UUID id, JsonNode login, String pasta) { }
+    record AlunoDeTeste(UUID id, JsonNode login, String pasta, UUID versao) { }
+
+    /** O questionário publicado e a regra "Dor = sim" ligada numa consultoria. */
+    record Questionario(UUID id, UUID versao) { }
 
     @BeforeEach
     void preparar() throws Exception {
@@ -75,16 +80,28 @@ class PushDeAtencaoIntegrationTest extends AbstractIntegrationTest {
         meusTokens.clear();
         api = new ApiDeTeste(mvc, json);
         admin = api.novoTreinador();
-        consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?", UUID.class, idDe(admin));
-        questionario = UUID.randomUUID();
-        versao = UUID.randomUUID();
+        consultoria = consultoriaDe(admin);
+        Questionario q = questionarioComRegra(admin);
+        questionario = q.id();
+        versao = q.versao();
+    }
+
+    private UUID consultoriaDe(JsonNode quem) {
+        return jdbc.queryForObject("select consultoria_id from usuario where id = ?", UUID.class, idDe(quem));
+    }
+
+    private Questionario questionarioComRegra(JsonNode dono) throws Exception {
+        UUID cid = consultoriaDe(dono);
+        UUID q = UUID.randomUUID();
+        UUID v = UUID.randomUUID();
         jdbc.update("insert into questionario(id,consultoria_id,nome,rascunho,versao_publicada,publicado_em) values (?,?,?,?::jsonb,1,now())",
-                questionario, consultoria, "Questionário fictício " + questionario, CONTEUDO);
+                q, cid, "Questionário fictício " + q, CONTEUDO);
         jdbc.update("insert into questionario_versao(id,consultoria_id,questionario_id,numero,conteudo) values (?,?,?,1,?::jsonb)",
-                versao, consultoria, questionario, CONTEUDO);
-        long v = api.get("/regras-de-atencao", admin, 200).path("versao").asLong();
-        api.put("/regras-de-atencao", admin, Map.of("versao", v, "regras",
+                v, cid, q, CONTEUDO);
+        long versaoDasRegras = api.get("/regras-de-atencao", dono, 200).path("versao").asLong();
+        api.put("/regras-de-atencao", dono, Map.of("versao", versaoDasRegras, "regras",
                 List.of(Map.of("tipo", "SIM", "perguntaId", "dor", "ativa", true))), 200);
+        return new Questionario(q, v);
     }
 
     @AfterEach
@@ -101,19 +118,23 @@ class PushDeAtencaoIntegrationTest extends AbstractIntegrationTest {
 
     /** Aluno do administrador (o criador vira o responsável), com pasta vigente e treino publicado. */
     private AlunoDeTeste aluno() throws Exception {
-        UUID id = api.criarAluno(admin, SENTINELA_NOME);
-        JsonNode login = api.convidarEEntrar(admin, id);
-        jdbc.update("update aluno set questionario_id = ? where id = ?", questionario, id);
+        return aluno(admin, new Questionario(questionario, versao), SENTINELA_NOME);
+    }
+
+    private AlunoDeTeste aluno(JsonNode dono, Questionario q, String nome) throws Exception {
+        UUID id = api.criarAluno(dono, nome);
+        JsonNode login = api.convidarEEntrar(dono, id);
+        jdbc.update("update aluno set questionario_id = ? where id = ?", q.id(), id);
         LocalDate fim = LocalDate.now(Fuso.BRASILIA);
-        String pasta = api.post("/alunos/" + id + "/pastas", admin,
+        String pasta = api.post("/alunos/" + id + "/pastas", dono,
                 Map.of("titulo", "Período fictício", "inicio", fim.minusDays(27), "fim", fim), 200).path("id").asString();
-        JsonNode criado = api.post("/alunos/" + id + "/planos-treino", admin, Map.of("titulo", "Treino fictício", "pastaId", pasta), 200);
+        JsonNode criado = api.post("/alunos/" + id + "/planos-treino", dono, Map.of("titulo", "Treino fictício", "pastaId", pasta), 200);
         String plano = criado.path("plano").path("id").asString();
-        JsonNode salvo = api.put("/planos-treino/" + plano + "/rascunho", admin,
+        JsonNode salvo = api.put("/planos-treino/" + plano + "/rascunho", dono,
                 ApiDeTeste.rascunho("Treino fictício", ApiDeTeste.treino().conteudo(), criado.path("plano").path("versao").asLong()), 200);
-        api.post("/planos-treino/" + plano + "/publicar", admin,
+        api.post("/planos-treino/" + plano + "/publicar", dono,
                 Map.of("versao", salvo.path("plano").path("versao").asLong(), "confirmarAvisos", true), 200);
-        return new AlunoDeTeste(id, login, pasta);
+        return new AlunoDeTeste(id, login, pasta, q.versao());
     }
 
     private AlunoDeTeste alunoDe(JsonNode responsavel) throws Exception {
@@ -124,7 +145,7 @@ class PushDeAtencaoIntegrationTest extends AbstractIntegrationTest {
 
     private void enviar(AlunoDeTeste a, boolean dor) throws Exception {
         api.post("/aluno/atualizacao/enviar", a.login(),
-                Map.of("pastaId", a.pasta(), "questionarioVersaoId", versao.toString(), "respostas", Map.of("dor", dor)), 200);
+                Map.of("pastaId", a.pasta(), "questionarioVersaoId", a.versao().toString(), "respostas", Map.of("dor", dor)), 200);
     }
 
     private JsonNode membro(Set<String> permissoes) throws Exception {
@@ -165,10 +186,20 @@ class PushDeAtencaoIntegrationTest extends AbstractIntegrationTest {
         return EXPO.chamadas().stream().filter(c -> meusTokens.stream().anyMatch(c.corpo()::contains)).toList();
     }
 
+    /** A mensagem que foi ao token (o lote pode levar envios de outros testes: o banco é compartilhado), ou nula. */
+    private JsonNode mensagemPara(String token) throws Exception {
+        for (ExpoFalso.Chamada c : EXPO.chamadas()) {
+            for (JsonNode m : json.readTree(c.corpo())) {
+                if (token.equals(m.path("to").asString())) return m;
+            }
+        }
+        return null;
+    }
+
     // ---- envio ----
 
     @Test
-    void administradorResponsavelRecebeTextoFixoSemNomeNemQuantosENaoPerdeOToken() throws Exception {
+    void administradorResponsavelRecebeOPrimeiroNomeSemQuantosNemOQueBateuENaoPerdeOToken() throws Exception {
         String token = registrar(admin);
         enviar(aluno(), true);
         assertThat(pendentes(admin)).isEqualTo(1);
@@ -177,30 +208,70 @@ class PushDeAtencaoIntegrationTest extends AbstractIntegrationTest {
 
         List<ExpoFalso.Chamada> minhas = minhasChamadas();
         assertThat(minhas).hasSize(1);
-        // O lote da fila pode levar envios pendentes de outros testes (o banco é compartilhado): acha a mensagem do meu token.
-        JsonNode mensagem = null;
-        for (JsonNode m : json.readTree(minhas.get(0).corpo())) {
-            if (token.equals(m.path("to").asString())) mensagem = m;
-        }
+        JsonNode mensagem = mensagemPara(token);
         assertThat(mensagem).isNotNull();
-        assertThat(mensagem.path("to").asString()).isEqualTo(token);
         assertThat(mensagem.path("title").asString()).isEqualTo("Atualização com pontos de atenção");
-        assertThat(mensagem.path("body").asString()).isEqualTo("Abra o app para ver.");
+        assertThat(mensagem.path("body").asString()).isEqualTo("Novo ponto de atenção: Iracema. Abra o app para ver.");
         assertThat(mensagem.path("data").path("tipo").asString()).isEqualTo("atencao");
-        assertThat(minhas.get(0).corpo()).doesNotContain(SENTINELA_NOME).doesNotContain("Dor").doesNotContain("dor");
+        // Só o primeiro nome; nada do que bateu (rótulo, id da pergunta) nem quantos.
+        assertThat(mensagem.toString()).doesNotContain("Sentinela").doesNotContain("Dor").doesNotContain("dor").doesNotContain("1 ponto");
         assertThat(ultimoEnvio(admin)).containsEntry("situacao", "ENVIADO");
         // B1: o membro não é aluno, e o job não apaga o token dele por isso.
         assertThat(tokens(admin)).isEqualTo(1);
     }
 
     @Test
+    void doisAlunosNoMesmoAvisoOuAlunoQueMudouDeResponsavelSaemSemNome() throws Exception {
+        // Dois alunos do mesmo responsável antes de o job rodar: o pendente junta os dois e nomear um esconderia o outro.
+        String token = registrar(admin);
+        Questionario q = new Questionario(questionario, versao);
+        enviar(aluno(admin, q, "Jurema Fictícia"), true);
+        enviar(aluno(admin, q, "Luzia Fictícia"), true);
+        assertThat(pendentes(admin)).isEqualTo(1);
+        job.rodar();
+        assertThat(mensagemPara(token).path("body").asString()).isEqualTo(CORPO_SEM_NOME);
+
+        // Enfileirado e, antes do envio, o aluno passou a outro membro: o antigo responsável recebe sem o nome.
+        EXPO.zerar();
+        JsonNode outro = membro(COM_ATENCAO);
+        AlunoDeTeste a = aluno(admin, q, "Marta Fictícia");
+        enviar(a, true);
+        jdbc.update("update aluno set responsavel_id = ? where id = ?", idDe(outro), a.id());
+        job.rodar();
+        JsonNode mensagem = mensagemPara(token);
+        assertThat(mensagem.path("body").asString()).isEqualTo(CORPO_SEM_NOME);
+        assertThat(mensagem.toString()).doesNotContain("Marta");
+    }
+
+    @Test
+    void cadaConsultoriaRecebeSoOAvisoDoProprioAluno() throws Exception {
+        JsonNode outraAdmin = api.novoTreinador();
+        Questionario daOutra = questionarioComRegra(outraAdmin);
+        String meu = registrar(admin);
+        String daOutraToken = registrar(outraAdmin);
+        enviar(aluno(admin, new Questionario(questionario, versao), "Nair Fictícia"), true);
+        enviar(aluno(outraAdmin, daOutra, "Odete Fictícia"), true);
+
+        job.rodar();
+
+        assertThat(mensagemPara(meu).path("body").asString()).isEqualTo("Novo ponto de atenção: Nair. Abra o app para ver.");
+        assertThat(mensagemPara(daOutraToken).path("body").asString()).isEqualTo("Novo ponto de atenção: Odete. Abra o app para ver.");
+        jdbc.update("update push_envio set situacao = 'CANCELADO', motivo = 'TESTE' where situacao = 'PENDENTE' and consultoria_id = ?",
+                consultoriaDe(outraAdmin));
+    }
+
+    @Test
     void soOResponsavelEntraNaFila() throws Exception {
         JsonNode outro = membroComPerfil(api.get("/eu", admin, 200).path("perfil").path("id").asString());
-        registrar(admin);
-        registrar(outro);
+        String tokenDoAdmin = registrar(admin);
+        String tokenDoOutro = registrar(outro);
         enviar(aluno(), true);
         assertThat(pendentes(admin)).isEqualTo(1);
         assertThat(pendentes(outro)).isZero();
+        // R8: o envio vai só ao aparelho do responsável; o outro membro da equipe, com o mesmo perfil e token, não recebe nada.
+        job.rodar();
+        assertThat(mensagemPara(tokenDoAdmin)).isNotNull();
+        assertThat(EXPO.chamadas()).noneSatisfy(c -> assertThat(c.corpo()).contains(tokenDoOutro));
 
         // Sem responsável, ninguém.
         AlunoDeTeste sem = aluno();
