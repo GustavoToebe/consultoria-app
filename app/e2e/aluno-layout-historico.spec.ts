@@ -167,7 +167,9 @@ for (const { largura, menuRecolhido, lado, registros, corpo, atualizacoes } of M
       expect(apoio.x + apoio.width).toBeGreaterThan(largura - 80);
       // Item 12 (27/11): apoio de 380 na normal, 420 na larga e 440 na ultralarga (as faixas da `Tela`).
       const esperado = largura >= 3440 ? 440 : largura >= 1920 ? 420 : 380;
-      expect(Math.abs(apoio.width - esperado)).toBeLessThan(2);
+      // A faixa da `Tela` chega depois da primeira medida (o apoio nasce com 380): confere a largura já assentada.
+      const apoioDaTela = page.getByRole('complementary', { name: 'Progresso por exercício' });
+      await expect.poll(async () => Math.abs(((await apoioDaTela.boundingBox())?.width ?? 0) - esperado)).toBeLessThan(2);
     }
     // As três divisões: uma coluna até a normal (ao lado do Progresso não cabem duas); 2 e 3 na larga e na ultralarga.
     const divisoes = DIVISOES.map(([, nome]) => page.getByText(nome, { exact: true }).first());
@@ -215,12 +217,22 @@ test('1920: o apoio do progresso fica fixo abaixo da barra ao rolar a principal'
   await expect(page.getByText('Exercício sae1').first()).toBeVisible();
   const apoio = page.getByRole('complementary', { name: 'Progresso por exercício' });
   const registros = await caixa(titulo(page, 'Registros e cargas'));
+  // A `Alvenaria` das divisões fica transparente e sem altura enquanto mede as peças: rolar antes disso, a página encolhe
+  // por um quadro e o navegador devolve a rolagem ao topo. Rola só com as duas colunas assentadas.
+  const divisoes = DIVISOES.map(([, nome]) => page.getByText(nome, { exact: true }).first());
+  await expect.poll(() => colunasDe(divisoes)).toBe(2);
+  await expect.poll(() => divisoes[0].evaluate((el) => {
+    for (let e: Element | null = el; e; e = e.parentElement) if (getComputedStyle(e).opacity === '0') return false;
+    return true;
+  })).toBe(true);
   await page.mouse.move(registros.x + 200, 700);
   await page.mouse.wheel(0, 900);
   await expect.poll(async () => (await titulo(page, 'Registros e cargas').boundingBox())?.y ?? 0).toBeLessThan(0);
-  await expect.poll(async () => Math.round((await apoio.boundingBox())?.y ?? -1)).toBeGreaterThanOrEqual(56);
-  const depois = await caixa(apoio);
-  expect(depois.y).toBeLessThan(104);
+  // A rolagem termina depois do evento da roda: confere onde o apoio assenta (abaixo da barra, sem descer dela).
+  await expect.poll(async () => {
+    const y = Math.round((await apoio.boundingBox())?.y ?? -1);
+    return y >= 56 && y < 104 ? 'na barra' : y;
+  }).toBe('na barra');
 });
 
 test('1920: o voltar do navegador desfaz uma troca de aba por vez e recarregar mantém a aba', async ({ page }) => {

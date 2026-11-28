@@ -75,7 +75,7 @@ test('ações de pausa de acesso (Fase 2) e ficha rápida/cortesia (Fase 3) têm
 });
 
 test('ações do acesso do aluno ao app têm rótulo no filtro da auditoria', () => {
-  for (const acao of ['ALUNO_EMAIL_DE_ACESSO_ALTERADO', 'ALUNO_ACESSO_DESATIVADO', 'ALUNO_ACESSO_REATIVADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+  for (const acao of ['ALUNO_EMAIL_DE_ACESSO_ALTERADO', 'ALUNO_ACESSO_DESATIVADO', 'ALUNO_ACESSO_REATIVADO', 'ALUNOS_CONVITES_GERADOS']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
 
 test('a verificação em duas etapas tem rótulo no filtro da auditoria (a API grava as três)', () => {

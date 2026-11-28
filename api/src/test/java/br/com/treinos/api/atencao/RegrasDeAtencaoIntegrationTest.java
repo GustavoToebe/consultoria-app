@@ -245,7 +245,8 @@ class RegrasDeAtencaoIntegrationTest extends AbstractIntegrationTest {
         for (int i = 0; i <= RegrasDeAtencaoService.TETO; i++) muitas.add(regra("SIM", "p" + i, null));
         assertThat(salvar(treinador, v, muitas, 422).path("fieldErrors").get(0).path("field").asString()).isEqualTo("regras");
         // A mensagem nunca repete o valor e nada foi gravado.
-        assertThat(salvar(treinador, v, List.of(regra("NOTA_CAIU", null, 77)), 422).toString()).doesNotContain("77");
+        // Só os erros de campo: o corpo inteiro traz a hora e o requestId, que podem conter "77" por acaso (intermitência de 27/11).
+        assertThat(salvar(treinador, v, List.of(regra("NOTA_CAIU", null, 77)), 422).path("fieldErrors").toString()).doesNotContain("77");
         assertThat(api.get("/regras-de-atencao", treinador, 200).path("regras")).isEmpty();
         // O tipo de uma regra gravada não muda.
         JsonNode gravada = salvar(List.of(regra("SIM", "dor", null)));

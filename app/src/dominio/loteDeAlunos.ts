@@ -6,9 +6,13 @@ export const LIMITE_LOTE = 100;
 
 export type AcaoDoLote = 'responsavel' | 'questionario' | 'desativar';
 
-/** "1 aluno selecionado" / "N alunos selecionados"; zero vira o convite a marcar. */
+/**
+ * "1 aluno marcado" / "N alunos marcados"; zero vira o convite a marcar. Acima do teto (só com "Marcar todos do filtro")
+ * vale só o convite de acesso, que o app divide em chamadas de 100.
+ */
 export function textoDaSelecao(quantos: number): string {
   if (quantos === 0) return `Nenhum aluno marcado (até ${LIMITE_LOTE} por vez).`;
+  if (quantos > LIMITE_LOTE) return `${quantos} alunos marcados (acima de ${LIMITE_LOTE}, só os convites de acesso).`;
   return `${quantos} ${quantos === 1 ? 'aluno marcado' : 'alunos marcados'} (até ${LIMITE_LOTE} por vez).`;
 }
 

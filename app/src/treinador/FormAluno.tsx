@@ -250,7 +250,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
               {comMeta ? (
                 <View style={estilos.meta}>
                   <Escolha rotulo="Meta do peso" valor={meta} aoMudar={setMeta} opcoes={OPCOES_DA_META_DO_ALUNO} />
-                  <Texto variante="pequeno">Pinta a variação do peso: verde na direção da meta, vermelho contra. O padrão é o de Marca › Acompanhamento.</Texto>
+                  <Texto variante="pequeno">Pinta a variação do peso: verde na direção da meta, vermelho contra. O padrão é o de Configurações › Padrões do acompanhamento.</Texto>
                 </View>
               ) : null}
               <View style={estilos.leitura}>

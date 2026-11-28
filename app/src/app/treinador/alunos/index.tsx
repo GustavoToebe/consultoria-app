@@ -3,10 +3,11 @@ import { useSessao } from '../../../sessao/SessaoProvider';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pencil, Plus } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { ResponsavelEquipe } from '../../../api/equipeTipos';
+import { idsDoFiltro } from '../../../api/convitesEmLote';
 import { alunosEmAtraso } from '../../../api/financeiroContrato';
 import { listarAlunos, responsaveisEquipe } from '../../../api/rotas';
 import { listarTagsDeAlunos } from '../../../api/tagsDeAlunos';
@@ -33,6 +34,7 @@ import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { Folha } from '../../../ui/Folha';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { AcoesEmLote } from '../../../treinador/AcoesEmLote';
+import { ConvitesEmLote } from '../../../treinador/convites/ConvitesEmLote';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
@@ -73,10 +75,17 @@ export default function Alunos() {
   const [selecionando, setSelecionando] = useState(false);
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
   const [acoesAbertas, setAcoesAbertas] = useState(false);
+  // Convite em lote: os ids da rodada (fotografados ao abrir) e a coleta de "Marcar todos do filtro", que pagina a lista.
+  const [convites, setConvites] = useState<string[] | null>(null);
+  const [coletando, setColetando] = useState(false);
+  // Sobe a cada mudança de busca, filtro ou saída da seleção: a coleta que volta depois disso é descartada.
+  const geracaoDaSelecao = useRef(0);
   const { cores, fatorTexto } = useTema();
   // Sem as duas permissões a API manda a atualização nula: um grupo só ("Alunos") e sem a coluna Atualização.
   const veAtualizacao = pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
   const podeEditar = pode('ALUNO_ALTERAR');
+  // O Selecionar serve às ações em lote (`ALUNO_ALTERAR`) e aos convites de acesso (`ALUNO_CONVITE`).
+  const podeSelecionar = podeEditar || pode('ALUNO_CONVITE');
   const veRegistro = pode('REGISTRO_LER');
   // Nome do responsável (primeiro nome) pela rota que já existe; se falhar, a coluna fica "—" e a lista segue.
   const responsaveis = useCarregar('responsaveis-da-lista', () => responsaveisEquipe().catch((): ResponsavelEquipe[] => [])).dados ?? [];
@@ -106,7 +115,7 @@ export default function Alunos() {
     listarAlunos({ busca: termo, pagina, filtros: pedidoDaApi(filtros, usuario?.id) }),
   );
   const animar = usePrimeiraLista(!!dados, `${termo}|${chaveFiltros}|${pagina}`);
-  const limparSelecao = () => { setPagina(0); setMarcados(new Set()); };
+  const limparSelecao = () => { geracaoDaSelecao.current++; setPagina(0); setMarcados(new Set()); };
   // Buscar também limpa o lote, e a pessoa é avisada (como em Cobranças), só se havia algo marcado.
   const mudarBusca = (texto: string) => {
     if (marcados.size > 0) avisar('A seleção de alunos foi limpa porque a lista mudou.', 'neutro');
@@ -125,7 +134,7 @@ export default function Alunos() {
     const params = paraEndereco(novos, comecaEmMeus);
     router.setParams(Object.fromEntries(CHAVES_DO_ENDERECO.map((k) => [k, params[k]])));
   };
-  const sairDaSelecao = () => { setSelecionando(false); setMarcados(new Set()); };
+  const sairDaSelecao = () => { geracaoDaSelecao.current++; setSelecionando(false); setMarcados(new Set()); };
   // Filtro novo carregando: a lista à vista é a do anterior; nada se marca nela (nem por teclado).
   const alternar = (id: string) => {
     if (dadosDeOutraChave) return;
@@ -139,6 +148,17 @@ export default function Alunos() {
     if (r.deixados > 0) avisar(`Dá para marcar até ${LIMITE_LOTE} alunos por vez; ${r.deixados} ficaram de fora.`, 'neutro');
     setMarcados(r.marcados);
   };
+  // Todos do filtro, também das páginas não carregadas (passa do teto de 100: só os convites aceitam; as outras ações avisam).
+  const marcarTodosDoFiltro = () => {
+    if (dadosDeOutraChave || coletando) return;
+    const geracao = geracaoDaSelecao.current;
+    setColetando(true);
+    idsDoFiltro({ busca: termo, filtros: pedidoDaApi(filtros, usuario?.id) }).then(
+      (ids) => { if (geracao === geracaoDaSelecao.current) setMarcados(new Set(ids)); },
+      (e: unknown) => { if (geracao === geracaoDaSelecao.current) avisar(textoDoErro(e), 'perigo'); },
+    ).finally(() => setColetando(false));
+  };
+  const semAcessoAoApp = filtros.acesso.length === 1 && filtros.acesso[0] === 'SEM';
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
   // Grupos da página que veio (D1): Para revisar, Atrasados, Em dia e Sem pasta com período; grupo vazio não aparece.
   const grupos = agruparAlunos(dados?.itens ?? [], veAtualizacao);
@@ -180,9 +200,9 @@ export default function Alunos() {
         descricao="Busque e filtre quem você acompanha, cadastre um aluno novo, aja em vários de uma vez e abra a ficha para ver e montar os planos."
         acoes={
           <View style={estilos.acoesDoTopo}>
-            <Permitido codigo="ALUNO_ALTERAR">
+            {podeSelecionar ? (
               <Botao rotulo={selecionando ? 'Sair da seleção' : 'Selecionar'} tipo="secundario" aoTocar={() => (selecionando ? sairDaSelecao() : setSelecionando(true))} />
-            </Permitido>
+            ) : null}
             <Permitido codigo="ALUNO_ALTERAR"><Botao
               rotulo="Novo aluno"
               Icone={Plus}
@@ -202,6 +222,8 @@ export default function Alunos() {
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
         painelLateral={{ titulo: 'Filtros de alunos' }}
         resultado={{ itens: { um: 'aluno', varios: 'alunos' }, total: dadosDeOutraChave ? undefined : dados?.total, buscar: (r) => listarAlunos({ busca: termo, pagina: 0, filtros: pedidoDaApi(r, usuario?.id) }).then((p) => p.total) }}
+        // Atalho que preenche o filtro Acesso (botão comum, não chip): quem ainda não recebeu convite. Já filtrado, some.
+        depois={semAcessoAoApp ? undefined : <Botao rotulo="Sem acesso ao app" tipo="secundario" aoTocar={() => aplicar({ ...filtros, acesso: ['SEM'] })} />}
         seletores={(atuais, mudar) => (
           <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id}
             tags={tagsDaConsultoria.dados ?? null} tagsFalharam={!!tagsDaConsultoria.erro} />
@@ -248,6 +270,11 @@ export default function Alunos() {
         <Texto numerico style={estilos.textoLote}>{textoDaSelecao(marcados.size)}</Texto>
         <LinhaDeAcoes>
           <Botao rotulo="Marcar visíveis" tipo="secundario" desabilitado={!dados || dados.itens.length === 0 || dadosDeOutraChave} motivo={dadosDeOutraChave ? 'Carregando o filtro novo.' : undefined} aoTocar={marcarOsVisiveis} />
+          {/* Acima de 100 só o convite aceita: sem `ALUNO_CONVITE` o atalho só aparece se o filtro inteiro cabe no teto. */}
+          {dados && dados.total > dados.itens.length && (pode('ALUNO_CONVITE') || dados.total <= LIMITE_LOTE) ? (
+            <Botao rotulo={`Marcar todos do filtro (${dados.total})`} tipo="secundario" carregando={coletando}
+              desabilitado={dadosDeOutraChave} motivo="Carregando o filtro novo." aoTocar={marcarTodosDoFiltro} />
+          ) : null}
           <Botao rotulo="Ações" desabilitado={marcados.size === 0} motivo="Marque ao menos um aluno." aoTocar={() => setAcoesAbertas(true)} />
         </LinhaDeAcoes>
       </View>
@@ -255,10 +282,13 @@ export default function Alunos() {
     {acoesAbertas ? (
       <Folha visivel titulo="Ações em lote" aoFechar={() => setAcoesAbertas(false)}>
         <Texto numerico variante="suave">{textoDaSelecao(marcados.size)}</Texto>
-        <AcoesEmLote alunoIds={[...marcados]} aoConcluir={() => { setAcoesAbertas(false); sairDaSelecao(); recarregar(); }} />
+        <AcoesEmLote alunoIds={[...marcados]} aoConcluir={() => { setAcoesAbertas(false); sairDaSelecao(); recarregar(); }}
+          aoGerarConvites={() => { setConvites([...marcados]); setAcoesAbertas(false); }} />
         <Botao rotulo="Limpar marcação" tipo="fantasma" desabilitado={marcados.size === 0} aoTocar={() => { setMarcados(new Set()); setAcoesAbertas(false); }} />
       </Folha>
     ) : null}
+    {/* Fora da folha das ações: ela fecha e o resultado (com os links) continua aqui até a pessoa fechar. */}
+    {convites ? <ConvitesEmLote alunoIds={convites} aoFechar={() => setConvites(null)} /> : null}
     </View>
   );
 }

@@ -1,6 +1,6 @@
 # Regras de atenção do treinador (B+C)
 
-Situação: etapas 1 e 2 e push do treinador integradas na branch `leva-1` (27/11), aguardando verificação final e push; chave ligada por padrão · Onde: `leva-1` (veio da branch regras-de-atencao) · Atualizado: 27/11/2026
+Situação: etapas 1 e 2 e push do treinador publicadas na leva 1 (origin/main c9d16c8e, 27/11, CI verde); chave ligada por padrão · Onde: `main` (veio da branch regras-de-atencao) · Atualizado: 27/11/2026
 
 ## Objetivo
 O treinador define as próprias regras ("me avise quando…") e o servidor só aplica a regra dele quando o aluno envia a atualização. O app nunca inventa limite nem sugere valor (D5 de atualizacao-pasta-e-questionarios.md: o app não opina sobre saúde). O "O que mudou" continua só com fatos; a regra apenas destaca o fato (neutro, de atenção; sem verde nem vermelho) e mostra de onde veio ("sua regra: sono ≤ 5").
@@ -60,6 +60,7 @@ O treinador define as próprias regras ("me avise quando…") e o servidor só a
 - [x] 3. Etapa 2: exceção por aluno (API e ficha, 27/11): V114, `GET|PUT|DELETE /alunos/{id}/regras-de-atencao[/{regraId}]`, auditoria `REGRA_ATENCAO_EXCECAO_DEFINIDA`/`_REMOVIDA`, LGPD (anonimizar, excluir conta e exportação, seção `regrasDeAtencao`), app (`RegrasDoAlunoNaFicha`, `ExcecoesPorAluno`). Relato da entrega: mvn 77 ok, e2e 227 ok, jest das suítes ok (o `icones.test` foi corrigido com o ícone `regras-de-atencao`) e `mvn` direcionado da exportação, 39 ok. Lacuna: sem teste da exportação com a chave desligada. — commit: leva 1 (hash no relatório da leva)
 
 ## Decisões em aberto
+- Decidido pelo Gustavo em 27/11: R7 com texto fixo "Novo ponto de atenção: <primeiro nome do aluno>. Abra o app para ver."; R8 só o responsável do aluno; C4 operador inclusivo. Nada mais em aberto nesses pontos.
 - A chave já é `true` por padrão (27/11, pedido do Gustavo para liberar tudo em 01/12); Aberto: o token é registrado sem toque quando o aparelho já deu permissão de notificação (decisão de R8 do app a confirmar).
 - C4 (operador inclusivo) confirmado pelo Gustavo (27/11): "Sono 5 ou menos", "caiu 2 pontos ou mais", "mudou 2 kg ou mais", "3 dias com treino ou menos"; fronteira (valor igual ao limite dispara) em `AvaliadorDeAtencaoTest`.
 - Rotas novas do push do treinador: `PUT`/`DELETE /eu/push-token`, `GET`/`PUT /eu/preferencias-de-push {atencao}`. Motivo `NAO_ELEGIVEL` na fila `push_envio` (membro sem as condições na hora da entrega). Tipo `ATUALIZACAO_ATENCAO` (texto fixo).
@@ -73,7 +74,7 @@ O treinador define as próprias regras ("me avise quando…") e o servidor só a
 
 ## O que ficou para trás
 - Etapa 2 (exceção por aluno, API e ficha): feita (passo 3). Fica a exportação das exceções e a retenção dos fatos de atenção para a revisão de LGPD até 15/12/2026 (README, Pendências soltas).
-- Guias em PDF com a seção "Regras de atenção": não gerados (`scripts/guias/gerar.mjs` não rodado nesta entrega).
+- Guias em PDF com a seção "Regras de atenção": gerados e publicados em c9d16c8e (leva 1).
 - Preferências do push com a chave desligada: `GET`/`PUT /eu/preferencias-de-push` sem 503 (ver pendência acima).
 - Verificação: falta o `mvn verify` completo, `typecheck`, `lint`, `jest` e os e2e da leva 1 inteira (a verificação final da `leva-1` está em curso); os números acima são das execuções direcionadas de cada entrega.
 - Ajuda: `app/e2e/regras-de-atencao.spec.ts` tem comentário antigo ("não há seção da Ajuda para ela ainda"); o teste não quebra, mas o comentário ficou desatualizado (arquivo fora do escopo desta entrega).

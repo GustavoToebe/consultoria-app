@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Modo de produção: cadastro público de treinador fechado ({@code treinos.cadastro.aberto=false}, o padrão). A rota
+ * Cadastro público de treinador fechado ({@code TREINOS_CADASTRO_ABERTO=false}, o padrão; abre pelo ambiente depois do Turnstile). A rota
  * responde 404 para qualquer e-mail, sem dizer se ele já tem conta, e a configuração pública avisa o app para esconder o
  * link.
  */

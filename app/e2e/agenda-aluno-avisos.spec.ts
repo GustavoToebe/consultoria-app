@@ -100,7 +100,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       // O aviso visto não volta depois de o Início recarregar (o servidor já não o devolve).
       await page.reload();
-      await expect(page.getByRole('heading', { name: 'Hoje', level: 2 })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Suas pendências' })).toHaveCount(0);
       await expect(abaInicioComPonto(page)).toHaveCount(0);
       expect(errosDaPagina).toEqual([]);
@@ -109,7 +109,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
     test('sem aviso não há pendência nem ponto', async ({ page }) => {
       const { errosDaPagina } = await abrirInicio(page, []);
-      await expect(page.getByRole('heading', { name: 'Hoje', level: 2 })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Suas pendências' })).toHaveCount(0);
       await expect(abaInicioSemPonto(page)).toBeVisible();
       await expect(abaInicioComPonto(page)).toHaveCount(0);
@@ -135,7 +135,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         'GET /aluno/avisos-de-compromisso': semRede,
         'GET /aluno/compromissos': semRede,
       });
-      await expect(page.getByRole('heading', { name: 'Hoje', level: 2 })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true })).toBeVisible();
       await expect(page.getByText('TREINO A')).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Suas pendências' })).toHaveCount(0);
       await expect(page.getByText(TEXTO_NOVO, { exact: true })).toHaveCount(0);

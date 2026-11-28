@@ -130,7 +130,7 @@ const CASOS: Caso[] = [
   },
   {
     tela: 'auditoria', caminho: '/treinador/auditoria', painel: 'Filtros de eventos', api: '/auditoria', parametro: 'usuarioId',
-    pronto: (page) => page.getByText('Cadastrou um aluno.').first(),
+    pronto: (page) => page.getByLabel('Eventos da auditoria').getByText('Aluno cadastrado', { exact: true }).first(),
     sessao: (page) => sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'AUDITORIA_LER'] }),
     rotas: () => ({
       'GET /auditoria/pessoas': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }, OUTRA] },
@@ -143,7 +143,7 @@ const CASOS: Caso[] = [
     chip: 'Tirar filtro: Pessoa: Bia Fictícia', vazio: /^Sem eventos neste filtro$/,
     comResultado: {
       ligar: (page, painel) => marcar(page, painel, 'Pessoa', 'Todas as pessoas', [TREINADOR.nome]),
-      chip: `Tirar filtro: Pessoa: ${TREINADOR.nome}`, mostra: (page) => page.getByText('Cadastrou um aluno.').first(),
+      chip: `Tirar filtro: Pessoa: ${TREINADOR.nome}`, mostra: (page) => page.getByLabel('Eventos da auditoria').getByText('Aluno cadastrado', { exact: true }).first(),
     },
     periodo: async (painel) => {
       await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/1');

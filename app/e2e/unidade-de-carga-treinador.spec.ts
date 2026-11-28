@@ -53,7 +53,7 @@ for (const largura of [390, 1280]) {
     await abrirExercicio(page, largura);
     await expect(page.getByRole('radio', { name: 'Carga fixa (kg)', exact: true })).toHaveCount(0);
     await page.getByRole('radio', { name: 'Carga fixa (lb)', exact: true }).click();
-    const campo = page.getByRole('textbox', { name: 'Carga, em libras', exact: true });
+    const campo = page.getByRole('textbox', { name: 'Carga (lb), em libras', exact: true });
     await campo.fill('0');
     await expect(page.getByText('Carga fixa: maior que zero e até 2204,6 lb.', { exact: true }).first()).toBeVisible();
     await campo.fill('100,57');

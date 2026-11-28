@@ -139,7 +139,7 @@ const CASOS: Caso[] = [
         }),
       });
       await page.goto('/treinador/auditoria');
-      await expect(page.getByText('Cadastrou um aluno.').first()).toBeVisible();
+      await expect(page.getByLabel('Eventos da auditoria').getByText('Aluno cadastrado', { exact: true }).first()).toBeVisible();
       await page.getByRole('button', { name: /^Filtros/ }).click();
       const dialogo = page.getByRole('dialog', { name: 'Filtros de eventos' });
       const inicio = dialogo.getByRole('textbox', { name: 'De', exact: true });

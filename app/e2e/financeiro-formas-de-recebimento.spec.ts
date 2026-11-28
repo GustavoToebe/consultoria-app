@@ -77,6 +77,10 @@ test('configurar o Pix pela primeira vez: erros na tela sem chamar a API, o corp
   await page.screenshot({ path: `${CAPTURAS}/pix-erros-1280.png`, fullPage: true });
 
   await tipoDaChave(page, 'E-mail').click();
+  // Chave do tipo E-mail é onde o navegador poria o e-mail do login: o campo pede para não preencher (defeito de 28/11).
+  for (const [nome, valor] of [['autocomplete', 'off'], ['id', 'chave-pix'], ['data-1p-ignore', 'true'], ['data-lpignore', 'true'], ['data-form-type', 'other']]) {
+    await expect(page.getByLabel('Chave Pix', { exact: true })).toHaveAttribute(nome, valor);
+  }
   await page.getByLabel('Chave Pix', { exact: true }).fill('treinador@');
   await page.getByLabel('Nome do recebedor').fill('Treino Exemplo');
   await page.getByLabel('Cidade').fill('Cascavel');

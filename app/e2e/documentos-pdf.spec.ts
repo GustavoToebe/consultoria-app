@@ -139,7 +139,12 @@ test('(1280) o modelo em uso e "Personalizar este modelo" abrem o editor na conf
   const noEditorGravado = async () => {
     await expect(page).toHaveURL(/\/treinador\/documentos\/personalizar$/);
     await expect(page.getByLabel(/no modelo Elegante, com dados de exemplo/)).toBeVisible();
-    await expect(page.getByText('Elegante · 1 alteração: Estilo das tabelas')).toBeVisible();
+    // Desde 27/11 a barra não repete as personalizações gravadas (`estadoDaBarra`): diz "Em uso" sem pendência, e a
+    // personalização aparece no resumo do grupo (o Elegante puro daria "Linhas · espaçosa").
+    const barra = page.getByRole('toolbar', { name: 'Ações do editor' });
+    await expect(barra.getByText('Em uso nos PDFs', { exact: true })).toBeVisible();
+    await expect(barra.getByText('Elegante · Sem alterações', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Tabelas,/ })).toContainText('Listrada · espaçosa');
   };
   await cartao(page, 'Elegante').click();
   await noEditorGravado();
