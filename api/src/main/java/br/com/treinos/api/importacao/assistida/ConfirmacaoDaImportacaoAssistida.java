@@ -1,5 +1,6 @@
 package br.com.treinos.api.importacao.assistida;
 
+import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.ApiException;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
@@ -15,6 +16,9 @@ import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
+import br.com.treinos.api.importacao.Importacao;
+import br.com.treinos.api.importacao.ImportacaoRepository;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AlunoGravado;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.CadastroImportavel;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ConfirmacaoResultado;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ConfirmarSessaoRequisicao;
@@ -31,6 +35,7 @@ import br.com.treinos.api.web.ConflitoComRecursoException;
 import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -61,7 +66,8 @@ import tools.jackson.databind.node.ObjectNode;
  * <p>Ordem: (1) confere a sessão e as permissões de todos os grupos escolhidos, antes de qualquer efeito (403 e nada
  * muda); (2) um grupo por transação: valida tudo antes de gravar, grava, e troca o grupo pelo esqueleto sem dado pessoal;
  * grupo que falha volta atrás sozinho e fica {@code ERRO} com um código fixo (nunca a mensagem da exceção); (3) fecha a
- * sessão e audita uma vez ({@code IMPORTACAO_ASSISTIDA_CONCLUIDA}, resumo fixo).
+ * sessão, audita uma vez ({@code IMPORTACAO_ASSISTIDA_CONCLUIDA}, resumo fixo) e deixa uma linha no histórico das
+ * importações ({@code importacao}, destino {@code assistida}, sem nome de arquivo nem dado do aluno).
  *
  * <p>Aluno novo nasce pelo {@link AlunoService#criar} (plano, limite do treinador, CPF e auditoria {@code ALUNO_CRIADO});
  * vincular exige um aluno da consultoria, ativo e não anonimizado. Treino e dieta entram só em rascunho; nada é publicado.
@@ -70,9 +76,12 @@ import tools.jackson.databind.node.ObjectNode;
 public class ConfirmacaoDaImportacaoAssistida {
 
     static final int NOME_DO_ALUNO = 120;
+    static final String NOME_PENDENTE = "Informe o nome do aluno, vincule a um existente ou ignore.";
     static final int OBJETIVO_DO_ALUNO = 200;
     static final int OBSERVACOES_DO_ALUNO = 4000;
     static final String TITULO_DA_PASTA = "Plano Atual (Importado)";
+    /** Destino da linha no histórico das importações ({@code importacao.destino}, sem CHECK no banco). */
+    static final String DESTINO_NO_HISTORICO = "assistida";
     private static final int TITULO_DO_PLANO = 120;
     private static final BigDecimal PESO_MAXIMO = BigDecimal.valueOf(500);
     private static final Pattern CODIGO_FIXO = Pattern.compile("[A-Z][A-Z0-9_]{0,63}");
@@ -90,6 +99,7 @@ public class ConfirmacaoDaImportacaoAssistida {
     private final PlanoDietaRepository dietas;
     private final ReceitaService receitas;
     private final Auditoria auditoria;
+    private final ImportacaoRepository historico;
     private final TransactionTemplate transacao;
 
     public ConfirmacaoDaImportacaoAssistida(ImportacaoSessaoRepository sessoes, ImportacaoArquivoRepository arquivos,
@@ -98,7 +108,7 @@ public class ConfirmacaoDaImportacaoAssistida {
                                             RegistroPesoRepository pesos, PastaRepository pastas,
                                             PlanoTreinoRepository treinos, PlanoDietaRepository dietas,
                                             ReceitaService receitas, Auditoria auditoria,
-                                            PlatformTransactionManager transacoes) {
+                                            ImportacaoRepository historico, PlatformTransactionManager transacoes) {
         this.sessoes = sessoes;
         this.arquivos = arquivos;
         this.json = json;
@@ -111,13 +121,14 @@ public class ConfirmacaoDaImportacaoAssistida {
         this.dietas = dietas;
         this.receitas = receitas;
         this.auditoria = auditoria;
+        this.historico = historico;
         this.transacao = new TransactionTemplate(transacoes);
     }
 
-    /** O que uma gravação de grupo produziu; somado no fim para a resposta. */
+    /** O que uma gravação de grupo produziu; somado no fim para a resposta. {@code aluno} nulo no modelo. */
     private record Gravado(int alunosCriados, int alunosVinculados, int treinos, int dietas, int modelos, int pesosGravados,
-                           int pesosIgnorados, boolean gravou) {
-        static final Gravado NADA = new Gravado(0, 0, 0, 0, 0, 0, 0, false);
+                           int pesosIgnorados, boolean gravou, AlunoGravado aluno) {
+        static final Gravado NADA = new Gravado(0, 0, 0, 0, 0, 0, 0, false, null);
     }
 
     private record PreparoConfirmacao(List<String> gruposIds, String hashPedido, ConfirmacaoResultado resultadoIdempotente) {
@@ -137,7 +148,8 @@ public class ConfirmacaoDaImportacaoAssistida {
 
         PreparoConfirmacao preparo = transacao.execute(status -> prepararEscolha(sessaoId, req));
         if (preparo != null && preparo.resultadoIdempotente() != null) {
-            return preparo.resultadoIdempotente();
+            ConfirmacaoResultado salvo = preparo.resultadoIdempotente();
+            return transacao.execute(status -> salvo.comAlunos(comNomes(salvo.alunos())));
         }
         List<String> escolhidos = preparo != null ? preparo.gruposIds() : List.of();
 
@@ -150,10 +162,14 @@ public class ConfirmacaoDaImportacaoAssistida {
         int comErro = 0;
         int pesosGravados = 0;
         int pesosIgnorados = 0;
+        List<AlunoGravado> gravados = new ArrayList<>();
         for (String grupoId : escolhidos) {
             try {
                 Gravado g = transacao.execute(status -> gravarGrupo(sessaoId, grupoId, usuarioId));
                 if (g != null && g.gravou()) {
+                    if (g.aluno() != null) {
+                        gravados.add(g.aluno());
+                    }
                     importados++;
                     criados += g.alunosCriados();
                     vinculados += g.alunosVinculados();
@@ -171,12 +187,39 @@ public class ConfirmacaoDaImportacaoAssistida {
         }
         int totalImportados = importados;
         String situacao = comErro == 0 ? "CONCLUIDA" : importados == 0 ? "FALHOU" : "CONCLUIDA_COM_ERROS";
+        // Na sessão (repetição idempotente) só os ids: o nome do aluno não fica guardado nela.
         ConfirmacaoResultado resultado = new ConfirmacaoResultado(sessaoId, situacao, importados, criados, vinculados,
-                treinosCriados, dietasCriadas, modelos, comErro, pesosGravados, pesosIgnorados);
+                treinosCriados, dietasCriadas, modelos, comErro, pesosGravados, pesosIgnorados,
+                gravados.stream().map(a -> a.comNome(null)).toList());
         String hashPedido = preparo != null ? preparo.hashPedido() : null;
-        transacao.executeWithoutResult(status -> fechar(sessaoId, totalImportados, req.chaveIdempotencia().strip(),
-                hashPedido, resultado));
-        return resultado;
+        transacao.executeWithoutResult(status -> fechar(sessaoId, usuarioId, totalImportados,
+                req.chaveIdempotencia().strip(), hashPedido, resultado));
+        return resultado.comAlunos(AcessoAtual.pode("ALUNO_LER") ? gravados : List.of());
+    }
+
+    /**
+     * Nomes (chave sem acento nem caixa) dos alunos que esta sessão já criou de grupo com nome lido do conteúdo (só eles
+     * entram em {@code alunosCriados}), em qualquer confirmação: o grupo já virou
+     * esqueleto, o progresso guarda só o id (gravado na transação que criou o aluno) e o nome vem do cadastro. Lido sob a
+     * trava da sessão, então duas confirmações ao mesmo tempo (chaves diferentes) se enxergam. JSON ilegível lança (falha
+     * fechada: o grupo fica com erro em vez de criar um aluno repetido).
+     */
+    private Set<String> nomesJaCriados(ImportacaoSessao sessao) {
+        List<UUID> ids = SessaoJson.alunosCriados(json, sessao);
+        Set<String> nomes = new HashSet<>();
+        alunos.findAllById(ids).forEach(a -> nomes.add(ImportacaoAssistidaService.chaveDoNome(a.getNome())));
+        return nomes;
+    }
+
+    /** Os alunos da resposta só com {@code ALUNO_LER}, com o nome atual lido do banco (o guardado não tem nome). */
+    private List<AlunoGravado> comNomes(List<AlunoGravado> lista) {
+        if (!AcessoAtual.pode("ALUNO_LER") || lista.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> nomes = new HashMap<>();
+        alunos.findAllById(lista.stream().map(AlunoGravado::alunoId).toList())
+                .forEach(a -> nomes.put(a.getId(), a.getNome()));
+        return lista.stream().map(a -> a.comNome(nomes.get(a.alunoId()))).toList();
     }
 
     // ------------------------------------------------------------------------------------------------ fase 1
@@ -224,7 +267,25 @@ public class ConfirmacaoDaImportacaoAssistida {
             escolhidos.add(g);
         }
         escolhidos.forEach(ConfirmacaoDaImportacaoAssistida::exigirPermissoes);
+        exigirNomeDosAlunosNovos(escolhidos);
         return new PreparoConfirmacao(escolhidos.stream().map(GrupoImportavel::id).toList(), hashPedido, null);
+    }
+
+    /**
+     * Aluno novo com o nome substituto ("Aluno 3", o nome do arquivo) nasceria com esse nome e ocuparia vaga do plano:
+     * 422 {@code NOME_DO_ALUNO_PENDENTE} com um erro por grupo ({@code grupos.<id>.nome}), antes de qualquer efeito. Dar
+     * o nome ({@code PUT} do grupo), vincular a um aluno existente, salvar como modelo ou ignorar destravam.
+     */
+    private static void exigirNomeDosAlunosNovos(List<GrupoImportavel> escolhidos) {
+        List<ApiError.FieldError> semNome = escolhidos.stream().filter(ConfirmacaoDaImportacaoAssistida::semNomeParaCriar)
+                .map(g -> new ApiError.FieldError("grupos." + g.id() + ".nome", NOME_PENDENTE)).toList();
+        if (!semNome.isEmpty()) {
+            throw new ValidacaoException(NOME_PENDENTE, "NOME_DO_ALUNO_PENDENTE", semNome);
+        }
+    }
+
+    private static boolean semNomeParaCriar(GrupoImportavel g) {
+        return "CRIAR_ALUNO".equals(g.destino()) && g.nomeSubstituto();
     }
 
     private ConfirmacaoResultado verificarIdempotencia(ImportacaoSessao sessao, String chave, String hashPedido) {
@@ -285,7 +346,15 @@ public class ConfirmacaoDaImportacaoAssistida {
 
     // ------------------------------------------------------------------------------------------------ fase 2
 
-    /** Um grupo, numa transação: trava a sessão, valida tudo, grava e troca o grupo pelo esqueleto. */
+    /**
+     * Um grupo, numa transação: trava a sessão, valida tudo, grava e troca o grupo pelo esqueleto. O aluno criado entra
+     * no progresso ({@code alunosCriados}) nesta mesma transação: a próxima confirmação, mesmo com outra chave e ao mesmo
+     * tempo, já o vê ao pegar a trava.
+     *
+     * <p>A trava por nome ({@code MESMO_NOME_NA_SESSAO}) só vale para o nome lido do conteúdo: homônimo na consultoria é
+     * permitido (só e-mail e CPF travam), e o substituto (nome do arquivo, título do texto, "Aluno N") não identifica
+     * ninguém; ali o "um aluno só" é o próprio grupo, que passa a {@code IMPORTADO} nesta transação.
+     */
     private Gravado gravarGrupo(UUID sessaoId, String grupoId, UUID usuarioId) {
         ImportacaoSessao sessao = sessoes.buscarParaAlterar(sessaoId, TenantContext.get())
                 .orElseThrow(() -> new NaoEncontradoException("Sessão de importação não encontrada."));
@@ -295,7 +364,12 @@ public class ConfirmacaoDaImportacaoAssistida {
         if (!pendente(g)) {
             return Gravado.NADA; // já importado (reenvio) ou descartado: idempotente
         }
-        Gravado gravado = "MODELO_BIBLIOTECA".equals(g.destino()) ? gravarModelo(g) : gravarAluno(g, usuarioId);
+        boolean travaPorNome = "CRIAR_ALUNO".equals(g.destino()) && g.nomeLidoDoConteudo();
+        Gravado gravado = "MODELO_BIBLIOTECA".equals(g.destino()) ? gravarModelo(g)
+                : gravarAluno(g, usuarioId, travaPorNome ? nomesJaCriados(sessao) : Set.of());
+        if (travaPorNome && gravado.aluno() != null && gravado.aluno().criado()) {
+            SessaoJson.registrarAlunoCriado(json, sessao, gravado.aluno().alunoId());
+        }
         List<GrupoImportavel> novos = new ArrayList<>();
         for (GrupoImportavel x : grupos) {
             novos.add(x.id().equals(grupoId) ? x.limpo("IMPORTADO", x.destino()) : x);
@@ -320,10 +394,10 @@ public class ConfirmacaoDaImportacaoAssistida {
             receitas.salvarConteudo(Receita.Tipo.PLANO_DIETA, nome, null, g.dieta().semErgogenicos());
             dieta = 1;
         }
-        return new Gravado(0, 0, 0, 0, treino + dieta, 0, 0, true);
+        return new Gravado(0, 0, 0, 0, treino + dieta, 0, 0, true, null);
     }
 
-    private Gravado gravarAluno(GrupoImportavel g, UUID usuarioId) {
+    private Gravado gravarAluno(GrupoImportavel g, UUID usuarioId, Set<String> nomesCriados) {
         boolean novo = "CRIAR_ALUNO".equals(g.destino());
         if (!novo && !"VINCULAR_EXISTENTE".equals(g.destino())) {
             throw new BadRequestException("Destino do grupo inválido.", "DESTINO_INVALIDO");
@@ -336,6 +410,10 @@ public class ConfirmacaoDaImportacaoAssistida {
         String telefone = null;
 
         // Tudo é conferido antes do primeiro efeito.
+        if (novo && g.nomeSubstituto()) {
+            // A fase 1 já recusa; aqui fecha a corrida com um PUT do destino entre as duas fases.
+            throw new BadRequestException(NOME_PENDENTE, "NOME_DO_ALUNO_PENDENTE");
+        }
         if (!temTexto(nome) || nome.strip().length() > NOME_DO_ALUNO) {
             throw new BadRequestException("Nome do aluno inválido.", "NOME_INVALIDO");
         }
@@ -344,6 +422,10 @@ public class ConfirmacaoDaImportacaoAssistida {
         }
         if (observacoes != null && observacoes.length() > OBSERVACOES_DO_ALUNO) {
             throw new BadRequestException("As observações são longas demais.", "OBSERVACOES_GRANDES_DEMAIS");
+        }
+        String chaveDoNome = ImportacaoAssistidaService.chaveDoNome(nome);
+        if (novo && nomesCriados.contains(chaveDoNome)) {
+            throw new ConflictException("Já foi criado um aluno com este nome nesta importação.", "MESMO_NOME_NA_SESSAO");
         }
         if (novo) {
             if (email != null && (email.length() > 254 || !EMAIL_SIMPLES.matcher(email).matches())) {
@@ -362,10 +444,13 @@ public class ConfirmacaoDaImportacaoAssistida {
         }
 
         UUID alunoId;
+        String nomeDoAluno;
         Aluno existente = null;
         if (novo) {
-            alunoId = alunoService.criar(new AlunoRequest(nome.strip(), email, telefone, objetivo, observacoes, null, null,
-                    null, null, null, null, null, null, null, null, null, null, null, null)).id();
+            var criado = alunoService.criar(new AlunoRequest(nome.strip(), email, telefone, objetivo, observacoes, null,
+                    null, null, null, null, null, null, null, null, null, null, null, null, null));
+            alunoId = criado.id();
+            nomeDoAluno = criado.nome();
         } else {
             if (g.alunoExistenteId() == null) {
                 throw new BadRequestException("Escolha o aluno existente.", "ALUNO_NAO_ESCOLHIDO");
@@ -377,6 +462,7 @@ public class ConfirmacaoDaImportacaoAssistida {
                 throw new ConflictException("Este aluno está inativo. Reative-o antes de importar.", "ALUNO_INATIVO");
             }
             alunoId = existente.getId();
+            nomeDoAluno = existente.getNome();
             // Só preenche o que está vazio: a importação nunca sobrescreve o que o treinador já escreveu.
             if (objetivo != null && !temTexto(existente.getObjetivo())) {
                 existente.alterarObjetivo(objetivo);
@@ -390,14 +476,19 @@ public class ConfirmacaoDaImportacaoAssistida {
         int[] contagem = gravarPesos(g.pesos(), alunoId, !novo, usuarioId);
         int treino = 0;
         int dieta = 0;
+        UUID pastaId = null;
+        UUID treinoId = null;
+        UUID dietaId = null;
         if (g.treino() != null || g.dieta() != null) {
             PastaPlano pasta = new PastaPlano(alunoId, TITULO_DA_PASTA, null, null);
             pastas.saveAndFlush(pasta);
+            pastaId = pasta.getId();
             if (g.treino() != null) {
                 PlanoTreino t = new PlanoTreino(alunoId, titulo("Treino de ", nome), null, null,
                         json.writeValueAsString(g.treino()));
                 t.definirPasta(pasta.getId());
                 treinos.saveAndFlush(t);
+                treinoId = t.getId();
                 treino = 1;
             }
             if (g.dieta() != null) {
@@ -407,10 +498,12 @@ public class ConfirmacaoDaImportacaoAssistida {
                         json.writeValueAsString(conteudoDaDieta));
                 d.definirPasta(pasta.getId());
                 dietas.saveAndFlush(d);
+                dietaId = d.getId();
                 dieta = 1;
             }
         }
-        return new Gravado(novo ? 1 : 0, novo ? 0 : 1, treino, dieta, 0, contagem[0], contagem[1], true);
+        return new Gravado(novo ? 1 : 0, novo ? 0 : 1, treino, dieta, 0, contagem[0], contagem[1], true,
+                new AlunoGravado(alunoId, nomeDoAluno, novo, pastaId, treinoId, dietaId));
     }
 
     /**
@@ -457,7 +550,7 @@ public class ConfirmacaoDaImportacaoAssistida {
      * Fecha a sessão: sem grupo pendente nem com erro ela está concluída e perde tudo que ainda tinha dado do arquivo
      * (grupos ignorados, dúvidas e respostas); senão volta a {@code REVISANDO}. Audita uma vez, só se algo foi gravado.
      */
-    private void fechar(UUID sessaoId, int importados, String chaveIdempotencia, String hashPedido,
+    private void fechar(UUID sessaoId, UUID usuarioId, int importados, String chaveIdempotencia, String hashPedido,
                         ConfirmacaoResultado resultado) {
         ImportacaoSessao sessao = sessoes.buscarParaAlterar(sessaoId, TenantContext.get())
                 .orElseThrow(() -> new NaoEncontradoException("Sessão de importação não encontrada."));
@@ -479,6 +572,13 @@ public class ConfirmacaoDaImportacaoAssistida {
         if (importados > 0) {
             auditoria.registrarEvento("IMPORTACAO_ASSISTIDA_CONCLUIDA", "IMPORTACAO", sessaoId,
                     "Importou dados pela importação assistida.");
+        }
+        int tentados = resultado.gruposImportados() + resultado.gruposComErro();
+        if (tentados > 0) {
+            // Mesma transação do registro da idempotência: a repetição do pedido não grava outra linha.
+            historico.save(new Importacao(DESTINO_NO_HISTORICO, "", usuarioId, tentados,
+                    resultado.alunosCriados() + resultado.modelosCriados(), resultado.alunosVinculados(), 0,
+                    resultado.gruposComErro(), resultado.situacao(), "{}", "[]"));
         }
     }
 

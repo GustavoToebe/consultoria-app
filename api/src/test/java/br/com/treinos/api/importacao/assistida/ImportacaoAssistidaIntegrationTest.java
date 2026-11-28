@@ -304,8 +304,9 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
     void anonimizarOAlunoLimpaOGrupoLigadoAEleENaoOMantemComoCandidato() throws Exception {
         String nome = nomeUnico();
         UUID alvo = aluno(admin, nome, null);
+        // Pesos diferentes no mesmo dia: o mesmo nome lido sem conflito juntaria os dois grupos sozinho (D6).
         String sessao = sessaoProcessada(admin, "Aluno: " + nome + "\nPeso: 80 kg em 12/03/2026\n",
-                "Aluno: " + nome + "\n");
+                "Aluno: " + nome + "\nPeso: 81 kg em 12/03/2026\n");
         JsonNode grupos = detalhe(admin, sessao).path("grupos");
         // Mesmo nome só gera candidato: o treinador escolhe, o servidor não vincula sozinho.
         assertThat(grupos.get(0).path("destino").asString()).isEqualTo("CRIAR_ALUNO");
@@ -460,5 +461,362 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
         assertThat(cancelada.path("estado").asString()).isEqualTo("CANCELADA");
         JsonNode semConteudo = api.get(rotaConteudo, admin, 404);
         assertThat(semConteudo.path("codigo").asString()).isEqualTo("CONTEUDO_INDISPONIVEL");
+    }
+
+    // ------------------------------------------------------------------------------------------------ leva 4 (28/11)
+
+    private static final String TREINO = "\nTreino A - Peito\n1. Supino reto - 4x10 - 60s\n";
+
+    @Test
+    void sessaoSemCorpoEMesmoAlunoEmDoisArquivosViraUmGrupoComOModoDeCadaArquivo() throws Exception {
+        String id = api.post(BASE, admin, null, 200).path("id").asString();
+        String nome = nomeUnico();
+        api.post(BASE + "/" + id + "/textos", admin, Map.of("titulo", "Texto 1",
+                "conteudo", "Aluno: " + nome + "\nPeso: 80 kg em 12/03/2026\n"), 200);
+        api.post(BASE + "/" + id + "/textos", admin, Map.of("titulo", "Texto 2",
+                "conteudo", "Aluno: " + nome.toUpperCase(java.util.Locale.ROOT) + TREINO), 200);
+        api.post(BASE + "/" + id + "/processar", admin, null, 202);
+        aguardarProcessamento(admin, id);
+
+        JsonNode det = detalhe(admin, id);
+        assertThat(det.has("objetivo")).isFalse();
+        assertThat(det.path("grupos")).hasSize(1);
+        JsonNode g = det.path("grupos").get(0);
+        assertThat(g.path("arquivosOrigem")).hasSize(2);
+        assertThat(g.path("pesos")).hasSize(1);
+        assertThat(g.path("treino").isObject()).isTrue();
+        assertThat(g.path("possivelMesmoAluno").asBoolean(true)).isFalse();
+        for (JsonNode arq : det.path("arquivos")) {
+            assertThat(arq.path("modo").asString()).isEqualTo("REGRAS");
+        }
+    }
+
+    @Test
+    void mesmoNomeComDoisTreinosFicaSeparadoEOSegundoAlunoDaMesmoNomeNaSessao() throws Exception {
+        String nome = nomeUnico();
+        String sessao = sessaoProcessada(admin, "Aluno: " + nome + TREINO, "Aluno: " + nome + TREINO);
+        JsonNode grupos = detalhe(admin, sessao).path("grupos");
+        assertThat(grupos).hasSize(2);
+        String g1 = grupos.get(0).path("id").asString();
+        String g2 = grupos.get(1).path("id").asString();
+        String detectado = grupos.get(0).path("nomeDetectado").asString();
+        assertThat(grupos.get(0).path("possivelMesmoAluno").asBoolean()).isTrue();
+        assertThat(grupos.get(0).path("possiveisParceiros").get(0).path("grupoId").asString()).isEqualTo(g2);
+
+        JsonNode recusa = api.post(BASE + "/" + sessao + "/grupos/" + g1 + "/juntar", admin, Map.of("comGrupoId", g2), 409);
+        assertThat(recusa.path("codigo").asString()).isEqualTo("GRUPOS_COM_DOIS_PLANOS");
+        api.post(BASE + "/" + sessao + "/grupos/" + g1 + "/juntar", api.novoTreinador(), Map.of("comGrupoId", g2), 404);
+
+        JsonNode r = confirmar(admin, sessao, 200);
+
+        assertThat(r.path("situacao").asString()).isEqualTo("CONCLUIDA_COM_ERROS");
+        assertThat(alunosComNome(detectado)).isEqualTo(1);
+        JsonNode depois = detalhe(admin, sessao).path("grupos");
+        assertThat(depois.get(1).path("estado").asString()).isEqualTo("ERRO");
+        assertThat(depois.get(1).path("erroCodigo").asString()).isEqualTo("MESMO_NOME_NA_SESSAO");
+        // A resposta diz quem foi gravado e onde, para "Abrir ficha" e "Abrir rascunho do treino".
+        assertThat(r.path("alunos")).hasSize(1);
+        JsonNode gravado = r.path("alunos").get(0);
+        assertThat(gravado.path("criado").asBoolean()).isTrue();
+        assertThat(gravado.path("nome").asString()).isEqualTo(detectado);
+        assertThat(gravado.path("pastaId").asString()).isNotBlank();
+        assertThat(gravado.path("treinoId").asString()).isNotBlank();
+        assertThat(gravado.path("dietaId").isNull() || gravado.path("dietaId").isMissingNode()).isTrue();
+        // Uma linha no histórico das importações, sem nome de arquivo; a sessão não guarda o nome do aluno.
+        UUID consultoria = banco.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class,
+                gravado.path("alunoId").asString());
+        assertThat(banco.queryForObject("select count(*) from importacao where consultoria_id = ? and destino = 'assistida' "
+                + "and nome_arquivo = '' and situacao = 'CONCLUIDA_COM_ERROS'", Long.class, consultoria)).isEqualTo(1);
+        assertThat(banco.queryForObject("select progresso_json::text from importacao_sessao where id = ?::uuid",
+                String.class, sessao)).doesNotContain(detectado);
+        // Gravar de novo o que deu erro (outra confirmação): o nome criado antes ainda conta.
+        JsonNode outra = confirmar(admin, sessao, 200);
+        assertThat(outra.path("situacao").asString()).isEqualTo("FALHOU");
+        assertThat(alunosComNome(detectado)).isEqualTo(1);
+        assertThat(detalhe(admin, sessao).path("grupos").get(1).path("erroCodigo").asString())
+                .isEqualTo("MESMO_NOME_NA_SESSAO");
+    }
+
+    @Test
+    void treinadorJuntaGruposComEmailsDiferentesEOEmailDoGrupoDoCaminhoFica() throws Exception {
+        String nome = nomeUnico();
+        String email1 = ApiDeTeste.emailUnico("juntar-um");
+        String email2 = ApiDeTeste.emailUnico("juntar-dois");
+        String sessao = sessaoProcessada(admin, "Aluno: " + nome + "\nE-mail: " + email1 + "\n",
+                "Aluno: " + nome + "\nE-mail: " + email2 + TREINO);
+        JsonNode grupos = detalhe(admin, sessao).path("grupos");
+        assertThat(grupos).hasSize(2);
+        String g1 = grupos.get(0).path("id").asString();
+        String g2 = grupos.get(1).path("id").asString();
+
+        JsonNode junto = api.post(BASE + "/" + sessao + "/grupos/" + g1 + "/juntar", admin, Map.of("comGrupoId", g2), 200);
+
+        assertThat(junto.path("grupos")).hasSize(1);
+        JsonNode g = junto.path("grupos").get(0);
+        assertThat(g.path("id").asString()).isEqualTo(g1);
+        assertThat(g.path("arquivosOrigem")).hasSize(2);
+        assertThat(g.path("cadastro").path("email").asString()).isEqualTo(email1);
+        assertThat(g.path("treino").isObject()).isTrue();
+        // O grupo que entrou sumiu: juntar de novo com ele é 404.
+        api.post(BASE + "/" + sessao + "/grupos/" + g1 + "/juntar", admin, Map.of("comGrupoId", g2), 404);
+    }
+
+    @Test
+    void emailETelefoneDoGrupoSaoConferidosComoNoAceite() throws Exception {
+        String sessao = sessaoProcessada(admin, "Aluno: " + nomeUnico() + "\n");
+        String rota = BASE + "/" + sessao + "/grupos/" + detalhe(admin, sessao).path("grupos").get(0).path("id").asString();
+
+        JsonNode recusa = api.put(rota, admin, Map.of("email", "sem-arroba"), 400);
+        assertThat(recusa.path("codigo").asString()).isEqualTo("EMAIL_INVALIDO");
+        assertThat(recusa.toString()).doesNotContain("sem-arroba");
+        assertThat(api.put(rota, admin, Map.of("telefone", "12"), 400).path("codigo").asString())
+                .isEqualTo("TELEFONE_INVALIDO");
+
+        String email = ApiDeTeste.emailUnico("grupo");
+        JsonNode cadastro = api.put(rota, admin, Map.of("email", email, "telefone", "11987654321"), 200)
+                .path("grupos").get(0).path("cadastro");
+        assertThat(cadastro.path("email").asString()).isEqualTo(email);
+        assertThat(cadastro.path("telefone").asString()).isEqualTo("(11) 98765-4321");
+    }
+
+    /** Confirma só {@code grupoId} com a chave dada, sem conferir o status (as corridas aceitam 200 ou 409). */
+    private org.springframework.test.web.servlet.MvcResult confirmarSo(String sessaoId, String grupoId, int revisao,
+                                                                       String hashPrevia) throws Exception {
+        return mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post(BASE + "/" + sessaoId + "/confirmar")
+                        .header("X-Treinos-Cliente", "nativo")
+                        .header(org.springframework.http.HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(admin))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(api.paraJson(Map.of("gruposIds", List.of(grupoId), "revisaoEsperada", revisao,
+                                "hashPrevia", hashPrevia, "chaveIdempotencia", UUID.randomUUID().toString()))))
+                .andReturn();
+    }
+
+    @Test
+    void duasConfirmacoesAoMesmoTempoComChavesDiferentesNaoCriamDoisAlunosDeMesmoNome() throws Exception {
+        String nome = nomeUnico();
+        // Dois treinos: o mesmo nome fica em dois grupos (conflito de conteúdo, não junta sozinho).
+        String sessao = sessaoProcessada(admin, "Aluno: " + nome + TREINO, "Aluno: " + nome + TREINO);
+        JsonNode det = detalhe(admin, sessao);
+        assertThat(det.path("grupos")).hasSize(2);
+        String detectado = det.path("grupos").get(0).path("nomeDetectado").asString();
+        int revisao = det.path("revisao").asInt();
+        String hash = det.path("hashPrevia").asString("");
+        String g1 = det.path("grupos").get(0).path("id").asString();
+        String g2 = det.path("grupos").get(1).path("id").asString();
+
+        java.util.concurrent.CountDownLatch largada = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.ExecutorService duas = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            java.util.concurrent.Future<org.springframework.test.web.servlet.MvcResult> a = duas.submit(() -> {
+                largada.await();
+                return confirmarSo(sessao, g1, revisao, hash);
+            });
+            java.util.concurrent.Future<org.springframework.test.web.servlet.MvcResult> b = duas.submit(() -> {
+                largada.await();
+                return confirmarSo(sessao, g2, revisao, hash);
+            });
+            largada.countDown();
+            // A que chega depois ou vê o aluno criado (MESMO_NOME_NA_SESSAO, lido sob a trava da sessão) ou acha a
+            // prévia mudada (409): nunca grava um segundo aluno com o mesmo nome.
+            assertThat(List.of(a.get().getResponse().getStatus(), b.get().getResponse().getStatus()))
+                    .allMatch(s -> s == 200 || s == 409);
+        } finally {
+            duas.shutdownNow();
+        }
+
+        assertThat(alunosComNome(detectado)).isEqualTo(1);
+        JsonNode grupos = detalhe(admin, sessao).path("grupos");
+        long importados = 0;
+        for (JsonNode g : grupos) {
+            if ("IMPORTADO".equals(g.path("estado").asString())) {
+                importados++;
+            } else if ("ERRO".equals(g.path("estado").asString())) {
+                assertThat(g.path("erroCodigo").asString()).isEqualTo("MESMO_NOME_NA_SESSAO");
+            }
+        }
+        assertThat(importados).isEqualTo(1);
+        // O progresso guarda só o id do aluno criado, nunca o nome.
+        String progresso = banco.queryForObject("select progresso_json::text from importacao_sessao where id = ?::uuid",
+                String.class, sessao);
+        assertThat(progresso).contains("alunosCriados").doesNotContain(detectado);
+    }
+
+    @Test
+    void textosSemNomeComOTituloPadraoOuOMesmoTituloNaoSeJuntamSozinhos() throws Exception {
+        String dieta = "\nCafé da Manhã\n3 un Ovos inteiros\n";
+        for (String titulo : new String[] {null, "Maria Ficticia"}) {
+            String id = novaSessao(admin);
+            // Treino num e dieta no outro: sem conflito, só o nome lido do conteúdo juntaria os dois.
+            for (String conteudo : List.of(TREINO, dieta)) {
+                api.post(BASE + "/" + id + "/textos", admin, titulo == null ? Map.of("conteudo", conteudo)
+                        : Map.of("titulo", titulo, "conteudo", conteudo), 200);
+            }
+            api.post(BASE + "/" + id + "/processar", admin, null, 202);
+            JsonNode grupos = detalhe(admin, aguardarProcessamento(admin, id)).path("grupos");
+            assertThat(grupos).hasSize(2);
+            // Sem conflito de conteúdo: separados só porque o nome não veio do conteúdo.
+            assertThat(grupos.get(0).path("treino").isObject()).isTrue();
+            assertThat(grupos.get(0).path("dieta").isObject()).isFalse();
+            assertThat(grupos.get(1).path("treino").isObject()).isFalse();
+            assertThat(grupos.get(1).path("dieta").isObject()).isTrue();
+        }
+    }
+
+    @Test
+    void listaDeAlunosCriadosIlegivelNaoLiberaOAlunoNovo() throws Exception {
+        String nome = nomeUnico();
+        String sessao = sessaoProcessada(admin, "Aluno: " + nome + TREINO);
+        String detectado = detalhe(admin, sessao).path("grupos").get(0).path("nomeDetectado").asString();
+        banco.update("update importacao_sessao set progresso_json = jsonb_set(progresso_json, '{alunosCriados}', "
+                + "'[\"nao-e-uuid\"]'::jsonb) where id = ?::uuid", sessao);
+
+        JsonNode r = confirmar(admin, sessao, 200);
+
+        // Falha fechada: sem saber quem já foi criado, o grupo fica com erro em vez de criar o aluno.
+        assertThat(r.path("situacao").asString()).isEqualTo("FALHOU");
+        assertThat(alunosComNome(detectado)).isZero();
+        assertThat(detalhe(admin, sessao).path("grupos").get(0).path("estado").asString()).isEqualTo("ERRO");
+    }
+
+    /**
+     * Risco conhecido: {@link ImportacaoAssistidaRetencao#soltarSessoesEmLeitura} percorre TODAS as consultorias do
+     * Postgres compartilhado e solta toda sessão {@code PROCESSANDO}, inclusive a de outro teste que esteja lendo neste
+     * instante (ele veria ERRO). Por isso o teste só confere {@code >= 1} e a própria sessão. Se aparecer intermitência
+     * em outro teste da assistida, restringir a rotina por consultoria (parâmetro) no lote B.
+     */
+    @Test
+    void sessaoPresaEmProcessandoViraErroPeloTempoEPelaRotinaDaSubida() throws Exception {
+        String sessao = sessaoProcessada(admin, "Aluno: " + nomeUnico() + "\n");
+
+        // A API caiu no meio da leitura: passou do corte, o estado efetivo é ERRO e dá para ler de novo.
+        banco.update("update importacao_sessao set estado = 'PROCESSANDO', progresso_json = ?::jsonb where id = ?::uuid",
+                "{\"aLer\":1,\"lidos\":0,\"processandoDesde\":\"" + Instant.now().minusSeconds(86_400) + "\"}", sessao);
+        assertThat(detalhe(admin, sessao).path("estado").asString()).isEqualTo("ERRO");
+        api.post(BASE + "/" + sessao + "/textos", admin, Map.of("titulo", "Mais", "conteudo", "Aluno: " + nomeUnico()), 200);
+
+        // Sem a marca de início (ou antes do corte), só a rotina da subida solta a sessão.
+        banco.update("update importacao_sessao set estado = 'PROCESSANDO', progresso_json = '{}'::jsonb where id = ?::uuid",
+                sessao);
+        assertThat(detalhe(admin, sessao).path("estado").asString()).isEqualTo("PROCESSANDO");
+        assertThat(retencao.soltarSessoesEmLeitura()).isGreaterThanOrEqualTo(1);
+        assertThat(detalhe(admin, sessao).path("estado").asString()).isEqualTo("ERRO");
+        assertThat(banco.queryForObject("select estado from importacao_sessao where id = ?::uuid", String.class, sessao))
+                .isEqualTo("RECEBENDO");
+        api.post(BASE + "/" + sessao + "/processar", admin, null, 202);
+        assertThat(detalhe(admin, aguardarProcessamento(admin, sessao)).path("estado").asString()).isEqualTo("REVISANDO");
+    }
+
+    // ------------------------------------------------------------------------------------------------ lote B (27/11)
+
+    @Test
+    void doisTextosColadosComOTituloPadraoESemNomeSaoDoisAlunosEOsDoisSaoGravados() throws Exception {
+        String id = api.post(BASE, admin, null, 200).path("id").asString();
+        api.post(BASE + "/" + id + "/textos", admin, Map.of("titulo", "Texto livre do WhatsApp", "conteudo", TREINO), 200);
+        api.post(BASE + "/" + id + "/textos", admin, Map.of("titulo", "Texto livre do WhatsApp",
+                "conteudo", "Peso: 80 kg em 12/03/2026\n"), 200);
+        api.post(BASE + "/" + id + "/processar", admin, null, 202);
+        aguardarProcessamento(admin, id);
+
+        JsonNode grupos = detalhe(admin, id).path("grupos");
+        assertThat(grupos).hasSize(2);
+        assertThat(grupos.get(0).path("nomeDetectado").asString()).isNotEqualTo(grupos.get(1).path("nomeDetectado").asString());
+        assertThat(grupos.get(0).path("origemDoNome").asString()).isEqualTo("TITULO_DO_TEXTO");
+        // Sem o nome, criar o aluno fica travado ("Aluno 1" ocuparia vaga do plano): nada é gravado.
+        JsonNode recusa = confirmar(admin, id, 422);
+        assertThat(recusa.path("codigo").asString()).isEqualTo("NOME_DO_ALUNO_PENDENTE");
+        assertThat(recusa.path("fieldErrors")).hasSize(2);
+        assertThat(recusa.path("fieldErrors").get(0).path("message").asString())
+                .isEqualTo("Informe o nome do aluno, vincule a um existente ou ignore.");
+
+        // O treinador dá o nome de cada um (o banco é compartilhado: nada de "Aluno N" gravado).
+        String um = nomeUnico();
+        String outro = nomeUnico();
+        api.put(BASE + "/" + id + "/grupos/" + grupos.get(0).path("id").asString(), admin, Map.of("nome", um), 200);
+        JsonNode depois = api.put(BASE + "/" + id + "/grupos/" + grupos.get(1).path("id").asString(), admin,
+                Map.of("nome", outro), 200);
+        assertThat(depois.path("grupos").get(1).path("origemDoNome").asString()).isEqualTo("DIGITADO");
+        JsonNode r = confirmar(admin, id, 200);
+        assertThat(r.path("alunosCriados").asInt()).isEqualTo(2);
+        assertThat(alunosComNome(um)).isEqualTo(1);
+        assertThat(alunosComNome(outro)).isEqualTo(1);
+    }
+
+    @Test
+    void doisArquivosSemNomeNoConteudoComOMesmoNomeDeArquivoGravamOsDoisAlunos() throws Exception {
+        String nome = nomeUnico();
+        String id = novaSessao(admin);
+        for (String conteudo : List.of(TREINO, "\nTreino B - Costas\n1. Remada curvada - 4x10 - 60s\n")) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                            .multipart(BASE + "/" + id + "/arquivos")
+                            .file(new org.springframework.mock.web.MockMultipartFile("arquivo", nome + ".txt",
+                                    "text/plain", conteudo.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                            .header("X-Treinos-Cliente", "nativo")
+                            .header(org.springframework.http.HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(admin)))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        }
+        api.post(BASE + "/" + id + "/processar", admin, null, 202);
+        JsonNode grupos = detalhe(admin, aguardarProcessamento(admin, id)).path("grupos");
+        assertThat(grupos).hasSize(2);
+        assertThat(grupos.get(0).path("nomeDetectado").asString())
+                .isEqualTo(grupos.get(1).path("nomeDetectado").asString());
+
+        assertThat(grupos.get(0).path("origemDoNome").asString()).isEqualTo("NOME_DO_ARQUIVO");
+        // O nome do arquivo não basta para criar: um vincula a um aluno existente, o outro fica ignorado.
+        assertThat(confirmar(admin, id, 422).path("codigo").asString()).isEqualTo("NOME_DO_ALUNO_PENDENTE");
+        UUID existente = aluno(admin, nomeUnico(), null);
+        String rota = BASE + "/" + id + "/grupos/";
+        api.put(rota + grupos.get(0).path("id").asString(), admin,
+                Map.of("destino", "VINCULAR_EXISTENTE", "alunoExistenteId", existente), 200);
+        api.put(rota + grupos.get(1).path("id").asString(), admin, Map.of("destino", "IGNORAR"), 200);
+
+        JsonNode r = confirmar(admin, id, 200);
+
+        assertThat(r.path("situacao").asString()).isEqualTo("CONCLUIDA");
+        assertThat(r.path("alunosCriados").asInt()).isZero();
+        assertThat(r.path("alunosVinculados").asInt()).isEqualTo(1);
+        assertThat(alunosComNome(grupos.get(0).path("nomeDetectado").asString())).isZero();
+    }
+
+    @Test
+    void doisArquivosSemNomeComONomeDoArquivoConfirmadoGravamOsDoisAlunosSemTravaPorNome() throws Exception {
+        String nome = nomeUnico();
+        String id = novaSessao(admin);
+        for (String conteudo : List.of(TREINO, "\nTreino B - Costas\n1. Remada curvada - 4x10 - 60s\n")) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                            .multipart(BASE + "/" + id + "/arquivos")
+                            .file(new org.springframework.mock.web.MockMultipartFile("arquivo", nome + ".txt",
+                                    "text/plain", conteudo.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                            .header("X-Treinos-Cliente", "nativo")
+                            .header(org.springframework.http.HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(admin)))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        }
+        api.post(BASE + "/" + id + "/processar", admin, null, 202);
+        JsonNode grupos = detalhe(admin, aguardarProcessamento(admin, id)).path("grupos");
+        // O treinador confirma o nome em cada um (o mesmo nos dois): DIGITADO destrava e não entra na trava por nome.
+        String detectado = grupos.get(0).path("nomeDetectado").asString();
+        for (JsonNode g : grupos) {
+            api.put(BASE + "/" + id + "/grupos/" + g.path("id").asString(), admin, Map.of("nome", detectado), 200);
+        }
+
+        JsonNode r = confirmar(admin, id, 200);
+
+        assertThat(r.path("situacao").asString()).isEqualTo("CONCLUIDA");
+        assertThat(r.path("alunosCriados").asInt()).isEqualTo(2);
+        assertThat(alunosComNome(detectado)).isEqualTo(2);
+    }
+
+    @Test
+    void homonimoEmSessoesDiferentesCriaOsDoisAlunos() throws Exception {
+        String nome = nomeUnico();
+        String primeira = sessaoProcessada(admin, "Aluno: " + nome + TREINO);
+        String segunda = sessaoProcessada(admin, "Aluno: " + nome + TREINO);
+
+        confirmar(admin, primeira, 200);
+        JsonNode r = confirmar(admin, segunda, 200);
+
+        // A trava do "um aluno só" é o grupo da sessão (e o nome só dentro da mesma sessão): nome igual na consultoria pode.
+        assertThat(r.path("alunosCriados").asInt()).isEqualTo(1);
+        assertThat(alunosComNome(nome)).isEqualTo(2);
     }
 }

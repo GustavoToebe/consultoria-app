@@ -94,6 +94,8 @@ async function preparar(page: Page, largura: number, opcoes: { habilitada?: bool
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /importacoes': { corpo: { itens: [], total: 0, pagina: 0 } },
+    // Com a chave ligada, a tela Importação lista as importações assistidas em aberto (28/11, 2.6).
+    'GET /importacoes/assistidas/sessoes': { corpo: [] },
     'GET /alimentos/fatores': { corpo: [] },
     'POST /importacoes/planilha-completa/analisar': (_p, route) => json(route, ANALISE),
     'POST /importacoes/planilha-completa/previa': (_p, route) => {

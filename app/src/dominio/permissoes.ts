@@ -74,6 +74,7 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   if(caminho==='/treinador/importacao/planilha-completa') return tem('ALUNO_ALTERAR');
   // A importação assistida cria alunos e planos: a API exige ALUNO_ALTERAR em toda rota dela.
   if(caminho==='/treinador/importacao/assistida') return tem('ALUNO_ALTERAR');
+  if(caminho==='/treinador/importacao/dicionario') return tem('ALUNO_ALTERAR');
   if(caminho==='/treinador/importacao'||caminho==='/treinador/importacao/nova') return tem('ALUNO_ALTERAR')||tem('ALUNO_SENSIVEL_ALTERAR')||tem('BIBLIOTECA_ALTERAR')||tem('ERGOGENICO_ALTERAR');
   return false;
 }

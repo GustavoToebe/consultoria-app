@@ -5,6 +5,7 @@ import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.Faixa;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.Papel;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.TipoDeSerie;
 import br.com.treinos.api.importacao.LeitorDePlanilha.Celula;
+import br.com.treinos.api.importacao.ValoresDeCelula;
 import br.com.treinos.api.importacao.completa.LeitorDePrescricao.ErroDaFaixa;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.TecnicaDaMetodologia;
@@ -18,8 +19,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -43,8 +42,6 @@ public final class MontagemDeSeries {
 
     /** Teto de séries por tipo numa linha ({@code MAX_SERIES_POR_TIPO} do script). */
     static final int MAX_SERIES_POR_TIPO = 10;
-    private static final Set<String> SIM = Set.of("sim", "s", "true", "verdadeiro", "x");
-    private static final Set<String> NAO = Set.of("nao", "n", "false", "falso");
 
     /** Número de uma célula: {@code presente} falso = vazia; presente com {@code valor} nulo = não é número. */
     public record Numero(boolean presente, BigDecimal valor) {
@@ -97,42 +94,36 @@ public final class MontagemDeSeries {
     private MontagemDeSeries() {
     }
 
-    /** Número da célula, como o {@code numero} do script: vazia = ausente; texto "2,5" vale; outro texto = não é número. */
+    /**
+     * Número da célula pelo {@link ValoresDeCelula#numero} (a mesma regra da importação de uma aba): vazia = ausente;
+     * "2,5", "80,5 kg" e "1.234,56" valem; "1.500", outro texto e número fora do limite = não é número.
+     */
     public static Numero numero(Celula c) {
         if (ReconhecimentoDeAbas.vazia(c)) {
             return Numero.AUSENTE;
         }
-        if (c.erro()) {
-            return Numero.de(null);
-        }
-        String t = c.texto().strip().replace(',', '.');
-        if (!c.numero() && !t.matches("-?\\d+(\\.\\d+)?")) {
-            return Numero.de(null);
-        }
-        try {
-            return Numero.de(new BigDecimal(t));
-        } catch (NumberFormatException e) {
-            return Numero.de(null);
-        }
+        ValoresDeCelula.Numero lido = ValoresDeCelula.numero(c);
+        return Numero.de(lido.valido() ? lido.valor() : null);
     }
 
     /**
-     * Lógico da célula: vazia = ausente; "sim", "s", "true", "verdadeiro", "x" e 1 = sim; "não", "n", "false", "falso" e 0
-     * = não; o resto = inválido. (O leitor já trata o "x" sozinho como célula vazia, então ele chega como ausente.)
+     * Lógico da célula pelo {@link ValoresDeCelula#simNao}: vazia = ausente; sim/não com as palavras de lá e 1/0; o resto
+     * = inválido. O "x" sozinho (marcador que o leitor guarda com o texto vazio) é sim: numa coluna de sim/não marca a
+     * linha; "-" e os traços continuam ausentes.
      */
     public static Logico logico(Celula c) {
+        if (c != null && "x".equalsIgnoreCase(c.marcador())) {
+            return Logico.SIM;
+        }
         if (ReconhecimentoDeAbas.vazia(c)) {
             return Logico.AUSENTE;
         }
-        if (c.erro()) {
-            return Logico.INVALIDO;
-        }
-        if (c.numero()) {
-            BigDecimal n = new BigDecimal(c.texto());
-            return n.compareTo(BigDecimal.ONE) == 0 ? Logico.SIM : n.signum() == 0 ? Logico.NAO : Logico.INVALIDO;
-        }
-        String t = Normalizacao.chaveDoNome(c.texto()).toLowerCase(Locale.ROOT);
-        return SIM.contains(t) ? Logico.SIM : NAO.contains(t) ? Logico.NAO : Logico.INVALIDO;
+        return switch (ValoresDeCelula.simNao(c)) {
+            case SIM -> Logico.SIM;
+            case NAO -> Logico.NAO;
+            case VAZIO -> Logico.AUSENTE;
+            case INVALIDO -> Logico.INVALIDO;
+        };
     }
 
     public static Resultado montar(Entrada e, ConfiguracaoConsultoria metodologia) {

@@ -35,7 +35,6 @@ class InterpretadorPorRegrasTest {
                 "PDF",
                 blocos,
                 texto,
-                "CADASTROS_E_PLANOS_ATUAIS",
                 List.of("WS", "FS"),
                 Map.of()
         );
@@ -67,7 +66,7 @@ class InterpretadorPorRegrasTest {
     void pesoComDataEscritaNaLinhaGuardaADataDaLinha() {
         String texto = "Aluno: Carla Souza\nPeso: 61,5 kg em 12/03/2026\n";
         ContextoIa contexto = new ContextoIa("carla.txt", "TEXTO_LIVRE",
-                List.of(new BlocoTexto("Geral", texto, "carla.txt", 1)), texto, "CADASTROS_E_PLANOS_ATUAIS", List.of(), Map.of());
+                List.of(new BlocoTexto("Geral", texto, "carla.txt", 1)), texto, List.of(), Map.of());
 
         ResultadoInterpretacao res = interpretador.interpretar(contexto);
 
@@ -78,7 +77,7 @@ class InterpretadorPorRegrasTest {
 
     private ResultadoInterpretacao interpretar(String texto) {
         return interpretador.interpretar(new ContextoIa("plano.pdf", "PDF",
-                List.of(new BlocoTexto("Geral", texto, "plano.pdf", 1)), texto, "CADASTROS_E_PLANOS_ATUAIS", List.of(), Map.of()));
+                List.of(new BlocoTexto("Geral", texto, "plano.pdf", 1)), texto, List.of(), Map.of()));
     }
 
     private static List<String> nomesDeExercicios(ResultadoInterpretacao res, int sessao) {

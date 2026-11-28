@@ -112,8 +112,10 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(1);
         String outro = unico("bruno");
         String csv2 = "nome;email\nBruno Fictício;" + outro + "\n";
-        JsonNode previaX = enviar("alunos/previa", "alunos.xlsx", xlsx(csv2), config, 200);
-        confirmar("alunos", "alunos.xlsx", xlsx(csv2), config, previaX.path("hash").asString());
+        // Os mesmos bytes na prévia e na confirmação: o hash é do arquivo (montar o .xlsx duas vezes já deu hash diferente).
+        byte[] planilhaX = xlsx(csv2);
+        JsonNode previaX = enviar("alunos/previa", "alunos.xlsx", planilhaX, config, 200);
+        confirmar("alunos", "alunos.xlsx", planilhaX, config, previaX.path("hash").asString());
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(2);
     }
 
@@ -534,7 +536,7 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
     void modelosVersionadosPassamNaPrevia() throws Exception {
         Path pasta = Path.of("..", "app", "public", "modelos", "importacao");
         String alunos = config("email", "IGNORAR", colunas("nome", "email", "telefone", "cpf", "objetivo", "observacoes",
-                "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "responsavel", "dias", "situacao"));
+                "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "responsavel", "dias", "situacao", "nascimento", "sexo"));
         for (String extensao : List.of("csv", "xlsx")) {
             JsonNode previa = previaArquivo("alunos", pasta.resolve("alunos." + extensao), alunos);
             assertThat(previa.path("novos").asInt()).isEqualTo(3);
@@ -989,8 +991,9 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
                 "carboidrato", 5, "gordura", 6, "fc", 7));
         JsonNode previaAl = previa("alimentos", "n2.csv", alimentos, configAl);
         // "0.500" começa com zero: milhar não começa assim, então é decimal e grava (a recusa é só do "1.500").
-        assertThat(previaAl.path("novos").asInt()).isEqualTo(2);
-        assertThat(previaAl.path("comErro").asInt()).isEqualTo(4);
+        // "1.234,5" tem os dois separadores, sem dúvida: 1234,5 (passo 3.4, ValoresDeCelula, igual nas duas trilhas).
+        assertThat(previaAl.path("novos").asInt()).isEqualTo(3);
+        assertThat(previaAl.path("comErro").asInt()).isEqualTo(3);
         long ambiguos = 0;
         for (JsonNode erro : previaAl.path("erros")) {
             if (AMBIGUO.equals(erro.path("motivo").asString())) {
@@ -1000,8 +1003,11 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(ambiguos).isEqualTo(2);
         assertThat(previaAl.path("erros").toString()).doesNotContain("1.500").doesNotContain("2.500");
         JsonNode feitoAl = confirmar("alimentos", "n2.csv", alimentos.getBytes(StandardCharsets.UTF_8), configAl, previaAl.path("hash").asString());
-        assertThat(feitoAl.path("novos").asInt()).isEqualTo(2);
-        assertThat(feitoAl.path("comErro").asInt()).isEqualTo(4);
+        assertThat(feitoAl.path("novos").asInt()).isEqualTo(3);
+        assertThat(feitoAl.path("comErro").asInt()).isEqualTo(3);
+        assertThat(jdbc.queryForObject("select kcal from alimento where nome = ? and consultoria_id = "
+                + "(select consultoria_id from usuario where email = ?)", BigDecimal.class, "Milhar " + sufixo,
+                treinador.path("usuario").path("email").asString())).isEqualByComparingTo("1234.5");
     }
 
     @Test
@@ -1401,7 +1407,9 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
     }
 
     private static void gravar(java.util.zip.ZipOutputStream zip, String nome, String xml) throws Exception {
-        zip.putNextEntry(new java.util.zip.ZipEntry(nome));
+        java.util.zip.ZipEntry entrada = new java.util.zip.ZipEntry(nome);
+        entrada.setTime(0); // sem a hora de agora: o mesmo conteúdo dá os mesmos bytes (o hash da prévia é dos bytes)
+        zip.putNextEntry(entrada);
         zip.write(xml.getBytes(StandardCharsets.UTF_8));
     }
 }

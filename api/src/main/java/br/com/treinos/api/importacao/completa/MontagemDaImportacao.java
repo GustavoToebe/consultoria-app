@@ -90,6 +90,13 @@ public final class MontagemDaImportacao {
     private static final int CAMPO_SUPLEMENTO = 120;
     private static final int OBS_SUPLEMENTO = 500;
     private static final BigDecimal NUTRIENTE_MAXIMO = new BigDecimal("99999");
+    /**
+     * Situação que deixa o aluno novo inativo (D7), na forma do {@code Normalizacao.chaveDoNome}. Fora desta lista, vazio e
+     * "ativo", a situação entra ativa com o problema {@code STATUS_NAO_RECONHECIDO}: "Sim", "Pago" e "Em dia" não podem
+     * criar o aluno inativo sem aviso.
+     */
+    static final Pattern INATIVO = Pattern.compile(
+            "^(?:inativ|desativad|cancelad|encerrad|suspens|trancad|pausad|bloquead|desligad|nao ativ)[oa]s?$");
     private static final Pattern DIAS = Pattern.compile("^(segunda|terca|quarta|quinta|sexta|sabado|domingo)(?![a-z])");
     private static final Map<String, Integer> NUMERO_DO_DIA = Map.of("segunda", 1, "terca", 2, "quarta", 3, "quinta", 4,
             "sexta", 5, "sabado", 6, "domingo", 7);
@@ -271,6 +278,9 @@ public final class MontagemDaImportacao {
         private final CasamentoDeNomes.Indice bibliotecaDeAlimentos;
         private final Map<String, AlimentoDaBiblioteca> alimentoPorNome = new HashMap<>();
         private final Map<UUID, AlimentoDaBiblioteca> alimentoPorId = new HashMap<>();
+        /** Um casamento por nome (pela chave): a semelhança percorre a biblioteca inteira e o mesmo nome se repete nas linhas. */
+        private final Map<String, Resultado> casamentosDeExercicio = new HashMap<>();
+        private final Map<String, Resultado> casamentosDeAlimento = new HashMap<>();
         private final ConfiguracaoConsultoria metodologia;
         private final Set<String> exerciciosProvaveis = new HashSet<>();
         private final Set<String> alimentosProvaveis = new HashSet<>();
@@ -482,13 +492,16 @@ public final class MontagemDaImportacao {
                     dono = donoDoExistente(existente.id(), l.numero(), Normalizacao.chaveDoNome(nome));
                 } else {
                     String status = Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, r.coluna(Campo.STATUS)));
-                    boolean ativo = status.isEmpty() || AnaliseDaPlanilha.ATIVO.matcher(status).matches();
+                    boolean ativo = !INATIVO.matcher(status).matches();
                     if (ativo) {
                         String recusa = reservarVaga();
                         if (recusa != null) {
                             problema(aba, l.numero(), Campo.ALUNO, recusa);
                             continue;
                         }
+                    }
+                    if (ativo && !status.isEmpty() && !AnaliseDaPlanilha.ATIVO.matcher(status).matches()) {
+                        problema(aba, l.numero(), Campo.STATUS, "STATUS_NAO_RECONHECIDO");
                     }
                     dono = new Dono(l.numero(), null, Normalizacao.chaveDoNome(nome));
                     novos.add(new AlunoNovo(dono, nome, email.isEmpty() ? null : email, telefone(aba, l),
@@ -859,7 +872,8 @@ public final class MontagemDaImportacao {
             Set<String> chaves = new HashSet<>();
             for (String[] c : candidatos) {
                 String k = semOrdem(c[0]);
-                if (k.isEmpty() || bibliotecaDeExercicios.casar(c[0]).nivel() == Nivel.CERTO || !chaves.add(k)) {
+                if (k.isEmpty() || casarExercicio(c[0], CasamentoDeNomes.chave(c[0])).nivel() == Nivel.CERTO
+                        || !chaves.add(k)) {
                     continue;
                 }
                 novos.add(new ExercicioNovo(c[0], c[1], c[2]));
@@ -888,7 +902,7 @@ public final class MontagemDaImportacao {
             if (r != null && "MANTER".equals(r.acao())) {
                 return null;
             }
-            Resultado c = bibliotecaDeExercicios.casar(nome);
+            Resultado c = casarExercicio(nome, k);
             if (c.nivel() == Nivel.CERTO) {
                 return exercicioPorNome.get(c.candidato());
             }
@@ -912,7 +926,7 @@ public final class MontagemDaImportacao {
             if (r != null && ("MANTER".equals(r.acao()) || "CRIAR".equals(r.acao()))) {
                 return null;
             }
-            Resultado c = bibliotecaDeAlimentos.casar(nome);
+            Resultado c = casamentosDeAlimento.computeIfAbsent(k, x -> bibliotecaDeAlimentos.casar(nome));
             if (c.nivel() == Nivel.CERTO) {
                 return alimentoPorNome.get(c.candidato());
             }
@@ -925,6 +939,11 @@ public final class MontagemDaImportacao {
                 }
             }
             return null;
+        }
+
+        /** {@code chave} = {@code CasamentoDeNomes.chave(nome)}: o casamento só depende dela. */
+        private Resultado casarExercicio(String nome, String chave) {
+            return casamentosDeExercicio.computeIfAbsent(chave, x -> bibliotecaDeExercicios.casar(nome));
         }
 
         // ------------------------------------------------------------------------------------------------ treino

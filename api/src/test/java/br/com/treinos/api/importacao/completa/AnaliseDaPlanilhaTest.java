@@ -27,6 +27,27 @@ class AnaliseDaPlanilhaTest {
     }
 
     @Test
+    void pesoEDataPeloConversorUnico() {
+        assertThat(AnaliseDaPlanilha.pesoKg(PlanilhaDeTeste.texto("80,5 kg"))).isEqualByComparingTo("80.5");
+        assertThat(AnaliseDaPlanilha.pesoKg(PlanilhaDeTeste.texto("80,50"))).isEqualByComparingTo("80.5");
+        assertThat(AnaliseDaPlanilha.pesoKg(PlanilhaDeTeste.texto("80,505"))).isNull();
+        assertThat(AnaliseDaPlanilha.pesoKg(PlanilhaDeTeste.numero("81.900000000000006"))).isEqualByComparingTo("81.9");
+        assertThat(AnaliseDaPlanilha.pesoKg(PlanilhaDeTeste.texto("1.500"))).isNull();
+        assertThat(AnaliseDaPlanilha.pesoKg(PlanilhaDeTeste.texto("500"))).isNull();
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(1), () -> {
+            assertThat(AnaliseDaPlanilha.pesoKg(PlanilhaDeTeste.texto("1E-30000000"))).isNull();
+            assertThat(AnaliseDaPlanilha.pesoKg(PlanilhaDeTeste.numero("1E-30000000"))).isNull();
+            assertThat(AnaliseDaPlanilha.data(PlanilhaDeTeste.numero("1E-30000000"), false)).isNull();
+        });
+        assertThat(AnaliseDaPlanilha.data(PlanilhaDeTeste.texto("5/3/26"), false)).isEqualTo(LocalDate.of(2026, 3, 5));
+        assertThat(AnaliseDaPlanilha.data(PlanilhaDeTeste.texto("05.03.2026 08:15"), false)).isEqualTo(LocalDate.of(2026, 3, 5));
+        // Número sem formato de data não é data (o ano 2025 vira 17/07/1905).
+        assertThat(AnaliseDaPlanilha.data(PlanilhaDeTeste.numero("2025"), false)).isNull();
+        assertThat(AnaliseDaPlanilha.data(PlanilhaDeTeste.celula(PlanilhaDeTeste.data("2026-03-05")), false))
+                .isEqualTo(LocalDate.of(2026, 3, 5));
+    }
+
+    @Test
     void analisaAPlanilhaDoTreinador() {
         Analise a = analisar(PlanilhaDeTeste.abasDoTreinador(), List.of("Supino reto com halteres"));
         assertThat(a.abas()).extracting(PlanilhaCompletaDtos.Aba::tipo).containsExactly("ALUNOS", "PESOS", "PLANOS_DE_DIETA",

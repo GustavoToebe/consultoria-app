@@ -44,6 +44,7 @@ public class AmostraDaPlanilhaController {
         // Só a primeira página conta no limite da prévia: folhear a amostra não pode esgotar a cota de 30 por hora,
         // que também vale para analisar e para a prévia (e bloquearia a correção de uma resposta depois).
         if (inicio <= 0) limites.previaDeImportacao(eu.usuarioId());
+        else limites.paginaDaAmostra(eu.usuarioId());
         return gravacao.amostra(eu.usuarioId(), arquivo.getOriginalFilename(), arquivo.getBytes(), respostas, inicio);
     }
 }

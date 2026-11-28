@@ -73,6 +73,25 @@ class SugestaoDeColunasTest {
     }
 
     @Test
+    void nascimentoESexoDoAluno() {
+        List<Sugestao> s = SugestaoDeColunas.sugerir("alunos", List.of("Nome", "Data de Nascimento", "Gênero", "Dt. Nasc."));
+        assertThat(de(s, "nascimento")).isEqualTo(new Sugestao("nascimento", 1, "EXATA"));
+        assertThat(de(s, "sexo")).isEqualTo(new Sugestao("sexo", 2, "SINONIMO"));
+    }
+
+    @Test
+    void conceitosVemDoDicionarioDaPlanilhaCompleta() {
+        // "Zap", "Vigente" e "Lipídeos" só existiam no dicionário da planilha completa (Campo): agora valem aqui também.
+        List<Sugestao> s = SugestaoDeColunas.sugerir("alunos", List.of("Nome", "Zap", "Vigente"));
+        assertThat(de(s, "telefone")).isEqualTo(new Sugestao("telefone", 1, "SINONIMO"));
+        assertThat(de(s, "situacao")).isEqualTo(new Sugestao("situacao", 2, "SINONIMO"));
+        assertThat(de(SugestaoDeColunas.sugerir("alimentos", List.of("Alimento", "Lipídeos")), "gordura"))
+                .isEqualTo(new Sugestao("gordura", 1, "SINONIMO"));
+        // O que é próprio do destino continua só aqui: "Descrição" é o alimento na importação de alimentos.
+        assertThat(de(SugestaoDeColunas.sugerir("alimentos", List.of("Descrição")), "nome")).isEqualTo(new Sugestao("nome", 0, "SINONIMO"));
+    }
+
+    @Test
     void detectaOCabecalhoAbaixoDeTitulosEMantemALinha1() {
         assertThat(SugestaoDeColunas.detectarCabecalho(List.of(
                 linha(1, "Nome", "E-mail", "Telefone"), linha(2, "Ana Fictícia", "ana@example.com", "45999998888")), "alunos"))

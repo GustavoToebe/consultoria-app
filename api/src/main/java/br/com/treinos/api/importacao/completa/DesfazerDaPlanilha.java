@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * "Desfazer" de uma importação da planilha completa: apaga só o que ninguém mexeu de um jeito que importe e diz o que
@@ -170,9 +171,12 @@ public class DesfazerDaPlanilha {
         Set<UUID> emUso = ler(() -> {
             Set<UUID> usados = new HashSet<>(linhas.exerciciosComExecucao(ids));
             usados.addAll(linhas.exerciciosComImagem(ids));
-            citados(linhas.rascunhosDeTreino(), ids, usados);
-            citados(linhas.versoesDeTreino(), ids, usados);
-            citados(linhas.modelos(), ids, usados);
+            try (Stream<String> rascunhos = linhas.rascunhosDeTreino(); Stream<String> versoes = linhas.versoesDeTreino();
+                 Stream<String> modelos = linhas.modelos()) {
+                citados(rascunhos, ids, usados);
+                citados(versoes, ids, usados);
+                citados(modelos, ids, usados);
+            }
             return usados;
         });
         for (Exercicio e : lista) {
@@ -185,11 +189,8 @@ public class DesfazerDaPlanilha {
     }
 
     /** Os ids de {@code candidatos} citados como {@code "exercicioId"} em algum dos JSONs. */
-    static void citados(List<String> conteudos, Set<UUID> candidatos, Set<UUID> usados) {
-        for (String c : conteudos) {
-            if (c == null) {
-                continue;
-            }
+    static void citados(Stream<String> conteudos, Set<UUID> candidatos, Set<UUID> usados) {
+        conteudos.filter(c -> c != null).forEach(c -> {
             Matcher m = EXERCICIO_ID.matcher(c);
             while (m.find()) {
                 UUID id = UUID.fromString(m.group(1));
@@ -197,7 +198,7 @@ public class DesfazerDaPlanilha {
                     usados.add(id);
                 }
             }
-        }
+        });
     }
 
     private void alunos(UUID importacaoId, Relatorio r) {

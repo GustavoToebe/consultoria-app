@@ -336,4 +336,34 @@ class MontagemDaImportacaoTest {
         assertThat(semNoCadastro.alunosReaproveitados()).isEqualTo(1);
         assertThat(semNoCadastro.alunosNovos()).isEmpty();
     }
+
+    @Test
+    void statusDesconhecidoEntraAtivoComProblemaEInativoSoComPalavraConhecida() {
+        Map<String, List<List<Object>>> abas = Map.of("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS,
+                PlanilhaDeTeste.linha("AL1", "Ana Fictícia", null, null, null, null, null, "Inativo", null),
+                PlanilhaDeTeste.linha("AL2", "Bia Fictícia", null, null, null, null, null, "Sim", null),
+                PlanilhaDeTeste.linha("AL3", "Caio Fictício", null, null, null, null, null, "Em dia", null),
+                PlanilhaDeTeste.linha("AL4", "Davi Fictício", null, null, null, null, null, null, null),
+                PlanilhaDeTeste.linha("AL5", "Eva Fictícia", null, null, null, null, null, "Cancelada", null),
+                PlanilhaDeTeste.linha("AL6", "Fábio Fictício", null, null, null, null, null, "ATIVA", null)));
+        Montagem m = montarAbas(abas, List.of());
+
+        assertThat(m.alunosNovos()).extracting(MontagemDaImportacao.AlunoNovo::ativo)
+                .containsExactly(false, true, true, true, false, true);
+        assertThat(m.problemas()).filteredOn(p -> "STATUS_NAO_RECONHECIDO".equals(p.tipo()))
+                .extracting(PlanilhaCompletaDtos.Problema::linha).containsExactly(3, 4);
+        assertThat(m.problemas()).filteredOn(p -> "STATUS_NAO_RECONHECIDO".equals(p.tipo()))
+                .allMatch(p -> "STATUS".equals(p.campo()));
+    }
+
+    @Test
+    void inativoSoComPalavraConhecida() {
+        for (String s : List.of("inativo", "inativas", "desativado", "cancelado", "encerrada", "suspenso", "trancada",
+                "pausado", "bloqueado", "desligada", "nao ativo")) {
+            assertThat(MontagemDaImportacao.INATIVO.matcher(s).matches()).as(s).isTrue();
+        }
+        for (String s : List.of("", "ativo", "sim", "pago", "em dia", "nao", "inadimplente")) {
+            assertThat(MontagemDaImportacao.INATIVO.matcher(s).matches()).as(s).isFalse();
+        }
+    }
 }

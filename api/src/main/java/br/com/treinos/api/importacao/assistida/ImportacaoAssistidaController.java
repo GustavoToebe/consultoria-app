@@ -7,7 +7,7 @@ import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ArquivoRe
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AtualizarGrupoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ConfirmacaoResultado;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ConfirmarSessaoRequisicao;
-import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.CriarSessaoRequisicao;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.JuntarGruposRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ResponderDuvidaRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AceitarSugestoesRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.RevogarDecisaoRequisicao;
@@ -67,13 +67,12 @@ public class ImportacaoAssistidaController {
         return service.listarSessoes();
     }
 
+    /** Sem corpo: um corpo enviado (o antigo {@code objetivo}) é ignorado. */
     @PostMapping("/sessoes")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
-    public SessaoDetalhe criarSessao(@AuthenticationPrincipal UsuarioAutenticado eu,
-                                     @RequestBody(required = false) CriarSessaoRequisicao req) {
+    public SessaoDetalhe criarSessao(@AuthenticationPrincipal UsuarioAutenticado eu) {
         limites.importacaoAssistida(eu.usuarioId());
-        String objetivo = req != null ? req.objetivo() : null;
-        return service.criarSessao(eu.usuarioId(), objetivo);
+        return service.criarSessao(eu.usuarioId());
     }
 
     @PostMapping(value = "/sessoes/{id}/arquivos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -165,6 +164,14 @@ public class ImportacaoAssistidaController {
                                         @RequestBody AtualizarGrupoRequisicao req) {
         limites.importacaoAssistida(eu.usuarioId());
         return service.atualizarGrupo(id, grupoId, req);
+    }
+
+    @PostMapping("/sessoes/{id}/grupos/{grupoId}/juntar")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
+    public SessaoDetalhe juntarGrupos(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
+                                      @PathVariable String grupoId, @RequestBody JuntarGruposRequisicao req) {
+        limites.importacaoAssistida(eu.usuarioId());
+        return service.juntarGrupos(id, grupoId, req.outros());
     }
 
     @PostMapping("/sessoes/{id}/confirmar")

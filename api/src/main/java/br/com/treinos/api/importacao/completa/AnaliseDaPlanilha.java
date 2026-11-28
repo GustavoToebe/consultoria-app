@@ -1,8 +1,8 @@
 package br.com.treinos.api.importacao.completa;
 
-import br.com.treinos.api.importacao.LeitorDePlanilha;
 import br.com.treinos.api.importacao.LeitorDePlanilha.Celula;
 import br.com.treinos.api.importacao.LeitorDePlanilha.Linha;
+import br.com.treinos.api.importacao.ValoresDeCelula;
 import br.com.treinos.api.importacao.completa.CasamentoDeNomes.Nivel;
 import br.com.treinos.api.importacao.completa.CasamentoDeNomes.Resultado;
 import br.com.treinos.api.importacao.completa.LeitorDePrescricao.ErroDaFaixa;
@@ -25,7 +25,6 @@ import br.com.treinos.api.importacao.completa.ReconhecimentoDeAbas.Reconheciment
 import br.com.treinos.api.web.FaixaDeData;
 
 import java.math.BigDecimal;
-import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +37,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -59,9 +57,6 @@ public final class AnaliseDaPlanilha {
     static final Set<String> SEM_EMAIL = Set.of("x", "-", "--", "—", ".", "sem", "sem email", "sem e-mail",
             "nao tem", "não tem", "n/a", "na");
     static final Pattern ATIVO = Pattern.compile("^ativ[oa]s?$");
-    private static final Pattern PESO_ESCRITO = Pattern.compile("^(\\d{1,3})(?:[.,](\\d{1,2}))?$");
-    private static final Pattern DATA_BR = Pattern.compile("^(\\d{1,2})/(\\d{1,2})/(\\d{4})$");
-    private static final Pattern DATA_ISO = Pattern.compile("^(\\d{4})-(\\d{2})-(\\d{2})$");
 
     private AnaliseDaPlanilha() {
     }
@@ -325,7 +320,8 @@ public final class AnaliseDaPlanilha {
     /**
      * Cadastro de alunos, na ordem do {@code converter} do {@code planilha-lib.mjs}, com um problema por linha: sem código
      * (se há coluna de código), código repetido, sem nome; depois, sem tirar o aluno, e-mail inválido, nome repetido e o
-     * peso inicial (inválido, sem data de início, data inválida ou no futuro). Status diferente de ativo só é contado.
+     * peso inicial (inválido, sem data de início, data inválida ou no futuro). Status inativo (só as palavras
+     * conhecidas de {@code MontagemDaImportacao.INATIVO}, D7) só é contado.
      */
     private static void alunos(AbaReconhecida aba, boolean data1904, LocalDate hoje, Contas contas, Problemas problemas) {
         Reconhecimento r = aba.reconhecimento();
@@ -362,7 +358,8 @@ public final class AnaliseDaPlanilha {
                 problemas.add(aba.nome(), l.numero(), Campo.ALUNO, "NOME_REPETIDO");
             }
             String status = Normalizacao.chaveDoNome(texto(l, cStatus));
-            if (!status.isEmpty() && !ATIVO.matcher(status).matches()) {
+            // D7: só palavra conhecida de inativo conta como inativo, a mesma regra da gravação (MontagemDaImportacao).
+            if (!status.isEmpty() && MontagemDaImportacao.INATIVO.matcher(status).matches()) {
                 contas.alunosInativos++;
             }
             pesoInicial(aba, l, codigo, data1904, hoje, contas, problemas);
@@ -687,70 +684,27 @@ public final class AnaliseDaPlanilha {
     }
 
     /**
-     * Data do peso: série do Excel ou texto DD/MM/AAAA ou AAAA-MM-DD; dia que não existe, ou antes do piso de
-     * {@link FaixaDeData#REGISTRO} (ano 0224 digitado errado), = null. O futuro quem chama confere com o seu "hoje".
+     * Data do peso pelo {@link ValoresDeCelula#data} (série do Excel só com formato de data, ou texto dia/mês/ano ou
+     * aaaa-mm-dd); dia que não existe, ou antes do piso de {@link FaixaDeData#REGISTRO} (ano 0224 digitado errado), =
+     * null. O futuro quem chama confere com o seu "hoje".
      */
     static LocalDate data(Celula c, boolean data1904) {
-        LocalDate d = dataSemFaixa(c, data1904);
+        LocalDate d = ValoresDeCelula.data(c, data1904);
         return d != null && d.isBefore(FaixaDeData.REGISTRO.minimo()) ? null : d;
-    }
-
-    private static LocalDate dataSemFaixa(Celula c, boolean data1904) {
-        if (c.erro()) {
-            return null;
-        }
-        if (c.numero()) {
-            try {
-                return LeitorDePlanilha.dataSerial(new BigDecimal(c.texto()), data1904);
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
-        String t = c.texto().strip();
-        try {
-            Matcher m = DATA_BR.matcher(t);
-            if (m.matches()) {
-                return LocalDate.of(Integer.parseInt(m.group(3)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(1)));
-            }
-            m = DATA_ISO.matcher(t);
-            if (m.matches()) {
-                return LocalDate.of(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(3)));
-            }
-        } catch (DateTimeException e) {
-            return null;
-        }
-        return null;
     }
 
     /**
      * Peso em kg, como o {@code pesoKg} do script: maior que 0 e menor que 500, no máximo duas casas. Número do Excel
      * com resto de conta (81.9000000001) volta às duas casas; com uma terceira casa de verdade é inválido (nunca
-     * arredonda peso). Texto aceita vírgula e "kg" no fim.
+     * arredonda peso). Texto pelo {@link ValoresDeCelula#numero} ("80,5", "80,5 kg"; "1.500" é ambíguo).
      */
     static BigDecimal pesoKg(Celula c) {
-        if (c.erro()) {
+        ValoresDeCelula.Numero n = ValoresDeCelula.numero(c);
+        BigDecimal v = n.valido() ? ValoresDeCelula.naEscala(n.valor(), c.numero(), 2) : null;
+        if (v == null) {
             return null;
         }
-        BigDecimal v;
-        if (c.numero()) {
-            try {
-                BigDecimal n = new BigDecimal(c.texto());
-                BigDecimal r = n.setScale(2, java.math.RoundingMode.HALF_UP);
-                if (n.subtract(r).abs().compareTo(new BigDecimal("0.000001")) > 0) {
-                    return null;
-                }
-                v = r.stripTrailingZeros();
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        } else {
-            String t = c.texto().strip().replaceAll("(?i)\\s*kg$", "");
-            Matcher m = PESO_ESCRITO.matcher(t);
-            if (!m.matches()) {
-                return null;
-            }
-            v = new BigDecimal(t.replace(',', '.'));
-        }
+        v = v.stripTrailingZeros();
         return v.signum() > 0 && v.compareTo(BigDecimal.valueOf(500)) < 0 ? v : null;
     }
 
@@ -766,13 +720,14 @@ public final class AnaliseDaPlanilha {
     }
 
     private static Integer inteiro(Celula c) {
-        if (c.erro()) {
+        ValoresDeCelula.Numero lido = ValoresDeCelula.numero(c);
+        if (!lido.valido()) {
             return null;
         }
+        BigDecimal n = lido.valor();
         try {
-            BigDecimal n = new BigDecimal(c.texto().strip().replace(',', '.'));
             return n.signum() == 0 || n.stripTrailingZeros().scale() <= 0 ? n.intValueExact() : null;
-        } catch (NumberFormatException | ArithmeticException e) {
+        } catch (ArithmeticException e) {
             return null;
         }
     }

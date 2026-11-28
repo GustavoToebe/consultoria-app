@@ -38,6 +38,8 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          boolean regrasAtencaoHabilitada,
                          /* Cardio intervalado novo liberado ({@code TREINOS_CARDIO_INTERVALADO_HABILITADO}); desligado, o editor só oferece o contínuo. */
                          boolean cardioIntervaladoHabilitado,
+                         /* Importação assistida aceita JPG/PNG e manda o PDF sem texto inteiro ao Claude ({@code TREINOS_IA_ENVIAR_ARQUIVO_AO_PROVEDOR}, com o envio de dados e o Claude configurados); desligado, o app só oferece PDF, DOCX, XLSX, CSV e texto. */
+                         boolean importacaoPorImagemHabilitada,
                          /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
                          String whatsappDaConsultoria,
                          /* Só para o aluno: as redes sociais da consultoria que estão preenchidas (links https por chave); some se nenhuma. */

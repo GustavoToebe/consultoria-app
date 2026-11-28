@@ -159,6 +159,11 @@ public class LimiteTentativas {
         porUsuario("importacao-previa", usuarioId, 30);
     }
 
+    /** Páginas seguintes da amostra da planilha (inicio > 0): balde próprio e largo, para folhear sem gastar a prévia. */
+    public void paginaDaAmostra(java.util.UUID usuarioId) {
+        porUsuario("importacao-amostra", usuarioId, 300);
+    }
+
     /** Diagnóstico do arquivo (migração assistida): balde próprio, para não gastar a prévia de quem só quer conferir. */
     public void diagnosticoDeImportacao(java.util.UUID usuarioId) {
         porUsuario("importacao-diagnostico", usuarioId, 30);

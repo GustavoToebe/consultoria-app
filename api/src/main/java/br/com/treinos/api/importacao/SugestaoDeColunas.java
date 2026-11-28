@@ -3,6 +3,8 @@ package br.com.treinos.api.importacao;
 import br.com.treinos.api.importacao.ImportacaoDtos.Sugestao;
 import br.com.treinos.api.importacao.LeitorDePlanilha.Celula;
 import br.com.treinos.api.importacao.LeitorDePlanilha.Linha;
+import br.com.treinos.api.importacao.completa.Campo;
+import br.com.treinos.api.importacao.completa.CasamentoDeNomes;
 import br.com.treinos.api.importacao.completa.FormatoDoConteudo;
 import br.com.treinos.api.importacao.completa.Normalizacao;
 import br.com.treinos.api.importacao.completa.ReconhecimentoDeAbas;
@@ -18,8 +20,9 @@ import java.util.Set;
 /**
  * Regra pura (sem banco, sem relógio) que sugere o mapeamento de colunas da importação de uma aba e acha a linha do
  * cabeçalho. Só lê títulos: nunca devolve valor de célula. Os campos e ids são os de {@code ImportacaoService.CAMPOS} (os
- * mesmos ids de {@code app/src/dominio/mapeamentoDaImportacao.ts}). Os sinônimos moram só aqui: o app usa as sugestões que
- * {@code /colunas} devolve. Texto comparado sem acento, caixa nem pontuação.
+ * mesmos ids de {@code app/src/dominio/mapeamentoDaImportacao.ts}). Os sinônimos dos conceitos que a planilha completa também
+ * lê vêm do dicionário único ({@link Campo}); aqui ficam só o id, o rótulo e o que é próprio do destino. O app usa as
+ * sugestões que {@code /colunas} devolve. Texto comparado sem acento, caixa nem pontuação.
  */
 public final class SugestaoDeColunas {
 
@@ -61,8 +64,8 @@ public final class SugestaoDeColunas {
             for (List<String> t : termos) {
                 String tc = String.join("", t);
                 // A mesma letra inicial evita "Idade" virar "cidade".
-                if (compacto.length() >= 5 && tc.length() >= 5 && compacto.charAt(0) == tc.charAt(0) && distancia(compacto, tc) <= 2) {
-                    melhor = melhorDe(melhor, new Casamento(Confianca.PARECIDA, 10 - distancia(compacto, tc)));
+                if (compacto.length() >= 5 && tc.length() >= 5 && compacto.charAt(0) == tc.charAt(0) && CasamentoDeNomes.distanciaDeEdicao(compacto, tc) <= 2) {
+                    melhor = melhorDe(melhor, new Casamento(Confianca.PARECIDA, 10 - CasamentoDeNomes.distanciaDeEdicao(compacto, tc)));
                 } else if (!t.isEmpty() && p.containsAll(t)) {
                     // Todas as palavras do campo no título, em qualquer ordem ("Nome do responsável" contém "responsável").
                     melhor = melhorDe(melhor, new Casamento(Confianca.PARECIDA, 9));
@@ -88,14 +91,23 @@ public final class SugestaoDeColunas {
         return new CampoDoDestino(id, List.copyOf(termos));
     }
 
+    /** Campo do destino que é um conceito do dicionário ({@link Campo}): os sinônimos de lá, mais os só deste destino. */
+    private static CampoDoDestino c(String id, String rotulo, List<Campo> conceitos, String... sinonimos) {
+        List<List<String>> termos = new ArrayList<>(c(id, rotulo, sinonimos).termos());
+        for (Campo conceito : conceitos) {
+            conceito.sinonimos().forEach(s -> termos.add(palavras(String.join(" ", s))));
+        }
+        return new CampoDoDestino(id, List.copyOf(termos));
+    }
+
     static {
         destino("alunos",
-                c("nome", "Nome", "nome do aluno", "aluno", "nome completo", "cliente", "paciente", "atleta"),
-                c("email", "E-mail", "e mail", "mail"),
-                c("telefone", "Telefone", "telefone 1 com ddd", "telefone 1", "celular", "fone", "whatsapp", "whats", "tel", "contato"),
+                c("nome", "Nome", List.of(Campo.ALUNO)),
+                c("email", "E-mail", List.of(Campo.EMAIL)),
+                c("telefone", "Telefone", List.of(Campo.TELEFONE)),
                 c("cpf", "CPF", "documento"),
-                c("objetivo", "Objetivo", "objetivos", "meta"),
-                c("observacoes", "Observações", "observacao", "obs"),
+                c("objetivo", "Objetivo", List.of(Campo.OBJETIVO)),
+                c("observacoes", "Observações", List.of(Campo.OBSERVACAO)),
                 c("cep", "CEP"),
                 c("logradouro", "Logradouro", "rua", "endereco"),
                 c("numero", "Número", "num"),
@@ -105,27 +117,31 @@ public final class SugestaoDeColunas {
                 c("uf", "UF", "estado"),
                 c("responsavel", "Responsável", "email responsavel", "e mail responsavel"),
                 c("dias", "Dias", "dias de atualizacao", "dias atualizacao", "ciclo"),
-                c("situacao", "Situação", "status", "ativo"));
+                c("situacao", "Situação", List.of(Campo.STATUS, Campo.ATIVO)),
+                c("nascimento", "Data de nascimento", "dt nascimento", "data nasc", "dt nasc", "nasc"),
+                c("sexo", "Sexo", "genero"));
         destino("pesos",
-                c("aluno", "Aluno", "nome do aluno", "nome", "nome aluno", "cliente", "email", "e mail", "cpf"),
-                c("data", "Data", "data da pesagem", "data pesagem", "data registro", "dia"),
-                c("peso", "Peso", "peso kg", "peso atual", "massa", "massa corporal", "kg"),
-                c("observacao", "Observação", "observacoes", "obs"));
+                // E-mail e CPF identificam o aluno só aqui (a chave da importação de pesos).
+                c("aluno", "Aluno", List.of(Campo.ALUNO, Campo.EMAIL), "cpf"),
+                c("data", "Data", List.of(Campo.DATA)),
+                c("peso", "Peso", List.of(Campo.PESO)),
+                c("observacao", "Observação", List.of(Campo.OBSERVACAO)));
         destino("exercicios",
-                c("nome", "Nome", "exercicio", "exercicios", "nome exercicio", "movimento"),
-                c("grupo", "Grupo", "grupo muscular", "musculo", "musculos", "musculatura", "grupamento"),
+                c("nome", "Nome", List.of(Campo.EXERCICIO)),
+                c("grupo", "Grupo", List.of(Campo.GRUPO_MUSCULAR)),
                 c("equipamento", "Equipamento", "equipamentos", "aparelho", "maquina"),
                 c("modalidade", "Modalidade", "modalidades"),
-                c("video", "Vídeo", "link do video", "link video", "link", "url", "youtube"),
-                c("observacoes", "Observações", "observacao", "obs"));
+                c("video", "Vídeo", List.of(Campo.VIDEO)),
+                c("observacoes", "Observações", List.of(Campo.OBSERVACAO)));
         destino("alimentos",
-                c("nome", "Nome", "alimento", "alimentos", "descricao alimento", "descricao"),
-                c("quantidade", "Quantidade", "quantidade base", "base", "qtd", "qtde", "porcao"),
-                c("unidade", "Unidade", "unid", "medida"),
-                c("kcal", "Kcal", "calorias", "caloria", "energia", "energia kcal", "valor energetico", "cal"),
-                c("proteina", "Proteína", "proteinas", "ptn", "prot"),
-                c("carboidrato", "Carboidrato", "carboidratos", "cho", "carb", "carbo"),
-                c("gordura", "Gordura", "gorduras", "lipidio", "lipidios", "lip", "gord"),
+                // "Descrição" sozinha é o alimento só aqui: na planilha completa ela pode ser de qualquer coisa.
+                c("nome", "Nome", List.of(Campo.ALIMENTO), "descricao"),
+                c("quantidade", "Quantidade", List.of(Campo.QUANTIDADE), "quantidade base", "base"),
+                c("unidade", "Unidade", List.of(Campo.UNIDADE)),
+                c("kcal", "Kcal", List.of(Campo.KCAL)),
+                c("proteina", "Proteína", List.of(Campo.PROTEINA)),
+                c("carboidrato", "Carboidrato", List.of(Campo.CARBOIDRATO)),
+                c("gordura", "Gordura", List.of(Campo.GORDURA)),
                 c("fibra", "Fibra", "fibras", "fibra g", "fibra alimentar"),
                 c("gramas", "Gramas", "gramas por unidade", "g por unidade"),
                 c("fonte", "Fonte"),
@@ -147,7 +163,7 @@ public final class SugestaoDeColunas {
                 c("principio", "Princípio", "principio ativo"),
                 c("concentracao", "Concentração", "dosagem"),
                 c("apresentacao", "Apresentação"),
-                c("observacao", "Observação", "observacoes", "obs"));
+                c("observacao", "Observação", List.of(Campo.OBSERVACAO)));
     }
 
     private SugestaoDeColunas() {
@@ -307,23 +323,5 @@ public final class SugestaoDeColunas {
             }
         }
         return false;
-    }
-
-    /** Distância de edição (Levenshtein) entre dois textos curtos. */
-    static int distancia(String a, String b) {
-        int[] anterior = new int[b.length() + 1];
-        for (int j = 0; j <= b.length(); j++) {
-            anterior[j] = j;
-        }
-        for (int i = 1; i <= a.length(); i++) {
-            int[] atual = new int[b.length() + 1];
-            atual[0] = i;
-            for (int j = 1; j <= b.length(); j++) {
-                int troca = anterior[j - 1] + (a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1);
-                atual[j] = Math.min(troca, Math.min(anterior[j] + 1, atual[j - 1] + 1));
-            }
-            anterior = atual;
-        }
-        return anterior[b.length()];
     }
 }

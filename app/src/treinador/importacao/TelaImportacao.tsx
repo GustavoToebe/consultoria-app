@@ -36,6 +36,7 @@ import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
 import { useGuardaDeSaida, useSairSemPerguntar, useSaidaGuardada } from '../../ui/GuardaDeSaida';
 import { FolhaNovaImportacao } from './FolhaNovaImportacao';
+import { ImportacoesAssistidasEmAberto } from './ImportacoesAssistidasEmAberto';
 import { corDoNumero } from '../../ui/indicador';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
@@ -77,7 +78,11 @@ function abrirModelo(nome: string) {
 }
 
 /** Rótulo do destino ("Alunos"), ou o próprio id se a versão da API trouxer um destino que o app não conhece. */
-const rotuloDoDestino = (id: string) => DESTINOS.find((d) => d.id === id)?.rotulo ?? (id === DESTINO_PLANILHA_COMPLETA ? ROTULO_PLANILHA_COMPLETA : id);
+/** A importação assistida concluída também entra no histórico (28/11, 2.5: destino `assistida`, sem nome de arquivo). */
+const ROTULO_ASSISTIDA = 'Importação assistida';
+const rotuloDoDestino = (id: string) =>
+  DESTINOS.find((d) => d.id === id)?.rotulo ?? (id === DESTINO_PLANILHA_COMPLETA ? ROTULO_PLANILHA_COMPLETA : id === 'assistida' ? ROTULO_ASSISTIDA : id);
+const tituloDoDetalhe = (destino: string) => (destino === 'assistida' ? ROTULO_ASSISTIDA : `Importação de ${rotuloDoDestino(destino)}`);
 
 /**
  * Lista do que já foi importado; "Nova importação" abre a escolha entre a manual (o assistente em etapas numa tela
@@ -86,7 +91,7 @@ const rotuloDoDestino = (id: string) => DESTINOS.find((d) => d.id === id)?.rotul
  * filtros, no endereço (`?destino=&situacao=&arquivo=&de=&ate=`; `docs/planos/filtros-nas-listas.md`, D10 e lote 2).
  */
 export function TelaImportacao() {
-  const { pode } = useSessao();
+  const { pode, migracaoAssistidaHabilitada } = useSessao();
   const router = useRouter();
   const permitidos = destinosPermitidos(pode);
   const filtros = lerDoEndereco(useLocalSearchParams<Record<keyof ParametrosDoEndereco, string>>(), permitidos);
@@ -111,6 +116,10 @@ export function TelaImportacao() {
         <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => setEscolhendo(true)} />
         <Botao rotulo="Modelos de planilha" tipo="secundario" aoTocar={() => setModelos(true)} />
       </LinhaDeAcoes>
+      {/* 2.6: a importação assistida em aberto se retoma daqui também (a rota dela pede ALUNO_ALTERAR; desligada, a API dá 503). */}
+      {pode('ALUNO_ALTERAR') && migracaoAssistidaHabilitada ? (
+        <ImportacoesAssistidasEmAberto aoRetomar={(id) => router.push({ pathname: '/treinador/importacao/assistida', params: { sessaoId: id } })} />
+      ) : null}
       <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips}
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
         painelLateral={{ titulo: 'Filtros de importações' }}
@@ -229,7 +238,7 @@ function FolhaDetalhe({ id, destino, aoFechar }: { id: string; destino: string; 
   const selo = situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} /> : null;
   const completa = destino === DESTINO_PLANILHA_COMPLETA;
   return (
-    <Folha visivel titulo={`Importação de ${rotuloDoDestino(dados?.destino ?? destino)}`} aoFechar={aoFechar}
+    <Folha visivel titulo={tituloDoDetalhe(dados?.destino ?? destino)} aoFechar={aoFechar}
       // Folha média para os dois resultados (24/11); o comum é curto e fica na altura do conteúdo, sem faixa vazia.
       largura={LARGURA_FOLHA_LARGA} acaoNoTopo={completa ? undefined : selo ?? undefined}>
       {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} tentarDeNovo={recarregar} /> : null}

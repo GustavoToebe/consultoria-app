@@ -1,6 +1,7 @@
 package br.com.treinos.api.importacao.assistida;
 
 import br.com.treinos.api.dieta.ConteudoDieta;
+import br.com.treinos.api.importacao.assistida.ia.ResultadoInterpretacao;
 import br.com.treinos.api.treino.ConteudoTreino;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -18,9 +19,6 @@ import java.util.UUID;
 public final class ImportacaoAssistidaDtos {
 
     private ImportacaoAssistidaDtos() {
-    }
-
-    public record CriarSessaoRequisicao(String objetivo) {
     }
 
     public record AdicionarTextoRequisicao(String titulo, String conteudo) {
@@ -62,10 +60,30 @@ public final class ImportacaoAssistidaDtos {
     public record RevogarDecisaoRequisicao(long revisaoEsperada) {
     }
 
-    public record AtualizarGrupoRequisicao(String destino, UUID alunoExistenteId, String nome) {
+    /**
+     * Campos nulos não mudam. {@code email} e {@code telefone} em branco apagam; preenchidos passam pelas regras do aceite
+     * ({@code EMAIL_INVALIDO}, {@code TELEFONE_INVALIDO}). Nunca no {@code toString} (log).
+     */
+    public record AtualizarGrupoRequisicao(String destino, UUID alunoExistenteId, String nome, String email,
+                                           String telefone) {
         @Override
         public String toString() {
             return "AtualizarGrupoRequisicao[destino=" + destino + "]";
+        }
+    }
+
+    /**
+     * Junta ao grupo do caminho, que fica (prevalece no que diverge), o {@code comGrupoId} ou, de uma vez, os
+     * {@code comGruposIds} ("Juntar as N partes"); com a lista, {@code comGrupoId} é ignorado.
+     */
+    public record JuntarGruposRequisicao(String comGrupoId, List<String> comGruposIds) {
+        public JuntarGruposRequisicao(String comGrupoId) {
+            this(comGrupoId, null);
+        }
+
+        public List<String> outros() {
+            return comGruposIds != null && !comGruposIds.isEmpty() ? comGruposIds
+                    : comGrupoId == null ? List.of() : List.of(comGrupoId);
         }
     }
 
@@ -77,29 +95,12 @@ public final class ImportacaoAssistidaDtos {
                                   int duvidasAbertas, Instant criadoEm, Instant expiraEm) {
     }
 
-    public record SessaoDetalhe(UUID id, String objetivo, String estado, int revisao,
+    public record SessaoDetalhe(UUID id, String estado, int revisao,
                                 List<ArquivoResumo> arquivos, List<GrupoImportavel> grupos,
                                 List<DuvidaImportacao> duvidas, Instant criadoEm, Instant expiraEm,
                                 ModoProcessamentoResumo modoProcessamento,
                                 List<DecisaoImportacao> decisoes, String hashPrevia,
                                 @JsonInclude(JsonInclude.Include.NON_NULL) LeituraEmAndamento leitura) {
-        public SessaoDetalhe(UUID id, String objetivo, String estado, int revisao,
-                             List<ArquivoResumo> arquivos, List<GrupoImportavel> grupos,
-                             List<DuvidaImportacao> duvidas, Instant criadoEm, Instant expiraEm,
-                             ModoProcessamentoResumo modoProcessamento,
-                             List<DecisaoImportacao> decisoes, String hashPrevia) {
-            this(id, objetivo, estado, revisao, arquivos, grupos, duvidas, criadoEm, expiraEm, modoProcessamento,
-                    decisoes, hashPrevia, null);
-        }
-
-        public SessaoDetalhe(UUID id, String objetivo, String estado, int revisao,
-                             List<ArquivoResumo> arquivos, List<GrupoImportavel> grupos,
-                             List<DuvidaImportacao> duvidas, Instant criadoEm, Instant expiraEm,
-                             ModoProcessamentoResumo modoProcessamento) {
-            this(id, objetivo, estado, revisao, arquivos, grupos, duvidas, criadoEm, expiraEm, modoProcessamento,
-                    List.of(), null, null);
-        }
-
         @Override
         public String toString() {
             return "SessaoDetalhe[id=" + id + ", estado=" + estado + ", revisao=" + revisao + "]";
@@ -107,7 +108,8 @@ public final class ImportacaoAssistidaDtos {
     }
 
     /** Só com a sessão em {@code PROCESSANDO}: quantos dos {@code total} arquivos desta leitura já terminaram. */
-    public record LeituraEmAndamento(int lidos, int total) {
+    /** {@code aguardando}: a leitura está na fila da consultoria e ainda não começou (o corte só conta depois). */
+    public record LeituraEmAndamento(int lidos, int total, boolean aguardando) {
     }
 
     /** Só pede a resposta de todas as dúvidas com uma sugestão única da biblioteca; {@code revisaoEsperada} como no revogar. */
@@ -122,9 +124,14 @@ public final class ImportacaoAssistidaDtos {
                                    Integer paginasSemTexto, Integer blocos, Boolean truncado) {
     }
 
+    /**
+     * {@code modo} ({@code IA} ou {@code REGRAS}) e {@code motivoFallback} da leitura; nulos antes dela ou se falhou.
+     * {@code enviadoComoArquivo}: lido pela IA com o PDF ou a imagem inteiros (a tela diz "Lido pela imagem do documento").
+     */
     public record ArquivoResumo(UUID id, String nomeOriginal, String formato, long tamanhoBytes,
                                 String estado, String erroCodigo, Instant criadoEm,
-                                CoberturaArquivo cobertura) {
+                                CoberturaArquivo cobertura, String modo, String motivoFallback,
+                                boolean enviadoComoArquivo) {
         @Override
         public String toString() {
             return "ArquivoResumo[id=" + id + ", formato=" + formato + ", estado=" + estado + "]";
@@ -151,35 +158,70 @@ public final class ImportacaoAssistidaDtos {
         }
     }
 
+    /**
+     * {@code possivelMesmoAluno} e {@code possiveisParceiros} (outros grupos pendentes com o mesmo nome, sem acento nem
+     * caixa) são calculados na leitura da sessão; o que ficou gravado no JSON não vale. {@code origemDoNome} é de onde
+     * veio o nome (só {@code CONTEUDO} junta sozinho, D6; {@code DIGITADO} = escrito pelo treinador na revisão): sai na
+     * resposta (não é dado pessoal) para a tela avisar "Nome não encontrado no documento"; nulo conta como não lido do
+     * conteúdo. Todo {@code com*} o leva adiante.
+     */
     public record GrupoImportavel(String id, String identificadorOrigem, String nomeDetectado, String destino,
                                   UUID alunoExistenteId, List<String> arquivosOrigem, CadastroImportavel cadastro,
                                   List<PesoImportavel> pesos, ConteudoTreino treino, ConteudoDieta dieta,
                                   List<String> pendenciasIds, String estado, String erroCodigo,
                                   List<CandidatoAluno> candidatos,
                                   @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<UUID, OcorrenciaOrigem> ocorrencias,
-                                  @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> avisos) {
+                                  @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> avisos,
+                                  Boolean possivelMesmoAluno, List<ParceiroDeGrupo> possiveisParceiros,
+                                  @JsonInclude(JsonInclude.Include.NON_NULL) ResultadoInterpretacao.OrigemDoNome origemDoNome) {
         public GrupoImportavel {
             ocorrencias = ocorrencias == null ? Map.of() : ocorrencias;
             avisos = avisos == null ? List.of() : avisos;
+            possiveisParceiros = possiveisParceiros == null ? List.of() : possiveisParceiros;
+            possivelMesmoAluno = !possiveisParceiros.isEmpty();
         }
 
-        /** Sem avisos de corte. */
         public GrupoImportavel(String id, String identificadorOrigem, String nomeDetectado, String destino,
                                UUID alunoExistenteId, List<String> arquivosOrigem, CadastroImportavel cadastro,
                                List<PesoImportavel> pesos, ConteudoTreino treino, ConteudoDieta dieta,
                                List<String> pendenciasIds, String estado, String erroCodigo,
-                               List<CandidatoAluno> candidatos, Map<UUID, OcorrenciaOrigem> ocorrencias) {
+                               List<CandidatoAluno> candidatos, Map<UUID, OcorrenciaOrigem> ocorrencias,
+                               List<String> avisos, ResultadoInterpretacao.OrigemDoNome origemDoNome) {
             this(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem, cadastro, pesos,
-                    treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, List.of());
+                    treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos, false, List.of(),
+                    origemDoNome);
         }
 
+        /** Sem a origem do nome (testes): não junta sozinho. */
         public GrupoImportavel(String id, String identificadorOrigem, String nomeDetectado, String destino,
                                UUID alunoExistenteId, List<String> arquivosOrigem, CadastroImportavel cadastro,
                                List<PesoImportavel> pesos, ConteudoTreino treino, ConteudoDieta dieta,
                                List<String> pendenciasIds, String estado, String erroCodigo,
                                List<CandidatoAluno> candidatos) {
             this(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem, cadastro, pesos,
-                    treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, Map.of(), List.of());
+                    treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, Map.of(), List.of(), null);
+        }
+
+        /** O nome foi lido do documento: o único que junta sozinho com outro grupo de mesmo nome. */
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        public boolean nomeLidoDoConteudo() {
+            return origemDoNome == ResultadoInterpretacao.OrigemDoNome.CONTEUDO;
+        }
+
+        /**
+         * O nome ainda é o substituto (nome do arquivo, título do texto, "Aluno N"): nem lido do documento nem escrito
+         * pelo treinador. Criar aluno com ele fica travado ({@code NOME_DO_ALUNO_PENDENTE}).
+         */
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        public boolean nomeSubstituto() {
+            return origemDoNome != ResultadoInterpretacao.OrigemDoNome.CONTEUDO
+                    && origemDoNome != ResultadoInterpretacao.OrigemDoNome.DIGITADO;
+        }
+
+        public GrupoImportavel comOrigemDoNome(ResultadoInterpretacao.OrigemDoNome nova) {
+            return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
+                    cadastro, pesos, treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos,
+                    possivelMesmoAluno, possiveisParceiros, nova);
         }
 
         @Override
@@ -187,26 +229,44 @@ public final class ImportacaoAssistidaDtos {
             return "GrupoImportavel[id=" + id + ", destino=" + destino + ", estado=" + estado + "]";
         }
 
-        public GrupoImportavel comDestino(String novoDestino, UUID novoAluno, String novoNome) {
-            CadastroImportavel cad = cadastro == null ? null : new CadastroImportavel(novoNome, cadastro.email(),
-                    cadastro.telefone(), cadastro.objetivo(), cadastro.observacoes(), cadastro.ativo());
+        public GrupoImportavel comDestino(String novoDestino, UUID novoAluno, String novoNome, String novoEmail,
+                                          String novoTelefone) {
+            CadastroImportavel cad = cadastro == null
+                    ? new CadastroImportavel(novoNome, novoEmail, novoTelefone, null, null, true)
+                    : new CadastroImportavel(novoNome, novoEmail, novoTelefone, cadastro.objetivo(),
+                            cadastro.observacoes(), cadastro.ativo());
             return new GrupoImportavel(id, identificadorOrigem, novoNome, novoDestino, novoAluno, arquivosOrigem, cad,
-                    pesos, treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos);
+                    pesos, treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos, origemDoNome);
+        }
+
+        public GrupoImportavel comEstado(String novoEstado) {
+            return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
+                    cadastro, pesos, treino, dieta, pendenciasIds, novoEstado, erroCodigo, candidatos, ocorrencias, avisos,
+                    origemDoNome);
+        }
+
+        public GrupoImportavel comParceiros(List<ParceiroDeGrupo> parceiros) {
+            return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
+                    cadastro, pesos, treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos,
+                    !parceiros.isEmpty(), parceiros, origemDoNome);
         }
 
         public GrupoImportavel comErro(String codigo) {
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
-                    cadastro, pesos, treino, dieta, pendenciasIds, "ERRO", codigo, candidatos, ocorrencias, avisos);
+                    cadastro, pesos, treino, dieta, pendenciasIds, "ERRO", codigo, candidatos, ocorrencias, avisos,
+                    origemDoNome);
         }
 
         public GrupoImportavel comCandidatos(List<CandidatoAluno> novos) {
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
-                    cadastro, pesos, treino, dieta, pendenciasIds, estado, erroCodigo, novos, ocorrencias, avisos);
+                    cadastro, pesos, treino, dieta, pendenciasIds, estado, erroCodigo, novos, ocorrencias, avisos,
+                    origemDoNome);
         }
 
         public GrupoImportavel comTreinoEDieta(ConteudoTreino novoTreino, ConteudoDieta novaDieta) {
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
-                    cadastro, pesos, novoTreino, novaDieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos);
+                    cadastro, pesos, novoTreino, novaDieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos,
+                    origemDoNome);
         }
 
         /**
@@ -215,12 +275,12 @@ public final class ImportacaoAssistidaDtos {
          */
         public GrupoImportavel limpo(String novoEstado, String novoDestino) {
             return new GrupoImportavel(id, "", "Importado", novoDestino, null, List.of(), null, List.of(), null, null,
-                    List.of(), novoEstado, null, List.of(), Map.of());
+                    List.of(), novoEstado, null, List.of(), Map.of(), List.of(), null);
         }
 
         /**
          * Sem objetivo, observações e peso (dado sensível sem {@code ALUNO_SENSIVEL_LER}), treino e dieta sem as permissões
-         * de ler; a medicação e os ergogênicos da dieta só com {@code ERGOGENICO_LER}.
+         * de ler; a medicação e os ergogênicos da dieta só com {@code ERGOGENICO_LER}. A origem do nome sai sempre.
          */
         public GrupoImportavel paraLeitura(boolean sensivel, boolean treinoLer, boolean dietaLer, boolean ergogenicoLer) {
             CadastroImportavel cad = cadastro == null || sensivel ? cadastro : new CadastroImportavel(cadastro.nome(),
@@ -229,7 +289,16 @@ public final class ImportacaoAssistidaDtos {
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
                     cad, sensivel ? pesos : List.of(), treinoLer ? treino : null, dietaVisivel,
                     pendenciasIds, estado, erroCodigo, candidatos,
-                    (treinoLer && dietaLer) ? ocorrencias : Map.of(), (treinoLer && dietaLer) ? avisos : List.of());
+                    (treinoLer && dietaLer) ? ocorrencias : Map.of(), (treinoLer && dietaLer) ? avisos : List.of(),
+                    possivelMesmoAluno, possiveisParceiros, origemDoNome);
+        }
+    }
+
+    /** Outro grupo da sessão que pode ser o mesmo aluno (o nome é o detectado, já visível na sessão). */
+    public record ParceiroDeGrupo(String grupoId, String nome) {
+        @Override
+        public String toString() {
+            return "ParceiroDeGrupo[grupoId=" + grupoId + "]";
         }
     }
 
@@ -294,7 +363,30 @@ public final class ImportacaoAssistidaDtos {
     public record ConfirmacaoResultado(UUID id, String situacao, int gruposImportados, int alunosCriados,
                                        int alunosVinculados, int treinosCriados, int dietasCriadas,
                                        int modelosCriados, int gruposComErro, int pesosGravados,
-                                       int pesosIgnorados) {
+                                       int pesosIgnorados, List<AlunoGravado> alunos) {
+        public ConfirmacaoResultado {
+            alunos = alunos == null ? List.of() : List.copyOf(alunos);
+        }
+
+        public ConfirmacaoResultado comAlunos(List<AlunoGravado> novos) {
+            return new ConfirmacaoResultado(id, situacao, gruposImportados, alunosCriados, alunosVinculados,
+                    treinosCriados, dietasCriadas, modelosCriados, gruposComErro, pesosGravados, pesosIgnorados, novos);
+        }
+    }
+
+    /**
+     * Aluno criado ({@code criado}) ou vinculado na confirmação, com a pasta e os rascunhos criados (nulos se não houve).
+     * Só sai com {@code ALUNO_LER}; o {@code nome} nunca é guardado na sessão (só os ids, para a repetição idempotente).
+     */
+    public record AlunoGravado(UUID alunoId, String nome, boolean criado, UUID pastaId, UUID treinoId, UUID dietaId) {
+        public AlunoGravado comNome(String novoNome) {
+            return new AlunoGravado(alunoId, novoNome, criado, pastaId, treinoId, dietaId);
+        }
+
+        @Override
+        public String toString() {
+            return "AlunoGravado[alunoId=" + alunoId + ", criado=" + criado + "]";
+        }
     }
 
     public record ApelidoDto(UUID id, String tipo, String termoOriginal, String valorMapeado,

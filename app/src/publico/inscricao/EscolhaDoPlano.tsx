@@ -19,7 +19,7 @@ interface Opcao { valor: string; titulo: string; periodo: string | null; preco: 
  * Ficha rápida, obrigatório na página completa) e, quando a pessoa toca o cartão, leva o foco até ele (as setas não: o foco
  * fica no grupo, como manda a APG). Cartões na largura da coluna, 44 px de altura mínima; o escolhido ganha borda e ✓ na cor da
  * marca da consultoria (peça a 3:1, `marcaParaPeca`; pedido do Gustavo para as páginas públicas) e fundo neutro `sobre`.
- * Teclado: o `radiogroup` da APG, como `EscolhaDoQueImportar` (um cartão no Tab, setas movem foco e escolha).
+ * Teclado: o `radiogroup` da APG (um cartão no Tab, setas movem foco e escolha).
  */
 export function EscolhaDoPlano({ rotulo, planos, mostrarPreco, valor, aoMudar, cor, outro, refDoOutro, erro, ref }: {
   rotulo: string;

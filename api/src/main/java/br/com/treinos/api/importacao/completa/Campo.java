@@ -6,7 +6,10 @@ import java.util.List;
  * Campo que uma coluna da planilha pode guardar, com os nomes de coluna que o reconhecem (sem acento, sem caixa e sem
  * pontuação: "Peso (kg)" = "peso kg"). Vale o sinônimo mais longo contido no nome da coluna; empate, a ordem desta lista
  * (os mais específicos primeiro). Colunas de código ("ID", "ID Aluno", "Código do plano") têm regra própria em
- * {@link ReconhecimentoDeAbas}.
+ * {@link ReconhecimentoDeAbas}. É o dicionário único de sinônimos de coluna: a importação por destino
+ * ({@code SugestaoDeColunas}) lê daqui os conceitos que as duas têm e só guarda à parte o que é próprio do destino.
+ * Sinônimo novo aqui também muda o reconhecimento das abas e o nome de coluna que o diagnóstico mostra
+ * ({@code DiagnosticoDoArquivo.igualAUmSinonimo}): nada que possa ser valor de célula de pessoa.
  */
 public enum Campo {
     CODIGO("id", "codigo", "cod"),
@@ -45,7 +48,7 @@ public enum Campo {
     DOSE("dose", "dosagem", "posologia"),
     HORARIO("horario", "hora", "momento", "quando"),
     EMAIL("email", "e mail", "mail"),
-    TELEFONE("telefone", "tel", "celular", "whats", "whatsapp", "whats app", "fone", "zap", "contato"),
+    TELEFONE("telefone", "telefone 1 com ddd", "telefone 1", "tel", "celular", "whats", "whatsapp", "whats app", "fone", "zap", "contato"),
     OBJETIVO("objetivo", "objetivos", "meta"),
     STATUS("status", "situacao"),
     ATIVO("ativo", "ativa", "vigente"),
@@ -64,8 +67,8 @@ public enum Campo {
         this.sinonimos = java.util.Arrays.stream(sinonimos).map(Normalizacao::palavras).toList();
     }
 
-    /** Os sinônimos já em palavras normalizadas. */
-    List<List<String>> sinonimos() {
+    /** Os sinônimos já em palavras normalizadas; a {@code SugestaoDeColunas} usa os mesmos para o campo do destino. */
+    public List<List<String>> sinonimos() {
         return sinonimos;
     }
 }

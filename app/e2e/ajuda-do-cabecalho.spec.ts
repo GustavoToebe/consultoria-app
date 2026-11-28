@@ -206,6 +206,7 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/equipe', titulo: 'Equipe', secao: 'consultoria' },
   { caminho: '/treinador/importacao', titulo: 'Importação', secao: 'importacao' },
   { caminho: '/treinador/importacao/assistida', titulo: 'Importação assistida', secao: 'importacao' },
+  { caminho: '/treinador/importacao/dicionario', titulo: 'Dicionário da importação', secao: 'importacao' },
   { caminho: '/treinador/auditoria', titulo: 'Auditoria', secao: 'consultoria' },
   // Itens abertos dentro de Configurações (26/11): o mesmo ⓘ e o mesmo "Saiba mais" da tela inteira (no celular, vão a ela).
   { caminho: '/treinador/configuracoes/marca', titulo: 'Marca', secao: 'consultoria' },

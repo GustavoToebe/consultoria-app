@@ -98,6 +98,8 @@ interface ValorSessao {
   regrasAtencaoHabilitada: boolean;
   /** Cardio intervalado novo liberado? Desligado ou desconhecido, o editor de cardio só oferece o contínuo (D16). */
   cardioIntervaladoHabilitado: boolean;
+  /** Importação assistida aceita JPG/PNG (4.2)? Desligado ou desconhecido, o envio só aceita PDF, DOCX, XLSX, CSV e texto. */
+  importacaoPorImagemHabilitada: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos; nulo = sem "Falar com o treinador". */
   whatsappDaConsultoria: string | null;
   /** Só do aluno: links das redes preenchidas da consultoria; nulo = nenhuma (a fileira não aparece). */
@@ -502,6 +504,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       contratosHabilitados:perfil?.contratosHabilitados===true,
       regrasAtencaoHabilitada:perfil?.regrasAtencaoHabilitada===true,
       cardioIntervaladoHabilitado:perfil?.cardioIntervaladoHabilitado===true,
+      importacaoPorImagemHabilitada:perfil?.importacaoPorImagemHabilitada===true,
       whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
       redesSociaisDaConsultoria:perfil?.redesSociaisDaConsultoria??null,
       acessoPausado:perfil?.acessoPausado===true,

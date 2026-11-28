@@ -13,6 +13,8 @@ import br.com.treinos.api.biblioteca.Exercicio;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.conta.PlanoDaConsultoria;
+import br.com.treinos.api.conta.PlanoException;
+import br.com.treinos.api.conta.RecursosDoApp;
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.dieta.PlanoDieta;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
@@ -53,8 +55,12 @@ import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import br.com.treinos.api.web.VideoUrls;
+import jakarta.persistence.EntityManager;
+import org.hibernate.Session;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
@@ -89,6 +95,8 @@ public class GravacaoDaPlanilha {
     public static final String DESTINO = "planilha-completa";
     private static final int ERROS_GUARDADOS = 1000;
     private static final int TITULO = 120;
+    /** Linhas por lote de INSERT na confirmação, o mesmo da importação de uma aba. */
+    private static final int LOTE = 500;
 
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
@@ -109,6 +117,9 @@ public class GravacaoDaPlanilha {
     private final JsonMapper json;
     private final GuardaDasRespostas guarda;
     private final LinhasDaImportacao linhas;
+    private final EntityManager entityManager;
+    private final TransactionTemplate leituraDaConsultoria;
+    private final TransactionTemplate gravacao;
 
     public GravacaoDaPlanilha(ExercicioRepository exercicios, AlimentoRepository alimentos,
                               ErgogenicoRepository ergogenicos, AlunoRepository alunos,
@@ -116,9 +127,14 @@ public class GravacaoDaPlanilha {
                               PlanoDietaRepository dietas, ImportacaoRepository importacoes, ReceitaService receitas,
                               PlanoDaConsultoria plano, ConsultoriaRepository consultorias, Auditoria auditoria,
                               VideoUrls videos, ValidadorTreino validador, JsonMapper json, GuardaDasRespostas guarda,
-                              LimiteDoTreinador limiteDoTreinador, LinhasDaImportacao linhas) {
+                              LimiteDoTreinador limiteDoTreinador, LinhasDaImportacao linhas, EntityManager entityManager,
+                              PlatformTransactionManager transacoes) {
         this.limiteDoTreinador = limiteDoTreinador;
         this.linhas = linhas;
+        this.entityManager = entityManager;
+        this.leituraDaConsultoria = new TransactionTemplate(transacoes);
+        this.leituraDaConsultoria.setReadOnly(true);
+        this.gravacao = new TransactionTemplate(transacoes);
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.ergogenicos = ergogenicos;
@@ -138,11 +154,12 @@ public class GravacaoDaPlanilha {
         this.guarda = guarda;
     }
 
-    @Transactional(readOnly = true)
+    /** A planilha é lida e montada fora de transação; só a leitura da consultoria ({@link #contexto}) abre uma, curta. */
     public Previa previa(UUID importador, String nomeDoArquivo, byte[] bytes, String respostasJson) {
         RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
         LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler(nomeDoArquivo, bytes);
-        Montagem m = MontagemDaImportacao.montar(leitura, respostas, contexto(importador));
+        Contexto contexto = leituraDaConsultoria.execute(s -> contexto(importador));
+        Montagem m = MontagemDaImportacao.montar(leitura, respostas, contexto);
         List<Problema> problemas = m.problemas();
         int mostrados = Math.min(AnaliseDaPlanilha.PROBLEMAS_NA_RESPOSTA, problemas.size());
         return new Previa(RespostasDaPlanilha.hash(bytes, respostas, json), criacao(m), m.partesPuladas(), m.pendencias(),
@@ -151,12 +168,12 @@ public class GravacaoDaPlanilha {
     }
 
     /** Migração assistida, fase 2: o que a confirmação gravaria para alguns alunos. Só lê, como a prévia; devolve o mesmo {@code hash}. */
-    @Transactional(readOnly = true)
     public AmostraDaPlanilha.Amostra amostra(UUID importador, String nomeDoArquivo, byte[] bytes, String respostasJson,
                                              int inicio) {
         RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
-        Contexto contexto = contexto(importador);
-        Montagem m = MontagemDaImportacao.montar(LeituraDasAbas.ler(nomeDoArquivo, bytes), respostas, contexto);
+        LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler(nomeDoArquivo, bytes);
+        Contexto contexto = leituraDaConsultoria.execute(s -> contexto(importador));
+        Montagem m = MontagemDaImportacao.montar(leitura, respostas, contexto);
         return AmostraDaPlanilha.de(m, RespostasDaPlanilha.hash(bytes, respostas, json), inicio, contexto.alunos());
     }
 
@@ -166,16 +183,21 @@ public class GravacaoDaPlanilha {
      * confirmação; e fora do {@code hash} de propósito: marcar ou desmarcar um aluno não invalida a prévia. Chave que não
      * está mais na planilha é 422 {@code ALUNO_IGNORADO_INVALIDO}.
      */
-    @Transactional
     public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
                                  String hash, Set<String> chavesIgnoradas) {
         RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
+        // Todas as abas lidas antes de abrir a transação: a leitura do arquivo não segura conexão nem a trava da consultoria.
         LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler(nomeDoArquivo, bytes);
         String calculado = RespostasDaPlanilha.hash(bytes, respostas, json);
         if (hash == null || !MessageDigest.isEqual(calculado.getBytes(StandardCharsets.UTF_8),
                 hash.getBytes(StandardCharsets.UTF_8))) {
             throw new ConflictException("Algo mudou desde a prévia. Gere a prévia de novo.", "PREVIA_DESATUALIZADA");
         }
+        return gravacao.execute(s -> gravar(eu, nomeDoArquivo, bytes, respostas, leitura, calculado, chavesIgnoradas));
+    }
+
+    private Confirmacao gravar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, RespostasDaPlanilha respostas,
+                               LeituraDasAbas.Leitura leitura, String calculado, Set<String> chavesIgnoradas) {
         // Antes de ler alunos e contar vagas: duas confirmações na mesma consultoria não correm por e-mail ou vaga.
         Exigir.existe(consultorias.travar(TenantContext.get()), () -> new NaoEncontradoException("Importação não encontrada."));
         // Depois da trava: duas confirmações simultâneas se enfileiram, e a segunda já enxerga a primeira.
@@ -192,56 +214,81 @@ public class GravacaoDaPlanilha {
                 json.writeValueAsString(configuracao(respostas, antes, criacao, calculado)), json.writeValueAsString(erros(antes))));
         UUID id = importacao.getId();
 
-        // Os exercícios primeiro; a montagem roda de novo para os treinos ligarem aos ids novos.
-        for (ExercicioNovo e : antes.exerciciosNovos()) {
-            Exercicio criado = new Exercicio(e.nome(), e.grupo(), null, Exercicio.Modalidade.MAQUINA, e.videoUrl(), null,
-                    Exercicio.Origem.IMPORTACAO);
-            criado.marcarImportacao(id);
-            exercicios.saveAndFlush(criado);
-        }
-        Montagem m = antes.exerciciosNovos().isEmpty() ? antes
-                : MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId())).semDonos(ignorados);
+        // Tudo sai em lotes de LOTE (ids UUID do Java) e um flush só no fim, como a importação de uma aba: cada tipo é
+        // salvo de uma vez, sem intercalar, para o lote não quebrar a cada troca de tabela.
+        Session sessao = entityManager.unwrap(Session.class);
+        sessao.setJdbcBatchSize(LOTE);
+        Montagem m;
+        try {
+            // Os exercícios primeiro, num lote; a montagem roda de novo para os treinos ligarem aos ids novos.
+            for (ExercicioNovo e : antes.exerciciosNovos()) {
+                Exercicio criado = new Exercicio(e.nome(), e.grupo(), null, Exercicio.Modalidade.MAQUINA, e.videoUrl(), null,
+                        Exercicio.Origem.IMPORTACAO);
+                criado.marcarImportacao(id);
+                exercicios.save(criado);
+            }
+            if (!antes.exerciciosNovos().isEmpty()) {
+                descarregar();
+            }
+            m = antes.exerciciosNovos().isEmpty() ? antes
+                    : MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId())).semDonos(ignorados);
 
-        Map<Dono, UUID> novos = new HashMap<>();
-        for (AlunoNovo a : m.alunosNovos()) {
-            Aluno aluno = new Aluno(a.nome(), a.email(), a.objetivo(), a.observacoes(), null);
-            aluno.alterarSituacao(a.ativo(), Instant.now());
-            aluno.alterarResponsavel(eu.usuarioId());
-            aluno.guardarTelefoneSemAcesso(a.telefone()); // sem acesso: o telefone fica no cadastro (V048)
-            aluno.marcarImportacao(id);
-            if (a.ativo()) {
-                // Não captura: a 409 LIMITE_DO_PLANO desfaz a confirmação inteira (a prévia já conta as vagas).
-                plano.exigirVagaDeAluno();
-                // Rede de segurança como a do plano (a montagem já contou): o importador é o responsável de todo aluno novo.
-                limiteDoTreinador.exigirVaga(eu.usuarioId(), 1, null);
+            // Uma conferência para todos, antes de salvar (consulta no meio das linhas descarregaria o lote a cada aluno).
+            // Rede de segurança: a montagem já reservou as vagas sob a mesma trava da consultoria. Não captura: a 409
+            // LIMITE_DO_PLANO ou LIMITE_DO_TREINADOR desfaz a confirmação inteira.
+            long ativos = m.alunosNovos().stream().filter(AlunoNovo::ativo).count();
+            if (ativos > 0) {
+                Long vagas = plano.vagasDeAluno();
+                if (vagas != null && ativos > vagas) {
+                    throw PlanoException.limite(RecursosDoApp.LIMITE_ALUNOS_ATIVOS,
+                            "Seu plano não tem vaga para todos os alunos ativos desta planilha.");
+                }
+                // O importador é o responsável de todo aluno novo.
+                limiteDoTreinador.exigirVaga(eu.usuarioId(), ativos, null);
             }
-            alunos.saveAndFlush(aluno);
-            novos.put(a.dono(), aluno.getId());
-        }
-        for (PesoNovo p : m.pesos()) {
-            RegistroPeso peso = new RegistroPeso(alunoDe(p.dono(), novos), p.data(), p.kg(), p.observacao(), eu.usuarioId());
-            peso.marcarImportacao(id);
-            pesos.saveAndFlush(peso);
-        }
-        for (PlanosDoAluno p : m.planos()) {
-            UUID alunoId = alunoDe(p.dono(), novos);
-            PastaPlano pasta = new PastaPlano(alunoId, MontagemDaImportacao.TITULO_PASTA, null, null);
-            pasta.marcarImportacao(id);
-            pastas.saveAndFlush(pasta);
-            if (p.treino() != null) {
-                PlanoTreino t = new PlanoTreino(alunoId, titulo("Treino de ", p.nome()), null, null,
-                        json.writeValueAsString(p.treino()));
-                t.definirPasta(pasta.getId());
-                t.marcarImportacao(id);
-                treinos.saveAndFlush(t);
+
+            Map<Dono, UUID> novos = new HashMap<>();
+            for (AlunoNovo a : m.alunosNovos()) {
+                Aluno aluno = new Aluno(a.nome(), a.email(), a.objetivo(), a.observacoes(), null);
+                aluno.alterarSituacao(a.ativo(), Instant.now());
+                aluno.alterarResponsavel(eu.usuarioId());
+                aluno.guardarTelefoneSemAcesso(a.telefone()); // sem acesso: o telefone fica no cadastro (V048)
+                aluno.marcarImportacao(id);
+                alunos.save(aluno);
+                novos.put(a.dono(), aluno.getId());
             }
-            if (p.dieta() != null) {
-                PlanoDieta d = new PlanoDieta(alunoId, titulo("Dieta de ", p.nome()), null, null,
-                        json.writeValueAsString(p.dieta()));
-                d.definirPasta(pasta.getId());
-                d.marcarImportacao(id);
-                dietas.saveAndFlush(d);
+            for (PesoNovo p : m.pesos()) {
+                RegistroPeso peso = new RegistroPeso(alunoDe(p.dono(), novos), p.data(), p.kg(), p.observacao(), eu.usuarioId());
+                peso.marcarImportacao(id);
+                pesos.save(peso);
             }
+            List<PlanoTreino> treinosNovos = new ArrayList<>();
+            List<PlanoDieta> dietasNovas = new ArrayList<>();
+            for (PlanosDoAluno p : m.planos()) {
+                UUID alunoId = alunoDe(p.dono(), novos);
+                PastaPlano pasta = new PastaPlano(alunoId, MontagemDaImportacao.TITULO_PASTA, null, null);
+                pasta.marcarImportacao(id);
+                pastas.save(pasta);
+                if (p.treino() != null) {
+                    PlanoTreino t = new PlanoTreino(alunoId, titulo("Treino de ", p.nome()), null, null,
+                            json.writeValueAsString(p.treino()));
+                    t.definirPasta(pasta.getId());
+                    t.marcarImportacao(id);
+                    treinosNovos.add(t);
+                }
+                if (p.dieta() != null) {
+                    PlanoDieta d = new PlanoDieta(alunoId, titulo("Dieta de ", p.nome()), null, null,
+                            json.writeValueAsString(p.dieta()));
+                    d.definirPasta(pasta.getId());
+                    d.marcarImportacao(id);
+                    dietasNovas.add(d);
+                }
+            }
+            treinos.saveAll(treinosNovos);
+            dietas.saveAll(dietasNovas);
+            descarregar();
+        } finally {
+            sessao.setJdbcBatchSize(null);
         }
         // As respostas ficam guardadas na consultoria e voltam marcadas na próxima análise (as de suplemento, só com a
         // dieta, como na análise). Na mesma transação: se a confirmação desfaz, elas também.
@@ -310,8 +357,8 @@ public class GravacaoDaPlanilha {
                 .filter(a -> a.getTipo() == Alimento.Tipo.SUPLEMENTO).map(Alimento::getNome).toList();
         List<String> nomesDeErgogenicos = ergogenicos.findAll().stream().map(Ergogenico::getNome).toList();
         Map<UUID, Set<LocalDate>> datas = new HashMap<>();
-        for (RegistroPeso p : pesos.findAll()) {
-            datas.computeIfAbsent(p.getAlunoId(), k -> new HashSet<>()).add(p.getData());
+        for (Object[] p : linhas.datasDosPesos()) {
+            datas.computeIfAbsent((UUID) p[0], k -> new HashSet<>()).add((LocalDate) p[1]);
         }
         List<AlunoExistente> existentes = alunos.findAll().stream()
                 .map(a -> new AlunoExistente(a.getId(), a.getNome(), a.getEmail(), a.isAnonimizado(),
@@ -324,6 +371,19 @@ public class GravacaoDaPlanilha {
         return new Contexto(daBiblioteca, alimentosDaBiblioteca, nomesDeSuplementos, nomesDeErgogenicos, existentes,
                 receitas.metodologiaPadrao().orElse(null), plano.vagasDeAluno(), limiteDoTreinador.vagas(importador, null), permissoes, LocalDate.now(Fuso.BRASILIA),
                 videos::valida);
+    }
+
+    /**
+     * Grava o que ficou pendente (em lotes). Violação de restrição aqui só vem de gravação que correu por fora da trava da
+     * consultoria: 409 em vez de 500, e a confirmação inteira recua, como na importação de uma aba.
+     */
+    private void descarregar() {
+        try {
+            alunos.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("Os dados mudaram durante a importação. Gere a prévia de novo.",
+                    "CONFLITO_NA_IMPORTACAO");
+        }
     }
 
     private static UUID alunoDe(Dono dono, Map<Dono, UUID> novos) {

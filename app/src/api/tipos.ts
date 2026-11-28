@@ -88,6 +88,8 @@ export interface EuResponse {
   regrasAtencaoHabilitada?: boolean;
   /** Cardio intervalado novo liberado (`TREINOS_CARDIO_INTERVALADO_HABILITADO`, D16); falso ou ausente = o editor só oferece o contínuo. */
   cardioIntervaladoHabilitado?: boolean;
+  /** Importação assistida aceita JPG/PNG e manda o PDF sem texto inteiro ao provedor de IA (4.2); falso ou ausente = só PDF, DOCX, XLSX, CSV e texto. */
+  importacaoPorImagemHabilitada?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
   /** Só do aluno: links das redes da consultoria que estão preenchidas (a API só manda as preenchidas); ausente = nenhuma. */

@@ -23,8 +23,18 @@ public interface ImportacaoSessaoRepository extends JpaRepository<ImportacaoSess
     @Query("select s from ImportacaoSessao s where s.id = :id and s.consultoriaId = :consultoriaId")
     Optional<ImportacaoSessao> buscarParaAlterar(UUID id, UUID consultoriaId);
 
-    /** Sessões ainda vigentes de quem as abriu (teto de sessões abertas por usuário). */
-    long countByCriadoPorAndExpiraEmAfter(UUID criadoPor, Instant agora);
+    /**
+     * Sessões abertas de quem as abriu (teto por usuário): nem concluídas nem canceladas (as duas ficam {@code CONCLUIDA}
+     * na coluna) e ainda não vencidas.
+     */
+    long countByCriadoPorAndEstadoNotAndExpiraEmAfter(UUID criadoPor, String estado, Instant agora);
+
+    /**
+     * Na subida da API: as que ficaram {@code PROCESSANDO} (a leitura morava só na memória da instância anterior). Trava
+     * as linhas como {@link #buscarParaAlterar}: soltar não corre com a conclusão de uma leitura que ainda grava.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<ImportacaoSessao> findByConsultoriaIdAndEstado(UUID consultoriaId, String estado);
 
     /** Retenção: apaga as vencidas; os arquivos saem pela FK {@code ON DELETE CASCADE} (V066). Devolve quantas. */
     @Modifying

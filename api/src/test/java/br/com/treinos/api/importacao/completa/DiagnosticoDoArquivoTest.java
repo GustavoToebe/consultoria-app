@@ -117,6 +117,19 @@ class DiagnosticoDoArquivoTest {
     }
 
     @Test
+    void situacaoDesconhecidaGastaVagaComoNaMontagem() {
+        // D7: "Sim", "Pago" e "Em dia" entram ativos e gastam vaga; só a palavra de inativo conhecida não gasta.
+        Leitura alunos = umaAba("Alunos", List.of(linha("Nome", "Status"),
+                linha("Aluno Teste 1", "Sim"), linha("Aluno Teste 2", "Pago"), linha("Aluno Teste 3", "Em dia"),
+                linha("Aluno Teste 4", "Ativa"), linha("Aluno Teste 5", null), linha("Aluno Teste 6", "Inativo"),
+                linha("Aluno Teste 7", "Cancelada")));
+
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(alunos, new Vagas(0L, null));
+
+        assertThat(quantidade(d.problemas(), "ACIMA_DO_LIMITE_DO_PLANO")).isEqualTo(5);
+    }
+
+    @Test
     void semCabecalhoNenhumaPrimeiraLinhaDeDadosViraNomeDeColuna() {
         String sentinela = "Sentinela-Unica-Zq7";
         Diagnostico d = DiagnosticoDoArquivo.diagnosticar(umaAba("Planilha", List.of(

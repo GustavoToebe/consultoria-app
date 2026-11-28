@@ -35,7 +35,7 @@ class RoteadorInterpretadorIaTest {
     private static ContextoIa contexto() {
         String texto = "Aluno: " + SENTINELA + "\nPeso: 80 kg\n";
         return new ContextoIa("arquivo-secreto.pdf", "PDF", List.of(new BlocoTexto("Geral", texto, "arquivo-secreto.pdf", 1)),
-                "Aluno: [NOME]\n", "CADASTROS_E_PLANOS_ATUAIS", List.of(), Map.of());
+                "Aluno: [NOME]\n", List.of(), Map.of());
     }
 
     private ConfiguracaoIaImportacao config(String provedor, boolean enviar) {
@@ -102,7 +102,7 @@ class RoteadorInterpretadorIaTest {
         ContextoIa c = contexto();
         assertThat(DecodificadorDaProposta.textoParaEnvio(c)).isEqualTo("Aluno: [NOME]\n").doesNotContain("Sentinela");
 
-        ContextoIa semTexto = new ContextoIa("a.pdf", "PDF", List.of(), " ", null, List.of(), Map.of());
+        ContextoIa semTexto = new ContextoIa("a.pdf", "PDF", List.of(), " ", List.of(), Map.of());
         assertThatThrownBy(() -> DecodificadorDaProposta.textoParaEnvio(semTexto)).isInstanceOf(IllegalStateException.class);
     }
 
@@ -244,11 +244,11 @@ class RoteadorInterpretadorIaTest {
 
     @Test
     void contextoDeSeteArgumentosTemBibliotecasVaziasENuncaNulas() {
-        ContextoIa c = new ContextoIa("a.pdf", "PDF", List.of(), "Sentinela Qwz", null, List.of(), Map.of());
+        ContextoIa c = new ContextoIa("a.pdf", "PDF", List.of(), "Sentinela Qwz", List.of(), Map.of());
         assertThat(c.exerciciosDaBiblioteca()).isEmpty();
         assertThat(c.alimentosDaBiblioteca()).isEmpty();
 
-        ContextoIa comNulos = new ContextoIa("a.pdf", "PDF", List.of(), "Sentinela Qwz", null, List.of(), Map.of(), null, null);
+        ContextoIa comNulos = new ContextoIa("a.pdf", "PDF", List.of(), "Sentinela Qwz", List.of(), Map.of(), null, null);
         assertThat(comNulos.exerciciosDaBiblioteca()).isEmpty();
 
         ContextoIa com = c.comBiblioteca(List.of("Supino reto"), List.of("Arroz"));
@@ -283,7 +283,7 @@ class RoteadorInterpretadorIaTest {
     void promptsTrazemABibliotecaCortadaEAMetodologia() {
         List<String> muitos = java.util.stream.IntStream.range(0, 1600).mapToObj(i -> "Exercicio " + i).toList();
         ContextoIa c = contexto().comBiblioteca(muitos, List.of("Arroz"));
-        c = new ContextoIa(c.nomeArquivo(), c.formato(), c.blocos(), c.textoParaProvedor(), c.objetivo(),
+        c = new ContextoIa(c.nomeArquivo(), c.formato(), c.blocos(), c.textoParaProvedor(),
                 List.of("WORKING = WS (TRABALHO)"), c.apelidosConhecidos(), c.exerciciosDaBiblioteca(),
                 c.alimentosDaBiblioteca());
 
@@ -362,8 +362,46 @@ class RoteadorInterpretadorIaTest {
     }
 
     @Test
-    void cortePorArquivoCobreUmaChamadaInteiraDoClaude() {
-        assertThat(RoteadorInterpretadorIa.TEMPO_MAXIMO_POR_ARQUIVO)
-                .isGreaterThan(InterpretadorClaude.TIMEOUT_HTTP.multipliedBy(2));
+    void oOrcamentoDoArquivoCabeUmaChamadaInteiraDoClaude() {
+        assertThat(RoteadorInterpretadorIa.ORCAMENTO_POR_ARQUIVO).isGreaterThan(InterpretadorClaude.TIMEOUT_HTTP);
+    }
+
+    private static ResultadoInterpretacao.PropostaGrupo semNome(ResultadoInterpretacao.OrigemDoNome origem) {
+        return new ResultadoInterpretacao.PropostaGrupo("Joao Ficticio.pdf", null, null, null, null, null, List.of(),
+                null, null, List.of(), origem);
+    }
+
+    @Test
+    void juntarPorNomeNuncaJuntaGrupoSemNomeLidoEGuardaAOrigem() {
+        for (var origem : List.of(ResultadoInterpretacao.OrigemDoNome.NOME_DO_ARQUIVO,
+                ResultadoInterpretacao.OrigemDoNome.TITULO_DO_TEXTO, ResultadoInterpretacao.OrigemDoNome.AUSENTE)) {
+            List<ResultadoInterpretacao.PropostaGrupo> juntos = RoteadorInterpretadorIa.juntarPorNome(
+                    List.of(semNome(origem), semNome(origem)), 2);
+
+            assertThat(juntos).hasSize(2).allSatisfy(g -> {
+                assertThat(g.origemDoNome()).isEqualTo(origem);
+                assertThat(g.nomeAluno()).isNull();
+                assertThat(g.avisos()).contains("Documento grande: lido em 2 partes.");
+            });
+        }
+    }
+
+    @Test
+    void juntarPorNomeJuntaONomeLidoNosDoisSemAcentoNemCaixa() {
+        var a = new ResultadoInterpretacao.PropostaGrupo("a.pdf", "João Fictício", null, null, null, null, List.of(),
+                null, null);
+        var b = new ResultadoInterpretacao.PropostaGrupo("a.pdf", "JOAO FICTICIO", "joao@example.com", null, null, null,
+                List.of(), null, null);
+
+        List<ResultadoInterpretacao.PropostaGrupo> juntos = RoteadorInterpretadorIa.juntarPorNome(
+                List.of(a, semNome(ResultadoInterpretacao.OrigemDoNome.NOME_DO_ARQUIVO), b), 3);
+
+        assertThat(juntos).hasSize(2);
+        assertThat(juntos.getFirst()).satisfies(g -> {
+            assertThat(g.origemDoNome()).isEqualTo(ResultadoInterpretacao.OrigemDoNome.CONTEUDO);
+            assertThat(g.nomeAluno()).isEqualTo("João Fictício");
+            assertThat(g.email()).isEqualTo("joao@example.com");
+        });
+        assertThat(juntos.get(1).origemDoNome()).isEqualTo(ResultadoInterpretacao.OrigemDoNome.NOME_DO_ARQUIVO);
     }
 }

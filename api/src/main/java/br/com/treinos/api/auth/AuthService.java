@@ -70,6 +70,7 @@ public class AuthService {
     private final br.com.treinos.api.contratos.TravaPorContrato travaPorContrato;
     private final br.com.treinos.api.atencao.RegrasAtencaoProperties regrasAtencao;
     private final br.com.treinos.api.treino.CardioProperties cardio;
+    private final br.com.treinos.api.importacao.assistida.ia.ConfiguracaoIaImportacao ia;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -93,7 +94,9 @@ public class AuthService {
                        br.com.treinos.api.contratos.ContratosProperties contratos,
                        br.com.treinos.api.contratos.TravaPorContrato travaPorContrato,
                        br.com.treinos.api.atencao.RegrasAtencaoProperties regrasAtencao,
-                       br.com.treinos.api.treino.CardioProperties cardio) {
+                       br.com.treinos.api.treino.CardioProperties cardio,
+                       br.com.treinos.api.importacao.assistida.ia.ConfiguracaoIaImportacao ia) {
+        this.ia = ia;
         this.regrasAtencao = regrasAtencao;
         this.cardio = cardio;
         this.travaPorContrato = travaPorContrato;
@@ -223,7 +226,7 @@ public class AuthService {
                 pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
                 ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado(),
                 vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(), whatsapp.habilitado(),
-                contratos.habilitado(), regrasAtencao.habilitado(), cardio.intervaladoHabilitado(),
+                contratos.habilitado(), regrasAtencao.habilitado(), cardio.intervaladoHabilitado(), ia.arquivoVaiAoProvedor(),
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())
                         .map(br.com.treinos.api.consultoria.Consultoria::whatsappParaLink).orElse(null) : null,
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())

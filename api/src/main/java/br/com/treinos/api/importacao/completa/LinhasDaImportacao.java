@@ -7,16 +7,21 @@ import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.importacao.Importacao;
 import br.com.treinos.api.pastas.PastaPlano;
 import br.com.treinos.api.treino.PlanoTreino;
+import jakarta.persistence.QueryHint;
+import org.hibernate.jpa.HibernateHints;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.Repository;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * Consultas do "Desfazer" da planilha completa, em JPQL (sem SQL nativo): as linhas que a importação criou (pela coluna
- * {@code importacao_id} da V049) e o que hoje depende delas. Tudo já filtrado pela consultoria ({@code @TenantId}).
+ * {@code importacao_id} da V049) e o que hoje depende delas; e a projeção dos pesos que a gravação usa. Tudo já filtrado
+ * pela consultoria ({@code @TenantId}).
  */
 public interface LinhasDaImportacao extends Repository<Importacao, UUID> {
 
@@ -112,13 +117,23 @@ public interface LinhasDaImportacao extends Repository<Importacao, UUID> {
     @Query("select i.exercicioId from ExercicioImagem i where i.exercicioId in :ids")
     List<UUID> exerciciosComImagem(Collection<UUID> ids);
 
-    /** Conteúdos (JSON) onde um exercício pode aparecer: rascunhos de treino, versões publicadas e modelos. */
+    /**
+     * Conteúdos (JSON) onde um exercício pode aparecer: rascunhos de treino, versões publicadas e modelos. Em fluxo, aos
+     * poucos, para não ter os JSON da consultoria inteira na memória de uma vez; consumir dentro da transação e fechar.
+     */
+    @QueryHints(@QueryHint(name = HibernateHints.HINT_FETCH_SIZE, value = "50"))
     @Query("select p.rascunho from PlanoTreino p")
-    List<String> rascunhosDeTreino();
+    Stream<String> rascunhosDeTreino();
 
+    @QueryHints(@QueryHint(name = HibernateHints.HINT_FETCH_SIZE, value = "50"))
     @Query("select v.conteudo from PlanoTreinoVersao v")
-    List<String> versoesDeTreino();
+    Stream<String> versoesDeTreino();
 
+    @QueryHints(@QueryHint(name = HibernateHints.HINT_FETCH_SIZE, value = "50"))
     @Query("select r.conteudo from Receita r")
-    List<String> modelos();
+    Stream<String> modelos();
+
+    /** Aluno e data de cada peso da consultoria (a montagem só precisa disso: o peso de uma data nunca é sobrescrito). */
+    @Query("select p.alunoId, p.data from RegistroPeso p")
+    List<Object[]> datasDosPesos();
 }

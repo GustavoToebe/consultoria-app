@@ -198,6 +198,25 @@ class MontagemDeSeriesTest {
         assertThat(MontagemDeSeries.logico(celula(null))).isEqualTo(Logico.AUSENTE);
     }
 
+    @Test
+    void xMarcaSimETracoFicaAusenteComOMesmoConversorDaImportacaoDeUmaAba() {
+        // O leitor guarda o "x" sozinho como marcador (texto vazio): numa coluna de sim/não ele marca a linha.
+        assertThat(MontagemDeSeries.logico(br.com.treinos.api.importacao.LeitorDePlanilha.Celula.deTextoLido("x")))
+                .isEqualTo(Logico.SIM);
+        assertThat(MontagemDeSeries.logico(br.com.treinos.api.importacao.LeitorDePlanilha.Celula.deTextoLido("X")))
+                .isEqualTo(Logico.SIM);
+        assertThat(MontagemDeSeries.logico(br.com.treinos.api.importacao.LeitorDePlanilha.Celula.deTextoLido("-")))
+                .isEqualTo(Logico.AUSENTE);
+        assertThat(MontagemDeSeries.logico(celula("s"))).isEqualTo(Logico.SIM);
+        assertThat(MontagemDeSeries.logico(celula("Ativa"))).isEqualTo(Logico.SIM);
+        assertThat(MontagemDeSeries.logico(celula("N"))).isEqualTo(Logico.NAO);
+        assertThat(MontagemDeSeries.numero(celula("80,5 kg")).valor()).isEqualByComparingTo("80.5");
+        assertThat(MontagemDeSeries.numero(celula("1.234,56")).valor()).isEqualByComparingTo("1234.56");
+        assertThat(MontagemDeSeries.numero(celula("1.500")).invalido()).isTrue();
+        assertThat(MontagemDeSeries.numero(celula("1E-30000000")).invalido()).isTrue();
+        assertThat(MontagemDeSeries.numero(PlanilhaDeTeste.numero("1E+999999999")).invalido()).isTrue();
+    }
+
     // ------------------------------------------------------------------------- formato livre (fase 2, 01/11)
 
     /** Lê o texto e monta as séries, como a montagem faz com a coluna de prescrição. */

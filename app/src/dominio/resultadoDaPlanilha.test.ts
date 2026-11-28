@@ -26,6 +26,12 @@ test('resultado da importação (23/11): classe pelo código; desconhecido é "A
   expect(classeDoProblema('CODIGO_NOVO_DA_API')).toBe('AJUSTADO');
 });
 
+test('importação (28/11, D7): situação desconhecida entra ativa e é "Ajustado", com texto próprio', () => {
+  expect(classeDoProblema('STATUS_NAO_RECONHECIDO')).toBe('AJUSTADO');
+  const [aba] = abasDoResultado(lerProblemas([{ linha: 7, campo: 'STATUS', motivo: 'Alunos: STATUS_NAO_RECONHECIDO' }]));
+  expect(aba.grupos[0].texto).toBe('Situação não reconhecida: o aluno entrou como ativo. Confira.');
+});
+
 test('resultado da importação (23/11): o nome da aba acentuado volta inteiro', () => {
   expect(lerProblemas(ERROS).slice(0, 2)).toEqual([
     { aba: 'Histórico Pesos', linha: 4, codigo: 'SEM_DATA' },

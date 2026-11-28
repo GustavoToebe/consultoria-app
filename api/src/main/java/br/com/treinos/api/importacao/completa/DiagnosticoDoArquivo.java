@@ -89,7 +89,7 @@ public final class DiagnosticoDoArquivo {
     private static final int NOME_DE_ALUNO_MAXIMO = 120;
 
     /**
-     * Teto de alunos novos ativos, como a montagem os reserva: as linhas com nome (e situação ativa) da <b>primeira</b> aba de
+     * Teto de alunos novos ativos, como a montagem os reserva: as linhas com nome (e situação que não é de inativo) da <b>primeira</b> aba de
      * alunos, mais um por nome de aluno de bloco (treino, dieta, suplemento, peso) que não está nessa aba. Sem comparar com quem
      * já existe na consultoria: quem já existe não gasta vaga, então o número real pode ser menor, nunca maior.
      */
@@ -106,7 +106,8 @@ public final class DiagnosticoDoArquivo {
                 }
                 daAba.add(chave);
                 String situacao = Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, r.coluna(Campo.STATUS)));
-                if (situacao.isEmpty() || AnaliseDaPlanilha.ATIVO.matcher(situacao).matches()) {
+                // Como a montagem (D7): só a palavra de inativo conhecida deixa de gastar vaga; vazio ou desconhecido entra ativo.
+                if (!MontagemDaImportacao.INATIVO.matcher(situacao).matches()) {
                     candidatos++;
                 }
             }

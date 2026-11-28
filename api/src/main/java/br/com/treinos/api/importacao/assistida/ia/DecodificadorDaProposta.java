@@ -32,11 +32,15 @@ final class DecodificadorDaProposta {
               "pesos": [{"data": "AAAA-MM-DD", "kg": número, "observacao": texto ou null}],
               "treino": {"sessoes": [{"nome": texto, "diaSemana": 1 (segunda) a 7 (domingo) ou null,
                 "exercicios": [{"nome": texto como está no documento,
-                  "observacao": carga, técnica que não coube nos campos ou outra nota, ou null,
+                  "observacao": carga em kg ("Carga no documento: 60 kg"), técnica que não coube nos campos
+                    ou outra nota, ou null,
                   "cadencia": "3-1-1-0" (4 partes separadas por hífen, cada uma de 0 a 9 ou X) ou null,
                   "isometriaSegundos": 1 a 120 ou null,
                   "series": [{"quantidade": quantas séries iguais, "tipo": o CODIGO da metodologia ou null,
-                    "repsMin": número ou null, "repsMax": número ou null, "descansoSegundos": número ou null,
+                    "repsMin": número ou null, "repsMax": número ou null, "amrap": true ou null,
+                    "rir": 0 a 10 ou null, "rpe": 1 a 10, de meio em meio, ou null,
+                    "percentualMin": 1 a 200 ou null, "percentualMax": 1 a 200 ou null,
+                    "descansoSegundos": número ou null,
                     "tecnica": "REST_PAUSE", "CLUSTER", "DROP_SET" ou null, "pausas": número ou null,
                     "blocos": [repetições de cada bloco do cluster, ex. 4, 2] ou null, "quedas": número ou null,
                     "reducaoPercentual": número ou null, "pausaSegundos": número ou null}]}]}]} ou null,
@@ -50,6 +54,12 @@ final class DecodificadorDaProposta {
             Todas as sessões e refeições do mesmo aluno ficam dentro do mesmo item.
             "tecnica" só quando o documento escreve a técnica da série (rest pause, cluster, drop set); qualquer outra
             técnica vai em "observacao". Cluster: "blocos" e "repsMin" = "repsMax" = soma dos blocos.
+            "amrap": true só quando o documento escreve AMRAP ou "máximo de repetições"; aí "repsMin" e "repsMax" ficam null.
+            "rir": repetições na reserva ("RIR 2"; "até a falha" = 0). "rpe": só se o documento escrever RPE.
+            Se a série trouxer RIR e RPE, preencha os dois: a série fica com o RIR e o RPE vai para a observação.
+            "percentualMin"/"percentualMax": percentual da carga de trabalho (a WS), ex. "70 a 85% da WS"; um valor só
+            vai em "percentualMin". Percentual do 1RM não é da WS: vai em "observacao".
+            Carga em kg não tem campo de série: vai em "observacao" do exercício, como "Carga no documento: 60 kg".
             "aguaLitros": só a meta de água por dia, se estiver escrita. "modoDePreparo": só se houver receita escrita.
             Em planilhas, a linha "Colunas:" dá o nome de cada coluna; as linhas seguintes são os dados.
             "suplementos": whey, creatina, vitaminas e similares. "medicacoes": remédios, hormônios, anabolizantes,
@@ -82,9 +92,12 @@ final class DecodificadorDaProposta {
         if (nomes == null || nomes.isEmpty()) {
             return "";
         }
+        List<String> cortados = nomes.size() > MAXIMO_DE_NOMES_DA_BIBLIOTECA
+                ? nomes.subList(0, MAXIMO_DE_NOMES_DA_BIBLIOTECA) : nomes;
+        // O nome é do treinador: fica no bloco de dado, uma linha cada (quebra vira espaço, marca de bloco sai).
         return titulo + " da biblioteca da consultoria (um por linha):\n"
-                + String.join("\n", nomes.size() > MAXIMO_DE_NOMES_DA_BIBLIOTECA
-                        ? nomes.subList(0, MAXIMO_DE_NOMES_DA_BIBLIOTECA) : nomes) + "\n"
+                + InterpretadorIa.emBloco("biblioteca", String.join("\n", cortados.stream()
+                        .filter(java.util.Objects::nonNull).map(DecodificadorDaProposta::umaLinha).toList())) + "\n"
                 + quando + ", use exatamente o nome da lista; se não houver, mantenha o nome do documento. "
                 + "Nunca escolha um nome parecido que seja outro " + coisa + ".\n";
     }
@@ -109,9 +122,13 @@ final class DecodificadorDaProposta {
         if (apelidos == null || apelidos.isEmpty()) {
             return "Nenhum";
         }
-        StringBuilder sb = new StringBuilder();
-        apelidos.forEach((k, v) -> sb.append("- '").append(k).append("' -> '").append(v).append("'\n"));
-        return sb.toString();
+        List<String> linhas = new ArrayList<>();
+        apelidos.forEach((k, v) -> linhas.add("- '" + umaLinha(k) + "' -> '" + umaLinha(v) + "'"));
+        return InterpretadorIa.emBloco("apelidos", String.join("\n", linhas));
+    }
+
+    private static String umaLinha(String s) {
+        return s == null ? "" : s.replaceAll("\\R", " ");
     }
 
     // Tetos do plano (@Size de ConteudoTreino e ConteudoDieta): o que passa deles é cortado e vira aviso no grupo.
@@ -151,12 +168,16 @@ final class DecodificadorDaProposta {
                 boolean temTreino = treino != null && treino.sessoes() != null && !treino.sessoes().isEmpty();
                 boolean temDieta = dieta != null; // dieta() já devolve nulo sem refeição, suplemento nem medicação
                 if (nome == null && pesos.isEmpty() && !temTreino && !temDieta) {
-                    continue; // item que não decodificou em nada viraria "Aluno sem identificação" vazio
+                    continue; // item que não decodificou em nada viraria um aluno sem nome e vazio
                 }
+                // Sem nome no documento fica nulo: o substituto para a tela é do serviço (nunca junta sozinho).
                 grupos.add(new ResultadoInterpretacao.PropostaGrupo(
-                        contexto.nomeArquivo(), nome == null ? "Aluno sem identificação" : nome, null, null,
+                        contexto.nomeArquivo(), nome, null, null,
                         texto(g, "objetivo"), texto(g, "observacoes"), pesos,
-                        temTreino ? treino : null, temDieta ? dieta : null, avisos.lista()));
+                        temTreino ? treino : null, temDieta ? dieta : null, avisos.lista(),
+                        nome != null ? ResultadoInterpretacao.OrigemDoNome.CONTEUDO
+                                : ResultadoInterpretacao.OrigemDoNome.semNomeNoConteudo(contexto.nomeArquivo(),
+                                        contexto.formato())));
             }
         }
         if (grupos.isEmpty()) {
@@ -217,6 +238,7 @@ final class DecodificadorDaProposta {
                     continue;
                 }
                 List<ConteudoTreino.Serie> series = new ArrayList<>();
+                java.util.Set<String> notas = new java.util.LinkedHashSet<>();
                 for (JsonNode sr : lista(e.path("series"), MAX_SERIES, avisos, nome + ": só as " + MAX_SERIES + " primeiras séries entraram.")) {
                     Integer min = inteiro(sr, "repsMin", 1, 500);
                     Integer max = inteiro(sr, "repsMax", 1, 500);
@@ -226,20 +248,28 @@ final class DecodificadorDaProposta {
                         min = unico;
                         max = unico;
                     }
+                    boolean amrap = sr.path("amrap").isBoolean() && sr.path("amrap").asBoolean();
+                    if (amrap) {
+                        min = null; // AMRAP exclui as repetições (ValidadorTreino)
+                        max = null;
+                    }
                     ConteudoTreino.Tecnica tecnica = tecnica(sr);
+                    ConteudoTreino.Carga carga = percentual(sr);
+                    ConteudoTreino.Esforco esforco = esforco(sr, notas);
                     Integer quantidade = inteiro(sr, "quantidade", 1, MAX_SERIES);
                     for (int k = 0; k < (quantidade == null ? 1 : quantidade); k++) {
                         if (series.size() == MAX_SERIES) {
                             avisos.add(nome + ": só as " + MAX_SERIES + " primeiras séries entraram.");
                             break;
                         }
-                        series.add(new ConteudoTreino.Serie(UUID.randomUUID(), texto(sr, "tipo", 30), min, max, null,
-                                null, null, inteiro(sr, "descansoSegundos", 0, 3600), tecnica, null, null));
+                        series.add(new ConteudoTreino.Serie(UUID.randomUUID(), texto(sr, "tipo", 30), min, max,
+                                amrap ? Boolean.TRUE : null, carga, esforco, inteiro(sr, "descansoSegundos", 0, 3600),
+                                tecnica, null, null));
                     }
                 }
                 String cadencia = texto(e, "cadencia", 15);
                 exercicios.add(new ConteudoTreino.ExercicioPlano(UUID.randomUUID(), null, nome, null, null,
-                        texto(e, "observacao", 1000, avisos, "uma observação de exercício"), true, "kg",
+                        comNotas(texto(e, "observacao", 1000, avisos, "uma observação de exercício"), notas), true, "kg",
                         List.copyOf(series), cadencia != null && CADENCIA.matcher(cadencia).matches() ? cadencia : null,
                         inteiro(e, "isometriaSegundos", 1, 120), null));
             }
@@ -268,6 +298,47 @@ final class DecodificadorDaProposta {
                     inteiro(serie, "reducaoPercentual", 5, 50), null, pausa);
             default -> null; // outra técnica: o texto da IA ficou na observação do exercício
         };
+    }
+
+    /** "% da WS" do documento (1 a 200); um valor só (ou só o máximo) vale como valor único; fora da faixa fica nulo. */
+    private static ConteudoTreino.Carga percentual(JsonNode serie) {
+        Integer min = inteiro(serie, "percentualMin", 1, 200);
+        Integer max = inteiro(serie, "percentualMax", 1, 200);
+        if (min == null) {
+            min = max;
+            max = null;
+        }
+        if (min == null) {
+            return null;
+        }
+        return ConteudoTreino.Carga.percentual(ConteudoTreino.PERCENTUAL_WS, min, max != null && max >= min ? max : null);
+    }
+
+    /** RIR (0 a 10) ou RPE (1 a 10, de meio em meio); com os dois fica o RIR e o RPE vira nota do exercício. */
+    private static ConteudoTreino.Esforco esforco(JsonNode serie, java.util.Set<String> notas) {
+        Integer rir = inteiro(serie, "rir", 0, ConteudoTreino.Esforco.RIR_MAXIMO);
+        BigDecimal rpe = decimal(serie, "rpe");
+        if (rpe != null && (rpe.compareTo(BigDecimal.ONE) < 0 || rpe.compareTo(BigDecimal.TEN) > 0
+                || rpe.remainder(new BigDecimal("0.5")).signum() != 0)) {
+            rpe = null;
+        }
+        if (rir != null) {
+            if (rpe != null) {
+                notas.add("RPE no documento: " + rpe.stripTrailingZeros().toPlainString().replace('.', ',') + ".");
+            }
+            return ConteudoTreino.Esforco.deRir(rir);
+        }
+        return rpe == null ? null : new ConteudoTreino.Esforco(null, rpe);
+    }
+
+    /** Observação do exercício com as notas das séries no fim, no teto de 1000 caracteres do plano. */
+    private static String comNotas(String observacao, java.util.Set<String> notas) {
+        if (notas.isEmpty()) {
+            return observacao;
+        }
+        String nota = String.join(" ", notas);
+        String junta = observacao == null ? nota : observacao + " " + nota;
+        return junta.length() > 1000 ? junta.substring(0, 1000).strip() : junta;
     }
 
     private static List<Integer> blocos(JsonNode no) {

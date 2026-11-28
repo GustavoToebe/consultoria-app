@@ -61,7 +61,7 @@ public class ImportacaoService {
             "outros", "ERGOGENICO_ALTERAR");
     private static final Map<String, List<String>> CAMPOS = Map.of(
             "alunos", List.of("nome", "email", "telefone", "cpf", "objetivo", "observacoes", "cep", "logradouro",
-                    "numero", "complemento", "bairro", "cidade", "uf", "responsavel", "dias", "situacao"),
+                    "numero", "complemento", "bairro", "cidade", "uf", "responsavel", "dias", "situacao", "nascimento", "sexo"),
             "pesos", List.of("aluno", "data", "peso", "observacao"),
             "exercicios", List.of("nome", "grupo", "equipamento", "modalidade", "video", "observacoes"),
             "alimentos", List.of("nome", "quantidade", "unidade", "kcal", "proteina", "carboidrato", "gordura",
@@ -80,7 +80,7 @@ public class ImportacaoService {
      * Destinos que só aparecem no histórico (lista, detalhe e erros): a planilha completa tem rotas próprias
      * ({@code importacao.completa}) e não passa pela prévia nem pela confirmação de uma aba daqui.
      */
-    private static final Map<String, String> SO_NO_HISTORICO = Map.of("planilha-completa", "ALUNO_ALTERAR");
+    private static final Map<String, String> SO_NO_HISTORICO = Map.of("planilha-completa", "ALUNO_ALTERAR", "assistida", "ALUNO_ALTERAR");
 
     private static final Set<String> TRAVAM_A_CONSULTORIA = Set.of("alunos", "pesos");
 

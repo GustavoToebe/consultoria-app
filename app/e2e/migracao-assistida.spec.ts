@@ -32,6 +32,8 @@ async function preparar(page: Page, opcoes: { habilitada: boolean; permissoes?: 
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /importacoes': { corpo: { itens: [], total: 0, pagina: 0 } },
+    // Com a chave ligada, a tela Importação lista as importações assistidas em aberto (28/11, 2.6).
+    'GET /importacoes/assistidas/sessoes': { corpo: [] },
     'POST /importacoes/diagnostico': (_pedido, route) => {
       pedidos.diagnostico += 1;
       return opcoes.falha

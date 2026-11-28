@@ -1,6 +1,8 @@
-import { codigoApi, ErroApi, mensagemApi } from '@plataforma/web';
+import { codigoApi, emailValido, ErroApi, mensagemApi } from '@plataforma/web';
 
 import type {
+  AlunoGravado,
+  ArquivoResumo,
   CoberturaArquivo,
   ConfirmacaoResultado,
   DestinoGrupo,
@@ -9,12 +11,12 @@ import type {
   GrupoImportavel,
   LeituraEmAndamento,
   ModoProcessamentoResumo,
-  ObjetivoImportacao,
   SessaoDetalhe,
   SessaoListaItem,
   TipoDuvida,
 } from '../servicos/importacaoAssistida';
 import type { TipoSelo } from '../ui/Selo';
+import { erroDoTelefone } from './cadastroDoAluno';
 import { plural } from './formatos';
 
 /** Textos da tela da importação assistida: os códigos da API nunca aparecem crus. */
@@ -50,13 +52,14 @@ export function seloDoGrupo(estado: GrupoImportavel['estado']): { texto: string;
   return { texto: 'Com dúvidas', tipo: 'atencao' };
 }
 
-/** Grupo que vira linha resumida, sem ações: já gravado, ignorado no fim ou com erro na gravação. */
-export const grupoResumido = (g: Pick<GrupoImportavel, 'estado'>): boolean =>
-  g.estado === 'IMPORTADO' || g.estado === 'IGNORADO' || g.estado === 'ERRO';
+/**
+ * Aluno que vira linha resumida, sem ações: já gravado ou ignorado no fim. O que deu erro na gravação continua editável
+ * (2.3): cartão normal com o motivo no topo.
+ */
+export const grupoResumido = (g: Pick<GrupoImportavel, 'estado'>): boolean => g.estado === 'IMPORTADO' || g.estado === 'IGNORADO';
 
 /** Título da linha resumida. O esqueleto do importado e do ignorado não tem nome: o texto sai do destino. */
 export function tituloDoGrupoResumido(g: Pick<GrupoImportavel, 'estado' | 'destino' | 'nomeDetectado'>): string {
-  if (g.estado === 'ERRO') return g.nomeDetectado || 'Aluno do arquivo';
   if (g.estado === 'IGNORADO' || g.destino === 'IGNORAR') return 'Não gravado';
   if (g.destino === 'MODELO_BIBLIOTECA') return 'Salvo como modelo';
   if (g.destino === 'VINCULAR_EXISTENTE') return 'Gravado num aluno já cadastrado';
@@ -76,7 +79,7 @@ const ERROS_DO_GRUPO: Record<string, string> = {
   OBJETIVO_GRANDE_DEMAIS: 'O objetivo passa de 200 caracteres.',
   OBSERVACOES_GRANDES_DEMAIS: 'As observações passam de 4.000 caracteres.',
   SEM_CONTEUDO: 'Não há treino nem dieta para salvar como modelo.',
-  DESTINO_INVALIDO: 'O destino escolhido não vale para este grupo.',
+  DESTINO_INVALIDO: 'O destino escolhido não vale para este aluno.',
   NAO_ENCONTRADO: 'O aluno escolhido não foi encontrado.',
   LIMITE_DO_PLANO: 'O plano da consultoria chegou ao limite de alunos ativos.',
   LIMITE_DO_TREINADOR: 'Você chegou ao limite de alunos definido pelo administrador.',
@@ -84,10 +87,11 @@ const ERROS_DO_GRUPO: Record<string, string> = {
   DADOS_INVALIDOS: 'Algum dado lido do arquivo não passou na validação.',
   CONFLITO_DE_DADOS: 'Outro registro mudou ao mesmo tempo. Tente de novo.',
   ERRO_AO_GRAVAR: 'Não foi possível gravar agora. Tente de novo.',
+  NOME_DO_ALUNO_PENDENTE: 'Informe o nome do aluno, vincule a um existente ou ignore.',
 };
 
 export const motivoDoErroDoGrupo = (codigo: string | null | undefined): string =>
-  (codigo ? ERROS_DO_GRUPO[codigo] : undefined) ?? 'Não foi possível gravar este grupo.';
+  (codigo ? ERROS_DO_GRUPO[codigo] : undefined) ?? 'Não foi possível gravar este aluno.';
 
 /** Arquivo que não foi lido (`erroCodigo` do arquivo). */
 const ERROS_DO_ARQUIVO: Record<string, string> = {
@@ -106,7 +110,6 @@ export const motivoDoErroDoArquivo = (codigo: string): string => ERROS_DO_ARQUIV
 
 /** Mensagens dos erros das rotas da importação assistida. 403 e 429 pelo status; o resto pelo código. */
 const ERROS_DA_API: Record<string, string> = {
-  OBJETIVO_INVALIDO: 'Escolha o que importar entre as opções da tela.',
   FORMATO_NAO_SUPORTADO: 'Formato não aceito. Envie PDF, DOCX, XLSX ou CSV.',
   FORMATO_XLS_ANTIGO: 'Salve como .xlsx no Excel e envie de novo.',
   FORMATO_NAO_CONFERE: 'O conteúdo do arquivo não confere com a extensão. Abra o arquivo e salve de novo no formato certo.',
@@ -127,14 +130,14 @@ const ERROS_DA_API: Record<string, string> = {
   LIMITE_DE_VOLUME: 'Esta importação já passou do volume máximo. Leia estes e comece outra para o resto.',
   SESSAO_CONCLUIDA: 'Esta importação já foi concluída. A tela foi atualizada.',
   SESSAO_NAO_PROCESSADA: 'Leia os arquivos antes de gravar.',
-  GRUPO_JA_IMPORTADO: 'Este grupo já foi gravado. A lista foi atualizada.',
+  GRUPO_JA_IMPORTADO: 'Este aluno já foi gravado. A lista foi atualizada.',
   ALUNO_INATIVO: 'Este aluno está inativo. Reative-o na ficha antes de importar.',
   ALUNO_ANONIMIZADO: 'Este aluno foi anonimizado e não recebe mais dados.',
   CONFLITO_EDICAO: 'A importação mudou desde que você abriu. A lista foi atualizada: confira e grave de novo.',
   ALUNO_JA_EXISTE: 'Já existe um aluno com este e-mail. Escolha esse aluno em vez de criar outro.',
   MIGRACAO_INDISPONIVEL: 'A importação assistida está desligada no momento.',
-  SELECAO_VAZIA: 'Selecione pelo menos um grupo para gravar.',
-  SELECAO_INVALIDA: 'Alguns grupos selecionados mudaram ou já foram gravados. A lista foi atualizada.',
+  SELECAO_VAZIA: 'Selecione pelo menos um aluno para gravar.',
+  SELECAO_INVALIDA: 'Alguns alunos selecionados mudaram ou já foram gravados. A lista foi atualizada.',
   PREVIA_DESATUALIZADA: 'A prévia mudou desde que você abriu. Confira a lista atualizada e tente gravar de novo.',
   CHAVE_IDEMPOTENCIA_OBRIGATORIA: 'Não foi possível identificar esta tentativa de gravação. Tente de novo.',
   IDEMPOTENCIA_CONFLITANTE: 'Esta tentativa já foi enviada com outra seleção. Confira a lista antes de tentar de novo.',
@@ -142,6 +145,8 @@ const ERROS_DA_API: Record<string, string> = {
   SESSAO_EXPIRADA: 'Esta importação expirou. Comece uma nova importação.',
   SESSAO_PROCESSANDO: 'A importação ainda está sendo processada. Aguarde concluir.',
   CONTEUDO_INDISPONIVEL: 'O conteúdo original deste arquivo não está mais disponível.',
+  NOME_DO_ALUNO_PENDENTE: 'Algum aluno novo ainda está sem nome. Informe o nome, vincule a um aluno já cadastrado ou ignore.',
+  GRUPOS_COM_DOIS_PLANOS: 'Os dois têm treino ou os dois têm dieta. Ignore um deles antes de juntar.',
 };
 
 /** Erro de uma ação da tela em português. `confirmar` muda o texto do 403 (nada foi gravado). */
@@ -149,7 +154,7 @@ export function textoDoErroDaImportacao(erro: unknown, acao?: 'confirmar'): stri
   const status = erro instanceof ErroApi ? erro.status : null;
   if (status === 403) {
     return acao === 'confirmar'
-      ? 'Seu perfil não permite gravar parte do que foi lido (peso, objetivo, treino, dieta, pasta ou modelo). Nada foi gravado. Escolha Ignorar nesses grupos ou peça a permissão a quem administra a equipe.'
+      ? 'Seu perfil não permite gravar parte do que foi lido (peso, objetivo, treino, dieta, pasta ou modelo). Nada foi gravado. Escolha Ignorar nesses alunos ou peça a permissão a quem administra a equipe.'
       : 'Seu perfil não permite esta ação.';
   }
   // shortcut: o cliente da API não expõe o Retry-After, então o texto não diz quantos minutos; trocar quando o ErroApi trouxer o cabeçalho.
@@ -199,9 +204,8 @@ export function linhasDoGrupo(g: GrupoImportavel, pode: Pode): { rotulo: string;
   const pesos = pode('ALUNO_SENSIVEL_LER') && g.pesos?.length ? plural(g.pesos.length, 'pesagem', 'pesagens') : '—';
   const treino = pode('TREINO_LER') && g.treino ? plural(g.treino.sessoes?.length ?? 0, 'divisão', 'divisões') : '—';
   const dieta = pode('DIETA_LER') && g.dieta ? resumoDaDieta(g.dieta, pode) : '—';
+  // E-mail e WhatsApp viraram campos editáveis no cartão do aluno (2.2).
   return [
-    { rotulo: 'E-mail', valor: g.cadastro?.email || '—' },
-    { rotulo: 'WhatsApp', valor: g.cadastro?.telefone || '—' },
     { rotulo: 'Peso', valor: pesos },
     { rotulo: 'Treino', valor: treino },
     { rotulo: 'Dieta', valor: dieta },
@@ -285,9 +289,74 @@ export function pedidoDoDestino(valor: ValorDoDestino): { destino: DestinoGrupo;
   return { destino: valor as DestinoGrupo };
 }
 
-/** Grupos pendentes que podem ser selecionados para gravação (não resumidos e não marcados como Ignorar). */
+/**
+ * Alunos pendentes que podem ser selecionados para gravação: não resumidos, não marcados como Ignorar e sem erro da
+ * gravação (esses voltam por "Tentar de novo os que deram erro").
+ */
 export const gruposSelecionaveis = (grupos: GrupoImportavel[]): GrupoImportavel[] =>
-  grupos.filter((g) => !grupoResumido(g) && g.destino !== 'IGNORAR');
+  grupos.filter((g) => !grupoResumido(g) && g.destino !== 'IGNORAR' && g.estado !== 'ERRO');
+
+/** Nome que não veio do documento nem foi digitado: o substituto ("Aluno 3", o nome do arquivo). */
+const nomeSemOrigem = (g: Pick<GrupoImportavel, 'origemDoNome'>): boolean =>
+  // shortcut: sem `origemDoNome` (resposta antiga) não trava aqui; a API recusa com NOME_DO_ALUNO_PENDENTE. Tirar quando toda sessão trouxer o campo.
+  !!g.origemDoNome && g.origemDoNome !== 'CONTEUDO' && g.origemDoNome !== 'DIGITADO';
+
+/**
+ * Aluno novo com o nome substituto: "Gravar" fica travado para ele até digitar o nome, vincular a um aluno já cadastrado
+ * ou ignorar (sem a trava nasceria um "Aluno 3" ocupando vaga do plano). Modelo não trava.
+ */
+export const nomeTravado = (g: Pick<GrupoImportavel, 'estado' | 'destino' | 'origemDoNome'>): boolean =>
+  !grupoResumido(g) && g.destino === 'CRIAR_ALUNO' && nomeSemOrigem(g);
+
+export const MOTIVO_DO_NOME_TRAVADO = 'Informe o nome do aluno, vincule a um existente ou ignore.';
+
+/**
+ * Aviso do cartão quando o nome não foi lido do documento. Só com o nome do arquivo o texto diz de onde veio (o campo
+ * vem com ele); no título padrão do texto colado e sem nada, o campo vem vazio. O que fazer só enquanto trava: depois
+ * de vincular ou ignorar fica só o título.
+ */
+export function avisoDoNome(g: Pick<GrupoImportavel, 'estado' | 'destino' | 'origemDoNome'>): { titulo: string; texto: string | null } | null {
+  if (!nomeSemOrigem(g)) return null;
+  const titulo = 'Nome não encontrado no documento';
+  const doArquivo = g.origemDoNome === 'NOME_DO_ARQUIVO';
+  if (!nomeTravado(g)) return { titulo, texto: doArquivo ? 'O app usou o nome do arquivo.' : null };
+  return doArquivo
+    ? { titulo, texto: 'O app usou o nome do arquivo. Confirme, corrija, vincule a um aluno já cadastrado ou ignore.' }
+    : { titulo, texto: 'Digite o nome, vincule a um aluno já cadastrado ou ignore.' };
+}
+
+/** Nome que o cartão mostra no campo: o substituto sem fonte ("Aluno 3") não vira nome enquanto trava; o do arquivo, sim. */
+export const nomeNoCampo = (g: Pick<GrupoImportavel, 'estado' | 'destino' | 'origemDoNome' | 'nomeDetectado' | 'cadastro'>): string =>
+  nomeTravado(g) && g.origemDoNome !== 'NOME_DO_ARQUIVO' ? '' : g.cadastro?.nome ?? g.nomeDetectado ?? '';
+
+/** Junto do "Gravar": quantos alunos novos estão travados sem nome (nulo = nenhum). */
+export function textoDosTravados(grupos: readonly GrupoImportavel[]): string | null {
+  const n = grupos.filter(nomeTravado).length;
+  return n ? `${plural(n, 'aluno novo sem nome não entra', 'alunos novos sem nome não entram')} na gravação até receber o nome, ser vinculado ou ignorado.` : null;
+}
+
+/**
+ * "Juntar as N partes": por grupo que recebe o botão (a primeira parte), as outras partes. Partes = alunos ainda por
+ * gravar de um mesmo arquivo (e só dele), com um único arquivo desse nome na sessão e nenhum com o nome lido do documento,
+ * quando ao menos um está travado sem nome (a mesma regra da API). O app nunca junta sozinho: só oferece.
+ */
+export function partesParaJuntar(
+  s: Pick<SessaoDetalhe, 'arquivos' | 'grupos'>,
+): Map<string, string[]> {
+  const porArquivo = new Map<string, GrupoImportavel[]>();
+  for (const g of s.grupos) {
+    const destinoDeAluno = g.destino === 'CRIAR_ALUNO' || g.destino === 'VINCULAR_EXISTENTE';
+    if (grupoResumido(g) || !destinoDeAluno || g.arquivosOrigem.length !== 1 || g.origemDoNome === 'CONTEUDO') continue;
+    const nome = g.arquivosOrigem[0];
+    porArquivo.set(nome, [...(porArquivo.get(nome) ?? []), g]);
+  }
+  const partes = new Map<string, string[]>();
+  for (const [nome, grupos] of porArquivo) {
+    const umArquivo = s.arquivos.filter((a) => a.nomeOriginal === nome).length === 1;
+    if (umArquivo && grupos.length > 1 && grupos.some(nomeTravado)) partes.set(grupos[0].id, grupos.slice(1).map((g) => g.id));
+  }
+  return partes;
+}
 
 /** Grupos que "Gravar rascunhos" manda: os pendentes que não são ignorados nem estão com erro. Nunca vazio na API (vazio = todos). */
 export const idsParaGravar = (grupos: GrupoImportavel[]): string[] =>
@@ -301,8 +370,10 @@ export function idsSelecionaveisProntos(
 ): string[] {
   return gruposSelecionaveis(grupos)
     .filter((g) => {
-      if (g.estado !== 'PRONTO') return false;
+      // Termo aberto deixa o aluno `COM_DUVIDAS`, mas ele grava (o termo entra com o nome do documento, 2.4).
+      if (g.estado !== 'PRONTO' && g.estado !== 'COM_DUVIDAS') return false;
       if (precisaEscolherAluno(g, conferidos)) return false;
+      if (nomeTravado(g)) return false;
       if (g.destino === 'VINCULAR_EXISTENTE' && !g.alunoExistenteId) return false;
       const faltam = g.destino === 'MODELO_BIBLIOTECA' ? (pode('MODELO_ALTERAR') ? [] : ['MODELO_ALTERAR']) : faltamParaAluno(g, pode);
       return faltam.length === 0;
@@ -324,10 +395,16 @@ export function motivoParaNaoConfirmar(
   const selecionaveis = gruposSelecionaveis(grupos);
   const vao = selecionados ? selecionaveis.filter((g) => selecionados.has(g.id)) : selecionaveis;
   if (vao.length === 0) {
-    return selecionados ? 'Selecione pelo menos um grupo para gravar.' : 'Escolha o destino de pelo menos um grupo.';
+    return selecionados ? 'Selecione pelo menos um aluno para gravar.' : 'Escolha o destino de pelo menos um aluno.';
   }
   if (selecionados && !hashPrevia) {
     return 'A prévia da sessão ainda não está pronta para gravar. Atualize a sessão.';
+  }
+  const semNome = vao.filter(nomeTravado);
+  if (semNome.length) {
+    return semNome.length === 1
+      ? `${semNome[0].nomeDetectado} está sem nome. ${MOTIVO_DO_NOME_TRAVADO}`
+      : `${plural(semNome.length, 'aluno está', 'alunos estão')} sem nome. ${MOTIVO_DO_NOME_TRAVADO}`;
   }
   const semEscolha = vao.find((g) => precisaEscolherAluno(g, conferidos));
   if (semEscolha) return `Diga se ${semEscolha.nomeDetectado} é um aluno já cadastrado ou um aluno novo.`;
@@ -340,23 +417,47 @@ export function motivoParaNaoConfirmar(
   return null;
 }
 
-/** Sessões que ainda podem ser retomadas pelo treinador na tela inicial. */
-export const sessaoRetomavel = (s: Pick<SessaoListaItem, 'estado'>): boolean =>
-  s.estado === 'RASCUNHO' || s.estado === 'RECEBENDO' || s.estado === 'PROCESSANDO' || s.estado === 'REVISANDO' || s.estado === 'ERRO';
+/** Sessões que ainda podem ser retomadas: abertas e com algum arquivo (a vazia não tem o que retomar, 2.1). */
+export const sessaoRetomavel = (s: Pick<SessaoListaItem, 'estado' | 'totalArquivos'>): boolean =>
+  s.totalArquivos > 0 && sessaoPodeCancelar(s.estado);
 
 /** Sessões que ainda aceitam cancelamento explícito. */
 export const sessaoPodeCancelar = (estado: EstadoSessao): boolean =>
   estado === 'RASCUNHO' || estado === 'RECEBENDO' || estado === 'PROCESSANDO' || estado === 'REVISANDO' || estado === 'ERRO';
 
-/** Por que a leitura caiu para as regras fixas (`motivoFallback` do servidor). Motivo desconhecido não quebra: cai no texto geral. */
+/** Por que a leitura caiu para as regras fixas (`motivoFallback`), em uma frase sem infraestrutura. Desconhecido: o texto geral. */
+// O mesmo aviso fixo que a API põe nos grupos do arquivo (já pede a conferência: não ganha o "Confira…" de novo).
+const TEMPO_ESGOTADO = 'O tempo de leitura com IA acabou: parte do documento foi lida pelas regras fixas. Confira com atenção.';
 const MOTIVOS_DO_FALLBACK: Record<string, string> = {
-  CHAVE_AUSENTE: 'A leitura por IA não está configurada neste servidor (falta a chave do serviço), então foram usadas regras fixas.',
-  ERRO_PROVEDOR:
-    'O serviço de IA não respondeu (tempo esgotado ou instabilidade) mesmo depois de uma nova tentativa, então foram usadas regras fixas.',
+  RESPOSTA_CORTADA: 'O documento era grande demais para a IA e foi lido sem IA.',
+  TEMPO_ESGOTADO,
+  CHAVE_AUSENTE: 'A leitura com IA não está disponível agora, então foi lido sem IA.',
+  ERRO_PROVEDOR: 'A IA não respondeu, nem na segunda tentativa, então foi lido sem IA.',
 };
+const FALLBACK_GERAL = 'A IA não pôde ler e foi lido sem IA.';
+const LIDO_EM_PARTE = 'Lido pela IA; uma parte caiu nas regras';
+const porQueSemIa = (motivo?: string | null) => (motivo ? MOTIVOS_DO_FALLBACK[motivo] : undefined) ?? FALLBACK_GERAL;
 
-/** "Lendo 2 de 5 arquivos" enquanto o servidor processa; sem a contagem (sessão antiga ou ainda sem arquivo lido), `null`. */
+/** Como um arquivo foi lido (1.6), numa frase curta; antes de ler (sem `modo`), nulo. */
+export function textoDoModoDoArquivo(a: Pick<ArquivoResumo, 'modo' | 'motivoFallback' | 'enviadoComoArquivo'>): { texto: string; atencao: boolean } | null {
+  // Documento grande dividido (1.3): a IA leu e só uma parte caiu nas regras fixas.
+  if (a.modo === 'IA' && a.motivoFallback) return { texto: LIDO_EM_PARTE, atencao: true };
+  // 4.2: a IA leu o PDF ou a imagem inteiros (PDF sem texto ou print); informativo, sem falar de servidor ou provedor.
+  if (a.modo === 'IA') return { texto: a.enviadoComoArquivo ? 'Lido pela imagem do documento' : 'Lido com IA', atencao: false };
+  if (a.modo !== 'REGRAS') return null;
+  // Envio desligado é escolha da plataforma, não falha: sem âmbar.
+  if (!a.motivoFallback || a.motivoFallback === 'ENVIO_DESLIGADO') return { texto: 'Lido sem IA, por regras fixas', atencao: false };
+  return { texto: porQueSemIa(a.motivoFallback), atencao: true };
+}
+
+export const LEITURA_NA_FILA = 'Na fila: aguardando outra leitura terminar';
+
+/**
+ * "Lendo 2 de 5 arquivos" enquanto o servidor processa; na fila da consultoria, `LEITURA_NA_FILA` (sem contagem: nada
+ * começou); sem a contagem (sessão antiga ou ainda sem arquivo lido), `null`.
+ */
 export function textoDaLeitura(leitura?: LeituraEmAndamento | null): string | null {
+  if (leitura?.aguardando) return LEITURA_NA_FILA;
   if (!leitura || leitura.total <= 0) return null;
   const lidos = Math.min(Math.max(leitura.lidos, 0), leitura.total);
   return `Lendo ${lidos} de ${plural(leitura.total, 'arquivo', 'arquivos')}`;
@@ -377,51 +478,35 @@ export const duvidasComSugestaoUnica = (duvidas: readonly DuvidaImportacao[]): D
   );
 
 /**
- * Resumo honesto de como o lote foi processado (`modoEfetivo` e `fallbackParaRegras`).
- * Nunca exibe texto fixo afirmando um modo que não corresponde ao que o servidor executou.
+ * Como o lote foi lido (`modoEfetivo` e `fallbackParaRegras`), em uma frase, sem falar de servidor, chave ou provedor (2.8).
+ * Nunca afirma um modo que não corresponde ao que foi executado.
  */
 export function resumoDoModoProcessamento(modo?: ModoProcessamentoResumo | null): {
   titulo: string;
   descricao: string;
   alertaFallback: string | null;
 } {
-  if (!modo) {
+  if (!modo) return { titulo: 'Leitura dos arquivos', descricao: 'Os arquivos são lidos e separados por aluno.', alertaFallback: null };
+  if (modo.fallbackParaRegras && modo.modoEfetivo === 'IA') {
     return {
-      titulo: 'Leitura no servidor',
-      descricao: 'Os arquivos enviados são lidos no servidor para separar alunos e planos.',
-      alertaFallback: null,
-    };
-  }
-  if (modo.fallbackParaRegras && modo.motivoFallback === 'RESPOSTA_CORTADA') {
-    return {
-      titulo: 'Leitura por regras fixas (contingência)',
-      descricao: 'O plano era grande demais para a IA ler de uma vez; o servidor o leu por regras fixas, sem IA.',
-      alertaFallback: 'O plano era grande demais para a IA ler de uma vez e foi lido sem IA. Confira os termos e grupos com atenção.',
+      titulo: LIDO_EM_PARTE,
+      descricao: `${LIDO_EM_PARTE}.`,
+      alertaFallback: modo.motivoFallback === 'TEMPO_ESGOTADO'
+        ? TEMPO_ESGOTADO
+        : 'Uma parte do documento foi lida sem IA, por regras fixas. Confira os termos e os alunos com atenção.',
     };
   }
   if (modo.fallbackParaRegras) {
-    const porque = modo.motivoFallback ? MOTIVOS_DO_FALLBACK[modo.motivoFallback] : undefined;
     return {
-      titulo: 'Leitura por regras fixas (contingência)',
-      descricao: 'A leitura por IA não pôde ser concluída neste lote; o servidor usou regras fixas para separar os dados.',
-      alertaFallback: `${porque ?? 'A leitura por IA não ficou disponível neste lote e o servidor usou regras fixas.'} Confira os termos e grupos com atenção.`,
+      titulo: 'Lido sem IA',
+      descricao: 'Lido sem IA, por regras fixas.',
+      alertaFallback: modo.motivoFallback === 'TEMPO_ESGOTADO'
+        ? TEMPO_ESGOTADO
+        : `${porQueSemIa(modo.motivoFallback)} Confira os termos e os alunos com atenção.`,
     };
   }
-  if (modo.modoEfetivo === 'IA') {
-    return {
-      titulo: 'Leitura assistida por IA',
-      descricao: 'Os arquivos foram interpretados com apoio de IA. Confira tudo antes de gravar.',
-      alertaFallback: null,
-    };
-  }
-  return {
-    titulo: 'Leitura por regras fixas',
-    descricao:
-      modo.motivoFallback === 'ENVIO_DESLIGADO'
-        ? 'O envio dos arquivos a um serviço de IA está desligado neste servidor: a leitura é feita só por regras fixas, sem IA, e os termos ficam para você conferir.'
-        : 'O servidor leu os arquivos por regras fixas, separou os alunos e listou os termos para você conferir.',
-    alertaFallback: null,
-  };
+  if (modo.modoEfetivo === 'IA') return { titulo: 'Lido com IA', descricao: 'Lido com IA. Confira tudo antes de gravar.', alertaFallback: null };
+  return { titulo: 'Lido sem IA', descricao: 'Lido sem IA, por regras fixas. Confira os termos antes de gravar.', alertaFallback: null };
 }
 
 /** Lido sem IA (regras fixas, com ou sem contingência): o treino pode ter vindo desmontado. Sem modo informado, não há o que dizer. */
@@ -430,12 +515,15 @@ export const lidoSemIa = (modo?: ModoProcessamentoResumo | null): boolean => !!m
 export const DICA_DE_TREINO_DESMONTADO =
   'Se o treino veio desmontado, copie o texto do PDF e cole em "Colar treino (Docs / PDF)", no editor do modelo de treino.';
 
-/** Diagnóstico legível da cobertura de leitura de um arquivo (páginas lidas vs. sem texto / truncamento). */
-export function resumoDaCoberturaDoArquivo(cobertura?: CoberturaArquivo | null): {
+/**
+ * Diagnóstico legível da cobertura de leitura de um arquivo (páginas lidas vs. sem texto / truncamento). Lido pela imagem
+ * do documento (4.2), a cobertura do texto extraído não diz mais nada (a IA leu o arquivo inteiro): nulo.
+ */
+export function resumoDaCoberturaDoArquivo(cobertura?: CoberturaArquivo | null, enviadoComoArquivo = false): {
   texto: string;
   tom: 'sucesso' | 'atencao' | 'perigo' | 'neutro';
 } | null {
-  if (!cobertura) return null;
+  if (!cobertura || enviadoComoArquivo) return null;
   if (cobertura.status === 'SEM_TEXTO') {
     return {
       texto: cobertura.paginasTotal ? `Nenhuma página legível (0 de ${cobertura.paginasTotal})` : 'Sem texto legível no arquivo',
@@ -475,7 +563,7 @@ export function resumoDoResultado(r: ConfirmacaoResultado): {
   alerta: { tom: 'atencao' | 'perigo'; texto: string } | null;
   linhas: string[];
 } {
-  const linhas = [plural(r.gruposImportados, 'grupo gravado', 'grupos gravados')];
+  const linhas: string[] = [];
   const se = (n: number, um: string, varios: string) => { if (n > 0) linhas.push(plural(n, um, varios)); };
   se(r.alunosCriados, 'aluno novo', 'alunos novos');
   se(r.alunosVinculados, 'aluno já cadastrado recebeu os dados', 'alunos já cadastrados receberam os dados');
@@ -488,13 +576,13 @@ export function resumoDoResultado(r: ConfirmacaoResultado): {
   if (r.situacao === 'FALHOU') {
     return {
       titulo: 'Nada foi gravado', descricao, linhas,
-      alerta: { tom: 'perigo', texto: `${plural(r.gruposComErro, 'grupo ficou', 'grupos ficaram')} com erro. O motivo aparece em cada um, na lista acima.` },
+      alerta: { tom: 'perigo', texto: `${plural(r.gruposComErro, 'aluno ficou', 'alunos ficaram')} com erro. O motivo aparece em cada um, na lista acima.` },
     };
   }
   if (r.situacao === 'CONCLUIDA_COM_ERROS') {
     return {
       titulo: 'Importação gravada em parte', descricao, linhas,
-      alerta: { tom: 'atencao', texto: `${plural(r.gruposComErro, 'grupo não foi gravado', 'grupos não foram gravados')}. O motivo aparece em cada um, na lista acima.` },
+      alerta: { tom: 'atencao', texto: `${plural(r.gruposComErro, 'aluno não foi gravado', 'alunos não foram gravados')}. O motivo aparece em cada um, na lista acima.` },
     };
   }
   return { titulo: 'Importação concluída', descricao, linhas, alerta: null };
@@ -535,15 +623,18 @@ export function resumoDaSessao(s: Pick<SessaoDetalhe, 'estado' | 'arquivos' | 'g
   };
 }
 
-/** O que importar (26/11: três cartões de escolha, título e uma linha). */
-export const OPCOES_DO_OBJETIVO: readonly { valor: ObjetivoImportacao; titulo: string; descricao: string }[] = [
-  { valor: 'CADASTROS_E_PLANOS_ATUAIS', titulo: 'Cadastros e planos atuais', descricao: 'Treino e dieta de hoje. Recomendado.' },
-  { valor: 'SOMENTE_CADASTROS', titulo: 'Só cadastros e contatos', descricao: 'Nomes, contatos e dados básicos.' },
-  { valor: 'INCLUIR_HISTORICO', titulo: 'Tudo, com histórico', descricao: 'Inclui cargas e pesos antigos.' },
-];
-
 /** Limites reais da API (`ImportacaoAssistidaService`: 20 arquivos, 900 KB por arquivo, 8 MB por importação). */
 export const FORMATOS_E_LIMITES = 'PDF, DOCX, XLSX ou CSV · até 20 arquivos, 900 KB cada e 8 MB no total';
+/** Com a leitura por imagem ligada (4.2) JPG e PNG entram, no mesmo limite. */
+export const FORMATOS_E_LIMITES_COM_IMAGEM = 'PDF, DOCX, XLSX, CSV, JPG ou PNG · até 20 arquivos, 900 KB cada e 8 MB no total';
+
+/**
+ * Aviso do envio só com a leitura por imagem ligada (`importacaoPorImagemHabilitada` do `GET /eu`, 4.2): os formatos a
+ * mais (no mesmo 900 KB: o envio confere o tamanho antes do formato) e o que vai inteiro ao provedor. Não troca a versão
+ * dos termos (fica para a revisão jurídica).
+ */
+export const AVISO_DA_LEITURA_POR_IMAGEM =
+  'JPG e PNG também são aceitos, até 900 KB cada. Um PDF com alguma página sem texto (escaneada) e os prints (JPG/PNG) são enviados inteiros ao provedor de IA para leitura. PDFs de evolução podem conter foto de corpo, que é dado sensível: não envie fotos de corpo.';
 
 /** As cinco etapas da importação, com a linha curta que aparece antes de começar. */
 export const ETAPAS_DA_IMPORTACAO = [
@@ -603,11 +694,11 @@ export function seloDaSessao(estado: EstadoSessao): { texto: string; tipo: TipoS
   return { texto, tipo: 'neutro' };
 }
 
-/** "2 arquivos · 16 grupos · 26 dúvidas" só depois de ler; antes, grupos e dúvidas ainda não existem (não são zero). */
+/** "2 arquivos · 16 alunos · 26 dúvidas" só depois de ler; antes, grupos e dúvidas ainda não existem (não são zero). */
 export function contagensDaSessaoEmAberto(s: Pick<SessaoListaItem, 'estado' | 'totalArquivos' | 'totalGrupos' | 'duvidasAbertas'>): string {
   const arquivos = plural(s.totalArquivos, 'arquivo', 'arquivos');
   if (s.estado !== 'REVISANDO') return arquivos;
-  return `${arquivos} · ${plural(s.totalGrupos, 'grupo', 'grupos')} · ${plural(s.duvidasAbertas, 'dúvida', 'dúvidas')}`;
+  return `${arquivos} · ${plural(s.totalGrupos, 'aluno', 'alunos')} · ${plural(s.duvidasAbertas, 'dúvida', 'dúvidas')}`;
 }
 
 const DIA_MS = 86_400_000;
@@ -634,11 +725,169 @@ export type FocoAoEntrar =
  * endereço, a primeira ação que espera o treinador, na ordem da página: "Ler os arquivos" antes de ler, o primeiro termo
  * a conferir, o primeiro aluno parecido sem resposta. Nada pendente (lendo, só gravar), o título.
  */
-export function focoAoEntrar(s: Pick<SessaoDetalhe, 'estado' | 'duvidas' | 'grupos'> | null): FocoAoEntrar {
+export function focoAoEntrar(s: (Pick<SessaoDetalhe, 'estado' | 'duvidas' | 'grupos'> & { arquivos?: SessaoDetalhe['arquivos'] }) | null): FocoAoEntrar {
   if (!s) return { tipo: 'titulo' };
-  if (s.estado === 'RASCUNHO' || s.estado === 'RECEBENDO') return { tipo: 'ler' };
+  if (sessaoPodeLer(s.estado, s.arquivos)) return { tipo: 'ler' };
   const termo = duvidasVisiveis(s.duvidas).find((d) => !d.resolvida);
   if (termo) return { tipo: 'termo', duvidaId: termo.id };
   const grupo = (s.grupos ?? []).find((g) => precisaEscolherAluno(g, new Set()));
   return grupo ? { tipo: 'aluno', grupoId: grupo.id } : { tipo: 'titulo' };
 }
+
+/**
+ * "Ler os arquivos" vale antes de ler, depois de uma leitura que não terminou (0.3: `ERRO`, os arquivos continuam lá) e
+ * na revisão com arquivo acrescentado e ainda não lido (2.1: a API deixa a sessão em `REVISANDO` e lê só os pendentes).
+ */
+export const sessaoPodeLer = (estado: EstadoSessao, arquivos?: readonly Pick<ArquivoResumo, 'estado'>[]): boolean =>
+  estado === 'RASCUNHO' || estado === 'RECEBENDO' || estado === 'ERRO' || (estado === 'REVISANDO' && !!arquivos?.some((a) => a.estado === 'RECEBIDO'));
+
+export const rotuloDoLer = (estado: EstadoSessao): string => (estado === 'ERRO' ? 'Tentar ler de novo' : 'Ler os arquivos');
+
+export const AVISO_LEITURA_NAO_TERMINOU = 'A leitura não terminou. Seus arquivos continuam aqui.';
+
+/** Dá para acrescentar arquivo ou texto (2.1): sessão aberta que não está lendo (a API recusa só a encerrada e a que lê). */
+export const sessaoAceitaArquivos = (estado: EstadoSessao): boolean => sessaoPodeCancelar(estado) && estado !== 'PROCESSANDO';
+
+/** Os limites de `FORMATOS_E_LIMITES`, os mesmos de `ImportacaoAssistidaService` (20 arquivos, 900 KB cada, 8 MB no total). */
+export const ARQUIVOS_POR_SESSAO = 20;
+export const BYTES_POR_ARQUIVO = 900 * 1024;
+export const BYTES_POR_SESSAO = 8 * 1024 * 1024;
+const EXTENSOES_ACEITAS = ['pdf', 'docx', 'xlsx', 'csv'];
+const EXTENSOES_DE_IMAGEM = ['jpg', 'jpeg', 'png'];
+const FORMATO_NAO_SUPORTADO_COM_IMAGEM = 'Formato não aceito. Envie PDF, DOCX, XLSX, CSV, JPG ou PNG.';
+
+/** Arquivo que a pessoa escolheu, antes de subir. `tamanho` em bytes, quando o aparelho informa (sem ele, a API confere). */
+export interface ArquivoParaEnviar {
+  nome: string;
+  tamanho?: number | null;
+}
+
+/**
+ * Confere no app, antes de subir, o que a API recusaria (2.1): extensão, 900 KB por arquivo, 20 arquivos e 8 MB por
+ * importação, contando o que a sessão já tem. Devolve o motivo de cada arquivo (nulo = pode ir), na mesma ordem.
+ * `comImagem` (4.2, `importacaoPorImagemHabilitada`): JPG e PNG também passam, com o mesmo limite de 900 KB.
+ */
+export function motivosAntesDeEnviar(
+  lista: readonly ArquivoParaEnviar[],
+  naSessao: { quantos: number; bytes: number },
+  comImagem = false,
+): (string | null)[] {
+  const aceitas = comImagem ? [...EXTENSOES_ACEITAS, ...EXTENSOES_DE_IMAGEM] : EXTENSOES_ACEITAS;
+  let quantos = naSessao.quantos;
+  let bytes = naSessao.bytes;
+  return lista.map((a) => {
+    const partes = a.nome.toLowerCase().split('.');
+    const extensao = partes.length > 1 ? partes[partes.length - 1] : '';
+    if (extensao === 'xls') return ERROS_DA_API.FORMATO_XLS_ANTIGO;
+    if (!aceitas.includes(extensao)) return comImagem ? FORMATO_NAO_SUPORTADO_COM_IMAGEM : ERROS_DA_API.FORMATO_NAO_SUPORTADO;
+    if (a.tamanho === 0) return ERROS_DA_API.ARQUIVO_VAZIO;
+    const tamanho = a.tamanho ?? 0;
+    if (tamanho > BYTES_POR_ARQUIVO) return ERROS_DA_API.ARQUIVO_GRANDE_DEMAIS;
+    if (quantos >= ARQUIVOS_POR_SESSAO) return ERROS_DA_API.LIMITE_DE_ARQUIVOS;
+    if (bytes + tamanho > BYTES_POR_SESSAO) return ERROS_DA_API.LIMITE_DE_VOLUME;
+    quantos += 1;
+    bytes += tamanho;
+    return null;
+  });
+}
+
+/** Resultado do envio de um arquivo, para a lista "Enviado" ou "Recusado: motivo" (2.1). */
+export interface ResultadoDoEnvio {
+  nome: string;
+  motivo: string | null;
+}
+
+export const textoDoEnvio = (r: ResultadoDoEnvio): string => (r.motivo ? `Recusado: ${r.motivo}` : 'Enviado');
+
+/** Campos do cadastro que dá para corrigir antes de gravar (2.2). */
+export interface CadastroEditavel {
+  nome: string;
+  email: string;
+  telefone: string;
+}
+
+export const cadastroDoGrupo = (g: Pick<GrupoImportavel, 'nomeDetectado' | 'cadastro'>): CadastroEditavel => ({
+  nome: g.cadastro?.nome ?? g.nomeDetectado ?? '',
+  email: g.cadastro?.email ?? '',
+  telefone: g.cadastro?.telefone ?? '',
+});
+
+/** Erros por campo; vazio = pode salvar. E-mail e WhatsApp são opcionais; o nome, não. */
+export function errosDoCadastro(c: CadastroEditavel): Partial<Record<keyof CadastroEditavel, string>> {
+  const erros: Partial<Record<keyof CadastroEditavel, string>> = {};
+  const nome = c.nome.trim();
+  if (!nome) erros.nome = 'Informe o nome do aluno.';
+  else if (nome.length > 120) erros.nome = 'O nome passa de 120 caracteres.';
+  if (c.email.trim() && !emailValido(c.email.trim())) erros.email = 'Informe um e-mail válido, como nome@exemplo.com.';
+  const telefone = erroDoTelefone(c.telefone);
+  if (telefone) erros.telefone = telefone;
+  return erros;
+}
+
+/** Só o que mudou vai no `PUT` (e-mail ou WhatsApp em branco apaga o lido). Nada mudou = nulo. */
+export function mudancasDoCadastro(antes: CadastroEditavel, agora: CadastroEditavel): Partial<CadastroEditavel> | null {
+  const mudou: Partial<CadastroEditavel> = {};
+  for (const campo of ['nome', 'email', 'telefone'] as const) {
+    if (agora[campo].trim() !== antes[campo].trim()) mudou[campo] = agora[campo].trim();
+  }
+  return Object.keys(mudou).length ? mudou : null;
+}
+
+/** A sugestão que vira botão na linha do termo ("Usar Supino reto", 2.4): a ligada à biblioteca de maior nota. */
+export function melhorSugestao(d: Pick<DuvidaImportacao, 'sugestoes'>): DuvidaImportacao['sugestoes'][number] | null {
+  const ordenadas = [...(d.sugestoes ?? [])].sort(
+    (a, b) => Number(!!b.referenciaId) - Number(!!a.referenciaId) || (b.nota ?? 0) - (a.nota ?? 0),
+  );
+  return ordenadas[0] ?? null;
+}
+
+export const AVISO_TERMO_NAO_CONFERIDO = 'Termo não conferido entra com o nome do documento, sem vínculo com a biblioteca.';
+
+/**
+ * Frase ao lado de "Gravar selecionados" (2.7): o que a gravação vai fazer, pelo destino de cada aluno marcado.
+ * Ex.: "Vai criar 2 alunos novos e gravar em 1 aluno já cadastrado." Nada marcado = nulo.
+ */
+export function resumoDaGravacao(grupos: readonly GrupoImportavel[], marcados: ReadonlySet<string>): string | null {
+  const vao = grupos.filter((g) => marcados.has(g.id));
+  const contar = (d: DestinoGrupo) => vao.filter((g) => g.destino === d).length;
+  const partes: string[] = [];
+  const novos = contar('CRIAR_ALUNO');
+  const vinculados = contar('VINCULAR_EXISTENTE');
+  const modelos = contar('MODELO_BIBLIOTECA');
+  if (novos) partes.push(`criar ${plural(novos, 'aluno novo', 'alunos novos')}`);
+  if (vinculados) partes.push(`gravar em ${plural(vinculados, 'aluno já cadastrado', 'alunos já cadastrados')}`);
+  if (modelos) partes.push(`salvar ${plural(modelos, 'modelo', 'modelos')}`);
+  if (!partes.length) return null;
+  const lista = partes.length > 1 ? `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}` : partes[0];
+  return `Vai ${lista}.`;
+}
+
+/** Falhas seguidas do acompanhamento da leitura até avisar (2.6). */
+export const FALHAS_ATE_AVISAR = 5;
+const RODADA_DA_LEITURA_MS = 12 * 60_000;
+/**
+ * Quanto esperar a leitura antes de avisar (2.6): uma rodada por 3 arquivos, cada uma no teto de um arquivo.
+ * shortcut: espelha à mão `ProcessamentoAssincronoImportacao.limiteDaSessaoEmSegundos` (3 em paralelo, ~11 min por arquivo
+ * mais folga); trocar quando a sessão trouxer o prazo da leitura.
+ */
+export const tetoDaEsperaMs = (arquivos: number): number => Math.max(1, Math.ceil(arquivos / 3)) * RODADA_DA_LEITURA_MS;
+
+export const PODE_SAIR_DURANTE_A_LEITURA = 'Pode sair desta tela: a leitura continua.';
+export const AVISO_DA_ESPERA_LONGA =
+  'A leitura está demorando mais que o normal ou não conseguimos acompanhá-la. Continue esperando ou cancele a importação.';
+
+/** Atalhos depois de gravar (2.5): a ficha sempre; o rascunho do treino e o da dieta quando foram criados. */
+export function atalhosDoAlunoGravado(a: AlunoGravado): { rotulo: string; href: string }[] {
+  const atalhos = [{ rotulo: 'Abrir ficha', href: `/treinador/alunos/${a.alunoId}` }];
+  if (a.treinoId) {
+    atalhos.push({ rotulo: 'Abrir rascunho do treino', href: `/treinador/treinos/${a.treinoId}` });
+  }
+  if (a.dietaId) {
+    atalhos.push({ rotulo: 'Abrir rascunho da dieta', href: `/treinador/dietas/${a.dietaId}` });
+  }
+  return atalhos;
+}
+
+/** Tipo do termo do dicionário da consultoria, em português. */
+export const rotuloDoTipoDoApelido = (tipo: string): string =>
+  tipo.startsWith('EXERCICIO') ? 'Exercício' : tipo.startsWith('ALIMENTO') ? 'Alimento' : 'Outro';

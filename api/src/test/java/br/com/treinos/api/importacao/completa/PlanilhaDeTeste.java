@@ -64,7 +64,7 @@ final class PlanilhaDeTeste {
             return new Celula("", false, false);
         }
         if (v instanceof Data d) {
-            return new Celula(String.valueOf(serie(d.iso())), true, false);
+            return new Celula(String.valueOf(serie(d.iso())), true, false, true);
         }
         if (v instanceof Erro) {
             return new Celula("", false, true);
@@ -158,6 +158,9 @@ final class PlanilhaDeTeste {
                 gravar(zip, "xl/_rels/workbook.xml.rels", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\""
                         + "http://schemas.openxmlformats.org/package/2006/relationships\">" + rels + "</Relationships>");
                 gravar(zip, "xl/sharedStrings.xml", sst.toString());
+                // Estilo 1 = formato de data embutido (14): só número com formato de data vira data.
+                gravar(zip, "xl/styles.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><styleSheet xmlns=\"" + NS
+                        + "\"><cellXfs count=\"2\"><xf numFmtId=\"0\"/><xf numFmtId=\"14\"/></cellXfs></styleSheet>");
                 for (Map.Entry<String, String> f : folhas.entrySet()) {
                     gravar(zip, f.getKey(), f.getValue());
                 }

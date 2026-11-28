@@ -38,7 +38,30 @@ import {
   tituloDoGrupoResumido,
   trechoDaDuvida,
   valorDoDestino,
+  atalhosDoAlunoGravado,
+  AVISO_DA_LEITURA_POR_IMAGEM,
+  AVISO_LEITURA_NAO_TERMINOU,
+  cadastroDoGrupo,
+  FORMATOS_E_LIMITES,
+  errosDoCadastro,
+  FALHAS_ATE_AVISAR,
+  melhorSugestao,
+  motivosAntesDeEnviar,
+  mudancasDoCadastro,
+  resumoDaGravacao,
+  rotuloDoLer,
+  rotuloDoTipoDoApelido,
+  sessaoAceitaArquivos,
+  sessaoPodeLer,
+  tetoDaEsperaMs,
+  textoDoEnvio,
+  textoDoModoDoArquivo,
 } from './importacaoAssistida';
+
+const ERROS = {
+  LIMITE_DE_ARQUIVOS: 'Esta importação já tem arquivos demais. Leia estes e comece outra para o resto.',
+  LIMITE_DE_VOLUME: 'Esta importação já passou do volume máximo. Leia estes e comece outra para o resto.',
+};
 
 const TUDO = ['ALUNO_SENSIVEL_LER', 'ALUNO_SENSIVEL_ALTERAR', 'TREINO_LER', 'TREINO_ALTERAR', 'DIETA_LER', 'DIETA_ALTERAR', 'PASTA_ALTERAR', 'MODELO_ALTERAR'];
 const com = (lista: string[]) => (p: string) => lista.includes(p);
@@ -64,21 +87,21 @@ test('selo do grupo: âmbar só para dúvida, vermelho para erro, neutro para ig
   expect(seloDoGrupo('ERRO').tipo).toBe('perigo');
 });
 
-test('importado, ignorado e erro viram linha resumida; o esqueleto sem nome ganha título pelo destino', () => {
+test('importado e ignorado viram linha resumida; erro continua editável; o esqueleto ganha título pelo destino', () => {
   expect(grupoResumido({ estado: 'PRONTO' })).toBe(false);
   expect(grupoResumido({ estado: 'IMPORTADO' })).toBe(true);
+  expect(grupoResumido({ estado: 'ERRO' })).toBe(false);
   expect(tituloDoGrupoResumido({ estado: 'IMPORTADO', destino: 'CRIAR_ALUNO', nomeDetectado: 'Importado' })).toBe('Aluno novo criado');
   expect(tituloDoGrupoResumido({ estado: 'IMPORTADO', destino: 'VINCULAR_EXISTENTE', nomeDetectado: 'Importado' })).toBe('Gravado num aluno já cadastrado');
   expect(tituloDoGrupoResumido({ estado: 'IMPORTADO', destino: 'MODELO_BIBLIOTECA', nomeDetectado: 'Importado' })).toBe('Salvo como modelo');
   expect(tituloDoGrupoResumido({ estado: 'IGNORADO', destino: 'CRIAR_ALUNO', nomeDetectado: 'Importado' })).toBe('Não gravado');
-  expect(tituloDoGrupoResumido({ estado: 'ERRO', destino: 'CRIAR_ALUNO', nomeDetectado: 'Aluna Fictícia' })).toBe('Aluna Fictícia');
 });
 
 test('motivo do erro do grupo é legível; código desconhecido tem texto padrão', () => {
   expect(motivoDoErroDoGrupo('ALUNO_JA_EXISTE')).toBe('Já existe um aluno com este e-mail.');
   expect(motivoDoErroDoGrupo('SEM_PERMISSAO')).toMatch(/perfil/);
-  expect(motivoDoErroDoGrupo('OUTRO_CODIGO')).toBe('Não foi possível gravar este grupo.');
-  expect(motivoDoErroDoGrupo(null)).toBe('Não foi possível gravar este grupo.');
+  expect(motivoDoErroDoGrupo('OUTRO_CODIGO')).toBe('Não foi possível gravar este aluno.');
+  expect(motivoDoErroDoGrupo(null)).toBe('Não foi possível gravar este aluno.');
 });
 
 test('erros da API em português: código, 403 do confirmar, 429 e 503', () => {
@@ -105,7 +128,7 @@ test('sem a permissão de ler, peso, treino e dieta aparecem como "—", nunca z
   expect(valor(TUDO, 'Dieta')).toBe('1 refeição');
   expect(valor([], 'Peso')).toBe('—');
   expect(valor([], 'Treino')).toBe('—');
-  expect(valor(TUDO, 'WhatsApp')).toBe('—');
+  expect(valor(TUDO, 'WhatsApp')).toBeUndefined();
   expect(linhasDoGrupo(grupo(), com(TUDO)).find((l) => l.rotulo === 'Peso')?.valor).toBe('—');
 });
 
@@ -159,7 +182,7 @@ test('gravar manda os pendentes; tentar de novo, só os com erro; nunca os impor
 });
 
 test('confirmar precisa de um grupo pendente e da permissão do que ele traz', () => {
-  expect(motivoParaNaoConfirmar([], com(TUDO))).toBe('Escolha o destino de pelo menos um grupo.');
+  expect(motivoParaNaoConfirmar([], com(TUDO))).toBe('Escolha o destino de pelo menos um aluno.');
   expect(motivoParaNaoConfirmar([grupo({ destino: 'IGNORAR' })], com(TUDO))).not.toBeNull();
   expect(motivoParaNaoConfirmar([grupo({ destino: 'IGNORAR' }), grupo({ id: 'g2' })], com(TUDO))).toBeNull();
   expect(motivoParaNaoConfirmar([grupo({ pesos: [{ data: '2026-10-01', kg: 70 }] })], com([]))).toBe(
@@ -201,11 +224,14 @@ test('novos erros, estados, retomada e cancelamento da importação assistida', 
   expect(recarregarDepoisDoErro(erro(400, 'SELECAO_INVALIDA'))).toBe(true);
   expect(motivoDoErroDoArquivo('PDF_PROTEGIDO_POR_SENHA')).toMatch(/senha/);
 
-  expect(sessaoRetomavel({ estado: 'RASCUNHO' })).toBe(true);
-  expect(sessaoRetomavel({ estado: 'PROCESSANDO' })).toBe(true);
-  expect(sessaoRetomavel({ estado: 'REVISANDO' })).toBe(true);
-  expect(sessaoRetomavel({ estado: 'CONCLUIDA' })).toBe(false);
-  expect(sessaoRetomavel({ estado: 'CANCELADA' })).toBe(false);
+  expect(sessaoRetomavel({ estado: 'RASCUNHO', totalArquivos: 1 })).toBe(true);
+  expect(sessaoRetomavel({ estado: 'PROCESSANDO', totalArquivos: 1 })).toBe(true);
+  expect(sessaoRetomavel({ estado: 'REVISANDO', totalArquivos: 2 })).toBe(true);
+  expect(sessaoRetomavel({ estado: 'ERRO', totalArquivos: 2 })).toBe(true);
+  expect(sessaoRetomavel({ estado: 'CONCLUIDA', totalArquivos: 1 })).toBe(false);
+  expect(sessaoRetomavel({ estado: 'CANCELADA', totalArquivos: 1 })).toBe(false);
+  // Sessão sem arquivo nenhum não tem o que retomar (2.1).
+  expect(sessaoRetomavel({ estado: 'RASCUNHO', totalArquivos: 0 })).toBe(false);
   expect(sessaoPodeCancelar('REVISANDO')).toBe(true);
   expect(sessaoPodeCancelar('CONCLUIDA')).toBe(false);
 });
@@ -221,12 +247,15 @@ test('resumo do modo de processamento e cobertura de leitura dos arquivos', () =
     fallbackParaRegras: true,
     motivoFallback: 'TIMEOUT',
   });
-  expect(fallback.titulo).toMatch(/contingência/);
-  expect(fallback.alertaFallback).toMatch(/regras fixas/);
+  expect(fallback.titulo).toBe('Lido sem IA');
+  expect(fallback.alertaFallback).toBe('A IA não pôde ler e foi lido sem IA. Confira os termos e os alunos com atenção.');
 
   const cortada = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: true, motivoFallback: 'RESPOSTA_CORTADA' });
-  expect(cortada.alertaFallback).toMatch(/grande demais para a IA ler de uma vez e foi lido sem IA/);
-  expect(cortada.alertaFallback).toMatch(/atenção/);
+  expect(cortada.alertaFallback).toBe('O documento era grande demais para a IA e foi lido sem IA. Confira os termos e os alunos com atenção.');
+  // Uma frase, sem falar de servidor, chave nem provedor (2.8).
+  for (const r of [ia, fallback, cortada, resumoDoModoProcessamento(null)]) {
+    expect(`${r.descricao} ${r.alertaFallback ?? ''}`).not.toMatch(/servidor|chave|provedor|serviço/i);
+  }
 
   expect(lidoSemIa({ modoEfetivo: 'REGRAS', fallbackParaRegras: false })).toBe(true);
   expect(lidoSemIa({ modoEfetivo: 'REGRAS', fallbackParaRegras: true })).toBe(true);
@@ -257,9 +286,10 @@ test('seleção explícita de grupos e trava de hashPrevia na confirmação', ()
   const g1 = grupo({ id: 'g1', estado: 'PRONTO' });
   const g2 = grupo({ id: 'g2', estado: 'COM_DUVIDAS' });
   const g3 = grupo({ id: 'g3', destino: 'IGNORAR' });
-  expect(idsSelecionaveisProntos([g1, g2, g3], com(TUDO))).toEqual(['g1']);
+  // `COM_DUVIDAS` (termo aberto) também grava e entra nos prontos; o ignorado, não.
+  expect(idsSelecionaveisProntos([g1, g2, g3], com(TUDO))).toEqual(['g1', 'g2']);
 
-  expect(motivoParaNaoConfirmar([g1, g2], com(TUDO), new Set(), new Set(), 'hash-1')).toBe('Selecione pelo menos um grupo para gravar.');
+  expect(motivoParaNaoConfirmar([g1, g2], com(TUDO), new Set(), new Set(), 'hash-1')).toBe('Selecione pelo menos um aluno para gravar.');
   expect(motivoParaNaoConfirmar([g1, g2], com(TUDO), new Set(), new Set(['g1']), null)).toMatch(/prévia/i);
   expect(motivoParaNaoConfirmar([g1, g2], com(TUDO), new Set(), new Set(['g1']), 'hash-1')).toBeNull();
 
@@ -378,11 +408,11 @@ describe('importações em aberto', () => {
     expect(seloDaSessao('RASCUNHO').tipo).toBe('neutro');
   });
 
-  it('contagens: grupos e dúvidas só depois de ler, singular e plural', () => {
+  it('contagens: alunos e dúvidas só depois de ler, singular e plural', () => {
     const item = { estado: 'REVISANDO' as const, totalArquivos: 2, totalGrupos: 16, duvidasAbertas: 26 };
-    expect(contagensDaSessaoEmAberto(item)).toBe('2 arquivos · 16 grupos · 26 dúvidas');
-    expect(contagensDaSessaoEmAberto({ ...item, totalArquivos: 1, totalGrupos: 1, duvidasAbertas: 1 })).toBe('1 arquivo · 1 grupo · 1 dúvida');
-    expect(contagensDaSessaoEmAberto({ ...item, duvidasAbertas: 0 })).toBe('2 arquivos · 16 grupos · 0 dúvidas');
+    expect(contagensDaSessaoEmAberto(item)).toBe('2 arquivos · 16 alunos · 26 dúvidas');
+    expect(contagensDaSessaoEmAberto({ ...item, totalArquivos: 1, totalGrupos: 1, duvidasAbertas: 1 })).toBe('1 arquivo · 1 aluno · 1 dúvida');
+    expect(contagensDaSessaoEmAberto({ ...item, duvidasAbertas: 0 })).toBe('2 arquivos · 16 alunos · 0 dúvidas');
     expect(contagensDaSessaoEmAberto({ ...item, estado: 'RECEBENDO', totalGrupos: 0, duvidasAbertas: 0 })).toBe('2 arquivos');
     expect(contagensDaSessaoEmAberto({ ...item, estado: 'ERRO' })).toBe('2 arquivos');
   });
@@ -414,9 +444,10 @@ describe('foco ao entrar na tela', () => {
     expect(focoAoEntrar(null)).toEqual({ tipo: 'titulo' });
   });
 
-  it('antes de ler, "Ler os arquivos"', () => {
+  it('antes de ler e depois de uma leitura que não terminou, o botão de ler', () => {
     expect(focoAoEntrar({ ...base, estado: 'RECEBENDO' })).toEqual({ tipo: 'ler' });
     expect(focoAoEntrar({ ...base, estado: 'RASCUNHO' })).toEqual({ tipo: 'ler' });
+    expect(focoAoEntrar({ ...base, estado: 'ERRO' })).toEqual({ tipo: 'ler' });
   });
 
   it('o primeiro termo pendente visível vem antes do aluno parecido', () => {
@@ -436,19 +467,22 @@ describe('foco ao entrar na tela', () => {
 
 test('motivo da contingência dito com clareza e contagem da leitura em andamento', () => {
   const semChave = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: true, motivoFallback: 'CHAVE_AUSENTE' });
-  expect(semChave.alertaFallback).toMatch(/falta a chave/);
+  expect(semChave.alertaFallback).toMatch(/^A leitura com IA não está disponível agora/);
   const falhou = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: true, motivoFallback: 'ERRO_PROVEDOR' });
-  expect(falhou.alertaFallback).toMatch(/nova tentativa/);
+  expect(falhou.alertaFallback).toMatch(/segunda tentativa/);
   expect(falhou.alertaFallback).toMatch(/Confira/);
   const desligado = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: false, motivoFallback: 'ENVIO_DESLIGADO' });
   expect(desligado.alertaFallback).toBeNull();
-  expect(desligado.descricao).toMatch(/desligado/);
+  expect(desligado.descricao).toBe('Lido sem IA, por regras fixas. Confira os termos antes de gravar.');
 
   expect(textoDaLeitura({ lidos: 2, total: 5 })).toBe('Lendo 2 de 5 arquivos');
   expect(textoDaLeitura({ lidos: 0, total: 1 })).toBe('Lendo 0 de 1 arquivo');
   expect(textoDaLeitura({ lidos: 9, total: 5 })).toBe('Lendo 5 de 5 arquivos');
   expect(textoDaLeitura(null)).toBeNull();
   expect(textoDaLeitura({ lidos: 0, total: 0 })).toBeNull();
+  // Na fila da consultoria: sem contagem falsa; ao começar volta ao "Lendo X de N".
+  expect(textoDaLeitura({ lidos: 0, total: 3, aguardando: true })).toBe('Na fila: aguardando outra leitura terminar');
+  expect(textoDaLeitura({ lidos: 0, total: 3, aguardando: false })).toBe('Lendo 0 de 3 arquivos');
 });
 
 test('só a sugestão única da biblioteca entra no "Aceitar todas as sugestões"', () => {
@@ -470,4 +504,152 @@ test('só a sugestão única da biblioteca entra no "Aceitar todas as sugestões
 test('planilha .xls antiga pede para salvar como .xlsx', () => {
   const erro = new ErroApi(422, 'FORMATO_XLS_ANTIGO', 'texto do servidor');
   expect(textoDoErroDaImportacao(erro)).toBe('Salve como .xlsx no Excel e envie de novo.');
+});
+
+describe('revisão de 28/11', () => {
+  it('0.3: a leitura que falhou oferece "Tentar ler de novo"', () => {
+    expect(sessaoPodeLer('ERRO')).toBe(true);
+    expect(sessaoPodeLer('RECEBENDO')).toBe(true);
+    expect(sessaoPodeLer('REVISANDO')).toBe(false);
+    expect(sessaoPodeLer('REVISANDO', [{ estado: 'PROCESSADO' }, { estado: 'RECEBIDO' }])).toBe(true);
+    expect(sessaoPodeLer('REVISANDO', [{ estado: 'PROCESSADO' }])).toBe(false);
+    expect(sessaoPodeLer('PROCESSANDO')).toBe(false);
+    expect(rotuloDoLer('ERRO')).toBe('Tentar ler de novo');
+    expect(rotuloDoLer('RECEBENDO')).toBe('Ler os arquivos');
+    expect(AVISO_LEITURA_NAO_TERMINOU).toBe('A leitura não terminou. Seus arquivos continuam aqui.');
+  });
+
+  it('2.1: acrescentar arquivos com a sessão aberta, menos lendo ou encerrada', () => {
+    expect(sessaoAceitaArquivos('REVISANDO')).toBe(true);
+    expect(sessaoAceitaArquivos('ERRO')).toBe(true);
+    expect(sessaoAceitaArquivos('PROCESSANDO')).toBe(false);
+    expect(sessaoAceitaArquivos('CONCLUIDA')).toBe(false);
+  });
+
+  it('2.1: confere extensão, 900 KB, 20 arquivos e 8 MB antes de subir, contando o que a sessão já tem', () => {
+    const KB = 1024;
+    const motivos = motivosAntesDeEnviar([
+      { nome: 'treino.PDF', tamanho: 100 * KB },
+      { nome: 'foto.png', tamanho: 10 },
+      { nome: 'antiga.xls', tamanho: 10 },
+      { nome: 'grande.docx', tamanho: 901 * KB },
+      { nome: 'vazio.csv', tamanho: 0 },
+      { nome: 'sem-tamanho.xlsx' },
+      { nome: 'semextensao' },
+    ], { quantos: 0, bytes: 0 });
+    expect(motivos).toEqual([
+      null,
+      'Formato não aceito. Envie PDF, DOCX, XLSX ou CSV.',
+      'Salve como .xlsx no Excel e envie de novo.',
+      'Passa do tamanho máximo de 900 KB. Divida em partes menores.',
+      'O arquivo está vazio.',
+      null,
+      'Formato não aceito. Envie PDF, DOCX, XLSX ou CSV.',
+    ]);
+    // 19 na sessão: o primeiro aceito ocupa a vaga e o seguinte passa de 20.
+    expect(motivosAntesDeEnviar([{ nome: 'a.pdf', tamanho: 1 }, { nome: 'b.pdf', tamanho: 1 }], { quantos: 19, bytes: 0 }))
+      .toEqual([null, ERROS.LIMITE_DE_ARQUIVOS]);
+    // O recusado não conta: o volume e a vaga ficam para o próximo.
+    expect(motivosAntesDeEnviar([{ nome: 'x.png' }, { nome: 'a.pdf', tamanho: 500 * KB }], { quantos: 19, bytes: 8 * 1024 * KB - 600 * KB }))
+      .toEqual(['Formato não aceito. Envie PDF, DOCX, XLSX ou CSV.', null]);
+    expect(motivosAntesDeEnviar([{ nome: 'a.pdf', tamanho: 800 * KB }], { quantos: 3, bytes: 8 * 1024 * KB - 100 * KB }))
+      .toEqual([ERROS.LIMITE_DE_VOLUME]);
+    expect(textoDoEnvio({ nome: 'a.pdf', motivo: null })).toBe('Enviado');
+    expect(textoDoEnvio({ nome: 'x.png', motivo: 'Formato não aceito.' })).toBe('Recusado: Formato não aceito.');
+  });
+
+  it('4.2: com a leitura por imagem ligada, JPG e PNG passam no mesmo 900 KB; desligada, nada muda', () => {
+    const KB = 1024;
+    const lista = [
+      { nome: 'print.PNG', tamanho: 300 * KB },
+      { nome: 'foto.jpeg', tamanho: 900 * KB },
+      { nome: 'foto.jpg', tamanho: 901 * KB },
+      { nome: 'anim.gif', tamanho: 10 },
+    ];
+    expect(motivosAntesDeEnviar(lista, { quantos: 0, bytes: 0 }, true)).toEqual([
+      null,
+      null,
+      'Passa do tamanho máximo de 900 KB. Divida em partes menores.',
+      'Formato não aceito. Envie PDF, DOCX, XLSX, CSV, JPG ou PNG.',
+    ]);
+    expect(motivosAntesDeEnviar(lista, { quantos: 0, bytes: 0 })).toEqual(Array(4).fill('Formato não aceito. Envie PDF, DOCX, XLSX ou CSV.'));
+    // Imagem conta na vaga e no volume como qualquer arquivo.
+    expect(motivosAntesDeEnviar([{ nome: 'a.png', tamanho: 1 }, { nome: 'b.jpg', tamanho: 1 }], { quantos: 19, bytes: 0 }, true))
+      .toEqual([null, ERROS.LIMITE_DE_ARQUIVOS]);
+    expect(FORMATOS_E_LIMITES).toBe('PDF, DOCX, XLSX ou CSV · até 20 arquivos, 900 KB cada e 8 MB no total');
+    expect(AVISO_DA_LEITURA_POR_IMAGEM).toMatch(/enviados inteiros ao provedor de IA/);
+    expect(AVISO_DA_LEITURA_POR_IMAGEM).toMatch(/não envie fotos de corpo/);
+  });
+
+  it('4.2: lido pela imagem do documento, sem a cobertura do texto extraído', () => {
+    expect(textoDoModoDoArquivo({ modo: 'IA', enviadoComoArquivo: true })).toEqual({ texto: 'Lido pela imagem do documento', atencao: false });
+    expect(textoDoModoDoArquivo({ modo: 'IA', enviadoComoArquivo: false })).toEqual({ texto: 'Lido com IA', atencao: false });
+    expect(resumoDaCoberturaDoArquivo({ status: 'SEM_TEXTO', paginasTotal: 2, paginasLidas: 0 }, true)).toBeNull();
+    expect(resumoDaCoberturaDoArquivo({ status: 'SEM_TEXTO' }, false)?.tom).toBe('perigo');
+  });
+
+  it('2.2: cadastro editável valida nome, e-mail e WhatsApp e manda só o que mudou', () => {
+    const antes = cadastroDoGrupo(grupo({ cadastro: { nome: 'Aluna Fictícia', email: 'aluna@exemplo.test', telefone: null } }));
+    expect(antes).toEqual({ nome: 'Aluna Fictícia', email: 'aluna@exemplo.test', telefone: '' });
+    expect(errosDoCadastro(antes)).toEqual({});
+    expect(errosDoCadastro({ nome: ' ', email: 'sem-arroba', telefone: '123' })).toEqual({
+      nome: 'Informe o nome do aluno.',
+      email: 'Informe um e-mail válido, como nome@exemplo.com.',
+      telefone: 'Telefone inválido. Informe o DDD e o número.',
+    });
+    expect(mudancasDoCadastro(antes, { ...antes })).toBeNull();
+    expect(mudancasDoCadastro(antes, { ...antes, email: '', telefone: '(11) 98765-4321' })).toEqual({ email: '', telefone: '(11) 98765-4321' });
+  });
+
+  it('2.4: a melhor sugestão é a da biblioteca de maior nota', () => {
+    const sug = (termo: string, referenciaId: string | null, nota: number | null) => ({ termo, referenciaId, origem: 'X', nota });
+    expect(melhorSugestao({ sugestoes: [sug('Só IA', null, 0.99), sug('Supino reto', 'r1', 0.6), sug('Supino', 'r2', 0.9)] })?.termo).toBe('Supino');
+    expect(melhorSugestao({ sugestoes: [sug('Só IA', null, 0.5)] })?.termo).toBe('Só IA');
+    expect(melhorSugestao({ sugestoes: [] })).toBeNull();
+  });
+
+  it('2.7: frase do que a gravação vai fazer, pelo destino dos marcados', () => {
+    const lista = [grupo({ id: 'a' }), grupo({ id: 'b' }), grupo({ id: 'c', destino: 'VINCULAR_EXISTENTE', alunoExistenteId: 'x' }), grupo({ id: 'd', destino: 'MODELO_BIBLIOTECA' })];
+    expect(resumoDaGravacao(lista, new Set(['a', 'b']))).toBe('Vai criar 2 alunos novos.');
+    expect(resumoDaGravacao(lista, new Set(['a', 'c', 'd']))).toBe('Vai criar 1 aluno novo, gravar em 1 aluno já cadastrado e salvar 1 modelo.');
+    expect(resumoDaGravacao(lista, new Set())).toBeNull();
+  });
+
+  it('2.6: o teto da espera cresce a cada 3 arquivos', () => {
+    expect(tetoDaEsperaMs(0)).toBe(12 * 60_000);
+    expect(tetoDaEsperaMs(3)).toBe(12 * 60_000);
+    expect(tetoDaEsperaMs(4)).toBe(24 * 60_000);
+    expect(FALHAS_ATE_AVISAR).toBe(5);
+  });
+
+  it('2.5: atalhos por aluno gravado: ficha sempre, rascunhos só os criados', () => {
+    expect(atalhosDoAlunoGravado({ alunoId: 'a1', nome: 'Aluna Fictícia', criado: true, treinoId: 't1', dietaId: null }).map((a) => [a.rotulo, a.href])).toEqual([
+      ['Abrir ficha', '/treinador/alunos/a1'],
+      ['Abrir rascunho do treino', '/treinador/treinos/t1'],
+    ]);
+    expect(atalhosDoAlunoGravado({ alunoId: 'a2', nome: 'Aluno Fictício', criado: false }).map((a) => a.rotulo)).toEqual(['Abrir ficha']);
+  });
+
+  it('2.8: textos sem "grupo" e modo por arquivo', () => {
+    expect(textoDoModoDoArquivo({ modo: 'IA' })).toEqual({ texto: 'Lido com IA', atencao: false });
+    expect(textoDoModoDoArquivo({ modo: 'REGRAS', motivoFallback: 'ENVIO_DESLIGADO' })).toEqual({ texto: 'Lido sem IA, por regras fixas', atencao: false });
+    expect(textoDoModoDoArquivo({ modo: 'REGRAS', motivoFallback: 'RESPOSTA_CORTADA' })).toEqual({ texto: 'O documento era grande demais para a IA e foi lido sem IA.', atencao: true });
+    expect(textoDoModoDoArquivo({ modo: null })).toBeNull();
+    expect(textoDoModoDoArquivo({ modo: 'IA', motivoFallback: 'RESPOSTA_CORTADA' })).toEqual({ texto: 'Lido pela IA; uma parte caiu nas regras', atencao: true });
+    const emParte = resumoDoModoProcessamento({ modoEfetivo: 'IA', fallbackParaRegras: true, motivoFallback: 'RESPOSTA_CORTADA' });
+    expect(emParte.titulo).toBe('Lido pela IA; uma parte caiu nas regras');
+    expect(emParte.alertaFallback).toMatch(/^Uma parte do documento foi lida sem IA/);
+    // Tempo da IA esgotado: o aviso fixo da API, sem um segundo "Confira".
+    const tempo = 'O tempo de leitura com IA acabou: parte do documento foi lida pelas regras fixas. Confira com atenção.';
+    expect(textoDoModoDoArquivo({ modo: 'REGRAS', motivoFallback: 'TEMPO_ESGOTADO' })).toEqual({ texto: tempo, atencao: true });
+    expect(textoDoModoDoArquivo({ modo: 'IA', motivoFallback: 'TEMPO_ESGOTADO' })).toEqual({ texto: 'Lido pela IA; uma parte caiu nas regras', atencao: true });
+    const semTempo = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: true, motivoFallback: 'TEMPO_ESGOTADO' });
+    expect(semTempo).toEqual({ titulo: 'Lido sem IA', descricao: 'Lido sem IA, por regras fixas.', alertaFallback: tempo });
+    const emParteSemTempo = resumoDoModoProcessamento({ modoEfetivo: 'IA', fallbackParaRegras: true, motivoFallback: 'TEMPO_ESGOTADO' });
+    expect(emParteSemTempo.titulo).toBe('Lido pela IA; uma parte caiu nas regras');
+    expect(emParteSemTempo.alertaFallback).toBe(tempo);
+    expect(textoDoErroDaImportacao(new ErroApi(409, 'GRUPO_JA_IMPORTADO', 'x'))).not.toMatch(/grupo/i);
+    expect(rotuloDoTipoDoApelido('EXERCICIO_NAO_RECONHECIDO')).toBe('Exercício');
+    expect(rotuloDoTipoDoApelido('ALIMENTO')).toBe('Alimento');
+  });
 });

@@ -34,6 +34,16 @@ describe('mapeamento da importação', () => {
     expect(faltandoColuna(destino, 'nome', mapa)).toEqual([]);
   });
 
+  it('alunos (28/11): nascimento e sexo são opcionais e não sensíveis, e entram mesmo sem permissão de dado sensível', () => {
+    const campos = alunos.campos.filter((c) => c.id === 'nascimento' || c.id === 'sexo');
+    expect(campos.map((c) => [c.rotulo, c.obrigatorio, c.sensivel])).toEqual([['Data de nascimento', false, false], ['Sexo', false, false]]);
+    const { mapa } = mapaDasSugestoes([
+      { campo: 'nascimento', coluna: 0, confianca: 'EXATA' },
+      { campo: 'sexo', coluna: 1, confianca: 'EXATA' },
+    ], alunos, false);
+    expect(mapa).toMatchObject({ nascimento: 0, sexo: 1 });
+  });
+
   it('a chave por e-mail bloqueia quando a coluna falta', () => {
     const { mapa } = mapaDasSugestoes([{ campo: 'nome', coluna: 0, confianca: 'EXATA' }], alunos, true);
     expect(faltandoColuna(alunos, 'email', mapa)).toEqual(['E-mail']);

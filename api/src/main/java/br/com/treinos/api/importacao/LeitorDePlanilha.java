@@ -13,11 +13,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -52,14 +54,19 @@ public final class LeitorDePlanilha {
     private static final LocalDate EPOCA = LocalDate.of(1899, 12, 30);
 
     /**
-     * {@code data}: célula numérica com formato de data no xlsx. O {@code texto} continua sendo o número serial (é o que a
-     * gravação lê); a marca só serve para a amostra da tela mostrar dd/MM/aaaa em vez de "45321".
+     * {@code data}: célula numérica com formato de data no xlsx. O {@code texto} continua sendo o número serial; a marca
+     * diz que o número é data ({@link ValoresDeCelula#data}) e faz a amostra da tela mostrar dd/MM/aaaa em vez de "45321".
+     * {@code marcador}: o "x", "-", "–" ou "—" sozinho na célula (ver {@link #deTextoLido}); o {@code texto} fica vazio.
      */
-    public record Celula(String texto, boolean numero, boolean erro, boolean data) {
+    public record Celula(String texto, boolean numero, boolean erro, boolean data, String marcador) {
         private static final Celula VAZIA = new Celula("", false, false);
 
         public Celula(String texto, boolean numero, boolean erro) {
             this(texto, numero, erro, false);
+        }
+
+        public Celula(String texto, boolean numero, boolean erro, boolean data) {
+            this(texto, numero, erro, data, null);
         }
 
         static Celula vazia() {
@@ -80,10 +87,11 @@ public final class LeitorDePlanilha {
 
         /**
          * Texto lido do arquivo ou digitado na correção da tabela (reunião de 30/10, planilha real do treinador): "x", "-",
-         * "–" ou "—" sozinhos na célula são o jeito comum de dizer "vazio" e contam como vazia (antes, "x" num e-mail
-         * opcional derrubava a linha inteira com "E-mail inválido"). O texto de um erro de fórmula (#ERROR!, #N/A, #REF!…,
-         * em inglês ou em português), que o Google Sheets grava como texto, vira célula com erro; o texto fica só para a
-         * tabela da tela mostrar o que veio, e a validação nunca o usa.
+         * "–" ou "—" sozinhos na célula são o jeito comum de dizer "vazio": o {@code texto} fica vazio (antes, "x" num
+         * e-mail opcional derrubava a linha inteira com "E-mail inválido") e o marcador fica em {@code marcador}, para a
+         * tela mostrar o que veio e a planilha completa ler o "x" de uma coluna de sim/não. O texto de um erro de fórmula
+         * (#ERROR!, #N/A, #REF!…, em inglês ou em português), que o Google Sheets grava como texto, vira célula com erro; o
+         * texto fica só para a tabela da tela mostrar o que veio, e a validação nunca o usa.
          */
         public static Celula deTextoLido(String t) {
             if (t == null) {
@@ -91,7 +99,7 @@ public final class LeitorDePlanilha {
             }
             String limpo = t.strip();
             if (MARCADORES_DE_VAZIO.contains(limpo)) {
-                return VAZIA;
+                return new Celula("", false, false, false, limpo);
             }
             if (ERRO_DE_FORMULA.matcher(limpo).matches()) {
                 return new Celula(limpo, false, true);
@@ -123,6 +131,16 @@ public final class LeitorDePlanilha {
 
     /** {@code linhaDoCabecalho}: no CSV, o separador (; ou ,) sai dessa linha, não da primeira do arquivo. */
     public static Planilha ler(String nome, byte[] bytes, int aba, int linhaDoCabecalho) {
+        boolean xlsx = xlsx(nome, bytes);
+        try {
+            return xlsx ? lerXlsx(bytes, aba) : lerCsv(bytes, aba, linhaDoCabecalho);
+        } catch (BadRequestException e) {
+            throw arquivo(e.getMessage());
+        }
+    }
+
+    /** Confere tamanho e formato (recusa vazio, acima de 900 KB, .xls antigo e extensão desconhecida): xlsx ou csv. */
+    private static boolean xlsx(String nome, byte[] bytes) {
         if (bytes == null || bytes.length == 0) {
             throw arquivo("O arquivo está vazio.");
         }
@@ -133,17 +151,13 @@ public final class LeitorDePlanilha {
         if ("xls".equals(ext) || ole(bytes)) {
             throw new ValidacaoException("Salve como .xlsx no Excel e envie de novo.", "FORMATO_XLS_ANTIGO", List.of());
         }
-        try {
-            if ("xlsx".equals(ext) || zip(bytes)) {
-                return lerXlsx(bytes, aba);
-            }
-            if ("csv".equals(ext) || "txt".equals(ext) || ext.isEmpty()) {
-                return lerCsv(bytes, aba, linhaDoCabecalho);
-            }
-            throw arquivo("Envie um arquivo .xlsx ou .csv.");
-        } catch (BadRequestException e) {
-            throw arquivo(e.getMessage());
+        if ("xlsx".equals(ext) || zip(bytes)) {
+            return true;
         }
+        if ("csv".equals(ext) || "txt".equals(ext) || ext.isEmpty()) {
+            return false;
+        }
+        throw arquivo("Envie um arquivo .xlsx ou .csv.");
     }
 
     /**
@@ -165,8 +179,14 @@ public final class LeitorDePlanilha {
 
     private static final java.time.format.DateTimeFormatter DIA_NA_TELA = java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu");
 
-    /** Como a tela mostra a célula: a de formato de data sai dd/MM/aaaa; as outras, o texto. Só exibição, a gravação lê o serial. */
+    /**
+     * Como a tela mostra a célula: a de formato de data sai dd/MM/aaaa, o marcador de vazio sai como veio ("x"); as
+     * outras, o texto. Só exibição, a gravação lê o serial.
+     */
     public static String paraExibir(Celula c, boolean data1904) {
+        if (c.marcador() != null) {
+            return c.marcador();
+        }
         if (c.data() && c.numero()) {
             try {
                 LocalDate dia = dataSerial(new BigDecimal(c.texto()), data1904);
@@ -205,7 +225,63 @@ public final class LeitorDePlanilha {
         return new Planilha(List.of("Planilha"), 0, linhas, false);
     }
 
+    /**
+     * Todas as abas, abrindo o arquivo uma vez só (a planilha completa lia o zip de novo a cada aba). Mais de
+     * {@code abasMaximas} abas é recusado antes de ler alguma; as células somadas das abas têm o mesmo teto de
+     * {@link #CELULAS_MAXIMAS} de uma aba. CSV = uma aba.
+     */
+    public static List<Planilha> lerTodas(String nome, byte[] bytes, int abasMaximas) {
+        if (!xlsx(nome, bytes)) {
+            return List.of(ler(nome, bytes, 0));
+        }
+        try {
+            Livro livro = abrirLivro(bytes);
+            if (livro.nomes().size() > abasMaximas) {
+                throw arquivo("A planilha tem mais de " + abasMaximas + " abas.");
+            }
+            List<Planilha> abas = new ArrayList<>();
+            int celulas = 0;
+            for (int i = 0; i < livro.nomes().size(); i++) {
+                Planilha aba = livro.aba(i);
+                celulas += aba.linhas().stream().mapToInt(l -> l.celulas().size()).sum();
+                if (celulas > CELULAS_MAXIMAS) {
+                    throw arquivo("A planilha tem células demais.");
+                }
+                abas.add(aba);
+            }
+            return List.copyOf(abas);
+        } catch (BadRequestException e) {
+            throw arquivo(e.getMessage());
+        }
+    }
+
     private static Planilha lerXlsx(byte[] bytes, int abaPedida) {
+        Livro livro = abrirLivro(bytes);
+        if (abaPedida < 0 || abaPedida >= livro.nomes().size()) {
+            throw arquivo("Escolha uma aba da planilha.");
+        }
+        return livro.aba(abaPedida);
+    }
+
+    /** O zip aberto, com o que é comum às abas (nomes, relações, textos compartilhados e estilos de data). */
+    private record Livro(Map<String, byte[]> entradas, List<String> nomes, List<String> relacoes, Map<String, String> alvos,
+                         List<String> textos, Set<Integer> estilosDeData, boolean data1904) {
+
+        Planilha aba(int indice) {
+            String alvo = alvos.get(relacoes.get(indice));
+            if (alvo == null) {
+                throw arquivo("Não foi possível ler a planilha.");
+            }
+            String caminho = alvo.startsWith("/") ? alvo.substring(1) : "xl/" + alvo.replace("\\", "/");
+            byte[] folha = entradas.get(caminho);
+            if (folha == null) {
+                throw arquivo("Não foi possível ler a planilha.");
+            }
+            return new Planilha(nomes, indice, folha(folha, textos, estilosDeData), data1904);
+        }
+    }
+
+    private static Livro abrirLivro(byte[] bytes) {
         Map<String, byte[]> entradas = abrirZip(bytes);
         byte[] workbook = entradas.get("xl/workbook.xml");
         if (workbook == null) {
@@ -221,22 +297,9 @@ public final class LeitorDePlanilha {
         if (nomes.isEmpty()) {
             throw arquivo("Não foi possível ler a planilha.");
         }
-        if (abaPedida < 0 || abaPedida >= nomes.size()) {
-            throw arquivo("Escolha uma aba da planilha.");
-        }
-        Map<String, String> alvos = relacoes(entradas.get("xl/_rels/workbook.xml.rels"));
-        String alvo = alvos.get(relacoes.get(abaPedida));
-        if (alvo == null) {
-            throw arquivo("Não foi possível ler a planilha.");
-        }
-        String caminho = alvo.startsWith("/") ? alvo.substring(1) : "xl/" + alvo.replace("\\", "/");
-        byte[] folha = entradas.get(caminho);
-        if (folha == null) {
-            throw arquivo("Não foi possível ler a planilha.");
-        }
-        List<String> textos = textos(entradas.get("xl/sharedStrings.xml"));
-        return new Planilha(List.copyOf(nomes), abaPedida, folha(folha, textos, estilosDeData(entradas.get("xl/styles.xml"))),
-                data1904);
+        return new Livro(entradas, Collections.unmodifiableList(nomes), relacoes,
+                relacoes(entradas.get("xl/_rels/workbook.xml.rels")), textos(entradas.get("xl/sharedStrings.xml")),
+                estilosDeData(entradas.get("xl/styles.xml")), data1904);
     }
 
     private static Map<String, byte[]> abrirZip(byte[] bytes) {
@@ -402,11 +465,12 @@ public final class LeitorDePlanilha {
                         celulas.add(lida);
                     }
                 } else if (ev == XMLStreamConstants.END_ELEMENT && "row".equals(r.getLocalName()) && celulas != null) {
-                    // As vazias do fim (borda ou estilo) não contam no teto nem ocupam a linha guardada.
-                    while (!celulas.isEmpty() && vazia(celulas.getLast())) {
+                    // As vazias do fim (borda ou estilo) não contam no teto nem ocupam a linha guardada; o marcador ("x")
+                    // no fim fica. Linha só de vazias e marcadores não entra, como antes.
+                    while (!celulas.isEmpty() && vazia(celulas.getLast()) && celulas.getLast().marcador() == null) {
                         celulas.removeLast();
                     }
-                    if (!celulas.isEmpty()) {
+                    if (!celulas.stream().allMatch(LeitorDePlanilha::vazia)) {
                         if (linhas.size() >= LINHAS_LIDAS) {
                             throw arquivo("O arquivo passa de 5.000 linhas.");
                         }
@@ -454,6 +518,9 @@ public final class LeitorDePlanilha {
         }
         try {
             BigDecimal n = new BigDecimal(t);
+            if (ValoresDeCelula.foraDoLimite(n)) {
+                return Celula.comErro(); // antes do toPlainString: 1E+999999999 alocaria 1 GB
+            }
             String serial = n.stripTrailingZeros().toPlainString();
             return comFormatoDeData ? new Celula(serial, true, false, true) : Celula.deNumero(serial);
         } catch (NumberFormatException e) {
@@ -626,14 +693,24 @@ public final class LeitorDePlanilha {
         }
     }
 
-    private static String decodificar(byte[] bytes) {
+    /**
+     * UTF-16 com BOM (o "Texto Unicode" do Excel); senão UTF-8 estrito (com ou sem BOM) e, se não for UTF-8, Windows-1252
+     * (o "CSV (separado por vírgulas)" do Excel no Windows em português grava assim os acentos).
+     */
+    static String decodificar(byte[] bytes) {
+        if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xFE) {
+            return new String(bytes, 2, bytes.length - 2, StandardCharsets.UTF_16LE);
+        }
+        if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFE && (bytes[1] & 0xFF) == 0xFF) {
+            return new String(bytes, 2, bytes.length - 2, StandardCharsets.UTF_16BE);
+        }
         int inicio = bytes.length >= 3 && bytes[0] == (byte) 0xEF && bytes[1] == (byte) 0xBB && bytes[2] == (byte) 0xBF ? 3 : 0;
         try {
             CharsetDecoder decodificador = StandardCharsets.UTF_8.newDecoder()
                     .onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT);
             return decodificador.decode(java.nio.ByteBuffer.wrap(bytes, inicio, bytes.length - inicio)).toString();
         } catch (CharacterCodingException e) {
-            throw arquivo("Salve o CSV em UTF-8 e envie de novo.");
+            return new String(bytes, Charset.forName("windows-1252"));
         }
     }
 

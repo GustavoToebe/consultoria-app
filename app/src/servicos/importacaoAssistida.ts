@@ -1,6 +1,5 @@
 import { requisicao } from '../api/cliente';
 
-export type ObjetivoImportacao = 'SOMENTE_CADASTROS' | 'CADASTROS_E_PLANOS_ATUAIS' | 'INCLUIR_HISTORICO';
 export type EstadoSessao =
   | 'RASCUNHO'
   | 'RECEBENDO'
@@ -37,12 +36,19 @@ export interface CoberturaArquivo {
 export interface ArquivoResumo {
   id: string;
   nomeOriginal: string;
+  /** PDF, DOCX, XLSX, CSV, TEXTO_LIVRE e, com a leitura por imagem ligada (4.2), JPG ou PNG. */
   formato: string;
   tamanhoBytes: number;
   estado: string;
   erroCodigo?: string | null;
   criadoEm: string;
   cobertura?: CoberturaArquivo | null;
+  /** Como este arquivo foi lido (1.6): `IA`, `REGRAS` ou nulo enquanto não foi lido. */
+  modo?: 'IA' | 'REGRAS' | null;
+  /** Por que caiu nas regras fixas (`RESPOSTA_CORTADA`, `TEMPO_ESGOTADO`, `ERRO_PROVEDOR`...); nulo quando não caiu. */
+  motivoFallback?: string | null;
+  /** 4.2: a leitura que valeu foi pela IA com o PDF ou a imagem inteiros anexos ("Lido pela imagem do documento"). */
+  enviadoComoArquivo?: boolean;
 }
 
 export interface CadastroImportavel {
@@ -120,17 +126,25 @@ export interface GrupoImportavel {
   candidatos?: CandidatoAluno[];
   /** O que a leitura cortou neste grupo (teto de sessões, exercícios, textos...). Só com `TREINO_LER` e `DIETA_LER`. */
   avisos?: string[];
+  /** Mesmo nome de outro aluno da sessão, com conflito de conteúdo: a tela oferece "Juntar com…" (D6). */
+  possivelMesmoAluno?: boolean;
+  possiveisParceiros?: { grupoId: string; nome: string }[];
+  /** De onde veio o nome: só `CONTEUDO` foi lido do documento; `DIGITADO` = o treinador escreveu na revisão. */
+  origemDoNome?: OrigemDoNome;
 }
+
+export type OrigemDoNome = 'CONTEUDO' | 'NOME_DO_ARQUIVO' | 'TITULO_DO_TEXTO' | 'AUSENTE' | 'DIGITADO';
 
 /** Arquivos lidos até agora enquanto a sessão está em `PROCESSANDO`. */
 export interface LeituraEmAndamento {
   lidos: number;
   total: number;
+  /** Na fila da consultoria esperando outra leitura terminar (no máximo duas ao mesmo tempo); ausente = `false`. */
+  aguardando?: boolean;
 }
 
 export interface SessaoDetalhe {
   id: string;
-  objetivo: string;
   estado: EstadoSessao;
   revisao: number;
   arquivos: ArquivoResumo[];
@@ -170,6 +184,17 @@ export interface ConfirmacaoResultado {
   gruposComErro: number;
   pesosGravados: number;
   pesosIgnorados: number;
+  /** Alunos gravados, para abrir a ficha e o rascunho (só com `ALUNO_LER`; ausente sem ela). */
+  alunos?: AlunoGravado[];
+}
+
+export interface AlunoGravado {
+  alunoId: string;
+  nome: string;
+  criado: boolean;
+  pastaId?: string | null;
+  treinoId?: string | null;
+  dietaId?: string | null;
 }
 
 export interface ApelidoDto {
@@ -181,22 +206,21 @@ export interface ApelidoDto {
   criadoEm: string;
 }
 
-/** Cria uma nova sessão de importação assistida */
-export async function criarSessao(objetivo: ObjetivoImportacao = 'CADASTROS_E_PLANOS_ATUAIS'): Promise<SessaoDetalhe> {
-  return requisicao<SessaoDetalhe>('/importacoes/assistidas/sessoes', {
-    metodo: 'POST',
-    corpo: { objetivo },
-  });
+/** Envio de arquivo e confirmação passam dos 15 s padrão do cliente em rede lenta ou lote grande (0.5). */
+export const LIMITE_DO_ENVIO_MS = 60_000;
+export const LIMITE_DA_CONFIRMACAO_MS = 120_000;
+
+/** Cria uma nova sessão de importação assistida (sem corpo: "O que importar" saiu, D3). */
+export async function criarSessao(): Promise<SessaoDetalhe> {
+  return requisicao<SessaoDetalhe>('/importacoes/assistidas/sessoes', { metodo: 'POST' });
 }
 
-/** Adiciona um arquivo à sessão via FormData */
-export async function adicionarArquivo(sessaoId: string, arquivo: Blob, nomeOriginal: string): Promise<ArquivoResumo> {
-  const dados = new FormData();
-  dados.append('arquivo', arquivo, nomeOriginal);
-
+/** Adiciona um arquivo à sessão. `dados` é o FormData de `formularioDaImportacao.formulario` (campo `arquivo`; no celular, pelos bytes). */
+export async function adicionarArquivo(sessaoId: string, dados: FormData): Promise<ArquivoResumo> {
   return requisicao<ArquivoResumo>(`/importacoes/assistidas/sessoes/${sessaoId}/arquivos`, {
     metodo: 'POST',
     corpoBruto: dados,
+    limiteMs: LIMITE_DO_ENVIO_MS,
   });
 }
 
@@ -205,6 +229,7 @@ export async function adicionarTexto(sessaoId: string, titulo: string, conteudo:
   return requisicao<ArquivoResumo>(`/importacoes/assistidas/sessoes/${sessaoId}/textos`, {
     metodo: 'POST',
     corpo: { titulo, conteudo },
+    limiteMs: LIMITE_DO_ENVIO_MS,
   });
 }
 
@@ -281,15 +306,26 @@ export async function revogarDecisao(
   });
 }
 
-/** Atualiza destino (Criar Aluno, Vincular Existente, Modelo, Ignorar) ou nome de um grupo */
+/** Atualiza o destino (criar, vincular, modelo, ignorar) ou o cadastro (nome, e-mail, WhatsApp) de um aluno da sessão */
 export async function atualizarGrupo(
   sessaoId: string,
   grupoId: string,
-  dados: { destino?: DestinoGrupo; alunoExistenteId?: string | null; nome?: string }
+  dados: { destino?: DestinoGrupo; alunoExistenteId?: string | null; nome?: string; email?: string; telefone?: string }
 ): Promise<SessaoDetalhe> {
   return requisicao<SessaoDetalhe>(`/importacoes/assistidas/sessoes/${sessaoId}/grupos/${grupoId}`, {
     metodo: 'PUT',
     corpo: dados,
+  });
+}
+
+/**
+ * Junta alunos da sessão que são a mesma pessoa ("Juntar com…", D6) ou, com a lista, as partes de um mesmo arquivo
+ * ("Juntar as N partes", numa chamada só); devolve a sessão.
+ */
+export async function juntarGrupos(sessaoId: string, grupoId: string, com: string | string[]): Promise<SessaoDetalhe> {
+  return requisicao<SessaoDetalhe>(`/importacoes/assistidas/sessoes/${sessaoId}/grupos/${grupoId}/juntar`, {
+    metodo: 'POST',
+    corpo: typeof com === 'string' ? { comGrupoId: com } : { comGruposIds: com },
   });
 }
 
@@ -309,6 +345,7 @@ export async function confirmarSessao(
       hashPrevia,
       chaveIdempotencia,
     },
+    limiteMs: LIMITE_DA_CONFIRMACAO_MS,
   });
 }
 

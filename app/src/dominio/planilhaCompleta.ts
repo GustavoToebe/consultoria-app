@@ -542,6 +542,7 @@ export const PROBLEMAS: Readonly<Record<string, string>> = {
   SEM_DATA: 'Sem data.',
   SEM_PESO: 'Sem peso.',
   SEM_REFERENCIA: 'Sem o código da aba de cima.',
+  STATUS_NAO_RECONHECIDO: 'Situação não reconhecida: o aluno entrou como ativo. Confira.',
   SUPLEMENTOS_DEMAIS: 'Mais de 40 suplementos: os demais ficaram de fora.',
   SUPLEMENTO_SEM_NOME: 'Suplemento sem nome.',
   TELEFONE_INVALIDO: 'Telefone inválido: o aluno entra sem telefone.',

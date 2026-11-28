@@ -95,18 +95,21 @@ public class InterpretadorPorRegras implements InterpretadorIa {
 
     @Override
     public ResultadoInterpretacao interpretar(ContextoIa contexto) {
-        String textoCompleto = extrairTextoCompleto(contexto.blocos());
-        String nomeAluno = PistaDeIdentidade.extrairDoCabecalho(textoCompleto);
-        if (nomeAluno.isEmpty()) {
-            nomeAluno = PistaDeIdentidade.extrairDoNomeDoArquivo(contexto.nomeArquivo());
-        }
-        if (nomeAluno.isEmpty()) {
-            nomeAluno = "Aluno sem Identificação";
-        }
+        return interpretar(contexto, contexto.blocos());
+    }
+
+    /** Só estes blocos do arquivo: a parte de um documento grande que a IA não conseguiu ler. */
+    public ResultadoInterpretacao interpretar(ContextoIa contexto, List<BlocoTexto> blocos) {
+        String textoCompleto = extrairTextoCompleto(blocos);
+        // Só o cabeçalho do documento dá nome; sem ele fica nulo e o substituto para a tela é do serviço.
+        String doCabecalho = PistaDeIdentidade.extrairDoCabecalho(textoCompleto);
+        String nomeAluno = doCabecalho.isEmpty() ? null : doCabecalho;
+        ResultadoInterpretacao.OrigemDoNome origem = nomeAluno != null ? ResultadoInterpretacao.OrigemDoNome.CONTEUDO
+                : ResultadoInterpretacao.OrigemDoNome.semNomeNoConteudo(contexto.nomeArquivo(), contexto.formato());
 
         List<ResultadoInterpretacao.PropostaPeso> pesos = extrairPesos(textoCompleto);
-        ConteudoTreino treino = extrairTreino(contexto.blocos(), contexto);
-        ConteudoDieta dieta = extrairDieta(contexto.blocos());
+        ConteudoTreino treino = extrairTreino(blocos, contexto);
+        ConteudoDieta dieta = extrairDieta(blocos);
 
         List<ResultadoInterpretacao.PropostaDuvida> duvidas = new ArrayList<>();
         // Gera dúvidas para termos com abreviações não resolvidas
@@ -122,7 +125,9 @@ public class InterpretadorPorRegras implements InterpretadorIa {
                 null,
                 pesos,
                 treino,
-                dieta
+                dieta,
+                List.of(),
+                origem
         );
 
         return new ResultadoInterpretacao(List.of(grupo), List.copyOf(duvidas));
@@ -138,7 +143,7 @@ public class InterpretadorPorRegras implements InterpretadorIa {
             verificarDuvidasExercicios(g.treino(), contexto, duvidas);
             verificarDuvidasAlimentos(g.dieta(), contexto, duvidas);
         }
-        return new ResultadoInterpretacao(resultado.grupos(), List.copyOf(duvidas));
+        return new ResultadoInterpretacao(resultado.grupos(), List.copyOf(duvidas), resultado.uso());
     }
 
     private String extrairTextoCompleto(List<BlocoTexto> blocos) {

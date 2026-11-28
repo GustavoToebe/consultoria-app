@@ -1018,34 +1018,37 @@ export const listarImportacoes = (filtro: { destino?: string; situacao?: string;
 export const detalheDaImportacao = (id: string) => requisicao<DetalheDeImportacao>(`/importacoes/${seg(id)}`);
 export const csvDeErrosDaImportacao = (id: string) => requisicao<string>(`/importacoes/${seg(id)}/erros.csv`, { aceita: 'text/csv' });
 /** Sem `linhaDoCabecalho` a API detecta a linha e a devolve na resposta. */
+/** Envio de planilha e confirmação passam dos 15 s padrão em rede lenta ou arquivo grande (revisão de 28/11, 0.5). */
+const ENVIO_DE_ARQUIVO_MS = 60_000;
+const CONFIRMACAO_MS = 120_000;
 export const colunasDaImportacao = (destino: string, arquivo: FormData, aba: number, linhaDoCabecalho?: number) =>
   requisicao<ColunasDaImportacao>(`/importacoes/${seg(destino)}/colunas?aba=${aba}${linhaDoCabecalho === undefined ? '' : `&linhaDoCabecalho=${linhaDoCabecalho}`}`,
-    { metodo: 'POST', corpoBruto: arquivo });
+    { metodo: 'POST', corpoBruto: arquivo, limiteMs: ENVIO_DE_ARQUIVO_MS });
 /** Entrada única da importação manual: diz se o arquivo é a planilha completa, uma aba (com o destino) ou nada conhecido. */
 export const reconhecerArquivo = (arquivo: FormData) =>
-  requisicao<ReconhecimentoDoArquivo>('/importacoes/reconhecer', { metodo: 'POST', corpoBruto: arquivo });
+  requisicao<ReconhecimentoDoArquivo>('/importacoes/reconhecer', { metodo: 'POST', corpoBruto: arquivo, limiteMs: ENVIO_DE_ARQUIVO_MS });
 export const previaDaImportacao = (destino: string, arquivo: FormData) =>
-  requisicao<PreviaDeImportacao>(`/importacoes/${seg(destino)}/previa`, { metodo: 'POST', corpoBruto: arquivo });
+  requisicao<PreviaDeImportacao>(`/importacoes/${seg(destino)}/previa`, { metodo: 'POST', corpoBruto: arquivo, limiteMs: ENVIO_DE_ARQUIVO_MS });
 export const confirmarImportacao = (destino: string, arquivo: FormData, hash: string) =>
-  requisicao<DetalheDeImportacao>(`/importacoes/${seg(destino)}?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo });
+  requisicao<DetalheDeImportacao>(`/importacoes/${seg(destino)}?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo, limiteMs: CONFIRMACAO_MS });
 /** Planilha completa: a análise e a prévia só leem; a confirmação grava em rascunho; o desfazer apaga o intocado. */
 export const analisarPlanilhaCompleta = (arquivo: FormData) =>
-  requisicao<AnaliseDaPlanilha>('/importacoes/planilha-completa/analisar', { metodo: 'POST', corpoBruto: arquivo });
+  requisicao<AnaliseDaPlanilha>('/importacoes/planilha-completa/analisar', { metodo: 'POST', corpoBruto: arquivo, limiteMs: ENVIO_DE_ARQUIVO_MS });
 export const previaDaPlanilhaCompleta = (arquivo: FormData) =>
-  requisicao<PreviaDaPlanilha>('/importacoes/planilha-completa/previa', { metodo: 'POST', corpoBruto: arquivo });
+  requisicao<PreviaDaPlanilha>('/importacoes/planilha-completa/previa', { metodo: 'POST', corpoBruto: arquivo, limiteMs: ENVIO_DE_ARQUIVO_MS });
 /**
  * Os alunos desmarcados na amostra vão no corpo (parte `chavesIgnoradas` do FormData, montada por quem chama): a chave pode ser
  * `nome:<nome>` e a query vai para o log de acesso do proxy. Ficam fora do `hash`: marcar não invalida a prévia.
  */
 export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
   requisicao<ConfirmacaoDaPlanilha>(`/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}`,
-    { metodo: 'POST', corpoBruto: arquivo });
+    { metodo: 'POST', corpoBruto: arquivo, limiteMs: CONFIRMACAO_MS });
 /** Migração assistida, fase 1: diz o que dá para importar do arquivo. Não grava nada (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
 export const diagnosticarArquivo = (arquivo: FormData) =>
-  requisicao<DiagnosticoDoArquivo>('/importacoes/diagnostico', { metodo: 'POST', corpoBruto: arquivo });
+  requisicao<DiagnosticoDoArquivo>('/importacoes/diagnostico', { metodo: 'POST', corpoBruto: arquivo, limiteMs: ENVIO_DE_ARQUIVO_MS });
 /** Migração assistida, fase 2: a amostra revisável (5 alunos a partir de `inicio`); só lê, e o `hash` serve à confirmação (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
 export const amostraDaPlanilhaCompleta = (arquivo: FormData, inicio = 0) =>
-  requisicao<AmostraDaPlanilha>(`/importacoes/planilha-completa/amostra?inicio=${inicio}`, { metodo: 'POST', corpoBruto: arquivo });
+  requisicao<AmostraDaPlanilha>(`/importacoes/planilha-completa/amostra?inicio=${inicio}`, { metodo: 'POST', corpoBruto: arquivo, limiteMs: ENVIO_DE_ARQUIVO_MS });
 export const desfazerImportacao = (id: string) =>
   requisicao<ImportacaoDesfeita>(`/importacoes/${seg(id)}/desfazer`, { metodo: 'POST' });
 /** Esquece as respostas guardadas das importações anteriores da planilha completa (a próxima análise vem sem marcas). */

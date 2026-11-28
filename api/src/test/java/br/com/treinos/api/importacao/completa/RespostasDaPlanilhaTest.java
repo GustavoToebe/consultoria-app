@@ -68,7 +68,7 @@ class RespostasDaPlanilhaTest {
         Set<UUID> usados = new HashSet<>();
         DesfazerDaPlanilha.citados(List.of(
                 "{\"sessoes\":[{\"exercicios\":[{\"exercicioId\": \"" + usado + "\",\"nome\":\"x\"}]}]}",
-                "{\"exercicioId\":\"" + outro + "\"}", "{\"observacao\":\"" + livre + "\"}"), Set.of(usado, livre), usados);
+                "{\"exercicioId\":\"" + outro + "\"}", "{\"observacao\":\"" + livre + "\"}").stream(), Set.of(usado, livre), usados);
         assertThat(usados).containsExactly(usado);
     }
 }

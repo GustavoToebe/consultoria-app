@@ -253,7 +253,8 @@ function Pesos({ aluno, pulado }: { aluno: AlunoDaAmostra; pulado: boolean }) {
   );
 }
 
-function Treino({ treino, nome, numero, aoVer }: { treino: ConteudoTreino; nome: string; numero: number; aoVer: (p: PreviaDoPlano) => void }) {
+/** Treino lido, só leitura, com "Ver o treino como o aluno" (também usado no "O que foi lido" da importação assistida). */
+export function Treino({ treino, nome, numero, aoVer }: { treino: ConteudoTreino; nome: string; numero: number; aoVer: (p: PreviaDoPlano) => void }) {
   const { cores } = useTema();
   return (
     <>
@@ -281,7 +282,8 @@ function Treino({ treino, nome, numero, aoVer }: { treino: ConteudoTreino; nome:
   );
 }
 
-function Dieta({ dieta, nome, numero, aoVer }: { dieta: ConteudoDieta; nome: string; numero: number; aoVer: (p: PreviaDoPlano) => void }) {
+/** Dieta lida, só leitura, com "Ver a dieta como o aluno" (também usada na importação assistida). */
+export function Dieta({ dieta, nome, numero, aoVer }: { dieta: ConteudoDieta; nome: string; numero: number; aoVer: (p: PreviaDoPlano) => void }) {
   return (
     <>
       <Texto numerico>{textoDaDieta(contarDieta(dieta))}</Texto>

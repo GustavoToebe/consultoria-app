@@ -89,7 +89,15 @@ describe('cartoesVisiveis', () => {
   it('importação: a planilha completa pede ALUNO_ALTERAR, a importação aceita qualquer das quatro de escrita', () => {
     expect(ids(cartoesVisiveis(com(['BIBLIOTECA_ALTERAR'])))).toEqual(expect.arrayContaining(['importacao']));
     expect(ids(cartoesVisiveis(com(['BIBLIOTECA_ALTERAR'])))).not.toContain('planilha-completa');
-    expect(ids(cartoesVisiveis(com(['ALUNO_ALTERAR'])))).toEqual(expect.arrayContaining(['importacao', 'planilha-completa']));
+    expect(ids(cartoesVisiveis(com(['ALUNO_ALTERAR'])))).toEqual(expect.arrayContaining(['importacao', 'planilha-completa', 'dicionario-da-importacao']));
+    expect(ids(cartoesVisiveis(com(['BIBLIOTECA_ALTERAR'])))).not.toContain('dicionario-da-importacao');
+  });
+
+  it('dicionário da importação: no grupo Dados, logo depois da planilha completa, e a busca acha por "apelidos"', () => {
+    const dados = CARTOES_DE_CONFIGURACAO.filter((c) => c.grupo === 'Dados').map((c) => c.id);
+    expect(dados.slice(dados.indexOf('planilha-completa'), dados.indexOf('planilha-completa') + 2)).toEqual(['planilha-completa', 'dicionario-da-importacao']);
+    expect(CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'dicionario-da-importacao')?.href).toBe('/treinador/importacao/dicionario');
+    expect(ids(buscarCartoes('apelidos', CARTOES_DE_CONFIGURACAO))).toEqual(['dicionario-da-importacao']);
   });
 
   it('Marca, Contato e Padrões do acompanhamento são só do administrador: precisam da guarda da Marca e de MARCA_ALTERAR', () => {

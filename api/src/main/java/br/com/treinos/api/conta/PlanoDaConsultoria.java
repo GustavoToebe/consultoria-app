@@ -83,8 +83,23 @@ public class PlanoDaConsultoria {
     /** Antes de cadastrar ou reativar um aluno. Dentro da transação da operação. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void exigirVagaDeAluno() {
-        exigirVaga(RecursosDoApp.LIMITE_ALUNOS_ATIVOS, this::alunosAtivos,
-                limite -> "Seu plano permite até " + limite + (limite == 1 ? " aluno ativo." : " alunos ativos."));
+        exigirVaga(RecursosDoApp.LIMITE_ALUNOS_ATIVOS, this::alunosAtivos, PlanoDaConsultoria::mensagemDeAlunos);
+    }
+
+    /**
+     * Depois de gravar vários alunos de uma vez (a importação confere a vaga só na primeira linha): passou do limite =
+     * 409 {@code LIMITE_DO_PLANO} e a operação inteira recua. Nunca grava por cima de uma vaga que sumiu.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void exigirDentroDoLimiteDeAlunos() {
+        Long limite = limiteAplicado(RecursosDoApp.LIMITE_ALUNOS_ATIVOS);
+        if (limite != null && alunosAtivos() > limite) {
+            throw PlanoException.limite(RecursosDoApp.LIMITE_ALUNOS_ATIVOS, mensagemDeAlunos(limite));
+        }
+    }
+
+    private static String mensagemDeAlunos(long limite) {
+        return "Seu plano permite até " + limite + (limite == 1 ? " aluno ativo." : " alunos ativos.");
     }
 
     /** Antes de convidar ou reativar um membro. Dentro da transação da operação. */

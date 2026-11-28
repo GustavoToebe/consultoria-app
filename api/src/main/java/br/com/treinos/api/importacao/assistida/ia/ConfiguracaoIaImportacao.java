@@ -11,14 +11,15 @@ import org.springframework.stereotype.Component;
 public class ConfiguracaoIaImportacao {
 
     private String provedor = "regras";
-    private String modeloPadrao = "gemini-2.5-flash";
-    private String modeloForte = "gemini-2.5-pro";
+    private String geminiModelo = "gemini-2.5-flash";
     private String geminiApiKey = "";
     private String claudeApiKey = "";
     private String claudeModelo = "claude-haiku-5-5";
     private String claudeEsforco = "medium";
     // Fail-closed: sem esta chave ligada nada sai do servidor, mesmo com provedor e chave de API configurados.
     private boolean enviarDadosAoProvedor;
+    // D1/D8: o PDF ou a imagem inteiros ao Claude, só como reserva da extração de texto; desligada por padrão.
+    private boolean enviarArquivoAoProvedor;
 
     public String getProvedor() {
         return provedor != null ? provedor.strip().toLowerCase(java.util.Locale.ROOT) : "regras";
@@ -28,20 +29,12 @@ public class ConfiguracaoIaImportacao {
         this.provedor = provedor;
     }
 
-    public String getModeloPadrao() {
-        return modeloPadrao;
+    public String getGeminiModelo() {
+        return geminiModelo == null || geminiModelo.isBlank() ? "gemini-2.5-flash" : geminiModelo.strip();
     }
 
-    public void setModeloPadrao(String modeloPadrao) {
-        this.modeloPadrao = modeloPadrao;
-    }
-
-    public String getModeloForte() {
-        return modeloForte;
-    }
-
-    public void setModeloForte(String modeloForte) {
-        this.modeloForte = modeloForte;
+    public void setGeminiModelo(String geminiModelo) {
+        this.geminiModelo = geminiModelo;
     }
 
     public String getGeminiApiKey() {
@@ -83,6 +76,22 @@ public class ConfiguracaoIaImportacao {
 
     public void setEnviarDadosAoProvedor(boolean enviarDadosAoProvedor) {
         this.enviarDadosAoProvedor = enviarDadosAoProvedor;
+    }
+
+    public boolean isEnviarArquivoAoProvedor() {
+        return enviarArquivoAoProvedor;
+    }
+
+    public void setEnviarArquivoAoProvedor(boolean enviarArquivoAoProvedor) {
+        this.enviarArquivoAoProvedor = enviarArquivoAoProvedor;
+    }
+
+    /**
+     * O arquivo vai de fato ao provedor: as duas chaves ligadas, provedor {@code claude} (o único conector que lê PDF e
+     * imagem) e a chave da API dele. É o que o {@code GET /eu} diz e o que libera JPG e PNG no envio.
+     */
+    public boolean arquivoVaiAoProvedor() {
+        return enviarArquivoAoProvedor && enviarDadosAoProvedor && "claude".equals(getProvedor()) && temChaveClaude();
     }
 
     public boolean temChaveGemini() {

@@ -42,6 +42,8 @@ export const DESTINOS: readonly Destino[] = [
         campo('email', 'E-mail', false),
         campo('telefone', 'Telefone', false),
         campo('cpf', 'CPF', false, true),
+        campo('nascimento', 'Data de nascimento', false),
+        campo('sexo', 'Sexo', false),
       ]),
       ...noGrupo('Acompanhamento', [
         campo('objetivo', 'Objetivo', false, true),

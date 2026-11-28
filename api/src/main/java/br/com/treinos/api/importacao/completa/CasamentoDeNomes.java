@@ -160,7 +160,8 @@ public final class CasamentoDeNomes {
         return Math.round((edicao + dice) / 2 * 100) / 100.0;
     }
 
-    static int distanciaDeEdicao(String a, String b) {
+    /** Distância de edição (Levenshtein) entre dois textos curtos; a única da importação (também a da {@code SugestaoDeColunas}). */
+    public static int distanciaDeEdicao(String a, String b) {
         int[] anterior = new int[b.length() + 1];
         for (int j = 0; j <= b.length(); j++) {
             anterior[j] = j;

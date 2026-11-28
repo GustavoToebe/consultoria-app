@@ -162,6 +162,94 @@ class LeitorDePlanilhaTest {
     }
 
     @Test
+    void numeroComExpoenteGiganteViraCelulaComErroSemAlocar() {
+        // 1E+999999999 no toPlainString tentava alocar 1 GB (OutOfMemoryError derrubava a API).
+        byte[] arquivo = folha("<row r=\"1\"><c r=\"A1\"><v>1E+999999999</v></c><c r=\"B1\"><v>1E-30000000</v></c>"
+                + "<c r=\"C1\"><v>70.5</v></c><c r=\"D1\"><v>1.5E+3</v></c></row>");
+        var celulas = assertTimeoutPreemptively(Duration.ofSeconds(1),
+                () -> LeitorDePlanilha.ler("expoente.xlsx", arquivo, 0).linhas().get(0).celulas());
+        assertThat(celulas.get(0).erro()).isTrue();
+        assertThat(celulas.get(1).erro()).isTrue();
+        assertThat(celulas.get(2).texto()).isEqualTo("70.5");
+        assertThat(celulas.get(3).texto()).isEqualTo("1500");
+    }
+
+    @Test
+    void marcadorFicaNaCelulaComOTextoVazioEAparecaNaTela() {
+        var x = LeitorDePlanilha.Celula.deTextoLido(" x ");
+        assertThat(x.texto()).isEmpty();
+        assertThat(x.marcador()).isEqualTo("x");
+        assertThat(LeitorDePlanilha.paraExibir(x, false)).isEqualTo("x");
+        assertThat(LeitorDePlanilha.Celula.deTextoLido("—").marcador()).isEqualTo("—");
+        assertThat(LeitorDePlanilha.Celula.deTextoLido("xis").marcador()).isNull();
+        // No xlsx, o "x" no fim da linha fica (era cortado como vazia do fim); linha só de traços continua de fora.
+        byte[] arquivo = xlsx(Map.of(
+                "xl/sharedStrings.xml", """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>Supino</t></si><si><t>x</t></si><si><t>-</t></si></sst>
+                        """,
+                "xl/worksheets/sheet1.xml", planilhaXml("""
+                        <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>
+                        <row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2" t="s"><v>2</v></c></row>
+                        <row r="3"><c r="A3" t="s"><v>0</v></c></row>""")));
+        var linhas = LeitorDePlanilha.ler("marcas.xlsx", arquivo, 0).linhas();
+        assertThat(linhas).extracting(LeitorDePlanilha.Linha::numero).containsExactly(1, 3);
+        assertThat(linhas.get(0).celulas()).hasSize(2);
+        assertThat(linhas.get(0).celulas().get(1).marcador()).isEqualTo("x");
+    }
+
+    @Test
+    void lerTodasAbreOArquivoUmaVezELeCadaAba() {
+        String rels = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+                <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+                </Relationships>
+                """;
+        byte[] arquivo = xlsx(Map.of(
+                "xl/workbook.xml", """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+                        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                        <sheets><sheet name="Alunos" sheetId="1" r:id="rId1"/><sheet name="Pesos" sheetId="2" r:id="rId2"/></sheets></workbook>
+                        """,
+                "xl/_rels/workbook.xml.rels", rels,
+                "xl/worksheets/sheet1.xml", planilhaXml("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"),
+                "xl/worksheets/sheet2.xml", planilhaXml("<row r=\"1\"><c r=\"A1\"><v>2</v></c><c r=\"B1\"><v>3</v></c></row>")));
+        var abas = LeitorDePlanilha.lerTodas("livro.xlsx", arquivo, 40);
+        assertThat(abas).extracting(LeitorDePlanilha.Planilha::aba).containsExactly(0, 1);
+        assertThat(abas.get(0).abas()).containsExactly("Alunos", "Pesos");
+        assertThat(abas.get(1).linhas().get(0).celulas()).extracting(LeitorDePlanilha.Celula::texto).containsExactly("2", "3");
+        assertThatThrownBy(() -> LeitorDePlanilha.lerTodas("livro.xlsx", arquivo, 1))
+                .isInstanceOfSatisfying(ValidacaoException.class,
+                        e -> assertThat(e.getMessage()).isEqualTo("A planilha tem mais de 1 abas."));
+        byte[] csv = "nome\nAna\n".getBytes(StandardCharsets.UTF_8);
+        assertThat(LeitorDePlanilha.lerTodas("alunos.csv", csv, 40)).hasSize(1);
+    }
+
+    @Test
+    void csvEmWindows1252EUtf16ComBom() {
+        byte[] latino = "nome;cidade\nJoão Fictício;São Paulo\n".getBytes(java.nio.charset.Charset.forName("windows-1252"));
+        var linhas = LeitorDePlanilha.ler("alunos.csv", latino, 0).linhas();
+        assertThat(linhas.get(1).celulas().get(0).texto()).isEqualTo("João Fictício");
+        assertThat(linhas.get(1).celulas().get(1).texto()).isEqualTo("São Paulo");
+        for (var utf16 : new java.nio.charset.Charset[] {StandardCharsets.UTF_16LE, StandardCharsets.UTF_16BE}) {
+            byte[] corpo = "nome;cidade\nJoão Fictício;São Paulo\n".getBytes(utf16);
+            byte[] bom = utf16.equals(StandardCharsets.UTF_16LE) ? new byte[] {(byte) 0xFF, (byte) 0xFE} : new byte[] {(byte) 0xFE, (byte) 0xFF};
+            byte[] arquivo = new byte[bom.length + corpo.length];
+            System.arraycopy(bom, 0, arquivo, 0, bom.length);
+            System.arraycopy(corpo, 0, arquivo, bom.length, corpo.length);
+            var lidas = LeitorDePlanilha.ler("alunos.csv", arquivo, 0).linhas();
+            assertThat(lidas.get(0).celulas().get(0).texto()).as(utf16.name()).isEqualTo("nome");
+            assertThat(lidas.get(1).celulas().get(1).texto()).as(utf16.name()).isEqualTo("São Paulo");
+        }
+        // UTF-8 continua valendo antes do Windows-1252.
+        byte[] utf8 = "nome\nJoão\n".getBytes(StandardCharsets.UTF_8);
+        assertThat(LeitorDePlanilha.ler("alunos.csv", utf8, 0).linhas().get(1).celulas().get(0).texto()).isEqualTo("João");
+    }
+
+    @Test
     void textoLidoSoTrataOMarcadorSozinho() {
         assertThat(LeitorDePlanilha.Celula.deTextoLido(" x ").texto()).isEmpty();
         assertThat(LeitorDePlanilha.Celula.deTextoLido("x-salada").texto()).isEqualTo("x-salada");
@@ -420,12 +508,12 @@ class LeitorDePlanilhaTest {
                 xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
                 <sheets><sheet name="Dados" sheetId="1" r:id="rId1"/></sheets></workbook>
                 """);
-        String workbookRels = """
+        String workbookRels = extras.getOrDefault("xl/_rels/workbook.xml.rels", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
                 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
                 </Relationships>
-                """;
+                """);
         try {
             ByteArrayOutputStream saida = new ByteArrayOutputStream();
             try (ZipOutputStream zip = new ZipOutputStream(saida)) {
@@ -434,7 +522,7 @@ class LeitorDePlanilhaTest {
                 gravar(zip, "xl/workbook.xml", workbook);
                 gravar(zip, "xl/_rels/workbook.xml.rels", workbookRels);
                 for (var entrada : extras.entrySet()) {
-                    if (!entrada.getKey().equals("xl/workbook.xml")) {
+                    if (!entrada.getKey().equals("xl/workbook.xml") && !entrada.getKey().equals("xl/_rels/workbook.xml.rels")) {
                         gravar(zip, entrada.getKey(), entrada.getValue());
                     }
                 }

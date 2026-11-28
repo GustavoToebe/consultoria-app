@@ -7,6 +7,7 @@ import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.alunos.LimiteDoTreinador;
 import br.com.treinos.api.alunos.RegrasDoEndereco;
+import br.com.treinos.api.alunos.Sexo;
 import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import br.com.treinos.api.auth.Papel;
 import br.com.treinos.api.auth.Usuario;
@@ -43,12 +44,8 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.ResolverStyle;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -79,16 +76,14 @@ class GravadorDaImportacao {
     static final String CELULA_COM_ERRO =
             "A célula tem um erro da própria planilha (como #ERROR! ou #N/A) ou um texto longo demais. Corrija e valide de novo.";
 
-    // STRICT: 31/04 e 29/02 de ano comum são erro, nunca "o dia mais perto".
-    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-    /** Diferença abaixo da qual um número do Excel é só resíduo de ponto flutuante (como no {@code AnaliseDaPlanilha.pesoKg}). */
-    private static final BigDecimal RESIDUO_DE_CONTA = new BigDecimal("0.000001");
     private static final int ERROS_GUARDADOS = 1000;
     private static final int AMOSTRA = 20;
-    /** Um único ponto com exatamente três dígitos depois dele, sem vírgula: "1.500", "12.345". "0.500" é decimal: milhar não começa em zero. */
-    private static final java.util.regex.Pattern PONTO_E_TRES_DIGITOS = java.util.regex.Pattern.compile("[+-]?[1-9]\\d*\\.\\d{3}");
     private static final List<String> CAMPOS_ALUNO = List.of("nome", "email", "telefone", "cpf", "objetivo", "observacoes",
-            "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "responsavel", "dias", "situacao");
+            "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "responsavel", "dias", "situacao", "nascimento",
+            "sexo");
+    /** Responsável que não casa com o e-mail nem com o nome de um único membro ativo (fixo, sem repetir o texto). */
+    static final String RESPONSAVEL_NAO_ENCONTRADO = "Use o e-mail ou o nome de um membro da equipe.";
+    static final String SEXO_INVALIDO = "Sexo inválido. Use masculino, feminino ou outro.";
 
     private final AlunoRepository alunos;
     private final AlunoService alunoService;
@@ -144,7 +139,7 @@ class GravadorDaImportacao {
         }
         try {
         switch (destino) {
-            case "alunos" -> alunos(dados, config, usuarioId, gravar, conta);
+            case "alunos" -> alunos(dados, config, usuarioId, gravar, conta, planilha.data1904());
             case "pesos" -> pesos(dados, config, usuarioId, gravar, conta, planilha.data1904());
             case "exercicios" -> exercicios(dados, config, gravar, conta);
             case "alimentos" -> alimentos(dados, config, gravar, conta);
@@ -181,29 +176,43 @@ class GravadorDaImportacao {
         }
     }
 
-    private void alunos(List<Linha> dados, ConfiguracaoDaImportacao config, UUID usuarioId, boolean gravar, Conta conta) {
+    private void alunos(List<Linha> dados, ConfiguracaoDaImportacao config, UUID usuarioId, boolean gravar, Conta conta,
+                        boolean data1904) {
         Indice indice = new Indice(alunos.findAll());
-        Map<String, Usuario> equipe = new LinkedHashMap<>();
-        for (Usuario u : usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(TenantContext.get(), Papel.TREINADOR)) {
-            if (u.isAtivo()) {
-                equipe.put(Emails.normalizar(u.getEmail()), u);
-            }
-        }
+        Equipe equipe = new Equipe(usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(TenantContext.get(), Papel.TREINADOR));
         Vagas vagas = new Vagas(plano.vagasDeAluno());
         VagasDoTreinador doTreinador = new VagasDoTreinador(limiteDoTreinador);
+        // A situação nova de quem já existe, aplicada só depois do flush das linhas: inativar encerra as sessões, o que não
+        // se desfaz, e um erro do flush (CPF de outra gravação) recua a confirmação inteira. As linhas seguintes já leem
+        // daqui a situação que o aluno vai ter, na prévia e na confirmação.
+        Map<Aluno, Boolean> situacoes = new LinkedHashMap<>();
         for (Linha linha : dados) {
             conta.amostra(linha, config, CAMPOS_ALUNO);
             try {
                 marcar(linha);
-                gravarAluno(linha, config, usuarioId, gravar, conta, indice, equipe, vagas, doTreinador);
+                gravarAluno(linha, config, usuarioId, gravar, conta, indice, equipe, vagas, doTreinador, situacoes, data1904);
             } catch (FalhaDaLinha e) {
                 conta.falha(e.linha, e.campo, e.motivo);
+            }
+        }
+        if (gravar) {
+            descarregar();
+            situacoes.forEach((aluno, ativo) -> {
+                if (aluno.isAtivo() != ativo) {
+                    // Mesmas consequências da rota do cadastro; o flush que falta sai no descarregar do processar.
+                    alunoService.aplicarSituacaoDaImportacao(aluno, ativo);
+                }
+            });
+            if (vagas.conferida) {
+                // A vaga só é conferida na primeira linha: confere de novo o total gravado (409 e tudo recua se passou).
+                plano.exigirDentroDoLimiteDeAlunos();
             }
         }
     }
 
     private void gravarAluno(Linha linha, ConfiguracaoDaImportacao config, UUID usuarioId, boolean gravar, Conta conta,
-                             Indice indice, Map<String, Usuario> equipe, Vagas vagas, VagasDoTreinador doTreinador) {
+                             Indice indice, Equipe equipe, Vagas vagas, VagasDoTreinador doTreinador,
+                             Map<Aluno, Boolean> situacoes, boolean data1904) {
         Leitura chave = obrigatoria(linha, config, config.chave());
         if ("cpf".equals(config.chave())) {
             formato(linha.numero(), "cpf", () -> Formatos.cpf(chave.texto()));
@@ -238,14 +247,17 @@ class GravadorDaImportacao {
         if (!novo && "COMPLETAR".equals(regra)) {
             situacao = null; // completar só preenche vazio: a situação de quem já existe nunca muda
         }
-        boolean ativo = situacao == null ? (novo || atual.isAtivo()) : situacao;
+        boolean estavaAtivo = !novo && situacoes.getOrDefault(atual, atual.isAtivo());
+        boolean ativo = situacao == null ? (novo || estavaAtivo) : situacao;
+        LocalDate nascimento = nascimentoFinal(novo, atual == null ? null : atual.getDataNascimento(), leitura(linha, config, "nascimento"), data1904);
+        Sexo sexo = sexoFinal(novo, atual == null ? null : atual.getSexo(), leitura(linha, config, "sexo"));
         String cpf = cpfFinal(novo, atual, leitura(linha, config, "cpf"), indice, regra);
         Endereco endereco = enderecoFinal(novo, atual, linha, config, regra);
         UUID responsavel = responsavelFinal(novo, atual == null ? null : atual.getResponsavelId(), leitura(linha, config, "responsavel"), equipe, usuarioId, linha.numero());
         String telefone = telefoneFinal(leitura(linha, config, "telefone"), linha.numero());
-        boolean reativa = !novo && !atual.isAtivo() && ativo;
+        boolean reativa = !novo && !estavaAtivo && ativo;
         // Limite do treinador (D7, D8, D15): só quando a linha dá um aluno ativo a um responsável que ainda não o tinha ativo.
-        UUID ocupavaVagaDe = !novo && atual.isAtivo() ? atual.getResponsavelId() : null;
+        UUID ocupavaVagaDe = estavaAtivo ? atual.getResponsavelId() : null;
         UUID passaAOcuparDe = ativo ? responsavel : null;
         if (passaAOcuparDe != null && !passaAOcuparDe.equals(ocupavaVagaDe) && !doTreinador.cabe(passaAOcuparDe)) {
             Leitura coluna = leitura(linha, config, "responsavel");
@@ -269,6 +281,8 @@ class GravadorDaImportacao {
             Aluno aluno = new Aluno(nome, email, objetivo, observacoes, dias);
             aluno.alterarSituacao(ativo, Instant.now());
             aluno.alterarResponsavel(responsavel);
+            aluno.alterarDataNascimento(nascimento);
+            aluno.alterarSexo(sexo); // aluno novo: ainda não há ciclo para desligar
             if (cpf != null) {
                 aluno.alterarCpf(cpf);
             }
@@ -296,6 +310,10 @@ class GravadorDaImportacao {
             if (endereco != null) {
                 atual.alterarEndereco(endereco);
             }
+            atual.alterarDataNascimento(nascimento);
+            if (sexo != atual.getSexo()) {
+                alunoService.definirSexo(atual, sexo.name()); // pela regra do cadastro: deixar de ser feminino desliga o ciclo
+            }
             if (telefone != null && atual.getUsuarioId() != null) {
                 usuarios.buscarParaAlterar(atual.getUsuarioId()).ifPresent(u -> {
                     if (!"COMPLETAR".equals(regra) || u.getTelefone() == null || u.getTelefone().isBlank()) {
@@ -306,11 +324,9 @@ class GravadorDaImportacao {
                 atual.guardarTelefoneSemAcesso(telefone); // sem acesso: guardado no cadastro até o acesso existir
             }
             salvar(atual);
-            if (situacao != null && situacao != atual.isAtivo()) {
-                // Por último: encerrar as sessões não se desfaz. Mesmas consequências da rota do cadastro.
-                alunoService.aplicarSituacaoDaImportacao(atual, ativo);
-                salvar(atual);
-            }
+        }
+        if (situacao != null) {
+            situacoes.put(atual, ativo);
         }
         indice.trocarCpf(atual, cpf);
         conta.atualizados++;
@@ -733,14 +749,11 @@ class GravadorDaImportacao {
         if (!lida.mapeado() || lida.vazio()) {
             return null;
         }
-        String s = Buscas.semAcento(lida.texto());
-        if (s.equals("ativo") || s.equals("sim") || s.equals("1")) {
-            return true;
-        }
-        if (s.equals("inativo") || s.equals("nao") || s.equals("0")) {
-            return false;
-        }
-        throw new FalhaDaLinha(numero, "situacao", "Situação inválida. Use ativo ou inativo.");
+        return switch (ValoresDeCelula.simNao(lida.celula())) {
+            case SIM -> true;
+            case NAO -> false;
+            default -> throw new FalhaDaLinha(numero, "situacao", "Situação inválida. Use ativo ou inativo.");
+        };
     }
 
     private String cpfFinal(boolean novo, Aluno atual, Leitura lida, Indice indice, String regra) {
@@ -806,21 +819,71 @@ class GravadorDaImportacao {
         return !lida.mapeado() || lida.vazio() ? null : lida.texto();
     }
 
-    private UUID responsavelFinal(boolean novo, UUID atual, Leitura lida, Map<String, Usuario> equipe, UUID usuarioId, int numero) {
+    private UUID responsavelFinal(boolean novo, UUID atual, Leitura lida, Equipe equipe, UUID usuarioId, int numero) {
         if (lida.erro()) {
             throw new FalhaDaLinha(numero, "responsavel", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return novo ? usuarioId : atual;
         }
-        Usuario achado = equipe.get(Emails.normalizar(lida.texto()));
+        Usuario achado = equipe.achar(lida.texto());
         if (achado == null) {
-            throw new FalhaDaLinha(numero, "responsavel", "Responsável não encontrado.");
+            throw new FalhaDaLinha(numero, "responsavel", RESPONSAVEL_NAO_ENCONTRADO);
         }
         if (!novo && "COMPLETAR".equals(regra()) && atual != null) {
             return atual;
         }
         return achado.getId();
+    }
+
+    /** Data de nascimento (opcional): a faixa do cadastro (1900 até hoje) e as regras de vazio e COMPLETAR; o valor nunca sai no erro. */
+    private LocalDate nascimentoFinal(boolean novo, LocalDate atual, Leitura lida, boolean data1904) {
+        if (lida.erro()) {
+            throw falhaCampo("nascimento", CELULA_COM_ERRO);
+        }
+        if (!lida.mapeado() || lida.vazio()) {
+            return atual;
+        }
+        LocalDate data = ValoresDeCelula.data(lida.celula(), data1904);
+        if (data == null) {
+            throw falhaCampo("nascimento", ValoresDeCelula.pareceMesDiaAno(lida.celula())
+                    ? "Data no formato mês/dia/ano. Use dia/mês/ano." : "Data inválida.");
+        }
+        LocalDate hoje = FaixaDeData.hoje();
+        if (!FaixaDeData.REGISTRO.aceita(data, hoje)) {
+            throw falhaCampo("nascimento", FaixaDeData.REGISTRO.mensagem("Data de nascimento", hoje));
+        }
+        if (!novo && "COMPLETAR".equals(regra()) && atual != null) {
+            return atual;
+        }
+        return data;
+    }
+
+    private Sexo sexoFinal(boolean novo, Sexo atual, Leitura lida) {
+        if (lida.erro()) {
+            throw falhaCampo("sexo", CELULA_COM_ERRO);
+        }
+        if (!lida.mapeado() || lida.vazio()) {
+            return atual;
+        }
+        Sexo sexo = sexo(lida.texto());
+        if (sexo == null) {
+            throw falhaCampo("sexo", SEXO_INVALIDO);
+        }
+        if (!novo && "COMPLETAR".equals(regra()) && atual != null) {
+            return atual;
+        }
+        return sexo;
+    }
+
+    /** "M", "Masc.", "Homem", "F", "Feminino", "Mulher", "Outro"..., sem acento, caixa nem pontuação; o resto é nulo. */
+    static Sexo sexo(String texto) {
+        return switch (Buscas.semAcento(texto).replaceAll("[^a-z]", "")) {
+            case "m", "masc", "masculino", "homem" -> Sexo.MASCULINO;
+            case "f", "fem", "feminino", "mulher" -> Sexo.FEMININO;
+            case "outro", "outra", "outros" -> Sexo.OUTRO;
+            default -> null;
+        };
     }
 
     private String telefoneFinal(Leitura lida, int numero) {
@@ -997,57 +1060,32 @@ class GravadorDaImportacao {
     }
 
     private BigDecimal numero(Leitura lida, int numero, String campo, BigDecimal min, BigDecimal max, int escala, boolean zeroPermitido) {
-        String texto = lida.texto().trim();
-        if (!lida.numero() && PONTO_E_TRES_DIGITOS.matcher(texto).matches()) {
+        ValoresDeCelula.Numero lido = ValoresDeCelula.numero(lida.celula());
+        if (lido.situacao() == ValoresDeCelula.Situacao.COM_ERRO) {
+            throw new FalhaDaLinha(numero, campo, CELULA_COM_ERRO); // 1E-30000000: recusado antes de qualquer conta
+        }
+        if (lido.situacao() == ValoresDeCelula.Situacao.AMBIGUO) {
             // "1.500" em texto pode ser 1,5 ou 1500: sem como saber, a linha fica de fora (célula numérica nativa não passa aqui).
             throw new FalhaDaLinha(numero, campo, "Número ambíguo: use vírgula para decimais.");
         }
-        if (!lida.numero() && texto.indexOf(',') >= 0 && texto.indexOf('.') < 0) {
-            texto = texto.replace(',', '.');
-        }
-        try {
-            BigDecimal valor = new BigDecimal(texto);
-            if (valor.scale() > escala) {
-                // Célula numérica de fórmula traz resíduo de conta (81.900000000000006): volta à escala; texto digitado não.
-                BigDecimal arredondado = valor.setScale(escala, RoundingMode.HALF_UP);
-                if (lida.numero() && valor.subtract(arredondado).abs().compareTo(RESIDUO_DE_CONTA) < 0) {
-                    valor = arredondado;
-                } else {
-                    valor = valor.setScale(escala, RoundingMode.UNNECESSARY);
-                }
-            }
-            if (valor.compareTo(min) < 0 || valor.compareTo(max) > 0 || (!zeroPermitido && valor.signum() <= 0)) {
-                throw new NumberFormatException();
-            }
-            return valor;
-        } catch (NumberFormatException | ArithmeticException e) {
+        // Célula numérica de fórmula traz resíduo de conta (81.900000000000006): volta à escala; casa a mais digitada não.
+        BigDecimal valor = lido.valido() ? ValoresDeCelula.naEscala(lido.valor(), lida.numero(), escala) : null;
+        if (valor == null || valor.compareTo(min) < 0 || valor.compareTo(max) > 0 || (!zeroPermitido && valor.signum() <= 0)) {
             throw new FalhaDaLinha(numero, campo, "Valor inválido.");
         }
+        return valor;
     }
 
     private LocalDate data(Leitura lida, boolean data1904, int numero, String campo) {
         if (lida.erro() || lida.vazio()) {
             throw new FalhaDaLinha(numero, campo, lida.erro() ? CELULA_COM_ERRO : "Informe a data.");
         }
-        if (lida.numero()) {
-            LocalDate data = LeitorDePlanilha.dataSerial(new BigDecimal(lida.texto()), data1904);
-            if (data == null) {
-                throw new FalhaDaLinha(numero, campo, "Data inválida.");
-            }
-            return data;
+        LocalDate data = ValoresDeCelula.data(lida.celula(), data1904);
+        if (data == null) {
+            throw new FalhaDaLinha(numero, campo, ValoresDeCelula.pareceMesDiaAno(lida.celula())
+                    ? "Data no formato mês/dia/ano. Use dia/mês/ano." : "Data inválida.");
         }
-        String texto = lida.texto().trim();
-        try {
-            if (texto.matches("\\d{2}/\\d{2}/\\d{4}")) {
-                return LocalDate.parse(texto, DIA);
-            }
-            if (texto.matches("\\d{4}-\\d{2}-\\d{2}")) {
-                return LocalDate.parse(texto);
-            }
-        } catch (DateTimeParseException e) {
-            throw new FalhaDaLinha(numero, campo, "Data inválida.");
-        }
-        throw new FalhaDaLinha(numero, campo, "Data inválida.");
+        return data;
     }
 
     private Leitura obrigatoria(Linha linha, ConfiguracaoDaImportacao config, String campo) {
@@ -1116,7 +1154,12 @@ class GravadorDaImportacao {
         if (celula.erro()) {
             return Leitura.comErro();
         }
-        return new Leitura(celula.texto() == null ? "" : celula.texto().trim(), celula.numero(), false, true);
+        // CPF e CEP digitados como número perdem os zeros da frente; o marcador de vazio ("x") já chega com o texto vazio.
+        int digitos = "cpf".equals(campo) || ("aluno".equals(campo) && "cpf".equals(config.chave())) ? 11
+                : "cep".equals(campo) ? 8 : 0;
+        String texto = digitos > 0 ? ValoresDeCelula.comZerosAEsquerda(celula, digitos)
+                : celula.texto() == null ? "" : celula.texto().trim();
+        return new Leitura(texto, celula.numero(), false, true, celula);
     }
 
     /**
@@ -1160,6 +1203,7 @@ class GravadorDaImportacao {
 
     private static final class Vagas {
         private Long restantes;
+        private boolean conferida;
 
         Vagas(Long restantes) {
             this.restantes = restantes;
@@ -1169,10 +1213,13 @@ class GravadorDaImportacao {
             if (restantes != null && restantes <= 0) {
                 return false;
             }
-            if (gravar) {
+            if (gravar && !conferida) {
+                // Uma vez, na primeira reserva: a consultoria está travada desde antes de contar as vagas e "restantes"
+                // acompanha as linhas. Por linha, a contagem (uma consulta) forçaria o flush dos alunos novos a cada aluno.
                 // Não captura: a PlanoException (409 LIMITE_DO_PLANO) já marcou a transação como só-rollback ao atravessar
                 // o proxy; engolir aqui levaria ao UnexpectedRollbackException (500) no commit. A confirmação inteira recua.
                 plano.exigirVagaDeAluno();
+                conferida = true;
             }
             if (restantes != null) {
                 restantes--;
@@ -1181,29 +1228,63 @@ class GravadorDaImportacao {
         }
     }
 
+    /** Membros ativos da equipe: o e-mail vale primeiro; sem "@", o nome de um único membro (sem acento nem caixa). */
+    private static final class Equipe {
+        private final Map<String, Usuario> porEmail = new HashMap<>();
+        private final Map<String, List<Usuario>> porNome = new HashMap<>();
+
+        Equipe(List<Usuario> membros) {
+            for (Usuario u : membros) {
+                if (!u.isAtivo()) {
+                    continue;
+                }
+                porEmail.put(Emails.normalizar(u.getEmail()), u);
+                String nome = Buscas.semAcento(u.getNome());
+                if (!nome.isEmpty()) {
+                    porNome.computeIfAbsent(nome, k -> new ArrayList<>()).add(u);
+                }
+            }
+        }
+
+        Usuario achar(String texto) {
+            if (texto.contains("@")) {
+                return porEmail.get(Emails.normalizar(texto));
+            }
+            List<Usuario> donos = porNome.getOrDefault(Buscas.semAcento(texto), List.of());
+            return donos.size() == 1 ? donos.getFirst() : null; // dois membros com o mesmo nome: só pelo e-mail
+        }
+    }
+
     private static final class Leitura {
         final String texto;
         final boolean numero;
         final boolean erro;
         final boolean mapeado;
+        /** A célula lida (nula sem coluna mapeada ou além do fim da linha): número, data e sim/não leem dela. */
+        final Celula celula;
 
-        Leitura(String texto, boolean numero, boolean erro, boolean mapeado) {
+        Leitura(String texto, boolean numero, boolean erro, boolean mapeado, Celula celula) {
             this.texto = texto;
             this.numero = numero;
             this.erro = erro;
             this.mapeado = mapeado;
+            this.celula = celula;
         }
 
         static Leitura ausente() {
-            return new Leitura("", false, false, false);
+            return new Leitura("", false, false, false, null);
         }
 
         static Leitura emBranco() {
-            return new Leitura("", false, false, true);
+            return new Leitura("", false, false, true, null);
         }
 
         static Leitura comErro() {
-            return new Leitura("", false, true, true);
+            return new Leitura("", false, true, true, null);
+        }
+
+        Celula celula() {
+            return celula;
         }
 
         String texto() {

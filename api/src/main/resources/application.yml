@@ -69,8 +69,7 @@ treinos:
   importacao:
     ia:
       provedor: ${TREINOS_IA_PROVEDOR:regras}
-      modelo-padrao: ${TREINOS_IA_MODELO_PADRAO:gemini-2.5-flash}
-      modelo-forte: ${TREINOS_IA_MODELO_FORTE:gemini-2.5-pro}
+      gemini-modelo: ${TREINOS_IA_GEMINI_MODELO:gemini-2.5-flash}
       gemini-api-key: ${TREINOS_IA_GEMINI_API_KEY:}
       claude-api-key: ${TREINOS_IA_CLAUDE_API_KEY:}
       # Haiku 5.5 é o mais barato da família; esforço low|medium|high|xhigh|max (high pensa mais e gasta mais).
@@ -81,6 +80,10 @@ treinos:
       # (sem PDF nem nome do arquivo), inteiro: nome, peso, dieta, CPF, e-mail, telefone e CEP (decisão de 10/11/2026;
       # o redator só serve para vincular o aluno no servidor).
       enviar-dados-ao-provedor: ${TREINOS_IA_ENVIAR_DADOS_AO_PROVEDOR:false}
+      # PDF sem texto e imagem (JPG/PNG) inteiros ao Claude (D1). Ligado por padrão (Gustavo, 28/11: tudo liberado), mas só vale
+      # com enviar-dados-ao-provedor=true, provedor claude e a chave do Claude; faltando algum, a API sobe normal, o GET /eu diz
+      # importacaoPorImagemHabilitada=false, JPG e PNG são recusados e o PDF segue pelo texto (ConfiguracaoIaImportacao).
+      enviar-arquivo-ao-provedor: ${TREINOS_IA_ENVIAR_ARQUIVO_AO_PROVEDOR:true}
     # Sessão da importação assistida: a retenção diária apaga o que passou do prazo de 7 dias (expira_em), com os arquivos.
     # Só os testes a desligam (eles a chamam à mão).
     assistida:

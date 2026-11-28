@@ -20,7 +20,10 @@ final class EsquemaDaProposta {
 
         Map<String, Object> serie = objeto(campos(
                 "quantidade", inteiro(), "tipo", anulavel("string"),
-                "repsMin", anulavel("integer"), "repsMax", anulavel("integer"), "descansoSegundos", anulavel("integer"),
+                "repsMin", anulavel("integer"), "repsMax", anulavel("integer"), "amrap", anulavel("boolean"),
+                "rir", anulavel("integer"), "rpe", anulavel("number"),
+                "percentualMin", anulavel("number"), "percentualMax", anulavel("number"),
+                "descansoSegundos", anulavel("integer"),
                 "tecnica", enumAnulavel("REST_PAUSE", "CLUSTER", "DROP_SET"),
                 "pausas", anulavel("integer"), "blocos", Map.of("type", List.of("array", "null"), "items", inteiro()),
                 "quedas", anulavel("integer"), "reducaoPercentual", anulavel("integer"),

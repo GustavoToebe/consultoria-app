@@ -2,7 +2,7 @@ import { FileText, FileUp } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
-import { FORMATOS_E_LIMITES } from '../../dominio/importacaoAssistida';
+import { FORMATOS_E_LIMITES, FORMATOS_E_LIMITES_COM_IMAGEM } from '../../dominio/importacaoAssistida';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -17,7 +17,7 @@ const WEB = Platform.OS === 'web';
  * celular não há arrastar: só os botões (WCAG 2.5.7: arrastar sempre tem o botão como alternativa). A área não é um
  * botão (os dois botões ficam dentro dela) e não lê arquivo nem fala com a API: só chama de volta.
  */
-export function AreaDeSoltarArquivos({ aoEscolher, aoSoltar, aoColar, colando, enviando, ocupado }: {
+export function AreaDeSoltarArquivos({ aoEscolher, aoSoltar, aoColar, colando, enviando, ocupado, comImagem = false }: {
   aoEscolher: () => void;
   /** Só na web: os arquivos soltos sobre a área. */
   aoSoltar: (arquivos: File[]) => void;
@@ -28,6 +28,8 @@ export function AreaDeSoltarArquivos({ aoEscolher, aoSoltar, aoColar, colando, e
   enviando: boolean;
   /** Alguma ação em andamento: soltar não faz nada. */
   ocupado: boolean;
+  /** Leitura por imagem ligada (4.2): JPG e PNG entram na lista de formatos e a frase do PDF escaneado sai. */
+  comImagem?: boolean;
 }) {
   const { cores } = useTema();
   const area = useRef<View>(null);
@@ -78,8 +80,8 @@ export function AreaDeSoltarArquivos({ aoEscolher, aoSoltar, aoColar, colando, e
           desabilitado={ocupado && !enviando} motivo="Aguarde a ação em andamento terminar." aoTocar={aoEscolher} />
         <Botao rotulo={colando ? 'Fechar o texto' : 'Colar texto'} tipo="secundario" Icone={FileText} aoTocar={aoColar} />
       </LinhaDeAcoes>
-      <Texto variante="pequeno" numerico style={estilos.centro}>{FORMATOS_E_LIMITES}</Texto>
-      <Texto variante="pequeno" style={estilos.centro}>PDF escaneado, sem texto selecionável, é sinalizado na leitura.</Texto>
+      <Texto variante="pequeno" numerico style={estilos.centro}>{comImagem ? FORMATOS_E_LIMITES_COM_IMAGEM : FORMATOS_E_LIMITES}</Texto>
+      {comImagem ? null : <Texto variante="pequeno" style={estilos.centro}>PDF escaneado, sem texto selecionável, é sinalizado na leitura.</Texto>}
     </View>
   );
 }

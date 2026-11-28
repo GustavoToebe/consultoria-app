@@ -24,6 +24,7 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu({ ...EU, regrasAtencaoHabilitada: true }).regrasAtencaoHabilitada).toBe(true);
     expect(perfilDoEu(EU).regrasAtencaoHabilitada).toBeUndefined();
     expect(perfilDoEu({ ...EU, cardioIntervaladoHabilitado: true }).cardioIntervaladoHabilitado).toBe(true);
+    expect(perfilDoEu({ ...EU, importacaoPorImagemHabilitada: true }).importacaoPorImagemHabilitada).toBe(true);
   });
 
   it('guarda o WhatsApp da consultoria do aluno; ausente fica ausente', () => {

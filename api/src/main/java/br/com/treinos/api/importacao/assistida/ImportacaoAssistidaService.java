@@ -22,6 +22,7 @@ import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.GrupoImpo
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.LeituraEmAndamento;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ModoProcessamentoResumo;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.OcorrenciaOrigem;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ParceiroDeGrupo;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.PesoImportavel;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ResponderDuvidaRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.RespostaDuvidaRequisicao;
@@ -51,6 +52,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
@@ -84,15 +86,17 @@ public class ImportacaoAssistidaService {
     static final long BYTES_POR_SESSAO = 8L * 1024 * 1024;
     static final int NOME_DO_ARQUIVO = 255;
     static final int TITULO_DO_TEXTO = 120;
-    static final int OBJETIVO_DA_SESSAO = 40;
     static final int TERMO_DO_APELIDO = 160;
     static final int TIPO_DO_APELIDO = 24;
     /** Arquivos de uma sessão lidos ao mesmo tempo: o provedor de IA é a espera, e mais que isso estoura o limite dele. */
     static final int ARQUIVOS_EM_PARALELO = 3;
     private static final int CANDIDATOS_POR_GRUPO = 5;
+    /** Teto do "Juntar as N partes" num pedido (as partes de um documento grande ficam bem abaixo). */
+    static final int MAXIMO_DE_GRUPOS_JUNTADOS = 50;
     private static final Pattern EMAIL_SIMPLES = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
-    private static final Pattern OBJETIVO_VALIDO = Pattern.compile("[A-Z][A-Z0-9_]*");
     private static final Set<String> DESTINOS = Set.of("CRIAR_ALUNO", "VINCULAR_EXISTENTE", "MODELO_BIBLIOTECA", "IGNORAR");
+    /** Destinos de aluno: só esses grupos podem ser o mesmo aluno de outro grupo (juntar, "possível mesmo aluno"). */
+    private static final Set<String> DESTINOS_DE_ALUNO = Set.of("CRIAR_ALUNO", "VINCULAR_EXISTENTE");
 
     private final ImportacaoSessaoRepository sessoes;
     private final ImportacaoArquivoRepository arquivos;
@@ -123,17 +127,14 @@ public class ImportacaoAssistidaService {
     }
 
     @Transactional
-    public SessaoDetalhe criarSessao(UUID usuarioId, String objetivo) {
+    public SessaoDetalhe criarSessao(UUID usuarioId) {
         exigirPermissoesSessaoMista();
-        String obj = objetivo == null || objetivo.isBlank() ? null : objetivo.strip();
-        if (obj != null && (obj.length() > OBJETIVO_DA_SESSAO || !OBJETIVO_VALIDO.matcher(obj).matches())) {
-            throw new BadRequestException("Objetivo da importação inválido.", "OBJETIVO_INVALIDO");
-        }
-        if (sessoes.countByCriadoPorAndExpiraEmAfter(usuarioId, Instant.now()) >= SESSOES_ABERTAS_POR_USUARIO) {
+        if (sessoes.countByCriadoPorAndEstadoNotAndExpiraEmAfter(usuarioId, "CONCLUIDA", Instant.now())
+                >= SESSOES_ABERTAS_POR_USUARIO) {
             throw new ConflictException("Muitas importações abertas. Conclua ou aguarde as antigas expirarem.",
                     "LIMITE_DE_SESSOES");
         }
-        ImportacaoSessao sessao = new ImportacaoSessao(usuarioId, obj);
+        ImportacaoSessao sessao = new ImportacaoSessao(usuarioId);
         sessoes.save(sessao);
         return detalheDaSessao(sessao);
     }
@@ -165,8 +166,8 @@ public class ImportacaoAssistidaService {
         }
         String nome = nomeLimpo(arquivo.getOriginalFilename(), "documento");
         byte[] bytes = arquivo.getBytes();
-        String formato = detectarFormato(nome, bytes);
-        return guardar(sessao, nome, formato, bytes);
+        String formato = detectarFormato(nome, bytes, roteador.arquivoVaiAoProvedor());
+        return guardar(sessao, nome, formato, imagemSemMetadados(formato, bytes));
     }
 
     @Transactional
@@ -214,6 +215,8 @@ public class ImportacaoAssistidaService {
         if (pendentes.isEmpty()) {
             return detalheDaSessao(sessao);
         }
+        // A mesma marca de leitura do caminho assíncrono: uma leitura velha dessa sessão não grava por cima desta.
+        SessaoJson.marcarNovaLeitura(json, sessao, UUID.randomUUID(), pendentes.size());
         sessao.atualizarEstado("PROCESSANDO");
         PreparoProcessamento preparo = montarPreparo(sessao, pendentes);
         ResultadoProcessamentoLote resultado = executarProcessamentoSemTransacao(preparo);
@@ -244,7 +247,7 @@ public class ImportacaoAssistidaService {
      * {@code metodologia} é a receita padrão da consultoria (nula quando não há: o plano fica sem ela, como os demais) e
      * {@code configuracao} é a que vale para nomear os tipos de série (a própria receita ou o padrão do sistema).
      */
-    record PreparoProcessamento(UUID sessaoId, String objetivo, Map<String, String> dicionario,
+    record PreparoProcessamento(UUID sessaoId, Map<String, String> dicionario,
                                 List<ArquivoPendente> pendentes, List<Aluno> existentes,
                                 ConteudoTreino.Metodologia metodologia, ConfiguracaoConsultoria configuracao) {
     }
@@ -280,8 +283,7 @@ public class ImportacaoAssistidaService {
         ConteudoTreino.Metodologia metodologia = receitas.metodologiaPadrao().orElse(null);
         ConfiguracaoConsultoria configuracao = metodologia != null && metodologia.configuracao() != null
                 ? metodologia.configuracao() : ConfiguracaoConsultoria.padrao();
-        return new PreparoProcessamento(sessao.getId(), sessao.getObjetivo(), dicionario, itens, existentes, metodologia,
-                configuracao);
+        return new PreparoProcessamento(sessao.getId(), dicionario, itens, existentes, metodologia, configuracao);
     }
 
     ResultadoProcessamentoLote executarProcessamentoSemTransacao(PreparoProcessamento preparo) {
@@ -289,24 +291,32 @@ public class ImportacaoAssistidaService {
     }
 
     /**
-     * Lê os arquivos pendentes até ARQUIVOS_EM_PARALELO ao mesmo tempo (threads virtuais: a espera é do provedor de IA)
-     * e devolve os resultados na ordem dos arquivos. {@code aoConcluirArquivo} roda a cada arquivo terminado, na thread
-     * dele e já com a consultoria, e serve só para o progresso da tela. Sessão cortada (thread interrompida): as leituras
-     * ainda em curso são interrompidas, sem deixar chamada órfã ao provedor.
+     * Lê o primeiro arquivo sozinho e só então os demais, até ARQUIVOS_EM_PARALELO ao mesmo tempo (threads virtuais: a
+     * espera é do provedor de IA): a primeira chamada grava o cache do provedor (o {@code system} é o mesmo para todos) e
+     * as outras o leem. Devolve os resultados na ordem dos arquivos. {@code aoConcluirArquivo} roda a cada arquivo
+     * terminado, na thread dele e já com a consultoria, e serve só para o progresso da tela. Sessão cortada (thread
+     * interrompida): as leituras ainda em curso são interrompidas, sem deixar chamada órfã ao provedor.
      */
     ResultadoProcessamentoLote executarProcessamentoSemTransacao(PreparoProcessamento preparo, Runnable aoConcluirArquivo) {
         List<ArquivoPendente> lista = preparo.pendentes();
         List<ResultadoArquivoProcessado> itens = new ArrayList<>();
+        if (lista.isEmpty()) {
+            return new ResultadoProcessamentoLote(List.of(), preparo.existentes());
+        }
+        itens.add(processarArquivo(lista.getFirst(), preparo, aoConcluirArquivo));
         if (lista.size() == 1) {
-            itens.add(processarArquivo(lista.getFirst(), preparo, aoConcluirArquivo));
             return new ResultadoProcessamentoLote(List.copyOf(itens), preparo.existentes());
         }
+        if (Thread.currentThread().isInterrupted()) {
+            throw new IllegalStateException("Leitura dos arquivos interrompida.");
+        }
+        List<ArquivoPendente> resto = lista.subList(1, lista.size());
         UUID consultoria = TenantContext.get();
         Semaphore vagas = new Semaphore(ARQUIVOS_EM_PARALELO);
         ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
         try {
             List<Future<ResultadoArquivoProcessado>> futuros = new ArrayList<>();
-            for (ArquivoPendente arq : lista) {
+            for (ArquivoPendente arq : resto) {
                 futuros.add(pool.submit(() -> {
                     vagas.acquire();
                     try {
@@ -317,11 +327,11 @@ public class ImportacaoAssistidaService {
                     }
                 }));
             }
-            for (int i = 0; i < lista.size(); i++) {
+            for (int i = 0; i < resto.size(); i++) {
                 try {
                     itens.add(futuros.get(i).get());
                 } catch (ExecutionException e) {
-                    itens.add(new ResultadoArquivoProcessado(lista.get(i).id(), false, null, "ERRO_PROCESSAMENTO", null, null));
+                    itens.add(new ResultadoArquivoProcessado(resto.get(i).id(), false, null, "ERRO_PROCESSAMENTO", null, null));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw new IllegalStateException("Leitura dos arquivos interrompida.");
@@ -339,12 +349,18 @@ public class ImportacaoAssistidaService {
         try {
             ResultadoExtracao extracao = extrairArquivo(arq.formato(), arq.nomeOriginal(), arq.conteudoBytes());
             RedatorLgpdImportacao.RedacaoResultado redacao = RedatorLgpdImportacao.redigir(extracao.textoCompleto());
-            ContextoIa contexto = new ContextoIa(arq.nomeOriginal(), arq.formato(), extracao.blocos(),
-                    extracao.textoCompleto(), preparo.objetivo(), tiposParaOContexto(preparo.configuracao()),
-                    preparo.dicionario());
+            ContextoIa contexto = roteador.comArquivoSeCouber(new ContextoIa(arq.nomeOriginal(), arq.formato(),
+                    extracao.blocos(), extracao.textoCompleto(), tiposParaOContexto(preparo.configuracao()),
+                    preparo.dicionario()), arq.conteudoBytes(),
+                    extracao.metadados() == null ? null : String.valueOf(extracao.metadados().get("cobertura")));
             RoteadorInterpretadorIa.ExecucaoInterpretacao execucao = comTiposDaMetodologia(
-                    roteador.interpretarComModo(contexto), preparo);
-            resultado = new ResultadoArquivoProcessado(arq.id(), true, json.writeValueAsString(extracao.metadados()),
+                    roteador.interpretarComModo(contexto, preparo.sessaoId()), preparo);
+            // O modo efetivo de cada arquivo fica nos metadados dele (a tela diz qual foi lido pelas regras e por quê).
+            Map<String, Object> metadados = new HashMap<>(extracao.metadados() == null ? Map.of() : extracao.metadados());
+            metadados.put("modo", execucao.modoEfetivo());
+            metadados.put("motivoFallback", execucao.motivoFallback());
+            metadados.put("enviadoComoArquivo", execucao.enviadoComoArquivo());
+            resultado = new ResultadoArquivoProcessado(arq.id(), true, json.writeValueAsString(metadados),
                     null, execucao, redacao);
         } catch (ExtracaoRecusadaException e) {
             resultado = new ResultadoArquivoProcessado(arq.id(), false, null, e.codigo(), null, null);
@@ -377,11 +393,12 @@ public class ImportacaoAssistidaService {
                 treino = treino.comMetodologia(preparo.metodologia());
             }
             return new ResultadoInterpretacao.PropostaGrupo(pg.identificadorOrigem(), pg.nomeAluno(), pg.email(),
-                    pg.telefone(), pg.objetivo(), pg.observacoes(), pg.pesos(), treino, pg.dieta(), pg.avisos());
+                    pg.telefone(), pg.objetivo(), pg.observacoes(), pg.pesos(), treino, pg.dieta(), pg.avisos(),
+                    pg.origemDoNome());
         }).toList();
         return new RoteadorInterpretadorIa.ExecucaoInterpretacao(
-                new ResultadoInterpretacao(grupos, exec.resultado().duvidas()), exec.modoEfetivo(),
-                exec.provedorConfigurado(), exec.fallbackParaRegras(), exec.motivoFallback());
+                new ResultadoInterpretacao(grupos, exec.resultado().duvidas(), exec.resultado().uso()), exec.modoEfetivo(),
+                exec.provedorConfigurado(), exec.fallbackParaRegras(), exec.motivoFallback(), exec.enviadoComoArquivo());
     }
 
     void concluirProcessamentoEmTransacao(UUID sessaoId, ResultadoProcessamentoLote resultado) {
@@ -405,13 +422,14 @@ public class ImportacaoAssistidaService {
 
         List<GrupoImportavel> grupos = new ArrayList<>(SessaoJson.grupos(json, sessao));
         List<DuvidaImportacao> duvidas = new ArrayList<>(SessaoJson.duvidas(json, sessao));
-        int seqGrupo = grupos.size();
+        int seqGrupo = maiorNumeroDeGrupo(grupos);
         int seqDuvida = duvidas.size();
         ModoProcessamentoResumo modo = lerModoProcessamento(sessao);
 
         for (ResultadoArquivoProcessado item : resultado.itens()) {
             ImportacaoArquivo arq = porId.get(item.arquivoId());
-            if (arq == null) {
+            // Só o arquivo que ainda espera leitura: o já lido (por outra leitura) ou com erro não entra duas vezes.
+            if (arq == null || !"RECEBIDO".equals(arq.getEstado())) {
                 continue;
             }
             if (!item.sucesso()) {
@@ -426,7 +444,12 @@ public class ImportacaoAssistidaService {
             String telefone = unico ? unico(item.redacao().telefones(), true) : null;
             for (ResultadoInterpretacao.PropostaGrupo pg : item.execucao().resultado().grupos()) {
                 seqGrupo++;
-                grupos.add(montarGrupo(pg, arq, "grupo-" + seqGrupo, email, telefone, resultado.existentes()));
+                GrupoImportavel novo = montarGrupo(pg, arq, "grupo-" + seqGrupo, email, telefone, resultado.existentes());
+                // Só o nome lido do conteúdo junta sozinho (D6): o substituto (nome do arquivo, título, "Aluno N") repete
+                // entre alunos diferentes, e cada grupo sem nome lido fica separado, com id próprio.
+                if (!novo.nomeLidoDoConteudo() || !juntarAoMesmoAluno(grupos, novo)) {
+                    grupos.add(novo);
+                }
             }
             for (ResultadoInterpretacao.PropostaDuvida pd : item.execucao().resultado().duvidas()) {
                 if (TermoDeDuvida.semConteudo(pd.termoOriginal())) {
@@ -448,18 +471,220 @@ public class ImportacaoAssistidaService {
         }
 
         long processados = todos.stream().filter(a -> !"RECEBIDO".equals(a.getEstado())).count();
+        grupos = comEstadoDasDuvidas(grupos, duvidas);
         sessao.atualizarResultados(json.writeValueAsString(grupos), json.writeValueAsString(duvidas),
                 serializarProgresso(sessao, processados, modo));
         sessao.atualizarEstado("REVISANDO");
     }
 
+    /** Maior N entre os ids {@code grupo-N}: juntar apaga grupos, então o tamanho da lista não serve de sequência. */
+    private static int maiorNumeroDeGrupo(List<GrupoImportavel> grupos) {
+        int maior = 0;
+        for (GrupoImportavel g : grupos) {
+            if (g.id() != null && g.id().startsWith("grupo-")) {
+                try {
+                    maior = Math.max(maior, Integer.parseInt(g.id().substring("grupo-".length())));
+                } catch (NumberFormatException ignored) {
+                    // id fora do padrão: não conta
+                }
+            }
+        }
+        return Math.max(maior, grupos.size());
+    }
+
+    /** Grupo de aluno ainda por gravar: o que pode ser juntado a outro do mesmo aluno. */
+    private static boolean juntavel(GrupoImportavel g) {
+        return !"IMPORTADO".equals(g.estado()) && !"IGNORADO".equals(g.estado()) && DESTINOS_DE_ALUNO.contains(g.destino());
+    }
+
+    /**
+     * Mesmo aluno em dois arquivos (D6): junta {@code novo} ao primeiro grupo juntável de mesmo nome (sem acento nem
+     * caixa) que não conflita com ele e devolve {@code true}; senão não mexe e devolve {@code false}. Os DOIS têm de ter o
+     * nome lido do conteúdo. Grupo com erro de gravação não junta sozinho (o treinador está mexendo nele).
+     */
+    private static boolean juntarAoMesmoAluno(List<GrupoImportavel> grupos, GrupoImportavel novo) {
+        String chave = chaveDoNome(novo.nomeDetectado());
+        if (chave.isEmpty() || !novo.nomeLidoDoConteudo()) {
+            return false;
+        }
+        for (int i = 0; i < grupos.size(); i++) {
+            GrupoImportavel g = grupos.get(i);
+            if (juntavel(g) && !"ERRO".equals(g.estado()) && g.nomeLidoDoConteudo()
+                    && chave.equals(chaveDoNome(g.nomeDetectado())) && !conflitam(g, novo)) {
+                grupos.set(i, juntar(g, novo));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Conflito de conteúdo: dois treinos, duas dietas, e-mails ou telefones diferentes, alunos existentes diferentes ou o
+     * mesmo dia com pesos diferentes. Só sem conflito o servidor junta sozinho.
+     */
+    static boolean conflitam(GrupoImportavel a, GrupoImportavel b) {
+        if ((a.treino() != null && b.treino() != null) || (a.dieta() != null && b.dieta() != null)) {
+            return true;
+        }
+        if (a.alunoExistenteId() != null && b.alunoExistenteId() != null
+                && !a.alunoExistenteId().equals(b.alunoExistenteId())) {
+            return true;
+        }
+        CadastroImportavel ca = a.cadastro();
+        CadastroImportavel cb = b.cadastro();
+        if (ca != null && cb != null) {
+            if (temTexto(ca.email()) && temTexto(cb.email()) && !ca.email().strip().equalsIgnoreCase(cb.email().strip())) {
+                return true;
+            }
+            if (temTexto(ca.telefone()) && temTexto(cb.telefone())
+                    && !ca.telefone().replaceAll("\\D", "").equals(cb.telefone().replaceAll("\\D", ""))) {
+                return true;
+            }
+        }
+        Map<java.time.LocalDate, java.math.BigDecimal> porData = new HashMap<>();
+        for (PesoImportavel p : a.pesos() == null ? List.<PesoImportavel>of() : a.pesos()) {
+            if (p != null && p.data() != null && p.kg() != null) {
+                porData.put(p.data(), p.kg());
+            }
+        }
+        for (PesoImportavel p : b.pesos() == null ? List.<PesoImportavel>of() : b.pesos()) {
+            if (p != null && p.data() != null && p.kg() != null && porData.containsKey(p.data())
+                    && porData.get(p.data()).compareTo(p.kg()) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@code outro} dentro de {@code alvo}: o que diverge fica com o {@code alvo} e o {@code outro} só completa o que
+     * falta; arquivos, pesos (sem repetir o dia), ocorrências, avisos e candidatos somam. Quem chama confere os planos.
+     */
+    static GrupoImportavel juntar(GrupoImportavel alvo, GrupoImportavel outro) {
+        return juntar(alvo, outro, false, false);
+    }
+
+    /**
+     * Com {@code partes}, os planos se somam como nas partes de um documento grande (o que passa dos tetos sai e vira
+     * aviso); {@code outroAntes} põe as divisões e refeições do {@code outro} na frente.
+     */
+    static GrupoImportavel juntar(GrupoImportavel alvo, GrupoImportavel outro, boolean partes, boolean outroAntes) {
+        CadastroImportavel ca = alvo.cadastro();
+        CadastroImportavel cb = outro.cadastro();
+        CadastroImportavel cadastro = ca == null ? cb : cb == null ? ca : new CadastroImportavel(
+                temTexto(ca.nome()) ? ca.nome() : cb.nome(),
+                temTexto(ca.email()) ? ca.email() : cb.email(),
+                temTexto(ca.telefone()) ? ca.telefone() : cb.telefone(),
+                temTexto(ca.objetivo()) ? ca.objetivo() : cb.objetivo(),
+                temTexto(ca.observacoes()) ? ca.observacoes() : cb.observacoes(),
+                ca.ativo() != null ? ca.ativo() : cb.ativo());
+        boolean usaOAlunoDoOutro = alvo.alunoExistenteId() == null && outro.alunoExistenteId() != null;
+        UUID alunoExistente = usaOAlunoDoOutro ? outro.alunoExistenteId() : alvo.alunoExistenteId();
+        String destino = usaOAlunoDoOutro ? outro.destino() : alvo.destino();
+
+        List<PesoImportavel> pesos = new ArrayList<>(alvo.pesos() == null ? List.of() : alvo.pesos());
+        Set<java.time.LocalDate> dias = new HashSet<>();
+        pesos.forEach(p -> {
+            if (p != null && p.data() != null) {
+                dias.add(p.data());
+            }
+        });
+        for (PesoImportavel p : outro.pesos() == null ? List.<PesoImportavel>of() : outro.pesos()) {
+            if (p != null && (p.data() == null || dias.add(p.data()))) {
+                pesos.add(p);
+            }
+        }
+        Map<UUID, CandidatoAluno> candidatos = new LinkedHashMap<>();
+        for (CandidatoAluno c : uniao(alvo.candidatos(), outro.candidatos())) {
+            if (c != null && c.alunoId() != null && candidatos.size() < CANDIDATOS_POR_GRUPO) {
+                candidatos.putIfAbsent(c.alunoId(), c);
+            }
+        }
+        Map<UUID, OcorrenciaOrigem> ocorrencias = new LinkedHashMap<>(alvo.ocorrencias());
+        outro.ocorrencias().forEach(ocorrencias::putIfAbsent);
+        Set<String> avisos = new java.util.LinkedHashSet<>(uniao(alvo.avisos(), outro.avisos()));
+        GrupoImportavel primeiro = outroAntes ? outro : alvo;
+        GrupoImportavel segundo = outroAntes ? alvo : outro;
+        ConteudoTreino treino = partes ? RoteadorInterpretadorIa.juntar(primeiro.treino(), segundo.treino(), avisos)
+                : alvo.treino() != null ? alvo.treino() : outro.treino();
+        ConteudoDieta dieta = partes ? RoteadorInterpretadorIa.juntar(primeiro.dieta(), segundo.dieta(), avisos)
+                : alvo.dieta() != null ? alvo.dieta() : outro.dieta();
+        return new GrupoImportavel(alvo.id(), alvo.identificadorOrigem(), alvo.nomeDetectado(), destino, alunoExistente,
+                uniao(alvo.arquivosOrigem(), outro.arquivosOrigem()), cadastro, pesos, treino, dieta,
+                uniao(alvo.pendenciasIds(), outro.pendenciasIds()), alvo.estado(), alvo.erroCodigo(),
+                List.copyOf(candidatos.values()), Map.copyOf(ocorrencias), List.copyOf(avisos),
+                alvo.origemDoNome());
+    }
+
+    private static <T> List<T> uniao(List<T> a, List<T> b) {
+        java.util.LinkedHashSet<T> todos = new java.util.LinkedHashSet<>();
+        if (a != null) {
+            todos.addAll(a);
+        }
+        if (b != null) {
+            todos.addAll(b);
+        }
+        return List.copyOf(todos);
+    }
+
+    /**
+     * {@code COM_DUVIDAS} enquanto alguma dúvida aberta aponta para uma ocorrência do grupo (ou, sem ocorrências, para um
+     * arquivo dele); senão {@code PRONTO}. Grupo gravado, ignorado ou com erro fica como está.
+     */
+    static List<GrupoImportavel> comEstadoDasDuvidas(List<GrupoImportavel> grupos, List<DuvidaImportacao> duvidas) {
+        Set<String> ocorrenciasAbertas = new HashSet<>();
+        Set<String> arquivosAbertos = new HashSet<>();
+        for (DuvidaImportacao d : duvidas) {
+            if (d.resolvida()) {
+                continue;
+            }
+            if (d.ocorrenciaIds().isEmpty()) {
+                if (d.arquivoOrigem() != null) {
+                    arquivosAbertos.add(d.arquivoOrigem());
+                }
+            } else {
+                ocorrenciasAbertas.addAll(d.ocorrenciaIds());
+            }
+        }
+        List<GrupoImportavel> saida = new ArrayList<>();
+        for (GrupoImportavel g : grupos) {
+            if (!"PRONTO".equals(g.estado()) && !"COM_DUVIDAS".equals(g.estado())) {
+                saida.add(g);
+                continue;
+            }
+            boolean aberta = g.ocorrencias().keySet().stream().anyMatch(id -> ocorrenciasAbertas.contains(id.toString()))
+                    || (g.arquivosOrigem() != null && g.arquivosOrigem().stream().anyMatch(arquivosAbertos::contains));
+            String estado = aberta ? "COM_DUVIDAS" : "PRONTO";
+            saida.add(estado.equals(g.estado()) ? g : g.comEstado(estado));
+        }
+        return saida;
+    }
+
+    private static boolean temTexto(String s) {
+        return s != null && !s.isBlank();
+    }
+
+    /**
+     * O único lugar do nome substituto (D6): o lido do documento quando a origem é {@code CONTEUDO}; senão, só para a
+     * tela, o nome do arquivo sem extensão (também o título digitado no texto colado) ou "Aluno N" (o título padrão
+     * "Texto livre" e o que não parece nome). O substituto nunca conta como nome lido: não junta sozinho.
+     */
+    static String nomeDeExibicao(ResultadoInterpretacao.PropostaGrupo pg, String nomeArquivo, String id) {
+        if (pg.origemDoNome() == ResultadoInterpretacao.OrigemDoNome.CONTEUDO && temTexto(pg.nomeAluno())) {
+            return pg.nomeAluno().strip();
+        }
+        String doArquivo = pg.origemDoNome() == ResultadoInterpretacao.OrigemDoNome.NOME_DO_ARQUIVO
+                ? PistaDeIdentidade.extrairDoNomeDoArquivo(nomeArquivo) : "";
+        return doArquivo.isBlank() ? "Aluno " + id.substring("grupo-".length()) : doArquivo;
+    }
+
     private GrupoImportavel montarGrupo(ResultadoInterpretacao.PropostaGrupo pg, ImportacaoArquivo arq, String id,
                                         String email, String telefone, List<Aluno> existentes) {
-        String nome = pg.nomeAluno() != null && !pg.nomeAluno().isBlank() ? pg.nomeAluno().strip()
-                : PistaDeIdentidade.extrairDoNomeDoArquivo(arq.getNomeOriginal());
-        if (nome.isBlank()) {
-            nome = "Aluno " + id.substring("grupo-".length());
-        }
+        String nome = nomeDeExibicao(pg, arq.getNomeOriginal(), id);
+        boolean lido = pg.origemDoNome() == ResultadoInterpretacao.OrigemDoNome.CONTEUDO && temTexto(pg.nomeAluno());
+        ResultadoInterpretacao.OrigemDoNome origem = lido ? ResultadoInterpretacao.OrigemDoNome.CONTEUDO
+                : pg.origemDoNome() == ResultadoInterpretacao.OrigemDoNome.CONTEUDO
+                ? ResultadoInterpretacao.OrigemDoNome.AUSENTE : pg.origemDoNome();
         List<CandidatoAluno> candidatos = candidatos(nome, email, existentes);
         // Só o e-mail vincula sozinho, e só quando um único aluno ativo o tem; por nome o treinador escolhe.
         List<CandidatoAluno> porEmail = candidatos.stream().filter(c -> "EMAIL".equals(c.motivo())).toList();
@@ -479,7 +704,7 @@ public class ImportacaoAssistidaService {
         Map<UUID, OcorrenciaOrigem> ocorrencias = extrairOcorrencias(arq.getNomeOriginal(), pg.treino(), pg.dieta());
         return new GrupoImportavel(id, arq.getNomeOriginal(), nome, destino, alunoExistente,
                 List.of(arq.getNomeOriginal()), cadastro, pesos, pg.treino(), pg.dieta(), List.of(), "PRONTO", null,
-                candidatos, ocorrencias, pg.avisos());
+                candidatos, ocorrencias, pg.avisos(), origem);
     }
 
     private static Map<UUID, OcorrenciaOrigem> extrairOcorrencias(String nomeArquivo, ConteudoTreino treino,
@@ -551,7 +776,7 @@ public class ImportacaoAssistidaService {
         return lista.size() > CANDIDATOS_POR_GRUPO ? List.copyOf(lista.subList(0, CANDIDATOS_POR_GRUPO)) : List.copyOf(lista);
     }
 
-    private static String chaveDoNome(String nome) {
+    static String chaveDoNome(String nome) {
         return nome == null ? "" : Buscas.semAcento(nome).strip().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }
 
@@ -658,7 +883,8 @@ public class ImportacaoAssistidaService {
         decisoes.add(new DecisaoImportacao(UUID.randomUUID().toString(), encontrada.id(), alvos,
                 encontrada.tipo(), encontrada.termoOriginal(), termoPara, req.referenciaId(), true));
 
-        List<GrupoImportavel> gruposAtualizados = reconstruirGrupos(grupos, decisoes, encontrada.termoOriginal(), termoPara);
+        List<GrupoImportavel> gruposAtualizados = comEstadoDasDuvidas(
+                reconstruirGrupos(grupos, decisoes, encontrada.termoOriginal(), termoPara), atualizadas);
 
         if (req.salvarNoDicionario() && req.tipo() != null && req.termoOriginal() != null) {
             salvarApelido(req.tipo(), req.termoOriginal(), termoPara, req.referenciaId());
@@ -701,7 +927,8 @@ public class ImportacaoAssistidaService {
                 }
             }
         }
-        List<GrupoImportavel> gruposAtualizados = reconstruirGrupos(SessaoJson.grupos(json, sessao), decisoes, null, null);
+        List<GrupoImportavel> gruposAtualizados = comEstadoDasDuvidas(
+                reconstruirGrupos(SessaoJson.grupos(json, sessao), decisoes, null, null), duvidas);
         sessao.aplicarRespostas(json.writeValueAsString(decisoes), json.writeValueAsString(gruposAtualizados),
                 json.writeValueAsString(duvidas));
         return detalheDaSessao(sessao);
@@ -812,8 +1039,10 @@ public class ImportacaoAssistidaService {
     }
 
     /**
-     * Destino, aluno existente e nome do grupo. O aluno escolhido é conferido aqui (e de novo ao confirmar): outra
-     * consultoria 404, anonimizado 409 {@code ALUNO_ANONIMIZADO}, inativo 409 {@code ALUNO_INATIVO}.
+     * Destino, aluno existente, nome, e-mail e telefone do grupo. O aluno escolhido é conferido aqui (e de novo ao
+     * confirmar): outra consultoria 404, anonimizado 409 {@code ALUNO_ANONIMIZADO}, inativo 409 {@code ALUNO_INATIVO}.
+     * E-mail e telefone seguem as regras do aceite (400 {@code EMAIL_INVALIDO}, {@code TELEFONE_INVALIDO}; o valor nunca
+     * vai à mensagem); em branco, apagam.
      */
     @Transactional
     public SessaoDetalhe atualizarGrupo(UUID sessaoId, String grupoId, AtualizarGrupoRequisicao req) {
@@ -845,7 +1074,20 @@ public class ImportacaoAssistidaService {
                 throw new BadRequestException("O nome é longo demais.", "NOME_GRANDE_DEMAIS");
             }
         }
-        GrupoImportavel novo = alvo.comDestino(destino, alunoId, nome);
+        CadastroImportavel atual = alvo.cadastro();
+        String email = atual == null ? null : atual.email();
+        if (req.email() != null) {
+            email = req.email().isBlank() ? null : emailDoAceite(req.email());
+        }
+        String telefone = atual == null ? null : atual.telefone();
+        if (req.telefone() != null) {
+            telefone = req.telefone().isBlank() ? null : telefoneDoAceite(req.telefone());
+        }
+        GrupoImportavel novo = alvo.comDestino(destino, alunoId, nome, email, telefone);
+        if (req.nome() != null && !req.nome().isBlank() && !alvo.nomeLidoDoConteudo()) {
+            // O treinador deu o nome ao grupo sem nome lido: destrava a gravação (nunca a junção sozinha).
+            novo = novo.comOrigemDoNome(ResultadoInterpretacao.OrigemDoNome.DIGITADO);
+        }
         List<GrupoImportavel> atualizados = new ArrayList<>();
         for (GrupoImportavel g : grupos) {
             atualizados.add(g.id().equals(grupoId) ? novo : g);
@@ -853,6 +1095,120 @@ public class ImportacaoAssistidaService {
         SessaoJson.gravarGrupos(json, sessao, atualizados);
         sessao.incrementarRevisao();
         return detalheDaSessao(sessao);
+    }
+
+    /** A regra do e-mail na confirmação ({@link ConfirmacaoDaImportacaoAssistida}). */
+    private static String emailDoAceite(String email) {
+        String e = email.strip();
+        if (e.length() > 254 || !EMAIL_SIMPLES.matcher(e).matches()) {
+            throw new BadRequestException("E-mail inválido.", "EMAIL_INVALIDO");
+        }
+        return e;
+    }
+
+    private static String telefoneDoAceite(String telefone) {
+        try {
+            return Formatos.telefone(telefone);
+        } catch (BadRequestException e) {
+            throw new BadRequestException("Telefone inválido.", "TELEFONE_INVALIDO");
+        }
+    }
+
+    /**
+     * "Juntar com…": os grupos {@code outros} entram no {@code grupoId} e somem da sessão. O do caminho prevalece no que
+     * diverge (nome, e-mail, telefone, aluno existente, peso do mesmo dia); dois treinos ou duas dietas são recusados
+     * (409 {@code GRUPOS_COM_DOIS_PLANOS}: ignore um deles antes), para nenhum plano sumir calado. A exceção são as
+     * partes de um mesmo arquivo sem nome lido ("Juntar as N partes", {@link #partesDoMesmoArquivo}): os treinos e as
+     * dietas se somam, na ordem da sessão, como nas partes de um documento grande. Só grupos de aluno ainda por gravar
+     * (409 {@code GRUPO_NAO_JUNTAVEL}); o mesmo grupo dos dois lados, repetido ou lista vazia é 400 {@code GRUPO_INVALIDO}.
+     */
+    @Transactional
+    public SessaoDetalhe juntarGrupos(UUID sessaoId, String grupoId, List<String> outros) {
+        ImportacaoSessao sessao = sessaoTravada(sessaoId);
+        exigirNaoEncerrada(sessao);
+        if (outros == null || outros.isEmpty() || outros.size() > MAXIMO_DE_GRUPOS_JUNTADOS
+                || outros.stream().anyMatch(id -> id == null || id.isBlank() || id.equals(grupoId))
+                || new HashSet<>(outros).size() != outros.size()) {
+            throw new BadRequestException("Escolha outro aluno para juntar.", "GRUPO_INVALIDO");
+        }
+        List<GrupoImportavel> grupos = SessaoJson.grupos(json, sessao);
+        GrupoImportavel alvo = grupoDaSessao(grupos, grupoId);
+        List<GrupoImportavel> juntados = outros.stream().map(id -> grupoDaSessao(grupos, id)).toList();
+        if (!juntavel(alvo) || juntados.stream().anyMatch(g -> !juntavel(g))) {
+            throw new ConflictException("Só dá para juntar alunos que ainda não foram gravados nem ignorados.",
+                    "GRUPO_NAO_JUNTAVEL");
+        }
+        List<GrupoImportavel> todos = new ArrayList<>(juntados);
+        todos.add(alvo);
+        boolean partes = partesDoMesmoArquivo(todos, arquivos.findBySessaoIdOrderByCriadoEmAsc(sessaoId));
+        GrupoImportavel junto = alvo;
+        if (partes && alvo.origemDoNome() != ResultadoInterpretacao.OrigemDoNome.DIGITADO) {
+            // O nome que o treinador já deu a uma das partes não se perde ao juntar.
+            for (GrupoImportavel g : juntados) {
+                if (g.origemDoNome() == ResultadoInterpretacao.OrigemDoNome.DIGITADO) {
+                    junto = alvo.comDestino(alvo.destino(), alvo.alunoExistenteId(), g.nomeDetectado(),
+                            alvo.cadastro() == null ? null : alvo.cadastro().email(),
+                            alvo.cadastro() == null ? null : alvo.cadastro().telefone())
+                            .comOrigemDoNome(ResultadoInterpretacao.OrigemDoNome.DIGITADO);
+                    break;
+                }
+            }
+        }
+        // Na ordem da sessão, qualquer que seja o grupo do caminho: as de antes entram na frente, da mais perto para a
+        // mais longe (cada uma passa à frente da anterior); as de depois, no fim, em ordem.
+        int posicaoDoAlvo = grupos.indexOf(alvo);
+        List<Integer> ordem = new ArrayList<>();
+        for (int i = posicaoDoAlvo - 1; i >= 0; i--) {
+            ordem.add(i);
+        }
+        for (int i = posicaoDoAlvo + 1; i < grupos.size(); i++) {
+            ordem.add(i);
+        }
+        for (int i : ordem) {
+            GrupoImportavel g = grupos.get(i);
+            if (!outros.contains(g.id())) {
+                continue;
+            }
+            if (!partes && ((junto.treino() != null && g.treino() != null) || (junto.dieta() != null && g.dieta() != null))) {
+                throw new ConflictException("Os dois têm treino ou os dois têm dieta. Ignore um deles antes de juntar.",
+                        "GRUPOS_COM_DOIS_PLANOS");
+            }
+            junto = juntar(junto, g, partes, i < posicaoDoAlvo);
+        }
+        List<GrupoImportavel> atualizados = new ArrayList<>();
+        for (GrupoImportavel g : grupos) {
+            if (g.id().equals(grupoId)) {
+                atualizados.add(junto);
+            } else if (!outros.contains(g.id())) {
+                atualizados.add(g);
+            }
+        }
+        SessaoJson.gravarGrupos(json, sessao, comEstadoDasDuvidas(atualizados, SessaoJson.duvidas(json, sessao)));
+        sessao.incrementarRevisao();
+        return detalheDaSessao(sessao);
+    }
+
+    private static GrupoImportavel grupoDaSessao(List<GrupoImportavel> grupos, String id) {
+        return grupos.stream().filter(g -> g.id().equals(id)).findFirst()
+                .orElseThrow(() -> new NaoEncontradoException("Grupo não encontrado na sessão."));
+    }
+
+    /**
+     * Partes de um arquivo só: todos os grupos vêm do mesmo arquivo (e só dele), a sessão tem um único arquivo com esse
+     * nome (dois arquivos de mesmo nome podem ser alunos diferentes) e nenhum tem o nome lido do documento (esses o
+     * servidor já separou por nome). É o caso do documento grande sem nome, que sai em vários "Aluno N".
+     */
+    static boolean partesDoMesmoArquivo(List<GrupoImportavel> grupos, List<ImportacaoArquivo> daSessao) {
+        String arquivo = null;
+        for (GrupoImportavel g : grupos) {
+            if (g.nomeLidoDoConteudo() || g.arquivosOrigem() == null || g.arquivosOrigem().size() != 1
+                    || (arquivo != null && !arquivo.equals(g.arquivosOrigem().getFirst()))) {
+                return false;
+            }
+            arquivo = g.arquivosOrigem().getFirst();
+        }
+        String nome = arquivo;
+        return nome != null && daSessao.stream().filter(a -> nome.equals(a.getNomeOriginal())).count() == 1;
     }
 
     @Transactional
@@ -1039,6 +1395,8 @@ public class ImportacaoAssistidaService {
             case "XLSX", "CSV" -> ExtratorXlsxCsv.extrair(nomeOriginal, bytes);
             case "TEXTO_LIVRE" -> ExtratorTextoLivre.extrair(nomeOriginal,
                     bytes != null ? new String(bytes, StandardCharsets.UTF_8) : "");
+            // Imagem não tem texto: só é lida se o Claude receber o arquivo (D1); sem ele, as regras não acham nada.
+            case "JPG", "PNG" -> new ResultadoExtracao(formato, "", List.of(), Map.of("cobertura", "SEM_TEXTO"));
             default -> new ResultadoExtracao(formato, "", List.of(), Map.of());
         };
     }
@@ -1058,9 +1416,10 @@ public class ImportacaoAssistidaService {
 
     /**
      * O formato vem da extensão E tem de bater com os primeiros bytes: PDF começa com {@code %PDF-}, DOCX e XLSX são zip
-     * ({@code PK}), CSV e texto não podem ter byte nulo nem ser PDF ou zip renomeado. Outra extensão é recusada.
+     * ({@code PK}), CSV e texto não podem ter byte nulo nem ser PDF ou zip renomeado. JPG ({@code FF D8 FF}) e PNG só
+     * com {@code aceitaImagem} (o arquivo vai ao Claude, D1); sem ela, 400. Outra extensão é recusada.
      */
-    static String detectarFormato(String nome, byte[] bytes) {
+    static String detectarFormato(String nome, byte[] bytes, boolean aceitaImagem) {
         int ponto = nome.lastIndexOf('.');
         String ext = ponto < 0 ? "" : nome.substring(ponto + 1).toLowerCase(Locale.ROOT);
         boolean pdf = bytes.length >= 5 && bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F' && bytes[4] == '-';
@@ -1087,6 +1446,15 @@ public class ImportacaoAssistidaService {
                 formato = "csv".equals(ext) ? "CSV" : "TEXTO_LIVRE";
                 confere = !pdf && !zip && semByteNulo(bytes);
             }
+            case "jpg", "jpeg", "png" -> {
+                if (!aceitaImagem) {
+                    throw new BadRequestException("Envie o texto ou um PDF.", "FORMATO_NAO_SUPORTADO");
+                }
+                formato = "png".equals(ext) ? "PNG" : "JPG";
+                confere = "PNG".equals(formato)
+                        ? bytes.length >= 8 && Arrays.equals(bytes, 0, 8, ASSINATURA_PNG, 0, 8)
+                        : bytes.length >= 3 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF;
+            }
             case "xls" -> throw formatoXlsAntigo();
             default -> throw new BadRequestException("Formato de arquivo não suportado.", "FORMATO_NAO_SUPORTADO");
         }
@@ -1094,6 +1462,31 @@ public class ImportacaoAssistidaService {
             throw new BadRequestException("O conteúdo do arquivo não corresponde ao formato.", "FORMATO_NAO_CONFERE");
         }
         return formato;
+    }
+
+    private static final byte[] ASSINATURA_PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+    /** Maior lado que o Claude aceita numa imagem. */
+    static final int LADO_MAXIMO_DA_IMAGEM = 8000;
+
+    /** Guarda a imagem sem EXIF, GPS nem texto embutido; imagem que não passa (ou grande demais) é recusada. */
+    static byte[] imagemSemMetadados(String formato, byte[] bytes) {
+        try {
+            return switch (formato) {
+                case "JPG" -> br.com.treinos.api.fotos.JpegSemMetadados.limpar(bytes, LADO_MAXIMO_DA_IMAGEM);
+                case "PNG" -> {
+                    // IHDR logo depois da assinatura: largura e altura em 4 bytes cada (o limpador não confere o tamanho).
+                    long largura = bytes.length >= 24 ? java.nio.ByteBuffer.wrap(bytes, 16, 4).getInt() & 0xFFFFFFFFL : 0;
+                    long altura = bytes.length >= 24 ? java.nio.ByteBuffer.wrap(bytes, 20, 4).getInt() & 0xFFFFFFFFL : 0;
+                    if (largura == 0 || altura == 0 || largura > LADO_MAXIMO_DA_IMAGEM || altura > LADO_MAXIMO_DA_IMAGEM) {
+                        throw new IllegalArgumentException("tamanho da imagem");
+                    }
+                    yield br.com.treinos.api.consultoria.PngSemMetadados.limpar(bytes);
+                }
+                default -> bytes;
+            };
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("O conteúdo do arquivo não corresponde ao formato.", "FORMATO_NAO_CONFERE");
+        }
     }
 
     private static boolean ole(byte[] bytes) {
@@ -1131,8 +1524,24 @@ public class ImportacaoAssistidaService {
     }
 
     private ArquivoResumo resumo(ImportacaoArquivo a) {
+        JsonNode metadados = lerMetadados(a);
         return new ArquivoResumo(a.getId(), a.getNomeOriginal(), a.getFormato(), a.getTamanhoBytes(), a.getEstado(),
-                a.getErroCodigo(), a.getCriadoEm(), lerCobertura(a));
+                a.getErroCodigo(), a.getCriadoEm(), lerCobertura(a),
+                metadados == null || !metadados.hasNonNull("modo") ? null : metadados.get("modo").asString(),
+                metadados == null || !metadados.hasNonNull("motivoFallback") ? null : metadados.get("motivoFallback").asString(),
+                metadados != null && metadados.path("enviadoComoArquivo").asBoolean(false));
+    }
+
+    private JsonNode lerMetadados(ImportacaoArquivo a) {
+        String raw = a.getExtracaoJson();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return json.readTree(raw);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private CoberturaArquivo lerCobertura(ImportacaoArquivo a) {
@@ -1169,23 +1578,26 @@ public class ImportacaoAssistidaService {
         return new ModoProcessamentoResumo(modoEfetivo, exec.provedorConfigurado(), fallback, motivo);
     }
 
+    /**
+     * O progresso existente com o fim da leitura: guarda o que é da sessão e não da leitura ({@code confirmacoes},
+     * {@code alunosCriados}, a marca da leitura), senão o {@code MESMO_NOME_NA_SESSAO} esqueceria os alunos já criados
+     * quando um arquivo novo é lido depois de uma gravação.
+     */
     private String serializarProgresso(ImportacaoSessao sessao, long processados, ModoProcessamentoResumo modo) {
-        Map<String, Object> map = new HashMap<>();
+        tools.jackson.databind.node.ObjectNode root;
         try {
-            if (sessao.getProgressoJson() != null && !sessao.getProgressoJson().isBlank()) {
-                JsonNode n = json.readTree(sessao.getProgressoJson());
-                if (n.has("confirmacoes")) {
-                    map.put("confirmacoes", n.get("confirmacoes"));
-                }
-            }
-        } catch (RuntimeException ignored) {
-            // mantém mapa limpo
+            JsonNode n = sessao.getProgressoJson() == null || sessao.getProgressoJson().isBlank()
+                    ? json.createObjectNode() : json.readTree(sessao.getProgressoJson());
+            root = n instanceof tools.jackson.databind.node.ObjectNode o ? o : json.createObjectNode();
+        } catch (RuntimeException e) {
+            root = json.createObjectNode();
         }
-        map.put("processados", processados);
+        root.remove("aguardando");
+        root.put("processados", processados);
         if (modo != null) {
-            map.put("modoProcessamento", modo);
+            root.set("modoProcessamento", json.valueToTree(modo));
         }
-        return json.writeValueAsString(map);
+        return json.writeValueAsString(root);
     }
 
     private ModoProcessamentoResumo lerModoProcessamento(ImportacaoSessao sessao) {
@@ -1217,7 +1629,7 @@ public class ImportacaoAssistidaService {
         List<ArquivoResumo> arqs = arquivos.findBySessaoIdOrderByCriadoEmAsc(sessao.getId()).stream()
                 .map(this::resumo).toList();
         List<GrupoImportavel> gruposBrutos = SessaoJson.grupos(json, sessao);
-        List<GrupoImportavel> grupos = gruposBrutos.stream()
+        List<GrupoImportavel> grupos = comParceiros(gruposBrutos).stream()
                 .map(g -> g.paraLeitura(sensivel, treinoLer, dietaLer, ergogenicoLer)).toList();
         List<DuvidaImportacao> duvidas = SessaoJson.duvidas(json, sessao).stream()
                 .filter(d -> dietaLer || d.tipo() == null || !d.tipo().startsWith("ALIMENTO"))
@@ -1229,15 +1641,39 @@ public class ImportacaoAssistidaService {
                 .toList();
         String estadoAtual = SessaoJson.estadoEfetivo(json, sessao);
         String hashPrevia = "REVISANDO".equals(estadoAtual) ? HashPreviaImportacao.calcular(sessao, gruposBrutos) : null;
-        return new SessaoDetalhe(sessao.getId(), sessao.getObjetivo(), estadoAtual, sessao.getRevisao(), arqs,
+        return new SessaoDetalhe(sessao.getId(), estadoAtual, sessao.getRevisao(), arqs,
                 grupos, duvidas, sessao.getCriadoEm(), sessao.getExpiraEm(), lerModoProcessamento(sessao),
                 decisoes, hashPrevia, "PROCESSANDO".equals(estadoAtual) ? lerLeitura(sessao) : null);
+    }
+
+    /**
+     * Cada grupo juntável com os outros de mesmo nome (sem acento nem caixa) que sobraram: o servidor não os juntou por
+     * conflito (ou o treinador deu o mesmo nome), e a tela oferece "Juntar com…".
+     */
+    static List<GrupoImportavel> comParceiros(List<GrupoImportavel> grupos) {
+        Map<String, List<GrupoImportavel>> porNome = new HashMap<>();
+        for (GrupoImportavel g : grupos) {
+            String chave = chaveDoNome(g.nomeDetectado());
+            if (juntavel(g) && !chave.isEmpty()) {
+                porNome.computeIfAbsent(chave, k -> new ArrayList<>()).add(g);
+            }
+        }
+        List<GrupoImportavel> saida = new ArrayList<>();
+        for (GrupoImportavel g : grupos) {
+            List<GrupoImportavel> mesmos = juntavel(g) ? porNome.getOrDefault(chaveDoNome(g.nomeDetectado()), List.of())
+                    : List.of();
+            List<ParceiroDeGrupo> parceiros = mesmos.stream().filter(o -> !o.id().equals(g.id()))
+                    .map(o -> new ParceiroDeGrupo(o.id(), o.nomeDetectado())).toList();
+            saida.add(g.comParceiros(parceiros));
+        }
+        return saida;
     }
 
     private LeituraEmAndamento lerLeitura(ImportacaoSessao sessao) {
         try {
             JsonNode n = json.readTree(sessao.getProgressoJson());
-            return n.has("aLer") ? new LeituraEmAndamento(n.path("lidos").asInt(0), n.path("aLer").asInt(0)) : null;
+            return n.has("aLer") ? new LeituraEmAndamento(n.path("lidos").asInt(0), n.path("aLer").asInt(0),
+                    n.path("aguardando").asBoolean(false)) : null;
         } catch (RuntimeException e) {
             return null;
         }

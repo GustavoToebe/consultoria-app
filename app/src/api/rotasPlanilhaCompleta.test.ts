@@ -12,13 +12,13 @@ describe('planilha completa', () => {
   it('a amostra é um POST do arquivo com a posição de partida', async () => {
     const arquivo = new FormData();
     await amostraDaPlanilhaCompleta(arquivo, 5);
-    expect(requisicao).toHaveBeenLastCalledWith('/importacoes/planilha-completa/amostra?inicio=5', { metodo: 'POST', corpoBruto: arquivo });
+    expect(requisicao).toHaveBeenLastCalledWith('/importacoes/planilha-completa/amostra?inicio=5', { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
   });
 
   it('a confirmação leva só o hash na query: os alunos ignorados vão no corpo, nunca no endereço', async () => {
     const arquivo = new FormData();
     await confirmarPlanilhaCompleta(arquivo, 'a/b');
-    expect(requisicao).toHaveBeenLastCalledWith('/importacoes/planilha-completa/confirmar?hash=a%2Fb', { metodo: 'POST', corpoBruto: arquivo });
+    expect(requisicao).toHaveBeenLastCalledWith('/importacoes/planilha-completa/confirmar?hash=a%2Fb', { metodo: 'POST', corpoBruto: arquivo, limiteMs: 120000 });
   });
 
   it('o id do desfazer é codificado', async () => {

@@ -33,6 +33,9 @@ public class ImportacaoSessao {
     @Column(name = "criado_por", nullable = false, updatable = false)
     private UUID criadoPor;
 
+    /** A coluna (V066, NOT NULL) fica com o valor de sempre: a tela não escolhe mais o que importar (D3, D9). */
+    static final String OBJETIVO_FIXO = "CADASTROS_E_PLANOS_ATUAIS";
+
     @Column(nullable = false, length = 40)
     private String objetivo;
 
@@ -70,9 +73,9 @@ public class ImportacaoSessao {
     protected ImportacaoSessao() {
     }
 
-    public ImportacaoSessao(UUID criadoPor, String objetivo) {
+    public ImportacaoSessao(UUID criadoPor) {
         this.criadoPor = criadoPor;
-        this.objetivo = objetivo != null && !objetivo.isBlank() ? objetivo : "CADASTROS_E_PLANOS_ATUAIS";
+        this.objetivo = OBJETIVO_FIXO;
         this.estado = "RECEBENDO";
         this.revisao = 1;
         this.progressoJson = "{}";
@@ -95,10 +98,6 @@ public class ImportacaoSessao {
 
     public UUID getCriadoPor() {
         return criadoPor;
-    }
-
-    public String getObjetivo() {
-        return objetivo;
     }
 
     public String getEstado() {

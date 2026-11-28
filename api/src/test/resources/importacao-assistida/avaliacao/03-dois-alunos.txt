@@ -1,0 +1,6 @@
+=== ABA: Alunos ===
+Colunas: Nome | Treino | Exercício | Séries | Repetições
+Carla Teste Rocha | Treino A | Leg press | 4 | 10
+Carla Teste Rocha | Treino A | Stiff | 3 | 12
+Diego Modelo Alves | Treino A | Puxada frontal | 4 | 8-10
+Diego Modelo Alves | Treino A | Rosca direta | 3 | 12
