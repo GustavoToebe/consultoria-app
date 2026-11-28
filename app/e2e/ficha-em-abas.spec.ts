@@ -560,7 +560,7 @@ const COM_AGUA: RespostasApi = {
   [`GET /alunos/${ALUNO_ID}/planos-dieta`]: { corpo: [{ ...PLANO_DE_MOBILIDADE, id: 'd1', titulo: 'Dieta fictícia' }] },
   'GET /planos-dieta/d1/versoes/1': { corpo: { id: 'dv1', planoId: 'd1', numero: 1, titulo: 'Dieta fictícia', inicio: null, fim: null, publicadoEm: null, conteudo: { aguaLitros: 5 } } },
 };
-const colunasDaAgua = (page: Page) => page.getByRole('img', { name: /^\d\d\/\d\d: / });
+const colunasDaAgua = (page: Page) => page.getByRole('img', { name: /^\d\d\/\d\d · / });
 
 for (const largura of [390, 1280]) {
   test(`${largura}px: Água com o resumo no topo e sete colunas em ordem, do mais antigo a "Hoje"`, async ({ page }) => {
@@ -569,14 +569,14 @@ for (const largura of [390, 1280]) {
     const colunas = colunasDaAgua(page);
     await expect(colunas).toHaveCount(7);
     const nomes = Array.from({ length: 7 }, (_, i) => diaLocal(i - 6)).map((d, i) =>
-      `${ddmm(d)}: ${i === 0 ? '0,0 L de 5,0 L' : i === 6 ? '3,0 L de 5,0 L' : 'sem registro'}`);
+      `${ddmm(d)} · ${i === 0 ? '0,0 L de 5,0 L (nenhum copo)' : i === 6 ? '3,0 L de 5,0 L (12 copos)' : 'sem registro'}`);
     expect(await colunas.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))).toEqual(nomes);
     // A dica do navegador diz o mesmo; o rótulo de baixo termina em "Hoje".
     await expect(colunas.last()).toHaveAttribute('title', nomes[6]);
     await expect(page.getByText('Hoje', { exact: true })).toBeVisible();
     // Zero tem altura mínima (não some) e fica bem abaixo da barra de hoje.
-    const zero = (await colunas.first().locator('div').first().boundingBox())!;
-    const hoje = (await colunas.last().locator('div').first().boundingBox())!;
+    const zero = (await colunas.first().getByTestId('barra-da-agua').boundingBox())!;
+    const hoje = (await colunas.last().getByTestId('barra-da-agua').boundingBox())!;
     expect(zero.height).toBeGreaterThan(0);
     expect(hoje.height).toBeGreaterThan(zero.height * 10);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

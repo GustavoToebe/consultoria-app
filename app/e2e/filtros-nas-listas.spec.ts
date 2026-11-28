@@ -350,7 +350,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         }),
       });
       await page.goto('/treinador/auditoria?acao=ALUNO_CRIADO');
-      await expect(page.getByText('Cadastrou um aluno.')).toBeVisible();
+      await expect(page.getByLabel('Eventos da auditoria').getByText('Aluno cadastrado', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Tirar filtro: Ação: Aluno cadastrado' })).toBeVisible();
       expect(ultimo(pedidos, '/auditoria')?.getAll('acao')).toEqual(['ALUNO_CRIADO']);
 

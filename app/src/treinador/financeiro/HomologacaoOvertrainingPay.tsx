@@ -34,6 +34,7 @@ import { espaco, LARGURA_FORMULARIO, RAIO_CONTROLE } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { semPreencher } from '../../ui/CampoDeChave';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
@@ -327,6 +328,7 @@ export function HomologacaoOvertrainingPay({ dados, podeAlterar, aoMudar, aoReca
               ) : (
                 <View style={estilos.blocoMascarado}>
                   <Campo
+                    {...semPreencher('documento-do-titular')}
                     rotulo={estado.tipoPessoa === 'PJ' ? 'CNPJ do titular' : 'CPF do titular'}
                     valor={estado.documento}
                     aoMudar={(t) => {
@@ -335,7 +337,6 @@ export function HomologacaoOvertrainingPay({ dados, podeAlterar, aoMudar, aoReca
                     }}
                     erro={erros.documento ?? null}
                     keyboardType={estado.tipoPessoa === 'PF' ? 'number-pad' : 'default'}
-                    autoComplete="off"
                     maxLength={18}
                   />
                   {estado.documentoJaSalvo ? (

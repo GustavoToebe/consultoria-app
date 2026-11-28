@@ -141,15 +141,24 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('textbox', { name: 'Phone Number ID', exact: true })).toHaveValue('100000000000001');
       await expect(page.getByRole('textbox', { name: 'WABA ID (Conta do WhatsApp Business)', exact: true })).toHaveValue('200000000000002');
       const token = campoDoToken(page, true);
-      await expect(token).toHaveAttribute('type', 'password');
+      // Defeito de 28/11: campo de texto que pede para não preencher (nunca type=password: o navegador punha a senha do login).
+      // O react-native-web não escreve `type` sem `inputMode`/`keyboardType`; sem o atributo o `<input>` é de texto (a propriedade).
+      await expect(token).toHaveJSProperty('type', 'text');
+      await expect(token).toHaveAttribute('autocomplete', 'off');
+      // Sem `name` (o React 19 apaga o que não vem das props): o `id` neutro cobre.
+      await expect(token).toHaveAttribute('id', 'token-da-meta');
+      await expect(token).toHaveAttribute('data-1p-ignore', 'true');
+      await expect(token).toHaveAttribute('data-lpignore', 'true');
+      await expect(token).toHaveAttribute('data-form-type', 'other');
       await expect(token).toHaveValue('');
       await expect(token).toHaveAttribute('placeholder', 'Deixe em branco para manter o atual');
       await semTokenNoDom(page);
       await page.screenshot({ path: captura(`conectada-${largura}`) });
 
       // Troca do token: vai no corpo do PUT e, salvo, o campo volta vazio e o token não fica no DOM.
-      await token.fill(TOKEN);
-      await expect(token).toHaveAttribute('type', 'password');
+      // Só o que vem de tecla ou colar entra no campo.
+      await token.pressSequentially(TOKEN);
+      await expect(token).toHaveJSProperty('type', 'text');
       await botao(page, 'Salvar conexão').click();
       await expect(page.getByText('Conexão do WhatsApp salva.')).toBeVisible();
       expect(pedido(pedidos, 'PUT', '/whatsapp/conexao')[0]?.corpo).toEqual({ phoneNumberId: '100000000000001', wabaId: '200000000000002', accessToken: TOKEN, versao: 3 });
@@ -287,7 +296,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Conectada', { exact: true })).toBeVisible();
       await expect(alerta).toHaveCount(0);
 
-      await campoDoToken(page, true).fill(TOKEN);
+      await campoDoToken(page, true).pressSequentially(TOKEN);
       await botao(page, 'Salvar conexão').click();
       await expect(page.getByText('Falha fictícia ao salvar a conexão.')).toBeVisible();
       // Recusado, o que foi digitado fica no campo (nada se perde), sem aparecer como texto.

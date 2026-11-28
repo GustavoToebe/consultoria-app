@@ -67,10 +67,12 @@ test('1920 px: três colunas, abas somem; o índice rola e abre a seção, marca
   await page.waitForTimeout(600);
   await page.mouse.move(980, 600);
   const rotina = indice(page).getByRole('button', { name: /^Rotina e sono,/ });
+  // Um passo por vez, esperando a rolagem parar: o `mouse.wheel` não espera, e uma leitura atrasada seguida de duas
+  // rodadas juntas (1800 px) passava por cima da seção (Rotina e sono tem uns 1260 px), que nunca era lida como a atual.
   await expect.poll(async () => {
-    await page.mouse.wheel(0, 900);
+    await rodaDoMouse(page, 600);
     return rotina.getAttribute('aria-current');
-  }, { timeout: 20_000 }).toBe('location');
+  }, { timeout: 20_000, intervals: [0] }).toBe('location');
   await expect(treino).not.toHaveAttribute('aria-current', 'location');
   await page.evaluate(() => {
     let el: HTMLElement | null = document.getElementById('barra-do-editor');
@@ -121,6 +123,29 @@ test('1536 px: tocar no índice com a aba Prévia aberta volta para Editar e rol
   await expect(page.getByRole('tab', { name: 'Editar' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#questionario-secao-4')).toBeInViewport();
 });
+
+/** Posição da rolagem da página (o ancestral rolável da barra do editor). */
+function rolagemDaPagina(page: Page) {
+  return page.evaluate(() => {
+    let el: HTMLElement | null = document.getElementById('barra-do-editor');
+    while (el && !/(auto|scroll)/.test(getComputedStyle(el).overflowY)) el = el.parentElement;
+    return { topo: el!.scrollTop, noFim: el!.scrollTop + el!.clientHeight >= el!.scrollHeight - 2 };
+  });
+}
+
+/** Roda do mouse e espera a rolagem começar e parar (mesma posição em leituras seguidas), com o índice já redesenhado. */
+async function rodaDoMouse(page: Page, dy: number) {
+  const antes = await rolagemDaPagina(page);
+  await page.mouse.wheel(0, dy);
+  await expect.poll(async () => { const r = await rolagemDaPagina(page); return r.topo !== antes.topo || r.noFim; }).toBe(true);
+  let ultimo = -1;
+  await expect.poll(async () => {
+    const { topo } = await rolagemDaPagina(page);
+    const parou = topo === ultimo;
+    ultimo = topo;
+    return parou;
+  }, { intervals: [100] }).toBe(true);
+}
 
 /** Índice colado à esquerda da área, prévia colada à direita e vãos iguais entre as colunas (a sobra nunca é um vão só). */
 async function medirColunas(page: Page) {

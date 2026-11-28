@@ -778,6 +778,8 @@ for (const [largura, tema] of [[390, 'CLARO'], [1280, 'CLARO'], [390, 'ESCURO'],
     await expect(cobranca.getByRole('button', { name: 'Registrar pagamento' })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`folha-saida-${largura}-${tema.toLowerCase()}.png`), fullPage: true });
     await cobranca.getByRole('button', { name: /Fechar/ }).first().click();
+    // Fechar a Folha volta a entrada dela no histórico (`history.go(-1)`, assíncrono): um `goto` no meio é cancelado (ERR_ABORTED).
+    await page.waitForFunction(() => !(window.history.state as { folhaNivel?: number } | null)?.folhaNivel);
 
     // Na lista de cobranças do Financeiro, o selo também.
     await page.goto('/treinador/financeiro?aba=cobrancas');
@@ -1178,7 +1180,7 @@ test('Recebimento online do treinador: salva a tag e a chave, a chave nunca volt
   await tag.fill('$Saraiva.Team');
   // Sem o $ e em minúsculas, já ao digitar.
   await expect(tag).toHaveValue('saraiva.team');
-  await page.getByLabel('API Key (opcional)', { exact: true }).fill(CHAVE_DE_TESTE);
+  await page.getByLabel('API Key (opcional)', { exact: true }).pressSequentially(CHAVE_DE_TESTE);
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
 
   await expect(page.getByText('Recebimento online salvo.')).toBeVisible();
@@ -1234,11 +1236,76 @@ test('Recebimento online: tag curta e chave curta são recusadas na tela, sem ch
   await expect(page.getByText(/Use a InfiniteTag sem o cifrão/)).toBeVisible();
 
   await page.getByLabel('InfiniteTag', { exact: true }).fill('saraiva.team');
-  await page.getByLabel('API Key (opcional)', { exact: true }).fill('curta');
+  await page.getByLabel('API Key (opcional)', { exact: true }).pressSequentially('curta');
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByText(/A chave precisa ter de 10 a 200 caracteres/)).toBeVisible();
   await expect(page.getByText('curta', { exact: true })).toHaveCount(0);
   expect(pedidos.filter((p) => p.metodo === 'PUT')).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('Recebimento online: o preenchimento automático do navegador na API Key é ignorado e o PUT não leva a chave (defeito de 28/11)', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({ recebimento: { ...RECEBIMENTO_CONFIGURADO, apiKeyConfigurada: false } });
+  const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=recebimento');
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
+
+  const chave = page.getByLabel('API Key (opcional)', { exact: true });
+  // Campo de texto que pede para não preencher: nada de type=password, nome e id neutros, avisos aos gerenciadores de senha.
+  // O react-native-web não escreve `type` sem `inputMode`/`keyboardType`; sem o atributo o `<input>` é de texto (a propriedade).
+  await expect(chave).toHaveJSProperty('type', 'text');
+  // A máscara é do próprio campo, não do `type=password`.
+  expect(await chave.evaluate((el) => getComputedStyle(el).getPropertyValue('-webkit-text-security'))).toBe('disc');
+  await expect(chave).toHaveAttribute('autocomplete', 'off');
+  // Sem `name` (o React 19 apaga o que não vem das props): o `id` neutro cobre.
+  await expect(chave).toHaveAttribute('id', 'chave-infinitepay');
+  await expect(chave).toHaveAttribute('data-1p-ignore', 'true');
+  await expect(chave).toHaveAttribute('data-lpignore', 'true');
+  await expect(chave).toHaveAttribute('data-form-type', 'other');
+  const tag = page.getByLabel('InfiniteTag', { exact: true });
+  await expect(tag).not.toHaveAttribute('type', 'email');
+  await expect(tag).toHaveAttribute('id', 'infinitetag');
+  await expect(tag).toHaveAttribute('autocomplete', 'off');
+  await expect(tag).toHaveAttribute('data-1p-ignore', 'true');
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+
+  // O navegador põe um valor e só avisa com `input` (sem `beforeinput`): o campo volta a vazio.
+  await chave.evaluate((el) => {
+    const entrada = el as HTMLInputElement;
+    const definir = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    definir?.call(entrada, 'valor-que-o-navegador-pos');
+    entrada.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(chave).toHaveValue('');
+
+  // Mudou outra coisa e salvou: o corpo vai sem `apiKey` (a gravada fica).
+  await tag.fill('saraiva.time');
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(page.getByText('Recebimento online salvo.')).toBeVisible();
+  const corpo = pedidos.filter((x) => x.metodo === 'PUT' && x.caminho === '/financeiro/recebimento-online').at(-1)?.corpo as Record<string, unknown>;
+  expect(corpo).toMatchObject({ infiniteTag: 'saraiva.time' });
+  expect('apiKey' in corpo).toBe(false);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('Recebimento online: com chave gravada, o aviso de conferir a API Key aparece até "Já conferi" e não volta ao recarregar', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({ recebimento: { ...RECEBIMENTO_CONFIGURADO }, chaveGuardada: CHAVE_DE_TESTE });
+  const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=recebimento');
+
+  // O aviso fica fora das integrações recolhidas: à vista sem abrir nada.
+  const aviso = page.getByText(/Confira se a API Key é a da InfinitePay/);
+  await expect(aviso).toBeVisible();
+  await page.getByRole('button', { name: 'Já conferi a chave da InfinitePay' }).click();
+  await expect(aviso).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('tab', { name: 'Recebimento', selected: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i })).toBeVisible();
+  await expect(aviso).toHaveCount(0);
+  // Nada foi à API: o "Já conferi" mora só neste aparelho.
+  expect(pedidos.filter((x) => x.metodo !== 'GET' && x.caminho.startsWith('/financeiro'))).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -1601,18 +1668,20 @@ test('juros do parcelamento: "Você" fica apagado sem chave, com o motivo; com a
 
   // Com uma chave válida digitada, "Você" libera; apagar a chave devolve a escolha para Aluno.
   const chave = page.getByLabel('API Key (opcional)', { exact: true });
-  await chave.fill(CHAVE_DE_TESTE);
+  await chave.pressSequentially(CHAVE_DE_TESTE);
   await expect(opcao(page, JUROS, 'Você')).toBeEnabled();
   await expect(page.getByText('Precisa da chave de API para valer.')).toHaveCount(0);
   await opcao(page, JUROS, 'Você').click();
   await expect(opcao(page, JUROS, 'Você')).toHaveAttribute('aria-checked', 'true');
-  await chave.fill('');
+  // O campo da chave só aceita o que vem de tecla ou colar (defeito de 28/11): apagar também é por tecla.
+  await chave.press('ControlOrMeta+a');
+  await chave.press('Backspace');
   await expect(opcao(page, JUROS, 'Você')).toBeDisabled();
   await expect(opcao(page, JUROS, 'Aluno')).toHaveAttribute('aria-checked', 'true');
 
   // Criar com Tag, chave e "Você" num salvar só.
   await page.getByLabel('InfiniteTag', { exact: true }).fill('saraiva.team');
-  await chave.fill(CHAVE_DE_TESTE);
+  await chave.pressSequentially(CHAVE_DE_TESTE);
   await opcao(page, JUROS, 'Você').click();
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByText('Recebimento online salvo.')).toBeVisible();

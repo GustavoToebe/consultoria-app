@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { buscarOvertrainingPay } from '../../api/financeiroOvertrainingPay';
 import type { JurosDoParcelamento, RecebimentoOnline, RecebimentoOnlineRequest } from '../../api/financeiroTipos';
 import { buscarRecebimentoOnline, removerRecebimentoOnline, salvarRecebimentoOnline } from '../../api/rotas';
+import { chaveParaEnviar } from '../../dominio/campoDeChave';
 import {
   jurosQueValem, MOTIVO_JUROS_SEM_CHAVE, normalizarInfiniteTag, OPCOES_DE_JUROS, rotuloDosJurosParaLeitura, temChaveParaJuros,
   TEXTO_CHAVE_DO_RECEBIMENTO, TEXTO_JUROS_DO_PARCELAMENTO, TEXTO_RECEBIMENTO_ONLINE, TITULO_JUROS_DO_PARCELAMENTO,
@@ -18,7 +19,7 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
-import { CampoSenha } from '../../ui/CampoSenha';
+import { CampoDeChave, semPreencher } from '../../ui/CampoDeChave';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -30,6 +31,7 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { BarraDeSalvar } from './AjustesDaAba';
+import { AvisoDaChaveGravada, useChaveConferida } from './AvisoDaChave';
 import { CartaoFormasDeRecebimento } from './CartaoFormasDeRecebimento';
 import { avisoDeConflito, ehConflito } from './comum';
 import { HomologacaoOvertrainingPay } from './HomologacaoOvertrainingPay';
@@ -48,6 +50,9 @@ export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) 
   const { dados, erro, recarregar, definir } = carga;
   const otDados = cargaOvertrainingPay.dados;
   const temIntegracoesExternas = recebimentoOnlineHabilitado || kiwifyHabilitada;
+  // Defeito de 28/11 (o navegador gravava a senha do login como API Key): com chave gravada, o aviso de conferir fica à vista,
+  // fora das integrações recolhidas, até "Já conferi" ou até salvar uma chave nova.
+  const chaveDaInfinitePay = useChaveConferida('infinitepay');
   return (
     <View style={estilos.coluna}>
       <CartaoFormasDeRecebimento
@@ -82,6 +87,10 @@ export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) 
                 ) : null}
               </>
             ) : null}
+            {recebimentoOnlineHabilitado ? (
+              <AvisoDaChaveGravada integracao="infinitepay" podeAlterar={podeAlterar} chaveGravada={dados?.apiKeyConfigurada === true}
+                conferido={chaveDaInfinitePay.conferido} aoConferir={chaveDaInfinitePay.conferir} />
+            ) : null}
             {temIntegracoesExternas ? (
               <Cartao
                 titulo="Integrações externas opcionais"
@@ -100,7 +109,7 @@ export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) 
                       ) : null}
                       {!dados && carga.carregando ? <Esqueleto /> : null}
                       {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
-                      {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+                      {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} aoSalvarChaveNova={chaveDaInfinitePay.conferir} /> : null}
                     </>
                   ) : null}
                   {/* Só com a Kiwify ligada na plataforma (o próprio cartão confere e some sem ela). */}
@@ -117,16 +126,18 @@ export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) 
 
 type Pergunta = 'chave' | 'tudo' | null;
 
-function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
+function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar, aoSalvarChaveNova }: {
   dados: RecebimentoOnline;
   podeAlterar: boolean;
   aoMudar: (novo: RecebimentoOnline) => void;
   aoRecarregar: () => void;
+  /** Uma chave nova foi salva: o aviso de conferir a chave gravada some. */
+  aoSalvarChaveNova: () => void;
 }) {
   const { avisar } = useAviso();
   const { cores } = useTema();
   const [tag, setTag] = useState(dados.infiniteTag ?? '');
-  // A chave digitada só existe aqui enquanto o campo está na tela; nunca vem de `dados` (a API não a devolve).
+  // Só o que a pessoa digitou ou colou agora (`CampoDeChave`); nunca vem de `dados` (a API não devolve a chave).
   const [chave, setChave] = useState('');
   const [trocando, setTrocando] = useState(false);
   const [juros, setJuros] = useState<JurosDoParcelamento>(dados.jurosDoParcelamento ?? 'ALUNO');
@@ -194,11 +205,15 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
     setTentou(true);
     if (validacao.infiniteTag || validacao.apiKey) return;
     const corpo: RecebimentoOnlineRequest = { infiniteTag: tagNormalizada, versao: dados.versao, jurosDoParcelamento: jurosEscolhidos };
-    const nova = chave.trim();
-    if (campoDaChave && nova) corpo.apiKey = nova;
+    // Só a chave digitada ou colada nesta tela; sem ela o corpo não leva `apiKey` e a gravada fica.
+    const nova = campoDaChave ? chaveParaEnviar(chave) : null;
+    if (nova) corpo.apiKey = nova;
     concluir(
       () => salvarRecebimentoOnline(corpo).then((r) => { aoMudar(r); }),
-      () => avisar('Recebimento online salvo.', 'sucesso'),
+      () => {
+        if (nova) aoSalvarChaveNova();
+        avisar('Recebimento online salvo.', 'sucesso');
+      },
     );
   };
 
@@ -234,13 +249,14 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
           <>
             <View style={estilos.secao}>
               <Texto variante="secao">Conta InfinitePay</Texto>
-              <Campo rotulo="InfiniteTag" valor={tag} aoMudar={(t) => setTag(normalizarInfiniteTag(t))} erro={erroDaTag}
-                ajuda="É o seu identificador na InfinitePay. Pode digitar com ou sem o $; aqui ele aparece sem."
-                autoCapitalize="none" autoCorrect={false} maxLength={60} />
+              {/* Id e atributos neutros: o navegador punha aqui o e-mail do login (defeito de 28/11). */}
+              <Campo rotulo="InfiniteTag" valor={tag} aoMudar={(t) => setTag(normalizarInfiniteTag(t))}
+                erro={erroDaTag} ajuda="É o seu identificador na InfinitePay. Pode digitar com ou sem o $; aqui ele aparece sem."
+                maxLength={60} {...semPreencher('infinitetag')} />
               {campoDaChave ? (
                 <>
-                  <CampoSenha rotulo={trocando ? 'Nova API Key' : 'API Key (opcional)'} valor={chave} aoMudar={mudarChave} erro={erroDaChave}
-                    autoComplete="off" maxLength={300} />
+                  <CampoDeChave id="chave-infinitepay" rotulo={trocando ? 'Nova API Key' : 'API Key (opcional)'} valor={chave} aoMudar={mudarChave}
+                    erro={erroDaChave} maxLength={300} />
                   {trocando ? <LinhaDeAcoes><Botao rotulo="Cancelar a troca" tipo="fantasma" aoTocar={() => { setTrocando(false); setChave(''); }} /></LinhaDeAcoes> : null}
                 </>
               ) : (

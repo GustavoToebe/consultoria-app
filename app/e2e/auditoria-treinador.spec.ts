@@ -172,7 +172,8 @@ test('atalhos: viram a lista de ações, combinam com o filtro Ação e o confli
   // Alunos: a lista da categoria cabe no teto da `acao` (a API falsa recusaria acima de 100).
   await page.goto('/treinador/auditoria?atalho=alunos', { waitUntil: 'domcontentloaded' });
   await expect(linhas(page).first()).toContainText('Aluno cadastrado');
-  expect(ultimo().getAll('acao').length).toBe(62);
+  // Espelho de `categoriasDeAuditoria.test.ts`: +2 regras de atenção (leva 1), +1 convite em lote (leva 2).
+  expect(ultimo().getAll('acao').length).toBe(65);
 
   // Equipe com a Ação "Aluno cadastrado" e "Perfil editado": fica só o que está nos dois.
   await page.goto('/treinador/auditoria?atalho=equipe&acao=ALUNO_CRIADO,PERFIL_ALTERADO', { waitUntil: 'domcontentloaded' });

@@ -11,10 +11,9 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
-import { CampoSenha } from '../../ui/CampoSenha';
+import { CampoDeChave } from '../../ui/CampoDeChave';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
@@ -25,7 +24,13 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { NUMERICO } from '../../ui/tipografia';
 import { useCarregar } from '../../ui/useCarregar';
+import { AvisoDaChaveGravada, useChaveConferida } from './AvisoDaChave';
 import { avisoDeConflito, copiarTexto, ehConflito } from './comum';
+
+/** Nome e id neutros de cada campo no `<input>` (nada de "password" ou "user"). */
+const ID_DO_CAMPO: Readonly<Record<CampoDaKiwify, string>> = {
+  tokenDoWebhook: 'kiwify-token-do-webhook', clientId: 'kiwify-client-id', clientSecret: 'kiwify-client-secret', accountId: 'kiwify-account-id',
+};
 
 /**
  * Assinaturas pela Kiwify, na aba Recebimento (D17; contrato em `api/financeiroKiwify.ts`). Só com a chave da plataforma ligada
@@ -52,6 +57,7 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
   aoRecarregar: () => void;
 }) {
   const { avisar } = useAviso();
+  const { conferido, conferir } = useChaveConferida('kiwify');
   // Os segredos digitados só existem aqui, enquanto o campo está na tela; nunca vêm de `dados`.
   const [valores, setValores] = useState<ValoresDaKiwify>(VALORES_VAZIOS);
   const [trocando, setTrocando] = useState(false);
@@ -91,9 +97,12 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
     if (validacao.nada) return;
     setEnviando(true);
     setFalha(null);
+    // Token ou client secret novo (só o digitado ou colado nesta tela): o aviso de conferir não vale mais.
+    const segredoNovo = CAMPOS_DA_KIWIFY.some((c) => ehCampoSecreto(c) && valores[c].trim() !== '');
     salvarKiwify(corpoDaKiwify(valores, dados.versao)).then(
       (nova) => {
         setEnviando(false);
+        if (segredoNovo) conferir();
         limpar();
         avisar(criando ? 'Kiwify configurada. Agora crie o webhook na Kiwify com a URL abaixo.' : 'Credenciais da Kiwify salvas.', 'sucesso');
         // A versão muda: o formulário nasce de novo, sem nada do que foi digitado.
@@ -169,6 +178,7 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
         ) : undefined}>
         {/* Entre as seções o dobro do espaço de dentro delas (URL, credencial, campos): o grupo aparece sem borda. */}
         <View style={estilos.corpo}>
+        <AvisoDaChaveGravada integracao="kiwify" podeAlterar={podeAlterar} chaveGravada={dados.configurada} conferido={conferido} aoConferir={conferir} />
         {dados.configurada && dados.webhookUrl ? (
           <View style={estilos.secao}>
             <Texto variante="secao">URL do webhook</Texto>
@@ -212,15 +222,11 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
             ) : (
               <Texto variante="suave" style={estilos.antesDosCampos}>Em branco, fica o que está salvo. Se trocar o token, troque também no webhook da Kiwify.</Texto>
             )}
-            {CAMPOS_DA_KIWIFY.map((c) => {
-              const comum = {
-                ref: refs[c], rotulo: ROTULOS_DA_KIWIFY[c].rotulo, valor: valores[c], aoMudar: mudar(c), erro: erroDoCampo(c),
-                ajuda: ROTULOS_DA_KIWIFY[c].ajuda, autoComplete: 'off' as const, maxLength: CAMPO_MAXIMO,
-              };
-              return ehCampoSecreto(c)
-                ? <CampoSenha key={c} {...comum} />
-                : <Campo key={c} {...comum} autoCapitalize="none" autoCorrect={false} spellCheck={false} />;
-            })}
+            {/* Nunca campo de senha (o navegador punha ali a senha do login; defeito de 28/11): só o digitado ou colado entra. */}
+            {CAMPOS_DA_KIWIFY.map((c) => (
+              <CampoDeChave key={c} ref={refs[c]} id={ID_DO_CAMPO[c]} mascarar={ehCampoSecreto(c)} rotulo={ROTULOS_DA_KIWIFY[c].rotulo}
+                valor={valores[c]} aoMudar={mudar(c)} erro={erroDoCampo(c)} ajuda={ROTULOS_DA_KIWIFY[c].ajuda} maxLength={CAMPO_MAXIMO} />
+            ))}
             {trocando ? (
               <LinhaDeAcoes><Botao rotulo="Cancelar a troca" tipo="fantasma" aoTocar={() => { limpar(); setFalha(null); setTrocando(false); }} /></LinhaDeAcoes>
             ) : null}

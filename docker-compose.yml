@@ -47,8 +47,9 @@ services:
       # Só o perfil demo lê; ligado e vazio, a API não sobe.
       DEMO_SENHA: ${DEMO_SENHA:-}
       TREINOS_DEMO_HISTORICO: ${TREINOS_DEMO_HISTORICO:-false}
-      # Cadastro público de treinador: aberto só aqui, para testar no PC; em produção fica fechado (padrão da API).
-      TREINOS_CADASTRO_ABERTO: ${TREINOS_CADASTRO_ABERTO:-true}
+      # Cadastro público de treinador: fechado por padrão, como na API (decisão de 29/11: aberto só com o Turnstile ligado).
+      # Para testar no PC, TREINOS_CADASTRO_ABERTO=true no .env; em produção, no consultoria.env depois do Turnstile.
+      TREINOS_CADASTRO_ABERTO: ${TREINOS_CADASTRO_ABERTO:-false}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081}
       APP_URL: ${APP_URL:-http://localhost:8088}
       # Atrás do Caddy a API fica em /api: o cookie de refresh vai em /api/auth.
@@ -65,7 +66,8 @@ services:
       TREINOS_INTEGRACAO_PRODUTO: ${TREINOS_INTEGRACAO_PRODUTO:-TREINOS}
       TREINOS_INTEGRACAO_TOLERANCIA_HORAS: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:-72}
       TREINOS_INTEGRACAO_BLOQUEIO_ATIVO: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:-false}
-      TREINOS_PLANO_APLICAR: ${TREINOS_PLANO_APLICAR:-false}
+      # Plano da Central aplicado: ligado por padrão (sem linha em direitos_locais nada é barrado).
+      TREINOS_PLANO_APLICAR: ${TREINOS_PLANO_APLICAR:-true}
       # Verificação humana (Turnstile): desligada por padrão. O segredo só vem do ambiente, nunca com valor padrão.
       TREINOS_TURNSTILE_HABILITADO: ${TREINOS_TURNSTILE_HABILITADO:-false}
       TREINOS_TURNSTILE_SITE_KEY: ${TREINOS_TURNSTILE_SITE_KEY:-}
@@ -90,8 +92,9 @@ services:
       TREINOS_PAGAMENTOS_CHAVES: ${TREINOS_PAGAMENTOS_CHAVES:-}
       TREINOS_PAGAMENTOS_CHAVE_ATIVA: ${TREINOS_PAGAMENTOS_CHAVE_ATIVA:-}
       TREINOS_PAGAMENTOS_URL_PUBLICA: ${TREINOS_PAGAMENTOS_URL_PUBLICA:-}
-      TREINOS_PAGAMENTOS_PAGAR_NO_IOS: ${TREINOS_PAGAMENTOS_PAGAR_NO_IOS:-false}
-      TREINOS_PAGAMENTOS_PAGAR_NO_ANDROID: ${TREINOS_PAGAMENTOS_PAGAR_NO_ANDROID:-false}
+      # "Pagar" no celular: ligado por padrão, como na API (false esconde o botão no iOS ou no Android).
+      TREINOS_PAGAMENTOS_PAGAR_NO_IOS: ${TREINOS_PAGAMENTOS_PAGAR_NO_IOS:-true}
+      TREINOS_PAGAMENTOS_PAGAR_NO_ANDROID: ${TREINOS_PAGAMENTOS_PAGAR_NO_ANDROID:-true}
       # Avisos pelo WhatsApp oficial da Meta: desligado por padrão; ligado, exige as quatro seguintes (ver .env.example).
       TREINOS_WHATSAPP_HABILITADO: ${TREINOS_WHATSAPP_HABILITADO:-false}
       TREINOS_WHATSAPP_CHAVES: ${TREINOS_WHATSAPP_CHAVES:-}

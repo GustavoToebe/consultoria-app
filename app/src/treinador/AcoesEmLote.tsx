@@ -2,7 +2,9 @@ import { useState } from 'react';
 
 import { desativarEmLote, opcoesDeQuestionario, responsaveisEquipe, trocarQuestionarioEmLote, trocarResponsavelEmLote } from '../api/rotas';
 import type { ResultadoLote } from '../api/tipos';
-import { type AcaoDoLote, mensagemDaConfirmacao, textoDoResultado } from '../dominio/loteDeAlunos';
+import { rotuloDaAcao } from '../dominio/convitesEmLote';
+import { type AcaoDoLote, LIMITE_LOTE, mensagemDaConfirmacao, textoDoResultado } from '../dominio/loteDeAlunos';
+import { useSessao } from '../sessao/SessaoProvider';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { Escolha } from '../ui/Escolha';
@@ -16,19 +18,23 @@ import { useCarregar } from '../ui/useCarregar';
 const PADRAO = 'padrao';
 
 interface Props {
-  /** Ids marcados na lista (1 a 100). */
+  /** Ids marcados na lista (as três ações valem até 100; os convites, qualquer quantidade). */
   alunoIds: string[];
   /** Depois de aplicar: a lista sai do modo selecionar e recarrega. Se a API recusar, a seleção fica para tentar de novo. */
   aoConcluir: () => void;
+  /** "Gerar convites (N)" (`ALUNO_CONVITE`): quem chama fecha esta folha e abre o fluxo dos convites, que vive na tela. */
+  aoGerarConvites: () => void;
 }
 
 /**
  * Ações em lote sobre os alunos marcados: trocar responsável, trocar questionário e desativar. Cada uma tem a sua
  * confirmação; a API responde só contagens (o desativar pula quem tem contrato fechado vigente e o conta em `recusados`),
- * então o aviso também só traz contagens.
+ * então o aviso também só traz contagens. As três pedem `ALUNO_ALTERAR` e no máximo 100 marcados; "Gerar convites" pede
+ * `ALUNO_CONVITE` e aceita todos os do filtro (o fluxo divide em chamadas de 100).
  */
-export function AcoesEmLote({ alunoIds, aoConcluir }: Props) {
+export function AcoesEmLote({ alunoIds, aoConcluir, aoGerarConvites }: Props) {
   const { avisar } = useAviso();
+  const { pode } = useSessao();
   const [aberta, setAberta] = useState<AcaoDoLote | null>(null);
   const [aplicando, setAplicando] = useState(false);
   const [responsavel, setResponsavel] = useState('');
@@ -40,7 +46,7 @@ export function AcoesEmLote({ alunoIds, aoConcluir }: Props) {
   const abrir = (acao: AcaoDoLote) => { setResponsavel(''); setQuestionario(''); setAberta(acao); };
 
   const aplicar = () => {
-    if (!aberta || alunoIds.length === 0) return;
+    if (!aberta || alunoIds.length === 0 || alunoIds.length > LIMITE_LOTE) return;
     const acao = aberta;
     let chamada: Promise<ResultadoLote>;
     if (acao === 'responsavel') chamada = trocarResponsavelEmLote(alunoIds, responsavel);
@@ -61,6 +67,8 @@ export function AcoesEmLote({ alunoIds, aoConcluir }: Props) {
 
   const quantos = alunoIds.length;
   const semMarcados = quantos === 0 ? 'Marque ao menos um aluno.' : undefined;
+  const acimaDoLimite = quantos > LIMITE_LOTE;
+  const motivoDasTres = semMarcados ?? (acimaDoLimite ? `Esta ação vale para até ${LIMITE_LOTE} alunos por vez.` : undefined);
   const opcoesDeResponsavel = (responsaveis.dados ?? []).map((r) => ({ valor: r.id, rotulo: r.nome }));
   const opcoesDeQuestionarios = [
     { valor: PADRAO, rotulo: 'Padrão da consultoria' },
@@ -70,9 +78,16 @@ export function AcoesEmLote({ alunoIds, aoConcluir }: Props) {
 
   return (
     <LinhaDeAcoes>
-      <Botao rotulo="Trocar responsável" tipo="secundario" desabilitado={quantos === 0} motivo={semMarcados} aoTocar={() => abrir('responsavel')} />
-      <Botao rotulo="Trocar questionário" tipo="secundario" desabilitado={quantos === 0} motivo={semMarcados} aoTocar={() => abrir('questionario')} />
-      <Botao rotulo="Desativar" tipo="perigoTexto" desabilitado={quantos === 0} motivo={semMarcados} aoTocar={() => abrir('desativar')} />
+      {pode('ALUNO_CONVITE') ? (
+        <Botao rotulo={rotuloDaAcao(quantos)} tipo="secundario" desabilitado={quantos === 0} motivo={semMarcados} aoTocar={aoGerarConvites} />
+      ) : null}
+      {pode('ALUNO_ALTERAR') ? (
+        <>
+          <Botao rotulo="Trocar responsável" tipo="secundario" desabilitado={!!motivoDasTres} motivo={motivoDasTres} aoTocar={() => abrir('responsavel')} />
+          <Botao rotulo="Trocar questionário" tipo="secundario" desabilitado={!!motivoDasTres} motivo={motivoDasTres} aoTocar={() => abrir('questionario')} />
+          <Botao rotulo="Desativar" tipo="perigoTexto" desabilitado={!!motivoDasTres} motivo={motivoDasTres} aoTocar={() => abrir('desativar')} />
+        </>
+      ) : null}
       <PainelConfirmacao
         visivel={aberta !== null}
         titulo={aberta === 'responsavel' ? 'Trocar o responsável?' : aberta === 'questionario' ? 'Trocar o questionário?' : 'Desativar os alunos marcados?'}

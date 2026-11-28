@@ -255,6 +255,8 @@ test('na tabela (1280): "Excluir alimento" no ⋯ com Desfazer, a unidade pelo m
   await expect(page.getByRole('menu', { name: 'Unidade' })).toHaveCount(0);
   await expect(unidade).toBeFocused();
   await unidade.click();
+  // O menu abre depois de medir o botão e põe o foco na marcada num `setTimeout`: a seta só vale depois disso.
+  await expect(gramas).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitemradio', { name: 'Mililitros (ml)' })).toBeFocused();
   await page.keyboard.press('Enter');

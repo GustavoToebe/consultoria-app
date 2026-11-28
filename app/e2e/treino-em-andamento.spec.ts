@@ -90,7 +90,9 @@ for (const largura of [390, 1280]) {
       expect(botao!.height).toBeGreaterThanOrEqual(ALVO_TOQUE);
       // Em 390 × 844 o botão do Hoje continua na primeira tela.
       expect(botao!.y + botao!.height).toBeLessThanOrEqual(844);
-      await expect(page.getByText('4 refeições no seu plano', { exact: true })).toBeVisible();
+      // Dieta: a linha compacta no celular; no computador (27/11) a "Dieta de hoje" lista as refeições do dia.
+      if (largura < 1280) await expect(page.getByText('4 refeições no seu plano', { exact: true })).toBeVisible();
+      else await expect(page.getByRole('list', { name: 'Refeições de hoje' }).getByRole('listitem')).toHaveCount(4);
       await page.screenshot({ path: captura(`treino-em-andamento-${largura}-${nomeDoTema}.png`) });
 
       // Recarregar: o andamento vem do que ficou no aparelho.

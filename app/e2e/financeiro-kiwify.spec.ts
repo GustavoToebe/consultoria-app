@@ -54,6 +54,12 @@ async function semSegredos(page: Page) {
 const cartao = (page: Page) => page.getByText('Assinaturas pela Kiwify', { exact: true });
 const salvar = (page: Page) => page.getByRole('button', { name: 'Salvar credenciais' });
 const abrirIntegracoesExternas = (page: Page) => page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
+/** Os campos da Kiwify só aceitam o que vem de tecla ou colar (defeito de 28/11): digita, trocando o que havia. */
+async function digitar(page: Page, rotulo: string, texto: string) {
+  const campo = page.getByLabel(rotulo, { exact: true });
+  await campo.press('ControlOrMeta+a');
+  await campo.pressSequentially(texto);
+}
 
 /** O navegador de teste não deixa ler a área de transferência: um substituto guarda o que foi copiado. */
 async function areaDeTransferencia(page: Page) {
@@ -122,12 +128,20 @@ for (const largura of LARGURAS) for (const t of TEMAS) {
     await expect(page.getByText('Ainda não configurada', { exact: true })).toBeVisible();
     await expect(page.getByText(/em Apps › API, crie uma chave de API/)).toBeVisible();
     await expect(page.getByText(/em Apps › Webhooks, crie o webhook/)).toBeVisible();
-    // Os segredos vão em campo de senha e nenhum campo deixa o navegador lembrar.
-    await expect(page.getByLabel('Token do webhook', { exact: true })).toHaveAttribute('type', 'password');
-    await expect(page.getByLabel('Client secret', { exact: true })).toHaveAttribute('type', 'password');
+    // Defeito de 28/11: nenhum campo de senha (o navegador punha ali a senha do login); campos de texto que pedem para não
+    // preencher, com nome neutro, e os segredos mascarados pelo próprio campo.
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
     for (const r of ['Token do webhook', 'Client ID', 'Client secret', 'Account ID']) {
+      // O react-native-web não escreve `type` sem `inputMode`/`keyboardType`; sem o atributo o `<input>` é de texto (a propriedade).
+      await expect(page.getByLabel(r, { exact: true })).toHaveJSProperty('type', 'text');
       await expect(page.getByLabel(r, { exact: true })).toHaveAttribute('autocomplete', 'off');
+      await expect(page.getByLabel(r, { exact: true })).toHaveAttribute('data-1p-ignore', 'true');
+      await expect(page.getByLabel(r, { exact: true })).toHaveAttribute('data-lpignore', 'true');
+      await expect(page.getByLabel(r, { exact: true })).toHaveAttribute('data-form-type', 'other');
     }
+    // Sem `name` (o React 19 apaga o que não vem das props): o `id` neutro cobre.
+    await expect(page.getByLabel('Token do webhook', { exact: true })).toHaveAttribute('id', 'kiwify-token-do-webhook');
+    await expect(page.getByRole('button', { name: 'Mostrar Client secret' })).toBeVisible();
     await cartao(page).scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${CAPTURAS}/nao-configurada-${largura}-${t}.png`, fullPage: true });
 
@@ -136,15 +150,15 @@ for (const largura of LARGURAS) for (const t of TEMAS) {
     await expect(page.getByText('Informe o token do webhook.')).toBeVisible();
     await expect(page.getByText('Informe o Account ID.')).toBeVisible();
     await expect(page.getByLabel('Token do webhook', { exact: true })).toBeFocused();
-    await page.getByLabel('Token do webhook', { exact: true }).fill('curto');
+    await digitar(page, 'Token do webhook', 'curto');
     await expect(page.getByText('Use pelo menos 16 caracteres.')).toBeVisible();
     expect(kiwify.recebidos).toEqual([]);
 
     // O servidor recusa um campo (422 `KIWIFY_INVALIDA`): a mensagem dele fica no campo, sem repetir o valor.
-    await page.getByLabel('Token do webhook', { exact: true }).fill(CREDENCIAIS_FALSAS.tokenDoWebhook);
-    await page.getByLabel('Client ID', { exact: true }).fill(CREDENCIAIS_FALSAS.clientId);
-    await page.getByLabel('Client secret', { exact: true }).fill(CREDENCIAIS_FALSAS.clientSecret);
-    await page.getByLabel('Account ID', { exact: true }).fill(CREDENCIAIS_FALSAS.accountId);
+    await digitar(page, 'Token do webhook', CREDENCIAIS_FALSAS.tokenDoWebhook);
+    await digitar(page, 'Client ID', CREDENCIAIS_FALSAS.clientId);
+    await digitar(page, 'Client secret', CREDENCIAIS_FALSAS.clientSecret);
+    await digitar(page, 'Account ID', CREDENCIAIS_FALSAS.accountId);
     kiwify.recusa = [{ field: 'accountId', message: 'Account ID não aceito pela Kiwify.' }];
     await salvar(page).click();
     await expect(page.getByText('Account ID não aceito pela Kiwify.')).toBeVisible();
@@ -176,7 +190,7 @@ test('trocar credenciais: em branco fica o gravado, só o digitado vai, com a ve
   await abrirIntegracoesExternas(page);
   await page.getByRole('button', { name: 'Trocar credenciais' }).click();
   await expect(page.getByRole('button', { name: 'Salvar novas credenciais' })).toBeDisabled();
-  await page.getByLabel('Client secret', { exact: true }).fill('outro-segredo-ficticio-1');
+  await digitar(page, 'Client secret', 'outro-segredo-ficticio-1');
   await page.getByRole('button', { name: 'Salvar novas credenciais' }).click();
   await expect(page.getByText('Credenciais da Kiwify salvas.')).toBeVisible();
   expect(kiwify.recebidos.at(-1)).toEqual({ clientSecret: 'outro-segredo-ficticio-1', versao: 0 });
@@ -185,7 +199,7 @@ test('trocar credenciais: em branco fica o gravado, só o digitado vai, com a ve
   // Outra aba salvou no meio (versão nova no servidor): 409, aviso neutro e a tela recarregada.
   kiwify.config = { ...kiwify.config, versao: 9 };
   await page.getByRole('button', { name: 'Trocar credenciais' }).click();
-  await page.getByLabel('Account ID', { exact: true }).fill('outra-conta-ficticia');
+  await digitar(page, 'Account ID', 'outra-conta-ficticia');
   await page.getByRole('button', { name: 'Salvar novas credenciais' }).click();
   await expect(page.getByText(/A configuração da Kiwify foi alterada em outro lugar/)).toBeVisible();
   await expect(page.getByLabel('Account ID', { exact: true })).toHaveCount(0);

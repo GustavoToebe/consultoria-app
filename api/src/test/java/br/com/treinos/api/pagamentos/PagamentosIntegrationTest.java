@@ -2079,7 +2079,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void euTrazAsChavesDePagarNoCelularSempreComoBooleanEDesligadasPorPadrao() throws Exception {
+    void euTrazAsChavesDePagarNoCelularSempreComoBooleanEDesligadasNaSuite() throws Exception {
         for (JsonNode login : new JsonNode[] {admin, api.convidarEEntrar(admin, aluno())}) {
             JsonNode eu = api.get("/eu", login, 200);
             assertThat(eu.get("pagarNoIos").isBoolean()).isTrue();

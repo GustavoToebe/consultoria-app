@@ -5,6 +5,8 @@ describe('loteDeAlunos', () => {
     expect(textoDaSelecao(0)).toContain('Nenhum aluno marcado');
     expect(textoDaSelecao(1)).toBe(`1 aluno marcado (até ${LIMITE_LOTE} por vez).`);
     expect(textoDaSelecao(7)).toBe(`7 alunos marcados (até ${LIMITE_LOTE} por vez).`);
+    expect(textoDaSelecao(100)).toBe(`100 alunos marcados (até ${LIMITE_LOTE} por vez).`);
+    expect(textoDaSelecao(150)).toBe('150 alunos marcados (acima de 100, só os convites de acesso).');
   });
 
   it('o resultado diz quantos mudaram e quantos já estavam assim', () => {

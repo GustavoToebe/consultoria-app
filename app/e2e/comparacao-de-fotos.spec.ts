@@ -296,8 +296,9 @@ for (const [largura, altura, tema] of CASOS_DA_COMPOSICAO) {
 
     // 01: par de fotos junto, áreas iguais na proporção da foto, data e peso dentro da célula, resumo embaixo.
     const fileira = page.getByLabel('Prévia da comparação');
+    // `.all()` não espera: a fileira pode estar montada antes das células.
+    await expect(fileira.locator('> div')).toHaveCount(2);
     const celulas = await fileira.locator('> div').all();
-    expect(celulas.length).toBe(2);
     const [a, b] = await Promise.all(celulas.map(caixa));
     expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(1);
