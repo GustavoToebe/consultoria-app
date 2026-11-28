@@ -29,7 +29,8 @@ export function leituraDoCarregamento<T>(
 
 /**
  * Carrega dados da API para uma tela. `chave` muda → busca de novo (`null` = não buscar ainda). O estado só muda no
- * retorno da promessa (regra do React 19 para efeitos).
+ * retorno da promessa (regra do React 19 para efeitos). A resposta de uma chave que já saiu é descartada sem ninguém
+ * vê-la: `buscar` não cria nada que precise ser solto (um `blob:`, por exemplo; para imagem, `useEnderecoDoBlob`).
  */
 export function useCarregar<T>(chave: string | null, buscar: (chave: string) => Promise<T>) {
   const [estado, setEstado] = useState<Estado<T> | null>(null);

@@ -19,10 +19,17 @@ describe('técnica da série (reunião de 17/10)', () => {
   });
 
   it('texto por extenso para o aluno, sem inventar número', () => {
-    expect(textoTecnicaPorExtenso(cluster)).toBe('Cluster: faça 3 blocos de 2 repetições. São 6 repetições previstas no total e 2 pausas internas. Encerre ao terminar o 3º bloco. Pausa entre os blocos: 20 s.');
-    expect(textoTecnicaPorExtenso(restPause)).toBe('Rest pause: depois da série, 20 s de pausa e continue com a mesma carga até a falha, 2 vezes.');
-    expect(textoTecnicaPorExtenso({ ...restPause, pausas: 1 })).toBe('Rest pause: depois da série, 20 s de pausa e continue com a mesma carga até a falha.');
+    expect(textoTecnicaPorExtenso(cluster)).toBe('Cluster: faça 3 blocos de 2 repetições. São 6 repetições previstas no total e 2 pausas internas. Encerre ao terminar o 3º bloco. Pausa entre os blocos: 20 s (o timer conta).');
+    expect(textoTecnicaPorExtenso(restPause)).toBe('Rest pause: depois da série, 20 s de pausa (o timer conta) e continue com a mesma carga até a falha, 2 vezes.');
+    expect(textoTecnicaPorExtenso({ ...restPause, pausas: 1 })).toBe('Rest pause: depois da série, 20 s de pausa (o timer conta) e continue com a mesma carga até a falha.');
     expect(textoTecnicaPorExtenso({ ...cluster, blocos: null })).toBe('Cluster: complete os blocos para visualizar a prescrição.');
+    // "(o timer conta)" só com segundos: a pausa só em respirações não liga o cronômetro.
+    expect(textoTecnicaPorExtenso({ ...cluster, pausaSegundos: 15, pausaRespiracoes: 3 })).toContain('Pausa entre os blocos: 15 s ou 3 respirações (o timer conta).');
+    expect(textoTecnicaPorExtenso({ ...cluster, pausaSegundos: null, pausaRespiracoes: 3 })).toContain('Pausa entre os blocos: 3 respirações.');
+    // Qualquer pausa que o timer conta leva a marca (Rest-pause acima, Myo-reps e Drop-set); só respirações, não.
+    expect(textoTecnicaPorExtenso({ ...tecnicaVazia('MYO_REPS'), miniSeries: 4, repsPorMiniSerie: 5, pausaSegundos: 15, pausaRespiracoes: null })).toContain('com 15 s de pausa entre elas (o timer conta).');
+    expect(textoTecnicaPorExtenso({ ...tecnicaVazia('MYO_REPS'), miniSeries: 4, repsPorMiniSerie: 5, pausaSegundos: null, pausaRespiracoes: 5 })).toContain('com 5 respirações de pausa entre elas.');
+    expect(textoTecnicaPorExtenso({ ...tecnicaVazia('DROP_SET'), quedas: 2, pausaSegundos: 10 })).toContain('Descanse 10 s entre as quedas (o timer conta).');
   });
 
   it('séries com técnicas diferentes não se juntam no mesmo grupo, e o resumo diz a técnica', () => {
@@ -41,17 +48,17 @@ describe('técnica da série (reunião de 17/10)', () => {
       leituraDaTecnica(serie('a', cluster), config),
       leituraDaTecnica(serie('c', restPause), config),
     ]);
-    expect(leituraDaTecnica(serie('a', cluster), config)).toBe('WS com Cluster. Faça 3 blocos de 2 repetições. São 6 repetições previstas no total e 2 pausas internas. Encerre ao terminar o 3º bloco. Pausa entre os blocos: 20 s. Descanso depois da série: não informado. A sugestão de carga vem da base do dia. Ajuste a carga desta série.');
+    expect(leituraDaTecnica(serie('a', cluster), config)).toBe('WS com Cluster. Faça 3 blocos de 2 repetições. São 6 repetições previstas no total e 2 pausas internas. Encerre ao terminar o 3º bloco. Pausa entre os blocos: 20 s (o timer conta). Descanso depois da série: não informado. A sugestão de carga vem da base do dia. Ajuste a carga desta série.');
   });
 
   it('não repete o descanso da série quando ele é do grupo, nem pede carga no exercício sem carga', () => {
     const comDescanso = serieDeTeste('a', { tipo: 'WORKING', tecnica: cluster, descansoSegundos: 90 });
     const solta = leituraDaTecnica(comDescanso, config);
-    expect(solta).toContain('Pausa entre os blocos: 20 s.');
+    expect(solta).toContain('Pausa entre os blocos: 20 s (o timer conta).');
     expect(solta).toContain('Descanso depois da série: 90 s.');
     expect(solta).toContain('Ajuste a carga desta série.');
     const noGrupo = leituraDaTecnica(comDescanso, config, { descansoPorSerie: false });
-    expect(noGrupo).toContain('Pausa entre os blocos: 20 s.');
+    expect(noGrupo).toContain('Pausa entre os blocos: 20 s (o timer conta).');
     expect(noGrupo).not.toContain('Descanso depois da série');
     expect(noGrupo).toContain('Ajuste a carga desta série.');
     const semCarga = leituraDaTecnica(comDescanso, config, { semCarga: true });
@@ -157,7 +164,7 @@ test.each([
   ['rest pause só técnica', [exemplo(undefined, { tipo: null, repsMin: 8, repsMax: 8, carga: carga('PERCENTUAL_WS', 70), esforco: null, tecnica: tecnicaDe('REST_PAUSE', { pausaSegundos: 20, pausas: 1 }) })], '1x8 - Rest pause 20 s · 70% da WS'],
   ['3 micro-séries', [exemplo('WORKING', { repsMin: 4, esforco: null, tecnica: tecnicaDe('REST_PAUSE', { pausaSegundos: 15, pausas: 2 }) })], '1x4 a 6 - WS + Rest pause 15 s, 2 pausas'],
   ['cluster desigual', [exemplo(undefined, { tipo: null, repsMin: 6, repsMax: 6, carga: carga('PERCENTUAL_WS', 70), esforco: null, tecnica: tecnicaDe('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }) })], '1x6 (4+2) - Cluster 15 s · 70% da WS'],
-  ['muscle round', [exemplo(undefined, { tipo: null, repsMin: 16, repsMax: 16, carga: null, esforco: null, tecnica: tecnicaDe('CLUSTER', { blocos: [4, 4, 4, 4], pausaSegundos: 10, pausaRespiracoes: 5 }) })], '1x16 (4×4) - Cluster 5 respirações ou 10 s'],
+  ['muscle round', [exemplo(undefined, { tipo: null, repsMin: 16, repsMax: 16, carga: null, esforco: null, tecnica: tecnicaDe('CLUSTER', { blocos: [4, 4, 4, 4], pausaSegundos: 10, pausaRespiracoes: 5 }) })], '1x16 (4×4) - Cluster 10 s ou 5 respirações'],
   ['AMRAP', [exemplo('WORKING', { repsMin: null, repsMax: null, amrap: true, esforco: null })], '1xAMRAP - WS'],
 ] as [string, Serie[], string][])('%s: resumo da prescrição', (_nome, series, esperado) => {
   expect(descreverSeries(series, config).join(' / ')).toBe(esperado);

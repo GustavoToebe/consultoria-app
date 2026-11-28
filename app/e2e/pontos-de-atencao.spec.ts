@@ -74,7 +74,7 @@ for (const largura of [390, 1280, 1920]) {
       const painel = page.getByRole('dialog', { name: 'Filtros de atualizações' });
       await painel.getByRole('checkbox', { name: 'Só com pontos de atenção' }).click();
       expect(comAtencaoEmAlgum(pedidos)).toBe(false);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.get('comAtencao')).toBe('true');
       expect(ultimo(pedidos, '/atualizacoes/contagens')?.get('comAtencao')).toBe('true');

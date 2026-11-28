@@ -89,6 +89,10 @@ describe('colunas da grade de indicadores', () => {
     expect(linhasDaGrade(7, 4)).toEqual([4, 3]);
     expect(linhasDaGrade(5, 3)).toEqual([3, 2]);
     expect(linhasDaGrade(5, 2)).toEqual([2, 2, 1]); // sobra um sozinho, esticado
+    // Dieta do aluno (28/11): refeições e seções em 2 colunas, por linha; o ímpar fecha na largura toda.
+    expect(linhasDaGrade(1, 2)).toEqual([1]);
+    expect(linhasDaGrade(3, 2)).toEqual([2, 1]);
+    expect(linhasDaGrade(4, 2)).toEqual([2, 2]);
     expect(linhasDaGrade(7, 2)).toEqual([2, 2, 2, 1]);
     expect(linhasDaGrade(11, 2)).toEqual([2, 2, 2, 2, 2, 1]);
     expect(linhasDaGrade(11, 3)).toEqual([3, 3, 3, 2]);

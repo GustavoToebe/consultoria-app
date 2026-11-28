@@ -1,21 +1,48 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import fs from 'node:fs';
 
+import type { AnterioresDoPacote, PainelAluno, ProgressoPonto, RecordesDoPacote, Sessao } from '../src/api/tipos';
 import { ALUNO, sessao, simularApi } from './api-falsa';
 import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { conferirAlturasDeColunas } from './alturasDeColunas';
 
 /**
- * Treino do dia na web (`docs/planos/orientacoes-de-design-26-11.md`, 1.3): da faixa `normal` em diante, o apoio à esquerda,
- * fixo ao rolar (o resumo com a frase da data numa só e a nota do salvamento no aparelho, o "Começar/Continuar" e as Outras
- * datas), e os exercícios na ordem, com "Última carga" e "N/3 séries" na mesma linha. Desde 27/11 o contêiner é o do
- * treinador (sem teto; a área toda): a lista se divide em colunas lidas de cima para baixo quando cabem duas ou três de 520
- * (`dominio/colunasDoTreinoDoDia`), sem faixa vazia à direita. O celular (e a faixa `compacta`) não muda. Só dados
- * fictícios. `E2E_CAPTURAS` (ou `CAPTURAS`) grava as capturas fora do repositório.
+ * Treino do dia na web (`docs/planos/orientacoes-de-design-26-11.md`, 1.3, e o item 7 do pedido de 27/11): da faixa `normal`
+ * em diante, o apoio à esquerda, fixo ao rolar (o resumo com a frase da data numa só e a nota do salvamento no aparelho, o
+ * "Começar/Continuar" e as Outras datas), e os exercícios na ordem, com "Última carga" e "N/3 séries" na mesma linha. Na
+ * `larga` e na `ultralarga` vale a régua do Exercício (`aluno/exercicio/colunasDoExercicio`): a lista para em 880 e o resto
+ * vira a 3ª coluna, também fixa, com o exercício a fazer e o histórico dele (em duas a partir de 752: a carga por data na
+ * segunda). Exercício a fazer sem histórico (livre ou cardio): a 3ª coluna tem a largura do apoio e a lista, o resto, em colunas
+ * lidas de cima para baixo (`dominio/colunasDoTreinoDoDia`). O celular (e a faixa `compacta`) não muda. Só dados fictícios.
+ * Capturas só com `E2E_CAPTURAS` apontando uma pasta fora do git.
  */
 
 const NOTA = 'Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.';
-const SESSOES = [sessaoFalsa('sa', 'Peito e tríceps', 1, 5), sessaoFalsa('sb', 'Costas e bíceps', 3, 4)];
+/** Os exercícios do treino de hoje vêm da biblioteca (têm Histórico); os outros dois, livres. */
+const comBiblioteca = (s: Sessao): Sessao => ({ ...s, exercicios: s.exercicios.map((e) => ({ ...e, exercicioId: `ex-${e.uid}` })) });
+const SESSOES = [
+  comBiblioteca(sessaoFalsa('sa', 'Peito e tríceps', 1, 5)),
+  sessaoFalsa('sb', 'Costas e bíceps', 3, 4),
+  // Seis exercícios livres iguais: três colunas da mesma altura quando a lista ganha a largura.
+  sessaoFalsa('sd', 'Treino livre', 1, 6),
+];
 const HOJE = '/aluno/sessao/sa?data=2026-10-19';
 const FUTURA = '/aluno/sessao/sb?data=2026-10-21';
+const LIVRE = '/aluno/sessao/sd?data=2026-10-19';
+
+const PONTOS: ProgressoPonto[] = [
+  { data: '2026-09-28', maiorCargaTrabalho: 55, repeticoes: 10 },
+  { data: '2026-10-05', maiorCargaTrabalho: 57.5, repeticoes: 9 },
+  { data: '2026-10-12', maiorCargaTrabalho: 60, repeticoes: 8 },
+];
+const RECORDES: RecordesDoPacote = {
+  ate: '2026-10-19',
+  exercicios: { 'ex-sae1': { maiorCarga: 62.5, maiorVolume: 600, repeticoesPorCarga: [{ carga: 60, repeticoes: 10 }, { carga: 62.5, repeticoes: 6 }] } },
+};
+const ANTERIORES: AnterioresDoPacote = {
+  ate: '2026-10-19',
+  exercicios: { 'ex-sae1': { data: '2026-10-12', series: [1, 2, 3].map((ordem) => ({ tipo: 'WORKING' as const, ordem, carga: 60, repeticoes: 8, etapas: null })) } },
+};
 
 type Opcoes = { tema?: 'ESCURO' | 'CLARO'; altura?: number; menuMinimizado?: boolean };
 
@@ -28,10 +55,14 @@ async function abrir(page: Page, largura: number, caminho = HOJE, opcoes: Opcoes
     } catch { /* sem armazenamento */ }
   }, [ALUNO.id, opcoes.tema ?? 'ESCURO', !!opcoes.menuMinimizado] as const);
   await fixarHoje(page);
+  const base = await sessaoDeAlunoComTreino(page, SESSOES);
+  const painel = (base['GET /aluno/painel'] as { corpo: PainelAluno }).corpo;
   const api = await simularApi(page, {
-    ...(await sessaoDeAlunoComTreino(page, SESSOES)),
+    ...base,
     ...(await sessao(page, ALUNO, { retornoHabilitado: true })),
+    'GET /aluno/painel': { corpo: { ...painel, recordes: RECORDES, anteriores: ANTERIORES } },
     'GET /aluno/sessoes-concluidas': { corpo: { totalConcluidos: 0, sessoes: [] } },
+    'GET /aluno/progresso': { corpo: PONTOS },
   });
   await page.goto(caminho);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
@@ -44,70 +75,53 @@ const caixa = async (l: Locator) => {
   await expect.poll(async () => (b = await l.boundingBox()) !== null).toBe(true);
   return b!;
 };
+/** Os cartões da lista (no celular a lista não tem testID, e não há 3ª coluna com o cartão repetido). */
 const exercicios = (page: Page) => page.getByRole('link', { name: /^Abrir Exercício sae\d/ });
+/** Na web, só os da lista: o cartão do próximo, na 3ª coluna, repete o primeiro a fazer. */
+const daLista = (page: Page, nome = /^Abrir Exercício s[ad]e\d/) => page.getByTestId('lista-do-dia').getByRole('link', { name: nome });
 const apoio = (page: Page) => page.getByRole('complementary', { name: 'Resumo do treino' });
+const extras = (page: Page) => page.getByRole('complementary', { name: 'Próximo exercício e histórico' });
 const semRolagemDeLado = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
-/** A matriz da 0.5: 390, 1024 (menu aberto e minimizado), 1280, 1536, 1920, 2560 e 3440; claro também em 1280 e 1920. */
-const MATRIZ: { largura: number; tema: 'ESCURO' | 'CLARO'; menuMinimizado?: boolean }[] = [
-  { largura: 390, tema: 'ESCURO' }, { largura: 1024, tema: 'ESCURO' }, { largura: 1024, tema: 'ESCURO', menuMinimizado: true },
-  { largura: 1280, tema: 'ESCURO' }, { largura: 1280, tema: 'CLARO' }, { largura: 1536, tema: 'ESCURO' }, { largura: 1920, tema: 'ESCURO' },
-  { largura: 1920, tema: 'CLARO' }, { largura: 2560, tema: 'ESCURO' }, { largura: 3440, tema: 'ESCURO' }, { largura: 3440, tema: 'CLARO' },
-];
-
-test('capturas: treino do dia na matriz de larguras e temas', async ({ page }, testInfo) => {
-  test.setTimeout(180_000);
-  const pasta = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS ?? testInfo.outputPath();
-  for (const { largura, tema, menuMinimizado } of MATRIZ) {
-    await abrir(page, largura, HOJE, { tema, menuMinimizado });
-    await expect(exercicios(page)).toHaveCount(5);
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: `${pasta}/treino-do-dia-${largura}${menuMinimizado ? '-minimizado' : ''}-${tema.toLowerCase()}.png`, fullPage: true });
-  }
-  // Data futura (a frase da data) e 1280 × 720 rolado até o fim (o apoio fixo ao rolar).
-  await abrir(page, 1920, FUTURA);
-  await page.waitForTimeout(600);
-  await page.screenshot({ path: `${pasta}/treino-do-dia-1920-futura.png`, fullPage: true });
-  await abrir(page, 1280, HOJE, { altura: 720 });
-  await page.mouse.move(900, 400);
-  await page.mouse.wheel(0, 3000);
-  await page.waitForTimeout(600);
-  await page.screenshot({ path: `${pasta}/treino-do-dia-1280x720-rolado.png` });
-});
-
-/** Colunas da lista de 5 exercícios por janela, com o menu aberto. */
-const COLUNAS: Record<number, number> = { 1280: 1, 1536: 1, 1920: 2, 2560: 3, 3440: 3 };
+/** Da larga em diante abre a 3ª coluna (com o menu aberto: 1920, 2560 e 3440). */
+const TERCEIRA: Record<number, boolean> = { 1280: false, 1536: false, 1920: true, 2560: true, 3440: true };
 
 for (const largura of [1280, 1536, 1920, 2560, 3440]) {
-  test(`${largura}: resumo à esquerda, exercícios na ordem em ${COLUNAS[largura]} coluna(s), carga e séries na mesma linha`, async ({ page }) => {
+  test(`${largura}: resumo à esquerda, exercícios numa coluna, na ordem${TERCEIRA[largura] ? ', e o próximo com o histórico na 3ª coluna' : ''}`, async ({ page }) => {
     const { errosDaPagina, naoTratadas } = await abrir(page, largura);
-    await expect(exercicios(page)).toHaveCount(5);
+    await expect(daLista(page)).toHaveCount(5);
     const lateral = await caixa(apoio(page));
     await expect(apoio(page).getByRole('button', { name: 'Começar treino', exact: true })).toBeVisible();
     // A nota do salvamento no aparelho mora no cartão do resumo, uma vez só.
     await expect(page.getByText(NOTA, { exact: true })).toHaveCount(1);
     await expect(apoio(page).getByText(NOTA, { exact: true })).toBeVisible();
-    // Colunas lidas de cima para baixo, na ordem 1 a 5, à direita do apoio: na ordem do DOM, cada cartão fica abaixo do
-    // anterior ou abre a coluna seguinte, no topo.
-    await expect.poll(async () => new Set((await Promise.all((await exercicios(page).all()).map(caixa))).map((c) => Math.round(c.x))).size).toBe(COLUNAS[largura]);
-    const cartoes = await Promise.all((await exercicios(page).all()).map(caixa));
-    for (let i = 1; i < cartoes.length; i++) {
-      const mesmaColuna = Math.round(cartoes[i]!.x) === Math.round(cartoes[i - 1]!.x);
-      if (mesmaColuna) expect(cartoes[i]!.y).toBeGreaterThan(cartoes[i - 1]!.y);
-      else {
-        expect(cartoes[i]!.x).toBeGreaterThan(cartoes[i - 1]!.x);
-        expect(Math.abs(cartoes[i]!.y - cartoes[0]!.y)).toBeLessThanOrEqual(1);
-      }
-    }
+    // Uma coluna só, na ordem 1 a 5, à direita do apoio (a lista nunca passa de 1064 aqui).
+    await expect.poll(async () => new Set((await Promise.all((await daLista(page).all()).map(caixa))).map((c) => Math.round(c.x))).size).toBe(1);
+    const cartoes = await Promise.all((await daLista(page).all()).map(caixa));
+    for (let i = 1; i < cartoes.length; i++) expect(cartoes[i]!.y).toBeGreaterThan(cartoes[i - 1]!.y);
     expect(cartoes[0]!.x).toBeGreaterThan(lateral.x + lateral.width);
-    // Sem faixa vazia: a última coluna termina na borda do conteúdo (o recuo da tela, até 48, e a barra de rolagem); nenhum cartão
-    // passa de 880 da faixa larga em diante.
-    const ultimo = cartoes[cartoes.length - 1]!;
     const janela = await page.evaluate(() => document.documentElement.clientWidth);
-    expect(ultimo.x + ultimo.width).toBeGreaterThanOrEqual(janela - 48 - 20);
-    for (const c of cartoes) expect(c.width).toBeLessThanOrEqual(largura >= 1920 ? 880 : 1200);
+    const ultimo = cartoes[cartoes.length - 1]!;
+    if (TERCEIRA[largura]) {
+      // A 3ª coluna à direita da lista, até a borda do conteúdo (o recuo da tela, até 48, e a barra de rolagem); a lista até 880.
+      await expect.poll(async () => extras(page).count()).toBe(1);
+      const terceira = await caixa(extras(page));
+      expect(terceira.x).toBeGreaterThan(ultimo.x + ultimo.width);
+      expect(terceira.x + terceira.width).toBeGreaterThanOrEqual(janela - 48 - 20);
+      for (const c of cartoes) expect(c.width).toBeLessThanOrEqual(880);
+      // Nada feito ainda: o primeiro exercício (o mesmo do "Começar treino") e o histórico dele, com o que veio no pacote.
+      await expect(extras(page).getByRole('heading', { name: 'Primeiro exercício', exact: true })).toBeVisible();
+      await expect(extras(page).getByRole('link', { name: /^Abrir Exercício sae1/ })).toBeVisible();
+      await expect(extras(page).getByRole('heading', { name: 'Histórico de Exercício sae1', exact: true })).toBeVisible();
+      await expect(extras(page).getByText(/^Última vez/).first()).toBeVisible();
+      await expect(extras(page).getByRole('heading', { name: 'Carga por data', exact: true })).toHaveCount(terceira.width >= 752 ? 1 : 0);
+    } else {
+      // Faixa normal: sem 3ª coluna; a lista vai até a borda do conteúdo (sem faixa vazia).
+      await expect(extras(page)).toHaveCount(0);
+      expect(ultimo.x + ultimo.width).toBeGreaterThanOrEqual(janela - 48 - 20);
+    }
     // "Última carga: —" e "0/3 séries" na mesma linha do primeiro cartão.
-    const primeiro = exercicios(page).first();
+    const primeiro = daLista(page).first();
     const carga = await caixa(primeiro.getByText(/^Última carga:/));
     const series = await caixa(primeiro.getByText('0/3 séries', { exact: true }));
     expect(Math.abs(carga.y + carga.height / 2 - (series.y + series.height / 2))).toBeLessThan(4);
@@ -119,9 +133,32 @@ for (const largura of [1280, 1536, 1920, 2560, 3440]) {
   });
 }
 
+test('3440: o próximo é livre (sem histórico): 3ª coluna de 440 só com o cartão, a lista em três colunas da mesma altura', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 3440, LIVRE, { altura: 1440 });
+  await expect(daLista(page)).toHaveCount(6);
+  await expect.poll(async () => Math.round((await caixa(extras(page))).width)).toBe(440);
+  await expect(extras(page).getByRole('link', { name: /^Abrir Exercício sde1/ })).toBeVisible();
+  await expect(extras(page).getByRole('heading', { name: /^Histórico/ })).toHaveCount(0);
+  // As colunas lidas de cima para baixo terminam juntas (seis cartões iguais, dois por coluna).
+  await conferirAlturasDeColunas(page, { prefixo: 'treino-do-dia-coluna', colunasEsperadas: 3, limite: 24 });
+  expect(await semRolagemDeLado(page)).toBe(true);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('1920 × 720: rolando até o fim, o resumo e a 3ª coluna continuam à vista (fixos ao rolar)', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1920, HOJE, { altura: 720 });
+  await expect(daLista(page)).toHaveCount(5);
+  await page.mouse.move(1000, 400);
+  await page.mouse.wheel(0, 3000);
+  await expect(page.getByRole('button', { name: 'Concluir treino' }).last()).toBeInViewport();
+  await expect(apoio(page).getByRole('button', { name: 'Começar treino', exact: true })).toBeInViewport();
+  await expect(extras(page).getByRole('heading', { name: 'Primeiro exercício', exact: true })).toBeInViewport();
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('1280 × 720: rolando até o fim, o apoio continua à vista com o "Começar treino"', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, HOJE, { altura: 720 });
-  await expect(exercicios(page)).toHaveCount(5);
+  await expect(daLista(page)).toHaveCount(5);
   await page.mouse.move(900, 400);
   await page.mouse.wheel(0, 3000);
   await expect(page.getByRole('button', { name: 'Concluir treino' }).last()).toBeInViewport();
@@ -141,6 +178,7 @@ for (const { largura, menuMinimizado } of [{ largura: 390 }, { largura: 1024 }, 
     const { errosDaPagina } = await abrir(page, largura, HOJE, { menuMinimizado });
     await expect(exercicios(page)).toHaveCount(5);
     await expect(apoio(page)).toHaveCount(0);
+    await expect(extras(page)).toHaveCount(0);
     const nota = await caixa(page.getByText(NOTA, { exact: true }));
     expect(nota.y).toBeGreaterThan((await caixa(exercicios(page).last())).y);
     await page.goto(FUTURA);
@@ -155,4 +193,37 @@ test('1920: sessão que saiu do plano mostra o vazio com "Ver meu treino"', asyn
   await expect(page.getByText('Esta sessão não está mais no seu plano. Volte para ver o treino atual.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ver meu treino' })).toBeVisible();
   expect(errosDaPagina).toEqual([]);
+});
+
+// Capturas para conferir (pasta fora do git): `E2E_CAPTURAS=<pasta> npx playwright test aluno-layout-treino-do-dia -g capturas`.
+const PASTA = process.env.E2E_CAPTURAS;
+const CASOS: { largura: number; altura?: number; tema: 'ESCURO' | 'CLARO'; caminho?: string; nome?: string; menuMinimizado?: boolean }[] = [
+  { largura: 390, altura: 844, tema: 'ESCURO' },
+  { largura: 1024, altura: 768, tema: 'ESCURO', menuMinimizado: true },
+  { largura: 1280, altura: 800, tema: 'ESCURO' }, { largura: 1280, altura: 800, tema: 'CLARO' },
+  { largura: 1536, altura: 864, tema: 'ESCURO' },
+  { largura: 1920, tema: 'ESCURO' }, { largura: 1920, tema: 'CLARO' },
+  { largura: 2560, altura: 1440, tema: 'ESCURO' },
+  { largura: 3440, altura: 1440, tema: 'ESCURO' }, { largura: 3440, altura: 1440, tema: 'CLARO' },
+  { largura: 1920, tema: 'ESCURO', caminho: FUTURA, nome: 'futura' },
+  { largura: 3440, altura: 1440, tema: 'ESCURO', caminho: LIVRE, nome: 'sem-historico' },
+];
+test('capturas: treino do dia na matriz de larguras e temas', async ({ page }) => {
+  test.skip(!PASTA, 'sem E2E_CAPTURAS');
+  test.setTimeout(300_000);
+  fs.mkdirSync(PASTA!, { recursive: true });
+  for (const { largura, altura, tema, caminho, nome, menuMinimizado } of CASOS) {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await abrir(page, largura, caminho ?? HOJE, { tema, altura, menuMinimizado });
+    await expect(exercicios(page).or(page.getByRole('link', { name: /^Abrir Exercício s[bd]e\d/ })).first()).toBeVisible();
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${PASTA}/treino-do-dia-${tema.toLowerCase()}-${largura}${nome ? `-${nome}` : ''}${menuMinimizado ? '-minimizado' : ''}.png`, fullPage: true });
+  }
+  // Rolado até o fim (o apoio e a 3ª coluna fixos ao rolar).
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await abrir(page, 1920, HOJE, { altura: 720 });
+  await page.mouse.move(1000, 400);
+  await page.mouse.wheel(0, 3000);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${PASTA}/treino-do-dia-escuro-1920x720-rolado.png` });
 });

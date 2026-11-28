@@ -27,23 +27,23 @@ describe('linha do plano na Folha da pasta', () => {
   it('2) alterações não publicadas: diz se está em uso', () => {
     const p = { ...BASE, versaoPublicada: 3, publicadoEm: EM, rascunhoAlteradoDepoisDePublicar: true };
     expect(linhaDoPlano({ ...p, ativo: true }, HOJE)).toEqual({
-      selo: { texto: 'Alterações não publicadas', tipo: 'neutro', agendado: false },
+      selo: { texto: 'Alterações não publicadas', tipo: 'atencao', agendado: false },
       meta: 'Em uso pelo aluno · Publicado v3 em 20/11',
       discreto: false,
     });
     expect(linhaDoPlano(p, HOJE).meta).toBe('Publicado v3 em 20/11');
   });
 
-  it('3) rascunho nunca publicado: selo neutro, sem meta, discreto (mesmo com o rascunho marcado como alterado)', () => {
-    const rascunho = { selo: { texto: 'Rascunho', tipo: 'neutro', agendado: false }, meta: null, discreto: true };
+  it('3) rascunho nunca publicado: selo âmbar, sem meta, discreto (mesmo com o rascunho marcado como alterado)', () => {
+    const rascunho = { selo: { texto: 'Rascunho', tipo: 'atencao', agendado: false }, meta: null, discreto: true };
     expect(linhaDoPlano(BASE, HOJE)).toEqual(rascunho);
     expect(linhaDoPlano({ ...BASE, rascunhoAlteradoDepoisDePublicar: true }, HOJE)).toEqual(rascunho);
   });
 
-  it('4) em uso: o único selo verde', () => {
+  it('4) em uso: "Publicado", o único selo verde', () => {
     expect(linhaDoPlano({ ...BASE, ativo: true, versaoPublicada: 3, publicadoEm: EM }, HOJE)).toEqual({
-      selo: { texto: 'Em uso pelo aluno', tipo: 'sucesso', agendado: false },
-      meta: 'Publicado v3 em 20/11',
+      selo: { texto: 'Publicado', tipo: 'sucesso', agendado: false },
+      meta: 'Em uso pelo aluno · v3 em 20/11',
       discreto: false,
     });
   });
@@ -55,8 +55,8 @@ describe('linha do plano na Folha da pasta', () => {
   });
 
   it('publicadoEm nulo: meta sem a data; outro ano leva o ano', () => {
-    expect(linhaDoPlano({ ...BASE, ativo: true, versaoPublicada: 3 }, HOJE).meta).toBe('Publicado v3');
+    expect(linhaDoPlano({ ...BASE, ativo: true, versaoPublicada: 3 }, HOJE).meta).toBe('Em uso pelo aluno · v3');
     expect(linhaDoPlano({ ...BASE, versaoPublicada: 2 }, HOJE).meta).toBe('Publicado v2 · não está em uso');
-    expect(linhaDoPlano({ ...BASE, ativo: true, versaoPublicada: 1, publicadoEm: '2025-03-04T12:00:00Z' }, HOJE).meta).toBe('Publicado v1 em 04/03/2025');
+    expect(linhaDoPlano({ ...BASE, ativo: true, versaoPublicada: 1, publicadoEm: '2025-03-04T12:00:00Z' }, HOJE).meta).toBe('Em uso pelo aluno · v1 em 04/03/2025');
   });
 });

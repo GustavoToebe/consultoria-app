@@ -10,7 +10,8 @@ import { Texto } from '../../ui/Texto';
 
 /**
  * Apoio de Configurações › Regras de atenção (etapa 2): quantos alunos têm exceção em cada regra gravada (só a contagem que a
- * API manda em `alunosComExcecao`; nunca quem). Por regra, sem somar: um aluno com duas exceções contaria duas vezes.
+ * API manda em `alunosComExcecao`; nunca quem, então não há link para a ficha de cada um). Por regra, sem somar: um aluno com
+ * duas exceções contaria duas vezes. Sem exceção, uma linha só, que já diz onde ajustar.
  */
 export function ExcecoesPorAluno({ dados }: { dados: RegrasDeAtencaoResposta }) {
   const { cores } = useTema();
@@ -24,16 +25,18 @@ export function ExcecoesPorAluno({ dados }: { dados: RegrasDeAtencaoResposta }) 
   return (
     <Cartao titulo={TEXTOS_DAS_EXCECOES.titulo}>
       {linhas.length ? (
-        <View role="list" style={estilos.itens}>
-          {linhas.map((l) => (
-            <View key={l.id} role="listitem" style={estilos.item}>
-              <Texto variante="pequeno" cor={cores.texto}>{l.regra}</Texto>
-              <Texto variante="pequeno" numerico>{l.contagem}</Texto>
-            </View>
-          ))}
-        </View>
+        <>
+          <View role="list" style={estilos.itens}>
+            {linhas.map((l) => (
+              <View key={l.id} role="listitem" style={estilos.item}>
+                <Texto variante="pequeno" cor={cores.texto}>{l.regra}</Texto>
+                <Texto variante="pequeno" numerico>{l.contagem}</Texto>
+              </View>
+            ))}
+          </View>
+          <Texto variante="pequeno">{TEXTOS_DAS_EXCECOES.ondeFica}</Texto>
+        </>
       ) : <Texto variante="pequeno">{TEXTOS_DAS_EXCECOES.semExcecao}</Texto>}
-      <Texto variante="pequeno">{TEXTOS_DAS_EXCECOES.ondeFica}</Texto>
     </Cartao>
   );
 }

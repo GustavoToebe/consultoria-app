@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 
 import type { CicloDaAluna, EuResponse, MeusDadosRequest, MeusDadosResponse } from '../src/api/tipos';
 import { ALUNO, erroApi, json, simularApi, type PedidoFalso, type RespostasApi } from './api-falsa';
+import { NAO_E_TELEFONE } from '../src/dominio/textoDoTelefone';
 import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
 
 /**
@@ -89,8 +90,16 @@ for (const largura of [390, 1280]) {
     await expect(page.getByLabel('CPF (opcional)')).toHaveCount(0);
     await expect(page.getByText(SO_LEITURA)).toHaveCount(2);
 
+    // Preenchimento automático (28/11): telefone nacional, teclado de telefone; e-mail no campo é recusado, fica o número de antes.
+    await expect(page.getByLabel('Telefone (opcional)')).toHaveAttribute('autocomplete', 'tel-national');
+    await expect(page.getByLabel('Telefone (opcional)')).toHaveAttribute('inputmode', 'tel');
+    await expect(page.getByLabel('Telefone (opcional)')).toHaveAttribute('type', 'tel');
+    await page.getByLabel('Telefone (opcional)').fill(ALUNO.email);
+    await expect(page.getByLabel('Telefone (opcional)')).toHaveValue('(45) 99999-8888');
+    await expect(page.getByText(NAO_E_TELEFONE)).toBeVisible();
     await page.getByLabel('Telefone (opcional)').fill('45988887777');
     await expect(page.getByLabel('Telefone (opcional)')).toHaveValue('(45) 98888-7777');
+    await expect(page.getByText(NAO_E_TELEFONE)).toHaveCount(0);
     await page.getByLabel('CEP').fill('01310100');
     await expect(page.getByLabel('Rua, avenida…')).toHaveValue('Avenida Exemplo');
     await expect(page.getByRole('textbox', { name: /^Cidade/ })).toHaveValue('Cidade Exemplo');

@@ -9,11 +9,11 @@ export const MAXIMO_DE_BLOCOS = 10;
 export const MAXIMO_REPS_POR_BLOCO = 50;
 
 /**
- * Lê o texto digitado: "4+2" → `[4, 2]`; "3×4", "3x4" ou "3 x 4" → `[4, 4, 4]`; "6" → `[6]` (um bloco só, que
- * `blocosValidos` recusa). Vazio ou sem forma conhecida → `null`.
+ * Lê o texto digitado: "4+2" ou "5-5-5" (hífen ou meia-risca) → lista; "3×4", "3x4" ou "3 x 4" → `[4, 4, 4]`; "6" →
+ * `[6]` (um bloco só, que `blocosValidos` recusa). Vazio ou sem forma conhecida → `null`.
  */
 export function lerBlocos(texto: string): number[] | null {
-  const t = texto.replace(/\s+/g, '').replace(/[×X*]/g, 'x');
+  const t = texto.replace(/\s+/g, '').replace(/[×X*]/g, 'x').replace(/[-–]/g, '+');
   if (!t) return null;
   const multiplicacao = /^(\d{1,2})x(\d{1,3})$/.exec(t);
   if (multiplicacao) {
@@ -33,6 +33,24 @@ export function textoDeBlocos(blocos: readonly number[] | null | undefined): str
   return blocos.join('+');
 }
 
+/** O texto do "Digitar como texto": sempre um bloco por número, "5-5-5-5-5" (o "5×5" fica para o PDF e a técnica). */
+export function textoDosBlocosParaDigitar(blocos: readonly number[] | null | undefined): string {
+  return blocos?.join('-') ?? '';
+}
+
+/** Resumo abaixo dos blocos: "5 blocos · 25 reps por série"; `null` sem blocos que caibam no contrato. */
+export function resumoDaLinhaDosBlocos(blocos: readonly (number | null)[] | null | undefined): string | null {
+  const validos = blocosGravados(blocos);
+  return validos ? `${validos.length} blocos · ${somaDosBlocos(validos)} reps por série` : null;
+}
+
+/** Reps da linha fechada da série: "5 × 5 (25)" com todos iguais, "4+4+2 (10)" com diferentes; sem blocos, vazio. */
+export function textoDosBlocosNaLinha(blocos: readonly number[] | null | undefined): string {
+  if (!blocos?.length) return '';
+  const soma = somaDosBlocos(blocos);
+  return blocosIguais(blocos) ? `${blocos.length} × ${blocos[0]} (${soma})` : `${blocos.join('+')} (${soma})`;
+}
+
 /** Todos os blocos com o mesmo número de repetições, e pelo menos dois. */
 export function blocosIguais(blocos: readonly number[] | null | undefined): boolean {
   return !!blocos && blocos.length >= 2 && blocos.every((b) => b === blocos[0]);
@@ -42,15 +60,6 @@ export function blocosIguais(blocos: readonly number[] | null | undefined): bool
 export function somaDosBlocos(blocos: readonly number[] | null | undefined): number | null {
   if (!blocos || blocos.length === 0) return null;
   return blocos.reduce((soma, b) => soma + b, 0);
-}
-
-/**
- * Leitura do cluster quando os blocos cabem no contrato. Sem blocos válidos, `null`:
- * a prévia não reaproveita um total antigo.
- */
-export function resumoDosBlocos(blocos: readonly number[] | null | undefined): { repeticoes: number; blocos: number; pausas: number } | null {
-  if (!blocosValidos(blocos)) return null;
-  return { repeticoes: somaDosBlocos(blocos)!, blocos: blocos!.length, pausas: blocos!.length - 1 };
 }
 
 /**
@@ -160,4 +169,117 @@ export function blocosQueChegaram(
   // Lista vazia ou inválida vinda de fora não apaga o que a pessoa está digitando.
   if (!valor || !blocosValidos(valor)) return { mudou: false };
   return { mudou: true, rascunho: [...valor], modo: modo === 'iguais' && !blocosIguais(valor) ? 'diferentes' : modo };
+}
+
+// ---- Estado do campo dos blocos (redesenho da série aberta, 27/11) ----
+
+/**
+ * Tudo o que o campo dos blocos guarda. `invalidos` = índices com texto que não é número inteiro (o campo ainda mostra o
+ * número antigo por baixo); `publicado` = o último que o campo mandou ao pai (para reconhecer o eco); `focar` = índice
+ * do bloco que acabou de entrar, só até a ação seguinte (senão o autofoco dispara de novo ao trocar de modo).
+ */
+export interface EstadoDosBlocos {
+  rascunho: (number | null)[];
+  modo: ModoDosBlocos;
+  invalidos: ReadonlySet<number>;
+  publicado: number[] | null;
+  texto: string;
+  notacaoAberta: boolean;
+  confirmar: boolean;
+  focar: number | null;
+}
+
+export type AcaoDosBlocos =
+  | { tipo: 'mais' }
+  | { tipo: 'menos' }
+  /** Nos iguais o campo é um só e o valor vale para todos (o índice é ignorado). */
+  | { tipo: 'editar'; indice: number; valor: number | null }
+  /** `aoValidade` do campo: `ok` falso marca o bloco inválido e publica `null`. */
+  | { tipo: 'invalidar'; indice: number; ok: boolean }
+  | { tipo: 'modo'; modo: ModoDosBlocos }
+  /** Respostas do pedido de confirmação ao passar para "iguais" com blocos desiguais. */
+  | { tipo: 'converterParaIguais' }
+  | { tipo: 'manterDiferentes' }
+  | { tipo: 'texto'; texto: string }
+  | { tipo: 'alternarNotacao' }
+  | { tipo: 'chegou'; valor: readonly number[] | null | undefined };
+
+/** `gravar` ausente = nada a mandar ao pai; `null` = o campo ficou sem lista gravável. */
+export interface ResultadoDosBlocos {
+  estado: EstadoDosBlocos;
+  gravar?: number[] | null;
+}
+
+export function estadoInicialDosBlocos(valor: readonly number[] | null | undefined): EstadoDosBlocos {
+  return {
+    rascunho: rascunhoInicialDosBlocos(valor),
+    modo: modoInicialDosBlocos(valor),
+    invalidos: new Set(),
+    publicado: valor ? [...valor] : null,
+    texto: textoDosBlocosParaDigitar(valor),
+    notacaoAberta: false,
+    confirmar: false,
+    focar: null,
+  };
+}
+
+/** A mesma semântica do `CampoBlocos` de 27/11, sem React: cada ação devolve o estado novo e o que publicar. */
+export function reduzirBlocos(anterior: EstadoDosBlocos, acao: AcaoDosBlocos): ResultadoDosBlocos {
+  // O eco do pai chega a cada render: devolve o mesmo objeto, inclusive o foco do bloco que ainda vai montar.
+  if (acao.tipo === 'chegou') {
+    const chegou = blocosQueChegaram(acao.valor, anterior.publicado, anterior.modo);
+    if (!chegou.mudou) return { estado: anterior };
+    const valor = [...acao.valor!];
+    const texto = JSON.stringify(lerBlocos(anterior.texto)) === JSON.stringify(valor) ? anterior.texto : textoDosBlocosParaDigitar(valor);
+    return { estado: { ...anterior, publicado: valor, rascunho: chegou.rascunho, modo: chegou.modo, invalidos: new Set(), confirmar: false, texto, focar: null } };
+  }
+  const estado = anterior.focar == null ? anterior : { ...anterior, focar: null };
+  const publicar = (rascunho: (number | null)[], invalidos: ReadonlySet<number>, mudar: Partial<EstadoDosBlocos> = {}): ResultadoDosBlocos => {
+    const gravar = blocosSeValidos(rascunho, invalidos.size > 0);
+    return { estado: { ...estado, ...mudar, rascunho, invalidos, publicado: gravar, texto: gravar ? textoDosBlocosParaDigitar(gravar) : estado.texto }, gravar };
+  };
+  const semOIndice = (indice: number) => {
+    const ainda = new Set(estado.invalidos);
+    ainda.delete(indice);
+    return ainda;
+  };
+  switch (acao.tipo) {
+    case 'mais': {
+      if (estado.invalidos.size > 0 || estado.rascunho.length >= MAXIMO_DE_BLOCOS) return { estado };
+      const proximo = maisUmBloco(estado.rascunho);
+      return publicar(proximo, estado.invalidos, { focar: estado.modo === 'diferentes' ? proximo.length - 1 : null });
+    }
+    case 'menos':
+      if (estado.rascunho.length <= MINIMO_DE_BLOCOS) return { estado };
+      return publicar(menosUmBloco(estado.rascunho), semOIndice(estado.rascunho.length - 1));
+    case 'editar':
+      if (estado.modo === 'iguais') return publicar(comRepsIguais(estado.rascunho, acao.valor), new Set());
+      return publicar(estado.rascunho.map((r, i) => (i === acao.indice ? acao.valor : r)), semOIndice(acao.indice));
+    case 'invalidar':
+      if (acao.ok) return { estado };
+      return { estado: { ...estado, invalidos: new Set(estado.invalidos).add(acao.indice), publicado: null }, gravar: null };
+    case 'modo': {
+      if (acao.modo === estado.modo) return { estado };
+      const preenchidos = estado.rascunho.filter((r): r is number => r != null);
+      if (acao.modo === 'iguais' && preenchidos.length > 0 && !blocosIguais(preenchidos)) return { estado: { ...estado, confirmar: true } };
+      // O texto inválido é do campo do modo que sai: trocar o limpa e volta a gravar o rascunho (o + não fica travado).
+      if (estado.invalidos.size > 0) return publicar(estado.rascunho, new Set(), { modo: acao.modo, confirmar: false });
+      return { estado: { ...estado, modo: acao.modo, confirmar: false } };
+    }
+    case 'converterParaIguais':
+      return publicar(comRepsIguais(estado.rascunho, estado.rascunho.find((r) => r != null) ?? null), new Set(), { modo: 'iguais', confirmar: false });
+    case 'manterDiferentes':
+      return { estado: { ...estado, confirmar: false } };
+    case 'texto': {
+      const lidos = lerBlocos(acao.texto);
+      const gravar = blocosSeValidos(lidos, false);
+      const cabe = !!lidos && lidos.length >= MINIMO_DE_BLOCOS && lidos.length <= MAXIMO_DE_BLOCOS;
+      const campos: Partial<EstadoDosBlocos> = cabe
+        ? { rascunho: lidos, invalidos: new Set(), confirmar: false, modo: blocosIguais(lidos) ? estado.modo : 'diferentes' }
+        : {};
+      return { estado: { ...estado, ...campos, texto: acao.texto, publicado: gravar }, gravar };
+    }
+    case 'alternarNotacao':
+      return { estado: { ...estado, notacaoAberta: !estado.notacaoAberta } };
+  }
 }

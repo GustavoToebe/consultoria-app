@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { MedidaDeCardio, TipoDeCardio } from '../../api/tipos';
 import { MEDIDAS_DE_CARDIO, TIPOS_DE_CARDIO } from '../../dominio/cardio';
@@ -26,8 +26,12 @@ export const AJUDA_DAS_MEDIDAS = 'O editor do treino mostra só as marcadas. Dur
 export const medidasEmOrdem = (marcadas: readonly MedidaDeCardio[]): MedidaDeCardio[] =>
   MEDIDAS_DE_CARDIO.map((m) => m.codigo).filter((m) => marcadas.includes(m));
 
-export function TipoDoCardio({ valor, aoMudar }: { valor: TipoDeCardio | null; aoMudar: (v: TipoDeCardio | null) => void }) {
-  return <EscolhaSuspensa rotulo="Tipo de cardio (opcional)" opcoes={OPCOES_DO_TIPO} valor={valor} aoMudar={aoMudar} semBusca />;
+export function TipoDoCardio({ valor, aoMudar, style }: {
+  valor: TipoDeCardio | null; aoMudar: (v: TipoDeCardio | null) => void;
+  /** A altura da linha da Modalidade (a folha passa a mesma dos três seletores). */
+  style?: StyleProp<ViewStyle>;
+}) {
+  return <EscolhaSuspensa rotulo="Tipo de cardio (opcional)" opcoes={OPCOES_DO_TIPO} valor={valor} aoMudar={aoMudar} semBusca style={style} />;
 }
 
 export function DetalhesDoCardio({ medidas, aoMudar, emColunas, erroDoTipo, erroDasMedidas, saemAoSalvar }: {

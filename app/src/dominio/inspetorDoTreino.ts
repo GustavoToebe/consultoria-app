@@ -1,5 +1,6 @@
 import type { Configuracao, ExercicioPlano, Serie, Sessao } from '../api/tipos';
 import { agrupar, descreverSeries, resumoTecnicasEDescanso, type GrupoDeSeries } from './agrupamento';
+import { textoCurtoDoDescanso } from './camposDaSerie';
 import { nomeDoTipo, papelDe } from './metodologia';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 
@@ -21,27 +22,46 @@ export interface ResumoDaSessaoPorContagem {
 const SEM_GRUPO = '—';
 
 /**
- * Linha de resumo do exercício na lista: "3 séries: 1 WS, 2 Back off · Descanso 120 s". As quantidades saem de `agrupar`
- * (uma por grupo de séries iguais, com o nome do tipo da metodologia) e o resto de `resumoTecnicasEDescanso`, o mesmo texto
- * do aluno ("Cluster na série 4 · descanso 90 s"), com a inicial maiúscula. Sem séries: "Sem séries"; cardio sem
- * prescrição: "Sem prescrição"; cardio com séries: `descreverSeries` (um grupo por linha) juntas com " · ".
+ * Linha de resumo do exercício na lista: "9 séries · 4 Aquec., 2 FS, 2 WS, 1 Back off · Cluster na série 4 · 2 min". As
+ * quantidades somam por tipo, com o nome curto (`nomeCurtoDoTipo`) da metodologia; depois vêm as técnicas (o texto de
+ * `resumoTecnicasEDescanso`, sem o descanso) e o descanso (`textoCurtoDoDescanso`) só quando é o mesmo em todas as séries (se varia ou falta em
+ * alguma, some: falta de descanso é pendência, não um valor). Sem séries: "Sem séries"; cardio sem prescrição: "Sem
+ * prescrição"; cardio com séries: `descreverSeries` (um grupo por linha) juntas com " · ".
  */
 export function linhaDoExercicio(ex: ExercicioPlano, config: Configuracao | null): string {
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const cardio = ex.modalidade === 'CARDIO';
   if (ex.series.length === 0) return cardio ? 'Sem prescrição' : 'Sem séries';
   if (cardio) return descreverSeries(ex.series, cfg).join(' · ');
-  const quantas = `${ex.series.length} ${ex.series.length === 1 ? 'série' : 'séries'}`;
-  // Soma por tipo (não por grupo de `agrupar`, que separa por técnica, repetições e carga): "1 WS, 2 Back off", não "1 WS, 1 WS".
+  // Soma pelo nome inteiro e só abrevia ao escrever: dois tipos com o mesmo começo não viram uma contagem só.
   const contagem = new Map<string, number>();
   for (const s of ex.series) {
     const nome = nomeDoTipo(cfg, s.tipo) || 'sem tipo';
     contagem.set(nome, (contagem.get(nome) ?? 0) + 1);
   }
-  const porGrupo = [...contagem].map(([nome, n]) => `${n} ${nome}`);
-  const extra = resumoTecnicasEDescanso(ex.series, cfg);
-  const depois = extra ? ` · ${extra.charAt(0).toUpperCase()}${extra.slice(1)}` : '';
-  return `${quantas}: ${porGrupo.join(', ')}${depois}`;
+  const curtos = nomesCurtosDosTipos([...contagem.keys()]);
+  const porTipo = [...contagem].map(([nome, n], i) => `${n} ${curtos[i]}`).join(', ');
+  const partes = [`${ex.series.length} ${ex.series.length === 1 ? 'série' : 'séries'}`, porTipo];
+  const tecnicas = resumoTecnicasEDescanso(ex.series.map((s) => ({ ...s, descansoSegundos: null })), cfg);
+  if (tecnicas) partes.push(`${tecnicas.charAt(0).toUpperCase()}${tecnicas.slice(1)}`);
+  const descanso = ex.series[0].descansoSegundos;
+  if (descanso != null && descanso > 0 && ex.series.every((s) => s.descansoSegundos === descanso)) partes.push(textoCurtoDoDescanso(descanso));
+  return partes.join(' · ');
+}
+
+/** Nome do tipo na linha do exercício: com mais de 10 letras vira as 5 primeiras + "." ("Aquecimento" → "Aquec."; "Back off" fica). */
+export function nomeCurtoDoTipo(nome: string): string {
+  const limpo = nome.trim();
+  return (limpo.match(/\p{L}/gu)?.length ?? 0) > 10 ? `${limpo.slice(0, 5).trimEnd()}.` : limpo;
+}
+
+/**
+ * Os nomes curtos de uma lista de tipos, na mesma ordem. Dois com o mesmo curto ("Aquecimento geral" e "Aquecimento
+ * específico" → "Aquec.") saem inteiros: "2 Aquec., 1 Aquec." não diria qual é qual.
+ */
+export function nomesCurtosDosTipos(nomes: readonly string[]): string[] {
+  const curtos = nomes.map(nomeCurtoDoTipo);
+  return nomes.map((nome, i) => (curtos.some((c, j) => j !== i && c === curtos[i] && nomes[j].trim() !== nome.trim()) ? nome.trim() : curtos[i]));
 }
 
 /**

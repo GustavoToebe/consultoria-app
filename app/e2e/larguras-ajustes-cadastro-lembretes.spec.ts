@@ -141,18 +141,21 @@ test.describe('Financeiro › Lembretes', () => {
     await expect(page.getByText('Lembretes de cobrança', { exact: true })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Recebimento', exact: true })).toBeVisible();
     await expect(page.getByLabel('InfiniteTag')).toHaveCount(0);
-    // Lembretes e recebimento (19/11): os dias são passos (− número +), não caixas de texto; o passo não estica. No PC as duas
-    // colunas (ajustes e "Quem recebe e por onde") ficam lado a lado, alinhadas pelo topo; a área mede a própria largura antes.
-    const dias = page.getByRole('spinbutton', { name: 'Dias antes do vencimento' });
+    // 28/11: os dias são "digite ou escolha" (`ui/EscolhaSuspensa`) e não esticam. As duas colunas (configuração e, ao lado,
+    // a prévia do e-mail) só existem da faixa larga (área ≥ 1600: 1920 com o menu aberto), alinhadas pelo topo; em 1440 e
+    // no celular a prévia desce. A área mede a própria largura antes.
+    const dias = page.getByRole('button', { name: /^Dias antes: / });
     const campo = await caixa(dias);
     const abas = await caixa(page.getByRole('tab', { name: 'Visão geral' }));
     expect(campo.width).toBeLessThanOrEqual(560);
     expect(campo.x).toBeGreaterThanOrEqual(abas.x);
-    if (largura >= 1280) {
-      const ajustes = page.getByRole('heading', { name: 'Lembretes de cobrança' });
-      const apoio = page.getByRole('heading', { name: 'Quem recebe e por onde' });
+    const ajustes = page.getByRole('heading', { name: 'Lembretes de cobrança' });
+    const apoio = page.getByRole('heading', { name: 'Prévia do e-mail' });
+    if (largura >= 1920) {
       await expect.poll(async () => Math.abs((await caixa(ajustes)).y - (await caixa(apoio)).y)).toBeLessThan(2);
       expect((await caixa(apoio)).x).toBeGreaterThan(campo.x + campo.width);
+    } else {
+      await expect.poll(async () => (await caixa(apoio)).y > (await caixa(ajustes)).y).toBe(true);
     }
     await semRolagemHorizontal(page);
     await capturar(page, `lembretes-${largura}`);

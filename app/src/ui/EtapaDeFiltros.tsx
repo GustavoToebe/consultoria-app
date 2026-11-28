@@ -1,8 +1,9 @@
-import { X } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
+import { rotuloDeMostrar } from '../dominio/atalhosDePeriodo';
 import { espaco } from '../tema/tokens';
+import { useContagemDoRascunho, type ResultadoDoRascunho } from './BarraDeFiltros';
 import { Botao } from './Botao';
 
 /**
@@ -17,12 +18,15 @@ import { Botao } from './Botao';
  * Foco (web): ao abrir vai ao primeiro campo ou caixa de marcar, senão à opção marcada (ou ao primeiro controle) da etapa; ao voltar, ao botão "Filtros" (dentro de
  * `barra`). Os seletores da etapa não abrem outra folha: com muitas opções, `Escolha` em chips que quebram linha.
  */
-export function useEtapaDeFiltros<T>({ valor, limpo, aoAplicar, rotuloDoAplicar }: {
+export function useEtapaDeFiltros<T>({ valor, limpo, aoAplicar, rotuloDoAplicar, resultado }: {
   valor: T; limpo: T; aoAplicar: (filtros: T) => void;
-  /** Texto do botão principal a partir do rascunho ("Mostrar 18 exercícios"); sem ele, "Aplicar filtros". */
+  /** Texto do botão principal a partir do rascunho ("Mostrar 18 exercícios"); vale mais que `resultado`. */
   rotuloDoAplicar?: (rascunho: T) => string;
+  /** "Mostrar N <itens>" pela contagem do rascunho (o mesmo da `BarraDeFiltros`); sem ele nem `rotuloDoAplicar`, "Aplicar filtros". */
+  resultado?: ResultadoDoRascunho<T>;
 }) {
   const [rascunho, setRascunho] = useState<{ filtros: T } | null>(null);
+  const quantos = useContagemDoRascunho(rascunho ? rascunho.filtros : null, resultado, valor);
   const aberta = rascunho !== null;
   // Já abriu nesta folha: quem tem `autoFocus` (a busca) não pega o foco de volta ao remontar.
   const [jaAbriu, setJaAbriu] = useState(false);
@@ -33,7 +37,7 @@ export function useEtapaDeFiltros<T>({ valor, limpo, aoAplicar, rotuloDoAplicar 
     const raiz = (aberta ? corpoRef.current : gatilho.current) as unknown as HTMLElement | null;
     // Busca ou chips de várias escolhas no topo (os grupos da folha de exercícios) vêm antes da opção marcada de um segmento abaixo.
     const alvo = aberta
-      ? raiz?.querySelector<HTMLElement>('input, textarea, [role="checkbox"]') ?? raiz?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+      ? raiz?.querySelector<HTMLElement>('input, textarea, [role="checkbox"], [aria-pressed]') ?? raiz?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
         ?? raiz?.querySelector<HTMLElement>('button, [role="radio"], [tabindex="0"]')
       : raiz?.querySelector<HTMLElement>('button, [role="button"]');
     alvo?.focus();
@@ -59,9 +63,9 @@ export function useEtapaDeFiltros<T>({ valor, limpo, aoAplicar, rotuloDoAplicar 
     corpo: (seletores: ReactNode) => <View ref={corpoRef} collapsable={false} style={estilos.corpo}>{seletores}</View>,
     rodape: (
       <>
-        <Botao rotulo="Limpar filtros" tipo="fantasma" Icone={X} aoTocar={() => setRascunho({ filtros: limpo })} />
+        <Botao rotulo="Limpar filtros" tipo="fantasma" aoTocar={() => setRascunho({ filtros: limpo })} />
         <Botao rotulo="Cancelar" tipo="secundario" aoTocar={fechar} />
-        <Botao rotulo={(rascunho && rotuloDoAplicar?.(rascunho.filtros)) || 'Aplicar filtros'} aoTocar={aplicar} />
+        <Botao rotulo={(rascunho && rotuloDoAplicar?.(rascunho.filtros)) || (resultado ? rotuloDeMostrar(quantos, resultado.itens) : 'Aplicar filtros')} aoTocar={aplicar} />
       </>
     ),
   };

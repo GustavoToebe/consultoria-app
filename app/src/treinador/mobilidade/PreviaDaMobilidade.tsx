@@ -5,6 +5,7 @@ import { CartaoDaSecaoDaMobilidade, CartaoDasOrientacoesDaMobilidade } from '../
 import { type ConteudoMobilidade, mobilidadeParaApi } from '../../dominio/mobilidade';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
+import { DicaDeTexto } from '../../ui/DicaDeTexto';
 import { Texto } from '../../ui/Texto';
 import { useMovimentoReduzido } from '../../ui/useMovimentoReduzido';
 import { elementoDaWeb } from '../painel/edicao/tipos';
@@ -38,6 +39,7 @@ export function PreviaDaMobilidade({ conteudo, secaoUid, largura }: { conteudo: 
   const cartoes = useRef<View>(null);
   // Topo de cada seção dentro da rolagem (o `onLayout` do cartão, filho direto da pilha).
   const [topos, setTopos] = useState<Record<string, number>>({});
+  const [dicaAberta, setDicaAberta] = useState(false);
   const api = mobilidadeParaApi(conteudo);
   useEffect(() => { elementoDaWeb(cartoes.current)?.setAttribute('inert', ''); }, []);
   // A prévia cabe sempre na parte visível da janela, da posição dela (ou da barra, quando já grudou) até embaixo: com a
@@ -74,9 +76,10 @@ export function PreviaDaMobilidade({ conteudo, secaoUid, largura }: { conteudo: 
     <View ref={coluna} role="complementary" aria-labelledby="titulo-da-previa-da-mobilidade" testID="previa-da-mobilidade"
       style={[estilos.coluna, { width: largura }, fixo ? { ...fixo, maxHeight: undefined } : null]}>
       <View style={[estilos.moldura, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
-        <View style={[estilos.topo, { borderBottomColor: cores.divisor }]}>
-          <Texto variante="rotulo" nativeID="titulo-da-previa-da-mobilidade">Prévia para o aluno</Texto>
-          <Texto variante="pequeno">Como fica no celular dele. Atualiza enquanto você edita.</Texto>
+        {/* Título e explicação numa linha (28/11): a explicação fica no ⓘ; aberto, a faixa sobe de camada sobre a rolagem. */}
+        <View style={[estilos.topo, { borderBottomColor: cores.divisor }, dicaAberta ? estilos.porCima : null]}>
+          <Texto variante="rotulo" nativeID="titulo-da-previa-da-mobilidade" style={estilos.titulo}>Prévia · como o aluno vê o rascunho</Texto>
+          <DicaDeTexto rotulo="Sobre a prévia" texto="Como fica no celular do aluno, com o que você ainda não publicou. Atualiza enquanto você edita; nada aqui é tocável." aoMudar={setDicaAberta} />
         </View>
         <ScrollView ref={rolagem} style={estilos.rolagem} contentContainerStyle={estilos.conteudo}>
           <View ref={cartoes} pointerEvents="none" aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={estilos.pilha}>
@@ -98,7 +101,10 @@ const estilos = StyleSheet.create({
   coluna: { alignSelf: 'flex-start', flexShrink: 0 },
   // `minHeight: 0` e `flexShrink`: a moldura cabe na altura da coluna grudada e a rolagem de dentro rola.
   moldura: { flexShrink: 1, minHeight: 0, borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
-  topo: { gap: 2, paddingHorizontal: espaco(2), paddingVertical: espaco(1.25), borderBottomWidth: 1 },
+  // O ⓘ tem alvo de 44: o recuo vertical diminui para a faixa não crescer.
+  topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingLeft: espaco(2), paddingRight: espaco(0.5), paddingVertical: espaco(0.25), borderBottomWidth: 1 },
+  titulo: { flex: 1, minWidth: 0 },
+  porCima: { zIndex: 10 },
   rolagem: { flexShrink: 1 },
   conteudo: { padding: espaco(2) },
   pilha: { gap: espaco(2) },

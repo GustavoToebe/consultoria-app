@@ -82,13 +82,6 @@ export function resumoDasTagsNaLinha(tags: readonly TagDeAluno[], max = 2): Resu
 
 const alunos = (n: number) => `${n} ${n === 1 ? 'aluno' : 'alunos'}`;
 
-/** Frase do painel de apagar a tag (o nome da tag fica por conta do título da tela). */
-export function textoDeApagarTag(tag: { totalAlunos: number }): string {
-  const n = tag.totalAlunos;
-  if (n <= 0) return 'Nenhum aluno usa esta tag.';
-  return `A tag está em ${alunos(n)}; ao apagar, sai ${n === 1 ? 'dele' : 'de todos'}.`;
-}
-
 /** Frase do formulário de renomear ou trocar a cor. */
 export function textoDeRenomear(tag: { totalAlunos: number }): string {
   const n = tag.totalAlunos;

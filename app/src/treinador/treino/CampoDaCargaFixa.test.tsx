@@ -14,6 +14,8 @@ jest.mock('@rn-primitives/label', () => jest.requireActual('../../aluno/primitiv
 jest.mock('../../ui/Escolha', () => ({ Escolha: () => null }));
 jest.mock('../../ui/EscolhaSuspensa', () => ({ EscolhaSuspensa: () => null }));
 jest.mock('../../ui/Botao', () => ({ Botao: () => null }));
+// O painel da troca RIR · RPE (`CargaERirDaSerie`) vai a um portal (alert-dialog), que o jest não lê.
+jest.mock('../../ui/PainelConfirmacao', () => ({ PainelConfirmacao: () => null }));
 jest.mock('../../ui/IconeBotao', () => ({ IconeBotao: () => null }));
 jest.mock('./BotaoDeAbrir', () => ({ BotaoDeAbrir: () => null, BotaoDeTexto: () => null }));
 jest.mock('../../ui/Texto', () => ({

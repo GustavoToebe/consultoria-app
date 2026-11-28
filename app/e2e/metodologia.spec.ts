@@ -182,7 +182,8 @@ for (const largura of [390, 1280]) {
     await expect(linhaDaSerie(page, /^Série \d · WS/)).toHaveCount(3);
     await linhaDaSerie(page, /^Série 2 · WS/).click();
     await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
-    await expect(page.getByText(/1×10 · WS \+ Pirâmide decrescente/).first()).toBeVisible();
+    // A linha aberta diz as repetições no nome acessível e a técnica junto da quantidade ("1 série · pirâmide decrescente").
+    await expect(linhaDaSerie(page, /^Série 2 · WS, 1 série, repetições 10 reps/, true).getByText(/^1 série · pirâmide decrescente/)).toBeVisible();
     // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
     await expect(page.getByRole('region', { name: /^Editando série 2(,|$)/ })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);

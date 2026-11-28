@@ -95,7 +95,7 @@ for (const largura of [390, 1280]) {
 
       await botao.click();
       await painel.getByRole('radio', { name: 'Concluídas', exact: true }).click();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(page.getByText('Plano 17', { exact: true })).toHaveCount(0);
@@ -116,7 +116,8 @@ for (const largura of [390, 1280]) {
           [`GET /alunos/${ALUNO_ID}/planos-treino`]: (_p, route) => json(route, planos),
         }, temaDaTela);
         await page.getByText('Plano 17', { exact: true }).click();
-        const pasta = page.getByRole('dialog', { name: 'Plano 17' });
+        // A folha da pasta mostra o período no título (`dominio/folhaDaPasta.tituloDaFolhaDaPasta`), não o nome gravado.
+        const pasta = page.getByRole('dialog', { name: 'Pasta de 01/10 a 31/10' });
         const etapa = page.getByRole('dialog', { name: 'Filtros de registros' });
         // A seção "Registros e cargas" nasce fechada (docs/design-e-front.md §4.8): abre antes de procurar o "Filtros".
         await pasta.getByRole('button', { name: 'Registros e cargas, recolhido' }).click();
@@ -171,7 +172,7 @@ for (const largura of [390, 1280]) {
 
         await botao.click();
         await etapa.getByRole('radio', { name: 'Treino B', exact: true }).click();
-        await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await etapa.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
         await voltouIgual();
         await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
         await expect(pasta.getByRole('button', { name: 'Tirar filtro: Plano: Treino B' })).toBeVisible();
@@ -182,7 +183,7 @@ for (const largura of [390, 1280]) {
         await expect(pasta).toBeVisible();
         await botao.click();
         await etapa.getByRole('radio', { name: 'Treino B', exact: true }).click();
-        await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await etapa.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
         await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
         await pasta.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
         await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
@@ -191,7 +192,7 @@ for (const largura of [390, 1280]) {
         // Fechar a pasta com um filtro ligado: ao reabrir, os Registros começam sem filtro; o botão das Pastas nunca contou o dos Registros.
         await botao.click();
         await etapa.getByRole('radio', { name: 'Treino C', exact: true }).click();
-        await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await etapa.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
         await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
         await pasta.getByRole('button', { name: 'Fechar' }).click();
         await expect(pasta).toHaveCount(0);
@@ -224,7 +225,7 @@ for (const largura of [390, 1280]) {
       await expect(painel.getByRole('radio', { name: 'Pasta em uso', exact: true })).toBeChecked();
       await page.screenshot({ path: testInfo.outputPath(`historico-painel-${largura}.png`) });
       await painel.getByRole('radio', { name: 'Pasta anterior', exact: true }).click();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(page.getByRole('button', { name: 'Tirar filtro: Período: Pasta anterior' })).toBeVisible();
@@ -232,7 +233,7 @@ for (const largura of [390, 1280]) {
       await botao.click();
       await painel.getByRole('button', { name: 'Limpar filtros' }).click();
       await expect(painel.getByRole('radio', { name: 'Pasta em uso', exact: true })).toBeChecked();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
       await expect(page.getByRole('button', { name: /^Tirar filtro: Período/ })).toHaveCount(0);
       expect(errosDaPagina).toEqual([]);
@@ -282,7 +283,8 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('dialog')).toHaveCount(1);
       // Os grupos em chips de várias escolhas, com a contagem; o foco vai ao primeiro (ordem alfabética).
       await expect(etapa.getByRole('checkbox', { name: 'Glúteos, 1 exercício', exact: true })).toBeVisible();
-      await expect(etapa.getByRole('checkbox', { name: 'Bíceps, 1 exercício', exact: true })).toBeFocused();
+      // Oito grupos (até 12, 28/11): sem a busca de grupo.
+      await expect(etapa.getByRole('textbox', { name: 'Buscar grupo' })).toHaveCount(0);
       await expect(etapa.getByText('2 exercícios marcados. Ao aplicar outros filtros, sai da seleção o que não passar neles.')).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`biblioteca-etapa-${largura}.png`) });
       await page.keyboard.press('Escape');
@@ -336,7 +338,7 @@ for (const largura of [390, 1280]) {
       await expect(etapa).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`progresso-etapa-${largura}.png`) });
       await etapa.getByRole('radio', { name: 'Peito', exact: true }).click();
-      await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await etapa.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(lista).toBeVisible();
       await expect(botao).toBeFocused();
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');

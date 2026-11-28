@@ -69,31 +69,37 @@ for (const largura of LARGURAS) {
 }
 
 for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [1280, false], [1280, true], [1024, false], [390, false], [390, true]] as const) {
-  test(`treino: as três faixas da série (Tipo e técnica, Estrutura, Carga e RIR) cabem em ${largura}px${escuro ? ', escuro' : ''}`, async ({ page }) => {
+  // Série aberta da leva 3 (SERIE-ABERTA, seção 1): as três faixas com título (h3) viraram linhas de configuração, cada uma
+  // um grupo nomeado pelo nome à esquerda (`LinhaDoFormulario`): Tipo e técnica, Volume (Séries e Descanso), Repetições,
+  // Carga e RIR e Observação.
+  test(`treino: as linhas da série (Tipo e técnica, Volume, Repetições, Carga e RIR) cabem em ${largura}px${escuro ? ', escuro' : ''}`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await tema(page, escuro);
     const { naoTratadas, errosDaPagina } = await abrirTreino(page);
     if (!duasColunas(largura)) await page.getByRole('button', { name: 'Editar Supino reto com barra', exact: true }).click();
-    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
+    const aberta = page.getByRole('region', { name: /^Editando série 1(,|$)/ });
+    await expect(aberta).toBeVisible();
     const caixa = async (b: ReturnType<Page['getByRole']>, nome: string) => {
       const r = await b.first().boundingBox();
       if (!r) throw new Error(`sem ${nome}`);
       return r;
     };
-    const faixa = (nome: string) => caixa(page.getByRole('heading', { name: nome, exact: true }), nome);
-    const [tipo, estrutura, carga] = [await faixa('Tipo e técnica'), await faixa('Estrutura'), await faixa('Carga e RIR')];
-    // Uma faixa embaixo da outra, alinhadas à esquerda; nada das sete caixas de antes.
-    expect(estrutura.y).toBeGreaterThan(tipo.y + 40);
-    expect(carga.y).toBeGreaterThan(estrutura.y + 40);
+    const linha = (nome: string) => caixa(aberta.getByRole('group', { name: nome, exact: true }), nome);
+    const [tipo, volume, repeticoes, carga] = [await linha('Tipo e técnica'), await linha('Volume'), await linha('Repetições'), await linha('Carga e RIR')];
+    // Uma linha embaixo da outra, alinhadas à esquerda; nada das sete caixas nem das faixas com título de antes.
+    expect(volume.y).toBeGreaterThan(tipo.y + 40);
+    expect(repeticoes.y).toBeGreaterThan(volume.y + 40);
+    expect(carga.y).toBeGreaterThan(repeticoes.y + 40);
     expect(Math.abs(tipo.x - carga.x)).toBeLessThan(2);
-    for (const antiga of ['Esforço', 'Carga de cada série']) await expect(page.getByRole('heading', { name: antiga, exact: true })).toHaveCount(0);
-    // Séries, repetições e descanso: na mesma linha com espaço; no celular a linha quebra, sem nada passar da borda.
+    for (const antiga of ['Esforço', 'Carga de cada série', 'Tipo e técnica', 'Estrutura']) await expect(page.getByRole('heading', { name: antiga, exact: true })).toHaveCount(0);
+    // Séries e descanso lado a lado na linha Volume; as repetições na linha de baixo; nada passa da borda.
     const maximo = await caixa(page.getByRole('textbox', { name: 'Reps máx.', exact: true }), 'Reps máx.');
     const descanso = await caixa(page.getByRole('button', { name: /^Descanso: .*. Escolher.$/ }), 'Descanso');
-    // 27/11: alinhados pelo topo (as repetições têm a escolha Faixa | Exata | AMRAP em cima dos números).
     const series = await caixa(page.getByRole('button', { name: /^Séries: .*. Escolher.$/ }), 'Séries');
-    if (largura >= 1280) expect(Math.abs(descanso.y - series.y)).toBeLessThan(2);
-    expect(maximo.x + maximo.width).toBeLessThanOrEqual(largura);
+    expect(Math.abs(descanso.y - series.y)).toBeLessThan(2);
+    expect(descanso.x).toBeGreaterThan(series.x + series.width);
+    expect(maximo.y).toBeGreaterThan(series.y + series.height);
+    for (const r of [series, descanso, maximo]) expect(r.x + r.width).toBeLessThanOrEqual(largura);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await capturar(page, `treino-${largura}${escuro ? '-escuro' : ''}`);
     expect(naoTratadas).toEqual([]);

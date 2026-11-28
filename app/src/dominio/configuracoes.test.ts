@@ -272,7 +272,7 @@ describe('itens que abrem dentro de Configurações (coluna da direita)', () => 
 
   it('abrem dentro só as telas de configuração; as do menu principal abrem a tela inteira', () => {
     expect(ids(CARTOES_DE_CONFIGURACAO.filter(abreDentro))).toEqual([
-      'meus-dados', 'seguranca', 'ajustes', 'minha-conta', 'marca', 'contato', 'whatsapp-oficial', 'documentos-pdf', 'padroes-do-acompanhamento', 'tags-dos-alunos', 'contratos', 'termos',
+      'meus-dados', 'seguranca', 'ajustes', 'minha-conta', 'marca', 'contato', 'whatsapp-oficial', 'documentos-pdf', 'regras-de-atencao', 'padroes-do-acompanhamento', 'tags-dos-alunos', 'contratos', 'termos',
     ]);
     const marca = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'marca')!;
     const auditoria = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'auditoria')!;

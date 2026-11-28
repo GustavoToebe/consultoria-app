@@ -13,7 +13,6 @@ import {
   planosDaPasta,
   podeSugerirPeso,
   resumoDaPublicacao,
-  resumoDosPendentes,
   rotuloDoPublicarDaPasta,
   situacaoDoPublicar,
   TEXTO_DO_CONFLITO_DA_PUBLICACAO,
@@ -48,7 +47,7 @@ describe('publicarPasta: plano pendente', () => {
   });
 });
 
-describe('publicarPasta: contagem, rótulo e resumo dos pendentes', () => {
+describe('publicarPasta: contagem e rótulo dos pendentes', () => {
   const doisPendentes: PlanosDaPasta = {
     treino: [alteradoDepois('t', 'Treino 17'), publicadoSemAlteracao('t0', 'Antigo')], dieta: [plano('d', 'Dieta 17')], mobilidade: [],
   };
@@ -73,14 +72,6 @@ describe('publicarPasta: contagem, rótulo e resumo dos pendentes', () => {
     expect(rotuloDoPublicarDaPasta({ treino: null, dieta: [plano('d', 'D')], mobilidade: [] }, 'Plano 17')).toEqual(semN);
     expect(rotuloDoPublicarDaPasta(null, 'Plano 17')).toEqual(semN);
     expect(rotuloDoPublicarDaPasta(doisPendentes, 'Plano 17').rotulo).not.toMatch(/treino|dieta/);
-  });
-
-  it('resumo: os títulos que vão, no plural e no singular; null com N desconhecido ou 0', () => {
-    expect(resumoDosPendentes(doisPendentes)).toBe('Vai publicar 2 planos: “Treino 17” e “Dieta 17”.');
-    expect(resumoDosPendentes({ treino: [plano('t', 'Treino 17')], dieta: [], mobilidade: [] })).toBe('Vai publicar 1 plano: “Treino 17”.');
-    expect(resumoDosPendentes({ treino: null, dieta: [plano('d', 'D')], mobilidade: [] })).toBeNull();
-    expect(resumoDosPendentes({ treino: [], dieta: [], mobilidade: [] })).toBeNull();
-    expect(resumoDosPendentes(null)).toBeNull();
   });
 });
 

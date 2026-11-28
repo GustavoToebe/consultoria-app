@@ -7,6 +7,7 @@ import { BASE_DAS_CONFIGURACOES, caminhoDoItem, ehItemEmbutido, itemDoCaminho, t
 import { LARGURA_FORMULARIO } from '../../tema/tokens';
 import { TelaContratos } from '../contratos/TelaContratos';
 import { TelaDocumentos } from '../documentos/TelaDocumentos';
+import { TelaRegrasDeAtencao } from '../regras/TelaRegrasDeAtencao';
 import { TelaWhatsApp } from '../whatsapp/TelaWhatsApp';
 import { Vazio } from '../../ui/Estados';
 import { Tela } from '../../ui/Tela';
@@ -34,6 +35,7 @@ const TELA_DO_ITEM: Record<ItemEmbutido, () => ReactNode> = {
   'documentos-pdf': () => <TelaDocumentos />,
   'tags-dos-alunos': () => <TelaTagsDosAlunos embutida />,
   contratos: () => <TelaContratos embutida />,
+  'regras-de-atencao': () => <TelaRegrasDeAtencao embutida />,
   termos: () => <TelaDosTermos />,
 };
 

@@ -53,7 +53,14 @@ const opcao = (onde: Locator, grupo: string, rotulo: string) =>
   onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 /** Marca opções numa `SelecaoMultiplaSuspensa` do painel e fecha a lista com Esc (o painel continua aberto). */
+/** Regra única dos filtros (28/11): Acesso e Atualização são chips no painel; Responsável segue na lista suspensa com busca. */
+const EM_CHIPS = ['Acesso ao app', 'Atualização'];
 async function marcar(page: Page, painel: Locator, rotulo: string, todos: string, opcoes: string[]) {
+  if (EM_CHIPS.includes(rotulo)) {
+    for (const o of opcoes) await painel.getByRole('group', { name: rotulo }).getByRole('button', { name: o, exact: true }).click();
+    await expect(painel).toBeVisible();
+    return;
+  }
   await painel.getByRole('button', { name: `${rotulo}: ${todos}. Escolher.` }).click();
   const lista = page.getByRole('dialog', { name: rotulo });
   for (const o of opcoes) await lista.getByRole('checkbox', { name: o }).click();
@@ -82,9 +89,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const painel = painelDeFiltros(page);
       await expect(painel).toBeVisible();
       // Grupos em uma coluna: Identificação, Situação e Outros.
-      await expect(painel.getByRole('group', { name: 'Identificação' }).getByRole('button', { name: /^Responsável: / })).toBeVisible();
-      await expect(painel.getByRole('group', { name: 'Situação' }).getByRole('button', { name: /^Atualização: / })).toBeVisible();
-      await expect(painel.getByRole('group', { name: 'Outros' }).getByRole('radiogroup', { name: 'Último registro' })).toBeVisible();
+      await expect(painel.getByRole('button', { name: /^Responsável: / })).toBeVisible();
+      await expect(painel.getByRole('group', { name: 'Atualização' })).toBeVisible();
+      await expect(painel.getByRole('radiogroup', { name: 'Último registro' })).toBeVisible();
 
       await opcao(painel, 'Situação', 'Todos').click();
       await marcar(page, painel, 'Acesso ao app', 'Todos', ['Sem acesso', 'Aguardando o primeiro acesso']);
@@ -94,7 +101,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // Nada foi gravado com o painel aberto.
       expect(busca(page).get('situacao')).toBeNull();
       expect(filtrosDoPedido(pedidos)).toEqual([['situacao', 'ATIVO'], ['meus', 'false']]);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
 
       await expect.poll(() => busca(page).get('situacao')).toBe('TODOS');
@@ -141,7 +148,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await botaoFiltros(page).click();
       let painel = painelDeFiltros(page);
       await marcar(page, painel, 'Acesso ao app', 'Todos', ['Sem acesso']);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect.poll(() => busca(page).get('acesso')).toBe('SEM');
       await expect(page.getByText(/saíram? da seleção|foi limpa/)).toHaveCount(0);
 
@@ -151,7 +158,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByText('2 alunos marcados', { exact: false })).toBeVisible();
       await botaoFiltros(page).click();
       painel = painelDeFiltros(page);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect(page.getByText('2 alunos marcados', { exact: false })).toBeVisible();
       await expect(page.getByText(/saíram? da seleção|foi limpa/)).toHaveCount(0);
@@ -159,7 +166,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await botaoFiltros(page).click();
       painel = painelDeFiltros(page);
       await opcao(painel, 'Último registro', 'Nunca registrou').click();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(page.getByText('Os 2 alunos marcados saíram da seleção porque os filtros mudaram.')).toBeVisible();
       await expect(page.getByText('Nenhum aluno marcado', { exact: false })).toBeVisible();
 
@@ -192,7 +199,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await botaoFiltros(page).click();
       const painel = painelDeFiltros(page);
       await marcar(page, painel, 'Acesso ao app', 'Todos', ['Sem acesso']);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
 
       // A lista à vista ainda é a do filtro anterior; o botão espera e diz por quê.
@@ -246,21 +253,21 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       await botaoFiltros(page).click();
       const painel = painelDeFiltros(page);
-      await expect(painel.getByRole('button', { name: /^Acesso ao app: / })).toBeVisible();
+      await expect(painel.getByRole('group', { name: 'Acesso ao app' })).toBeVisible();
       await expect(painel.getByRole('button', { name: 'Responsável: Meus alunos. Escolher.' })).toBeVisible();
-      await expect(painel.getByRole('button', { name: /^Atualização: / })).toHaveCount(0);
+      await expect(painel.getByRole('group', { name: 'Atualização' })).toHaveCount(0);
       await expect(painel.getByRole('radiogroup', { name: 'Plano em uso' })).toHaveCount(0);
       await expect(painel.getByRole('radiogroup', { name: 'Pasta' })).toHaveCount(0);
       await expect(painel.getByRole('radiogroup', { name: 'Último registro' })).toHaveCount(0);
       // Sem plano nem registro, o grupo "Outros" nem aparece.
-      await expect(painel.getByRole('group', { name: 'Outros' })).toHaveCount(0);
+      await expect(painel.getByRole('radiogroup', { name: 'Último registro' })).toHaveCount(0);
 
       // "Limpar filtros" do painel limpa só o rascunho; "Aplicar filtros" mostra todos os ativos: para quem começa nos
       // seus, o endereço diz meus=false.
       await painel.getByRole('button', { name: 'Limpar filtros', exact: true }).click();
       await expect(painel.getByRole('button', { name: 'Responsável: Todos. Escolher.' })).toBeVisible();
       expect(busca(page).get('meus')).toBeNull();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect.poll(() => busca(page).get('meus')).toBe('false');
       await expect.poll(() => filtrosDoPedido(pedidos)).toEqual([['situacao', 'ATIVO'], ['meus', 'false']]);
@@ -282,7 +289,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await botaoFiltros(page).click();
       const painel = painelDeFiltros(page);
       await marcar(page, painel, 'Atualização', 'Todos', ['Para revisar']);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect.poll(() => busca(page).get('atualizacao')).toBe('ENVIADA');
       await expect.poll(() => filtrosDoPedido(pedidos)).toEqual([['situacao', 'ATIVO'], ['meus', 'false'], ['atualizacao', 'ENVIADA']]);
       await expect(page.getByRole('button', { name: 'Tirar filtro: Atualização: Para revisar' })).toBeVisible();

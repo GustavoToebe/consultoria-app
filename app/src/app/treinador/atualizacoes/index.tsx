@@ -101,6 +101,8 @@ export default function ListaAtualizacoes() {
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome do aluno'}} valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS}
       chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))}
       painelLateral={{titulo:'Filtros de atualizações'}}
+      // "Mostrar N atualizações": a mesma página 0 da aba em vigor, com o rascunho.
+      resultado={{itens:{um:'atualização',varios:'atualizações'},total:lista.dadosDeOutraChave?undefined:lista.dados?.total,buscar:(r)=>{ const p=pedidoDaApi(r,buscaAtrasada,usuario?.id); return listarAtualizacoesPagina(filtro,0,p.meus,p.filtro).then(x=>x.total); }}}
       seletores={(atuais,mudar)=><>
         <GrupoDoPainel titulo="Identificação" primeiro>
           <SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel(responsaveis,usuario?.id)} marcados={new Set(atuais.responsaveis)} aoMudar={(m)=>mudar({...atuais,responsaveis:[...m]})} rotuloDeTodos="Todos" style={{alignSelf:'stretch'}} />

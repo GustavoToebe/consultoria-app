@@ -169,6 +169,11 @@ public class Exercicio {
         this.ativo = false;
     }
 
+    /** Unir grupos musculares: só o grupo muda; o plano publicado não guarda o grupo e o histórico o lê daqui (retroativo). */
+    public void renomearGrupo(String grupo) {
+        this.grupoMuscular = grupo;
+    }
+
     public UUID getId() {
         return id;
     }

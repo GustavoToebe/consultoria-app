@@ -40,6 +40,8 @@ test('biblioteca: miniaturas, enviar GIF, trocar e remover a imagem própria', a
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /exercicios/pagina': paginaDeExerciciosFalsa([COM_CATALOGO, COM_PROPRIA]),
+    // A folha do exercício pede a lista inteira (sugestões e contagens de grupo e equipamento).
+    'GET /exercicios': { corpo: [COM_CATALOGO, COM_PROPRIA] },
     [`GET /exercicios/${COM_PROPRIA.id}/imagem`]: (_p, route) => route.fulfill({ status: 200, contentType: 'image/png', body: AZUL }),
     [`PUT /exercicios/${COM_PROPRIA.id}/imagem`]: (p, route) => {
       envios.push({ metodo: p.metodo, caminho: p.caminho, corpo: route.request().postDataBuffer()?.toString('latin1') ?? '' });

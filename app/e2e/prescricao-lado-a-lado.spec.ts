@@ -4,8 +4,9 @@ import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } fr
 import { ALUNO_ID, BIBLIOTECA, PLANO_ID, planoDetalhe } from './editor-inspetor.dados';
 
 /**
- * Prescrição da série aberta (redesenho das séries, 05/11; série aberta de 27/11): Séries, Repetições e Descanso numa linha
- * só da faixa Estrutura no PC; no celular a linha quebra e nada passa da borda. O "+ Nova série" fica inteiro na coluna.
+ * Prescrição da série aberta (redesenho das séries, 05/11; linhas de configuração da leva 3, SERIE-ABERTA seção 1): Séries
+ * e Descanso lado a lado na linha Volume e as Repetições na linha de baixo, de largura fixa; no celular o nome da linha sobe
+ * para cima dos controles e nada passa da borda. O "+ Nova série" fica inteiro na coluna.
  */
 
 async function abrir(page: Page) {
@@ -22,8 +23,8 @@ async function abrir(page: Page) {
   await expect(page.getByRole('button', { name: /^Editar sessão/ })).toBeVisible();
 }
 
-/** As três partes da linha da Estrutura: o contador de séries, as repetições (o Máx. fecha a faixa) e o descanso. */
-async function linhaDaEstrutura(page: Page) {
+/** As partes de Volume e Repetições: o contador de séries, o descanso e as repetições (o Máx. fecha a faixa). */
+async function volumeERepeticoes(page: Page) {
   const caixa = async (b: ReturnType<Page['getByRole']>) => (await b.first().boundingBox())!;
   return {
     series: await caixa(page.getByRole('button', { name: /^Séries: .*. Escolher.$/ })),
@@ -33,17 +34,21 @@ async function linhaDaEstrutura(page: Page) {
 }
 
 for (const largura of [1280, 1440, 1920]) {
-  test(`Estrutura no PC: Séries, Repetições e Descanso numa linha (${largura}px)`, async ({ page }) => {
+  test(`Volume no PC: Séries e Descanso numa linha, Repetições embaixo (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await abrir(page);
     // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
-    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
-    const { series, maximo, descanso } = await linhaDaEstrutura(page);
-    // 27/11: os três lado a lado, nesta ordem, alinhados pelo topo (as repetições têm a escolha Faixa | Exata | AMRAP em
-    // cima dos números, numa área de largura fixa).
+    const aberta = page.getByRole('region', { name: /^Editando série 1(,|$)/ });
+    await expect(aberta).toBeVisible();
+    const { series, maximo, descanso } = await volumeERepeticoes(page);
+    // Séries e Descanso lado a lado, nesta ordem, alinhados pelo topo; as repetições na linha de baixo.
     expect(Math.abs(series.y - descanso.y)).toBeLessThan(2);
-    expect(maximo.x).toBeGreaterThan(series.x + series.width);
-    expect(descanso.x).toBeGreaterThan(maximo.x + maximo.width);
+    expect(descanso.x).toBeGreaterThan(series.x + series.width);
+    expect(maximo.y).toBeGreaterThan(series.y + series.height);
+    // No PC o nome da linha fica à esquerda, na altura dos controles (não em cima deles).
+    const nomeDoVolume = (await aberta.getByRole('group', { name: 'Volume', exact: true }).getByText('Volume', { exact: true }).boundingBox())!;
+    expect(nomeDoVolume.x + nomeDoVolume.width).toBeLessThan(series.x);
+    expect(nomeDoVolume.y).toBeGreaterThanOrEqual(series.y - 1);
     // A grade 2 + 2 saiu: nada de seções Esforço nem Carga de cada série.
     for (const antiga of ['Esforço', 'Carga de cada série', 'Repetições']) {
       await expect(page.getByRole('heading', { level: 3, name: antiga, exact: true })).toHaveCount(0);
@@ -78,14 +83,17 @@ for (const largura of [1280, 1440, 1920]) {
   });
 }
 
-test('Estrutura quebra a linha no celular, sem passar da borda (390px)', async ({ page }) => {
+test('no celular o nome da linha sobe e nada passa da borda (390px)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await abrir(page);
   await page.getByRole('button', { name: 'Editar Supino reto com barra', exact: true }).click();
-  await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
-  const { series, maximo, descanso } = await linhaDaEstrutura(page);
-  // As faixas seguem uma embaixo da outra e o descanso desce para a linha seguinte.
-  expect(descanso.y).toBeGreaterThan(series.y);
+  const aberta = page.getByRole('region', { name: /^Editando série 1(,|$)/ });
+  await expect(aberta).toBeVisible();
+  const { series, maximo, descanso } = await volumeERepeticoes(page);
+  // O nome "Volume" fica em cima dos controles; as repetições vêm na linha de baixo.
+  const nomeDoVolume = (await aberta.getByRole('group', { name: 'Volume', exact: true }).getByText('Volume', { exact: true }).boundingBox())!;
+  expect(series.y).toBeGreaterThanOrEqual(nomeDoVolume.y + nomeDoVolume.height);
+  expect(maximo.y).toBeGreaterThan(Math.max(series.y + series.height, descanso.y + descanso.height) - 1);
   for (const r of [series, maximo, descanso]) expect(r.x + r.width).toBeLessThanOrEqual(390);
   // O par mín/máx quebra junto: o "máx" fica ao lado do "mín", não sozinho na linha de baixo.
   const minimo = (await page.getByRole('textbox', { name: 'Reps mín.', exact: true }).first().boundingBox())!;

@@ -14,6 +14,10 @@ jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('@rn-primitives/label', () => jest.requireActual('../../aluno/primitivosFalsos.apoioTeste').primitivosFalsos());
 jest.mock('@rn-primitives/switch', () => jest.requireActual('../../aluno/primitivosFalsos.apoioTeste').primitivosFalsos());
 jest.mock('@rn-primitives/alert-dialog', () => jest.requireActual('../../aluno/primitivosFalsos.apoioTeste').primitivosFalsos());
+// O painel da troca RIR · RPE (`CargaERirDaSerie`) fica fechado aqui; o overlay falso pediria o Reanimated.
+jest.mock('../../ui/PainelConfirmacao', () => ({ PainelConfirmacao: () => null }));
+// A prévia do aluno saiu do barril `CamposDaPrescricao` (que o teste já troca por nada): fica fora daqui também.
+jest.mock('./PreviaDaSerie', () => ({ PreviaDaSerie: () => null }));
 jest.mock('@rn-primitives/tabs', () => jest.requireActual('../../aluno/primitivosFalsos.apoioTeste').primitivosFalsos());
 jest.mock('@rn-primitives/slot', () => jest.requireActual('../../aluno/primitivosFalsos.apoioTeste').primitivosFalsos());
 jest.mock('@rn-primitives/portal', () => jest.requireActual('../../aluno/primitivosFalsos.apoioTeste').primitivosFalsos());

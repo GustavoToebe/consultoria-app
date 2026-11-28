@@ -134,7 +134,7 @@ test('no painel, Mês de vencimento e Vencimento não valem juntos: escolher os 
   await expect(painel.getByRole('button', { name: 'Mês de vencimento: 10/2026. Escolher.' })).toBeVisible();
   await painel.getByRole('radiogroup', { name: 'Vencimento' }).getByRole('radio', { name: 'Próximos 7 dias' }).click();
   await expect(painel.getByRole('button', { name: 'Mês de vencimento: Qualquer. Escolher.' })).toBeVisible();
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(chip(page, 'Vencimento: de hoje até 26/10/2026')).toBeVisible();
   await expect(chip(page, 'Mês de vencimento: 10/2026')).toHaveCount(0);
   expect([ultimoPedido(pedidos)?.busca.get('de'), ultimoPedido(pedidos)?.busca.get('ate')]).toEqual(['2026-10-19', '2026-10-26']);

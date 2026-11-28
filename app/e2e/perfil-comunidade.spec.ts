@@ -51,8 +51,8 @@ async function tema(page: Page, t: string, contraste = 'PADRAO') {
 async function abrirConta(page: Page, estado: { atual: PreferenciasDoPerfil; falha?: { status: number; corpo: unknown } }, extras: RespostasApi = {}) {
   const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...rotasDoPerfil(estado), ...extras });
   await page.goto('/aluno/conta');
-  // Conta do aluno reorganizada (23/11): o perfil abre em folha pela linha "Meu perfil".
-  await page.getByRole('button', { name: /^Meu perfil/ }).click();
+  // Conta do aluno reorganizada (23/11): o perfil abre em folha pela linha "Perfil na comunidade" do cartão do Perfil (28/11).
+  await page.getByRole('button', { name: /^Perfil na comunidade/ }).click();
   const cartao = page.getByRole('dialog', { name: 'Meu perfil' });
   await expect(cartao.getByRole('switch', { name: 'Reservar meu perfil' })).toBeVisible();
   return { api, cartao };

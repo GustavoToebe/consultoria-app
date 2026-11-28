@@ -20,6 +20,7 @@ import { CartaoExercicioDoDia } from './CartaoExercicioDoDia';
  * prévia do treinador ("Ver como o aluno"), que não têm o mesmo contexto. `emColunas` (só a tela do dia passa, na web larga;
  * a folha da prévia não muda): a lista mede a si mesma e se divide em colunas lidas de cima para baixo (1 a 3, mínimo de 520,
  * `dominio/colunasDoTreinoDoDia`), com cada combinação inteira numa coluna; com uma coluna, os exercícios numa só, na ordem.
+ * TestIDs `lista-do-dia` e `treino-do-dia-coluna-<i>` para o e2e (a lista sem o cartão do próximo; o fim de cada coluna).
  */
 export function ExerciciosDoDia({
   sessao,
@@ -85,9 +86,9 @@ export function ExerciciosDoDia({
   // De cima para baixo: a ordem de leitura e a do Tab continuam as de uma coluna só. Antes da medida, uma coluna.
   const colunas = dividirPorPeso(grupos.map((g) => g.exercicios.length), colunasDosExercicios(largura, VAO_ENTRE_COLUNAS));
   return (
-    <View style={estilos.colunas} onLayout={(ev) => setLargura(ev.nativeEvent.layout.width)}>
+    <View testID="lista-do-dia" style={estilos.colunas} onLayout={(ev) => setLargura(ev.nativeEvent.layout.width)}>
       {colunas.map((indices) => (
-        <View key={indices[0]} style={estilos.coluna}>{indices.map((i) => pecas[i])}</View>
+        <View key={indices[0]} testID={`treino-do-dia-coluna-${indices[0]}`} style={estilos.coluna}>{indices.map((i) => pecas[i])}</View>
       ))}
     </View>
   );

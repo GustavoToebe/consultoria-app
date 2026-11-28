@@ -1,151 +1,118 @@
 import { FileDown } from 'lucide-react-native';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { AvaliacaoFisica } from '../../api/avaliacaoFisicaTipos';
-import { COMPARAR_MAXIMO } from '../../dominio/avaliacaoFisica';
-import {
-  idsDasDuasUltimas, limparSelecao, linhaDoPeso, textoDaSelecao, type ComparacaoDeAvaliacoes, type DirecaoDaVariacao,
-} from '../../dominio/comparacaoDeAvaliacoes';
+import type { MetaDoPeso } from '../../api/tipos';
+import { medidasPreenchidas } from '../../dominio/avaliacaoFisica';
+import { diferencaEntre, idsDasDuasUltimas, maisRecentesPrimeiro } from '../../dominio/comparacaoDeAvaliacoes';
+import { dataParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_FOLHA_LARGA } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Interruptor } from '../../ui/Campos';
+import { OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
+import { Folha } from '../../ui/Folha';
 import { NoPlano } from '../../ui/NoPlano';
-import { useDestaques } from '../../ui/NumeroDeDestaque';
-import { Tabela, type ColunaDaTabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
+import { corDaVariacao } from './apresentacao';
 
-/** Abaixo disso (o cartão no celular) a tabela vira um bloco por medida, sem rolagem lateral. */
-const LARGURA_DA_TABELA = 560;
-
-/** Contador, "Comparar as duas últimas", "Limpar seleção" e, com 4 marcadas, por que a 5ª não entra. */
-export function SelecaoDoComparar({ avaliacoes, marcadas, aoMudar }: { avaliacoes: AvaliacaoFisica[]; marcadas: string[]; aoMudar: (ids: string[]) => void }) {
-  const duas = idsDasDuasUltimas(avaliacoes);
-  const jaSaoAsDuas = marcadas.length === 2 && duas.every((id) => marcadas.includes(id));
-  return (
-    <View style={estilos.bloco}>
-      <Texto variante="suave">Marque de 2 a {COMPARAR_MAXIMO} datas no histórico.</Texto>
-      <View style={estilos.barra}>
-        <Texto variante="rotulo" accessibilityLiveRegion="polite">{textoDaSelecao(marcadas.length)}</Texto>
-        <View style={estilos.botoes}>
-          <Botao rotulo="Comparar as duas últimas" tipo="secundario" aoTocar={() => aoMudar(duas)}
-            desabilitado={jaSaoAsDuas} motivo={jaSaoAsDuas ? 'As duas últimas já estão selecionadas.' : undefined} />
-          <Botao rotulo="Limpar seleção" tipo="fantasma" aoTocar={() => aoMudar(limparSelecao())}
-            desabilitado={marcadas.length === 0} motivo={marcadas.length === 0 ? 'Nenhuma data selecionada.' : undefined} />
-        </View>
-      </View>
-      {marcadas.length >= COMPARAR_MAXIMO ? (
-        <Texto variante="pequeno">Compare no máximo {COMPARAR_MAXIMO} datas. Desmarque uma para escolher outra.</Texto>
-      ) : null}
-    </View>
-  );
-}
-
-interface LinhaDaTabela {
-  chave: string;
-  rotulo: string;
-  celulas: { texto: string; ausente: boolean }[];
-  variacao: { texto: string; direcao: DirecaoDaVariacao };
-}
-
-interface PropsDoResultado {
+interface Props {
   avaliacoes: AvaliacaoFisica[];
-  comparacao: ComparacaoDeAvaliacoes;
-  mostrarBaixar: boolean;
-  gerando: boolean;
-  aoBaixar: () => void;
-  /** Nome da medida que a Evolução mostra (vai no PDF se a pessoa ligar); nulo sem medida. */
-  graficoDoPdf: string | null;
-  incluirGrafico: boolean;
-  aoIncluirGrafico: (v: boolean) => void;
+  meta: MetaDoPeso | null | undefined;
+  aoFechar: () => void;
+  /** PDF do comparativo das duas datas; nulo quando não aparece (aluno sem internet ou sem a marca). */
+  pdf: {
+    gerando: boolean;
+    aoBaixar: (ids: [string, string]) => void;
+    /** Nome da medida que a Evolução mostra (vai no PDF se a pessoa ligar); nulo sem medida. */
+    grafico: string | null;
+    incluirGrafico: boolean;
+    aoIncluirGrafico: (v: boolean) => void;
+  } | null;
 }
 
 /**
- * Tabela medida × data das datas marcadas, agrupada em Tronco, Braços e Pernas, em ordem cronológica (a última, a mais
- * recente, em semi-negrito), e a "Variação" (última − primeira) com o sinal escrito, no azul de indicador quando muda. O
- * peso do dia fica à parte, informativo. No celular, um bloco por medida (a `Tabela` empilha abaixo da largura).
+ * "Comparar" do histórico (27/11): duas datas e só a diferença entre elas, medida por medida (a mais nova menos a mais
+ * antiga, com a seta e a cor da meta nas colunas que a têm), com os dois valores embaixo para conferir. Abre nas duas
+ * últimas; uma escolha nunca oferece a data da outra (duas iguais não existem). O "Baixar comparativo" leva exatamente essas
+ * duas datas. Folha média (resultado, P1).
  */
-export function ResultadoDaComparacao(p: PropsDoResultado) {
+export function FolhaComparar({ avaliacoes, meta, aoFechar, pdf }: Props) {
   const { cores } = useTema();
-  const azul = useDestaques().azul.cor;
-  const c = p.comparacao;
-  if (c.estado !== 'ok') return <Texto variante="suave">{c.mensagem}</Texto>;
-  const ultima = c.colunas.length - 1;
-
-  const colunas: ColunaDaTabela<LinhaDaTabela>[] = [
-    { chave: 'medida', titulo: 'Medida', flex: 1.4, principal: true, render: (l) => <Texto style={estilos.forte}>{l.rotulo}</Texto> },
-    ...c.colunas.map((col, i): ColunaDaTabela<LinhaDaTabela> => ({
-      chave: `data-${col.id}`,
-      titulo: col.dataTexto,
-      alinhar: 'direita',
-      render: (l) => (
-        <Texto numerico cor={l.celulas[i].ausente ? cores.textoSuave : cores.texto} style={i === ultima ? estilos.forte : undefined}>{l.celulas[i].texto}</Texto>
-      ),
-    })),
-    {
-      chave: 'variacao', titulo: 'Variação', alinhar: 'direita',
-      render: (l) => {
-        const muda = l.variacao.direcao === 'aumento' || l.variacao.direcao === 'reducao';
-        return <Texto numerico style={estilos.forte} cor={muda ? azul : l.variacao.direcao === 'igual' ? cores.texto : cores.textoSuave}>{l.variacao.texto}</Texto>;
-      },
-    },
-  ];
-  const tabela = (rotulo: string, linhas: LinhaDaTabela[]) => (
-    <Tabela rotulo={rotulo} linhas={linhas} chave={(l) => l.chave} colunas={colunas} larguraMinima={LARGURA_DA_TABELA} />
-  );
-
-  // Peso do registro da mesma data (valor do dia ou "—"): só informativo, fora dos grupos; a regra é a mesma do PDF.
-  const peso = linhaDoPeso(p.avaliacoes, c.colunas);
-  const linhaPeso: LinhaDaTabela | null = peso ? {
-    chave: 'peso',
-    rotulo: 'Peso',
-    celulas: peso.celulas.map((x) => ({ texto: x.texto, ausente: x.valor === null })),
-    variacao: peso.variacao,
-  } : null;
+  const [inicial] = useState(() => idsDasDuasUltimas(avaliacoes));
+  const [de, setDe] = useState(inicial[0] ?? '');
+  const [ate, setAte] = useState(inicial[1] ?? '');
+  const opcoes = maisRecentesPrimeiro(avaliacoes).map((a) => {
+    const n = medidasPreenchidas(a.medidas);
+    return { valor: a.id, rotulo: dataParaTela(a.data), detalhe: `${n} ${n === 1 ? 'medida' : 'medidas'}` };
+  });
+  const linhas = diferencaEntre(avaliacoes, de, ate, meta);
+  const [antiga, nova] = avaliacoes.filter((a) => a.id === de || a.id === ate).sort((x, y) => x.data.localeCompare(y.data));
+  const escolha = (rotulo: string, valor: string, outra: string, aoMudar: (v: string) => void) => {
+    const daqui = opcoes.filter((o) => o.valor !== outra);
+    return (
+      <View style={estilos.escolha}>
+        <EscolhaSuspensa rotulo={rotulo} valor={valor} opcoes={daqui} aoMudar={aoMudar} titulo={`${rotulo}: escolher a data`}
+          semBusca={daqui.length <= OPCOES_PARA_BUSCAR} rotuloDaBusca="Buscar data" textoVazio="Nenhuma data encontrada." />
+      </View>
+    );
+  };
 
   return (
-    <View style={estilos.bloco}>
-      <Texto variante="secao" nivel={3}>Comparativo de circunferências (cm)</Texto>
-      <Texto variante="pequeno">{c.referencia}</Texto>
-      <View accessibilityLabel="Comparativo da avaliação física" style={estilos.bloco}>
-        {c.grupos.map((g) => (
-          <View key={g.id} style={estilos.grupo}>
-            <Texto variante="subtitulo">{g.titulo}</Texto>
-            {tabela(`${g.titulo}: circunferências por data`, g.itens.map((i) => ({
-              chave: i.chave, rotulo: i.rotulo, celulas: i.celulas.map((x) => ({ texto: x.texto, ausente: x.valor === null })), variacao: i.variacao,
-            })))}
-          </View>
-        ))}
-        {c.grupos.length === 0 ? <Texto variante="suave">Nenhuma medida nas datas escolhidas.</Texto> : null}
-        {linhaPeso ? (
-          <View style={estilos.grupo}>
-            <Texto variante="subtitulo">Peso do dia (informativo)</Texto>
-            {tabela('Peso do registro da mesma data', [linhaPeso])}
-            <Texto variante="pequeno">O peso é o registro de peso da mesma data; não é medido na avaliação.</Texto>
-          </View>
-        ) : null}
+    <Folha
+      visivel
+      largura={LARGURA_FOLHA_LARGA}
+      titulo="Comparar avaliações"
+      aoFechar={aoFechar}
+      rodape={
+        <>
+          <Botao rotulo="Fechar" tipo="secundario" aoTocar={aoFechar} />
+          {pdf ? (
+            <NoPlano funcionalidade="PDF">
+              <Botao rotulo="Baixar comparativo" tipo="secundario" Icone={FileDown} carregando={pdf.gerando} aoTocar={() => pdf.aoBaixar([de, ate])} />
+            </NoPlano>
+          ) : null}
+        </>
+      }>
+      <View style={estilos.escolhas}>
+        {escolha('Primeira data', de, ate, setDe)}
+        {escolha('Segunda data', ate, de, setAte)}
       </View>
-      {p.mostrarBaixar ? (
-        <NoPlano funcionalidade="PDF">
-          <View style={estilos.bloco}>
-            {p.graficoDoPdf ? (
-              <Interruptor rotulo="Incluir o gráfico da medida no PDF" valor={p.incluirGrafico} aoMudar={p.aoIncluirGrafico}
-                ajuda={`O gráfico de ${p.graficoDoPdf.toLowerCase()}, só com as datas marcadas.`} />
-            ) : null}
-            <View style={estilos.botoes}>
-              <Botao rotulo="Baixar comparativo" tipo="secundario" Icone={FileDown} carregando={p.gerando} aoTocar={p.aoBaixar} />
+      {antiga && nova ? <Texto variante="pequeno">Diferença = {dataParaTela(nova.data)} menos {dataParaTela(antiga.data)}.</Texto> : null}
+      {linhas.length === 0 ? <Texto variante="suave">Nenhuma medida nas datas escolhidas.</Texto> : (
+
+        <View accessibilityRole="list" accessibilityLabel="Diferença entre as datas" style={[estilos.lista, { borderColor: cores.divisor }]}>
+          {linhas.map((l, i) => (
+            <View key={l.chave} role="listitem" accessible
+              accessibilityLabel={`${l.nome}: ${l.variacao.falado || 'sem variação calculada'}. ${l.valores.replace('→', 'para')}.`}
+              style={[estilos.linha, i < linhas.length - 1 ? { borderBottomWidth: 1, borderColor: cores.divisor } : null]}>
+              <Texto style={estilos.nome}>{l.nome}</Texto>
+              <View style={estilos.numeros}>
+                <Texto numerico cor={l.variacao.tom === 'neutro' ? cores.texto : corDaVariacao(l.variacao.tom, cores)} style={estilos.forte}>{l.variacao.texto}</Texto>
+                <Texto variante="pequeno" numerico>{l.valores}</Texto>
+              </View>
             </View>
-          </View>
+          ))}
+        </View>
+      )}
+      {pdf?.grafico ? (
+        <NoPlano funcionalidade="PDF">
+          <Interruptor rotulo="Incluir o gráfico da medida no PDF" valor={pdf.incluirGrafico} aoMudar={pdf.aoIncluirGrafico}
+            ajuda={`O gráfico de ${pdf.grafico.toLowerCase()}, só com as duas datas.`} />
         </NoPlano>
       ) : null}
-    </View>
+    </Folha>
   );
 }
 
 const estilos = StyleSheet.create({
-  bloco: { gap: espaco(1.5) },
-  grupo: { gap: espaco(1) },
-  barra: { gap: espaco(1) },
-  botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  escolhas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
+  escolha: { flexGrow: 1, flexBasis: 220, minWidth: 0 },
+  lista: { borderTopWidth: 1, borderBottomWidth: 1 },
+  linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(2), paddingVertical: espaco(1), minHeight: 48 },
+  nome: { flex: 1, minWidth: 0 },
+  numeros: { alignItems: 'flex-end' },
   forte: { fontFamily: fontes.semi },
 });

@@ -115,7 +115,8 @@ for (const caso of MATRIZ) {
     await cartao(page, 'Minimalista').getByTestId('previa-pdf').click({ force: true });
     if (caso.modo === 'editor') {
       await expect(page).toHaveURL(/\/treinador\/documentos\/personalizar$/);
-      await expect(page.getByLabel(/no modelo Minimalista, com dados de exemplo/)).toBeVisible();
+      // Desde 28/11 a área larga mostra duas ou três prévias (`previasDaLargura`); a do treino vem sempre primeiro.
+      await expect(page.getByLabel('Prévia do PDF de treino no modelo Minimalista, com dados de exemplo', { exact: true })).toBeVisible();
       expect(escritas(pedidos)).toEqual([]);
     } else {
       const painel = page.getByRole('alertdialog', { name: 'Usar o modelo Minimalista?' });
@@ -139,7 +140,12 @@ test('(1280) o modelo em uso e "Personalizar este modelo" abrem o editor na conf
   const noEditorGravado = async () => {
     await expect(page).toHaveURL(/\/treinador\/documentos\/personalizar$/);
     await expect(page.getByLabel(/no modelo Elegante, com dados de exemplo/)).toBeVisible();
-    await expect(page.getByText('Elegante · 1 alteração: Estilo das tabelas')).toBeVisible();
+    // Desde 27/11 a barra não repete as personalizações gravadas (`estadoDaBarra`): diz "Em uso" sem pendência, e a
+    // personalização aparece no resumo do grupo (o Elegante puro daria "Linhas · espaçosa").
+    const barra = page.getByRole('toolbar', { name: 'Ações do editor' });
+    await expect(barra.getByText('Em uso nos PDFs', { exact: true })).toBeVisible();
+    await expect(barra.getByText('Elegante · Sem alterações', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Tabelas,/ })).toContainText('Listrada · espaçosa');
   };
   await cartao(page, 'Elegante').click();
   await noEditorGravado();

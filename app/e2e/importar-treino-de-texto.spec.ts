@@ -77,7 +77,7 @@ for (const largura of [390, 1280]) {
 
     await page.getByRole('button', { name: 'Trazer para o editor', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Trazer para o editor', exact: true })).toHaveCount(0);
-    await expect(page.getByText('Sessões (1)', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^1 sessão · /)).toBeVisible();
     await expect(page.getByText('Treino A - Peito e costas', { exact: false }).first()).toBeVisible();
     await expect(page.getByText('Treino colado trazido para o editor.', { exact: false })).toBeVisible();
     expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toEqual([]);
@@ -91,7 +91,7 @@ for (const largura of [390, 1280]) {
     expect(salvo[0].exercicios[0].series.map((s) => s.tipo)).toEqual(['FEEDER', 'FEEDER', 'WORKING']);
 
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
-    await expect(page.getByText('Sessões (1)', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^1 sessão · /)).toHaveCount(0);
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });
@@ -103,7 +103,7 @@ test('plano que já tem exercício: o botão vira "Adicionar ao plano" e a divis
   await page.getByRole('button', { name: 'Colar treino (Docs / PDF)', exact: true }).click();
   await page.getByRole('textbox', { name: 'Texto do treino', exact: true }).fill('Treino B\nPuxada frontal aberta\n1x8 a 12 - WS');
   await page.getByRole('button', { name: 'Adicionar ao plano', exact: true }).click();
-  await expect(page.getByText('Sessões (2)', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^2 sessões · /)).toBeVisible();
   expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toEqual([]);
   expect(api.errosDaPagina).toEqual([]);
 });

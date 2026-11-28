@@ -4,19 +4,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, faixaDeLargura, LARGURA_EDITOR, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL } from '../../tema/tokens';
-import { duasColunas, larguraDoEditor } from '../../dominio/colunasDoEditor';
+import { duasColunas, larguraDoEditor, tresColunas } from '../../dominio/colunasDoEditor';
 import { larguraMaximaDoConteudo, respiroLateralDaTela } from '../../dominio/larguraDoConteudo';
 import { RolagemComTopo } from '../../ui/RolagemComTopo';
 import { useRegistroDoRodapeFixo } from '../../ui/rodapeFixoDaPagina';
 import { ProvedorDeColunas, ProvedorDeTresColunas } from './ColunasDoEditor';
+import { useFocoAcimaDoRodape } from '../../ui/focoAcimaDoRodape';
 import { useFundoDaArea } from '../../ui/fundoDaArea';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { Vidro } from '../../ui/Vidro';
 
 interface Props {
-  /** O `Cabecalho` da tela (trilha, título, subtítulo): rola junto com o conteúdo. */
+  /** O `Cabecalho` da tela (trilha, título, subtítulo): rola junto com o conteúdo (ou gruda, com `cabecalhoGrudado`). */
   cabecalho: ReactNode;
-  /** A barra de ações do editor (`BarraDoEditor`): fica fixa no topo e nunca some ao rolar. */
+  /** A barra de ações do editor (`BarraDoEditor`): fica fixa no topo e nunca some ao rolar. `null` com o cabeçalho grudado que já traz as ações. */
   barra: ReactNode;
   children: ReactNode;
   largura?: number;
@@ -30,6 +31,24 @@ interface Props {
    * (`useDuasColunas`) e alarga o conteúdo para `LARGURA_EDITOR_DUAS_COLUNAS` (todo o espaço útil, até `LARGURA_MAXIMA`). O 1º quadro sai em uma coluna.
    */
   colunas?: boolean;
+  /**
+   * Cabeçalho único (modelo de treino, 27/11): o próprio `cabecalho` (título, selo e botões) é a faixa que gruda no topo, com
+   * a `barra` (se vier) logo abaixo dele na mesma faixa. Só vale onde `cabecalhoUnico` diz (web, janela de 768 px ou mais);
+   * fora disso, o arranjo de sempre. Quem monta decide com a mesma regra (`useCabecalhoUnico`) onde vão as ações.
+   */
+  cabecalhoGrudado?: boolean;
+  /** A partir de qual faixa entra a 3ª coluna (`dominio/colunasDoEditor.tresColunas`): `'larga'` no treino; o padrão preserva dieta e mobilidade. */
+  tresDesde?: 'larga' | 'ultralarga';
+}
+
+/** O cabeçalho único gruda só na web e com o menu lateral (768 px): abaixo disso título, subtítulo e três botões não cabem. */
+export function cabecalhoUnico(janela: number, web: boolean = Platform.OS === 'web'): boolean {
+  return web && janela >= LARGURA_MENU_LATERAL;
+}
+
+/** A mesma regra da `TelaDoEditor`, para quem monta o cabeçalho escolher entre as ações nele ou a barra à parte. */
+export function useCabecalhoUnico(): boolean {
+  return cabecalhoUnico(useWindowDimensions().width);
 }
 
 // Atalho consciente: larguras do menu repetidas de `ui/Navegacao` (aberto e trilho; o minimizado não entra); se mudarem lá, só o 1º quadro erra.
@@ -46,7 +65,7 @@ const GRUDADA_EMBAIXO = { position: 'sticky', bottom: 0, zIndex: 10 } as unknown
  * sessões. Na web a barra vem logo depois do cabeçalho e gruda no topo da rolagem (`sticky`); no celular nativo, sem
  * `sticky`, ela fica fora da rolagem, acima do conteúdo.
  */
-export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDITOR, rodape, colunas }: Props) {
+export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDITOR, rodape, colunas, cabecalhoGrudado, tresDesde = 'ultralarga' }: Props) {
   const { cores, preferencias } = useTema();
   // Medida na raiz, que acompanha a janela: o `View` do conteúdo tem `maxWidth` e mediria a si mesmo (a tela oscilaria).
   const { largura: larguraMedida, faixa, aoMedir } = useFaixaDeLargura();
@@ -55,14 +74,19 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const estimada = janela - (janela >= LARGURA_MENU_EXPANDIDO ? MENU_ABERTO : janela >= LARGURA_MENU_LATERAL ? MENU_TRILHO : 0);
   const duas = !!colunas && duasColunas((larguraMedida > 0 ? larguraMedida : estimada) - 2 * espaco(2));
   const faixaEfetiva = larguraMedida > 0 ? faixa : faixaDeLargura(estimada);
-  const tres = duas && faixaEfetiva === 'ultralarga' && preferencias.larguraConteudo === 'AUTOMATICA';
+  const tres = tresColunas(faixaEfetiva, tresDesde, preferencias.larguraConteudo, duas);
   const larguraUtil = larguraMaximaDoConteudo(duas ? larguraDoEditor(true) : largura, preferencias.larguraConteudo);
   const estiloLargura = larguraUtil === undefined ? undefined : { maxWidth: larguraUtil };
   // A mesma faixa do `tres` (estimada até a medida chegar): só com a medida, a ultralarga abria com 16 px de recuo e não 48.
   const recuoLateral = respiroLateralDaTela(faixaEfetiva) ?? espaco(2);
   const web = Platform.OS === 'web';
+  // O cabeçalho vira a faixa grudada; a barra (se vier) vai junto, abaixo dele. No nativo nunca (`cabecalhoUnico` exige web).
+  const grudado = !!cabecalhoGrudado && cabecalhoUnico(janela, web);
   const barraGrudada = useRef<View>(null);
-  useEffect(() => (web ? semFocoDebaixoDaBarra(barraGrudada.current as unknown as HTMLElement | null) : undefined), [web]);
+  // `grudado` nas dependências: ao cruzar 768 px o elemento grudado é outro e o ouvinte precisa dele.
+  useEffect(() => (web ? semFocoDebaixoDaBarra(barraGrudada.current as unknown as HTMLElement | null) : undefined), [web, grudado]);
+  // O mesmo para o rodapé grudado embaixo (Voltar e Validar da importação): o foco não fica atrás dele.
+  const rodapeGrudado = useFocoAcimaDoRodape(web && !!rodape);
   const fundo = useFundoDaArea();
   // A altura da barra grudada (web): ela quebra em duas linhas em 1280 (Validar, Salvar, Publicar), e o inspetor grudado
   // embaixo dela (`useFixoAbaixoDaBarra`) precisa da medida, não de um topo fixo.
@@ -78,11 +102,18 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
         {!web ? <View style={[estilos.barraFora, fundoDaBarra, { paddingHorizontal: recuoLateral }]}><View style={[estilos.largura, estiloLargura]}>{barra}</View></View> : null}
         <RolagemComTopo preencher contentContainerStyle={[estilos.rolagem, { paddingHorizontal: recuoLateral }]}>
           <View style={[estilos.conteudo, estiloLargura]}>
-            {cabecalho}
-            {/* Na web o conteúdo passa por baixo das barras grudadas: vidro (D11). No nativo elas ficam fora da rolagem, sólidas. */}
-            {web ? <Vidro ref={barraGrudada} nativeID={ID_DA_BARRA} onLayout={(e) => setAlturaDaBarra(e.nativeEvent.layout.height)} estilo={[GRUDADA, estilos.barraGrudada, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{barra}</Vidro> : null}
+            {grudado ? null : cabecalho}
+            {/* Na web o conteúdo passa por baixo das barras grudadas: vidro (D11). No nativo elas ficam fora da rolagem, sólidas.
+                Grudado, a faixa é o cabeçalho (com a barra embaixo, se houver): `ID_DA_BARRA` e a altura medida passam a ser dela. */}
+            {web ? (
+              <Vidro ref={barraGrudada} nativeID={ID_DA_BARRA} onLayout={(e) => setAlturaDaBarra(e.nativeEvent.layout.height)}
+                estilo={[GRUDADA, grudado ? estilos.cabecalhoGrudado : estilos.barraGrudada, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>
+                {grudado ? cabecalho : barra}
+                {grudado && barra ? barra : null}
+              </Vidro>
+            ) : null}
             {children}
-            {web && rodape ? <Vidro estilo={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{rodape}</Vidro> : null}
+            {web && rodape ? <Vidro ref={rodapeGrudado} estilo={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{rodape}</Vidro> : null}
           </View>
         </RolagemComTopo>
         {!web && rodape ? <RodapeFora estilo={[fundoDaBarra, { paddingHorizontal: recuoLateral }]} estiloLargura={estiloLargura}>{rodape}</RodapeFora> : null}
@@ -203,6 +234,8 @@ const estilos = StyleSheet.create({
   largura: { width: '100%', alignSelf: 'center' },
   // A barra cobre também o recuo lateral da rolagem: o conteúdo que passa por baixo não aparece nas beiradas.
   barraGrudada: { marginHorizontal: -espaco(2), paddingHorizontal: espaco(2), paddingVertical: espaco(1), borderBottomWidth: 1, marginTop: -espaco(1.5) },
+  // O cabeçalho grudado: o respiro de cima compensa o padding, para o título ficar onde ficava sem a faixa; a barra, se vier, a 8 px dele.
+  cabecalhoGrudado: { paddingVertical: espaco(1), borderBottomWidth: 1, marginTop: -espaco(1), gap: espaco(1) },
   barraFora: { paddingHorizontal: espaco(2), paddingVertical: espaco(1), borderBottomWidth: 1 },
   rodapeGrudado: {
     marginHorizontal: -espaco(2), paddingHorizontal: espaco(2), paddingVertical: espaco(1.5), borderTopWidth: 1, marginBottom: -espaco(2),

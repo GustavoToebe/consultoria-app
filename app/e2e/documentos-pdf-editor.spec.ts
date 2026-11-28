@@ -6,8 +6,9 @@ import { erroApi, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINAD
 /**
  * Editor dos PDFs (`/treinador/documentos/personalizar`; D-F1 a D-F8 de `docs/planos/documentos-pdf-motor.md` e 3.2 de
  * `docs/planos/orientacoes-de-design-26-11.md`): arranjo pela área de conteúdo (o menu do app continua à vista; 27/11:
- * empilhado de 1024 a 1279, painel de 420 com a prévia no resto a partir de 1280 e Treino e Dieta lado a lado com 2400 de
- * conteúdo), prévia ao vivo sem gravar, um estado só na barra, trocar e restaurar com "Desfazer" no aviso, "Salvar" com a
+ * empilhado de 1024 a 1279, painel de 420 com a prévia no resto a partir de 1280; 28/11: quantas prévias vem da largura da
+ * área de prévia, `previasDaLargura`: uma com o segmento abaixo de 1500, duas com o segmento até 2400 e as três com título
+ * a partir dela), "Modelo" aberto na chegada, prévia ao vivo sem gravar, um estado só na barra, trocar e restaurar com "Desfazer" no aviso, "Salvar" com a
  * versão, 409 com "Recarregar" e a guarda "Sair sem salvar?". API falsa própria, só dados fictícios. Com `E2E_CAPTURAS`,
  * grava as capturas da matriz.
  */
@@ -49,7 +50,7 @@ async function abrir(page: Page, largura: number, opcoes: { tema?: Tema; minimiz
   return api;
 }
 
-// `.first()`: com duas prévias lado a lado (2400 de conteúdo) há duas folhas; a primeira é sempre a do treino ou a da aba.
+// `.first()`: com várias prévias lado a lado há várias folhas; a primeira é a da esquerda (Treino, até alguém trocar).
 const folha = (page: Page) => page.getByRole('img', { name: /^Prévia do PDF de/ }).first();
 const previa = (page: Page) => page.getByTestId('previa-pdf').first();
 const aviso = (page: Page) => page.getByRole('alert');
@@ -58,6 +59,11 @@ const grupo = (page: Page, nome: string) => page.getByRole('button', { name: new
 const fundoDoTh = (page: Page) => previa(page).locator('th').first().evaluate((th) => getComputedStyle(th).backgroundColor);
 const escritas = (pedidos: { metodo: string; caminho: string }[]) => pedidos.filter((p) => p.metodo !== 'GET' && p.caminho !== '/auth/refresh');
 const largura = async (page: Page, alvo: ReturnType<typeof folha>) => Math.round((await alvo.boundingBox())?.width ?? 0);
+/** O segmento "Treino · Dieta · Mobilidade" de uma coluna (uma prévia: "Documento da prévia"; duas: "… da esquerda"/"… da direita"). */
+const segmento = (page: Page, nome = /^Documento da prévia/) => page.getByRole('radiogroup', { name: nome });
+const documento = (page: Page, nome: string, grupoDoSegmento = segmento(page).first()) => grupoDoSegmento.getByRole('radio', { name: nome, exact: true });
+/** Respiro da folha em cada lado da coluna (`RESPIRO_DA_FOLHA`): a folha ajustada é a coluna menos 32, até o teto de 993. */
+const RESPIRO = 16;
 
 async function capturar(page: Page, nome: string) {
   if (process.env.E2E_CAPTURAS) await page.screenshot({ path: `${process.env.E2E_CAPTURAS}/documentos-editor-${nome}.png` });
@@ -105,10 +111,13 @@ test('(1200, menu minimizado) janela abaixo de 1280 com área de 1024 ou mais: o
   const caixaDoPainel = await painel(page).boundingBox();
   const caixaDaFolha = await folha(page).boundingBox();
   expect(caixaDaFolha?.y ?? 0).toBeGreaterThan((caixaDoPainel?.y ?? 0) + (caixaDoPainel?.height ?? 0));
-  expect(await largura(page, folha(page))).toBe(Math.min(conteudo - 48, 993));
+  expect(await largura(page, folha(page))).toBe(Math.min(conteudo - 2 * RESPIRO, 993));
   await expect(page.getByRole('radio', { name: 'Ajustar' })).toHaveCount(0);
-  // Painel acima da prévia (~1080 px): os seis modelos numa linha só.
-  await grupo(page, 'Modelo').click();
+  // Uma prévia (a área fica abaixo de 1500), com o segmento e Treino escolhido.
+  await expect(page.getByRole('img', { name: /^Prévia do PDF de/ })).toHaveCount(1);
+  await expect(documento(page, 'Treino')).toHaveAttribute('aria-checked', 'true');
+  // Painel acima da prévia (~1080 px): "Modelo" chega aberto, com os seis modelos numa linha só.
+  await expect(grupo(page, 'Modelo')).toHaveAccessibleName('Modelo, aberto');
   const modelos = painel(page).getByRole('radiogroup', { name: 'Modelo' }).getByRole('radio');
   const caixas = await Promise.all([0, 5].map((i) => modelos.nth(i).boundingBox()));
   expect(Math.round(caixas[0]?.y ?? 0)).toBe(Math.round(caixas[1]?.y ?? 1));
@@ -133,6 +142,13 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
     await expect(page.getByRole('button', { name: 'Restaurar o modelo' })).toBeDisabled();
     await expect(page.getByText('Clássico · Sem alterações')).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    // "Modelo" chega aberto com as miniaturas; os outros grupos, recolhidos com o resumo.
+    await expect(grupo(page, 'Modelo')).toHaveAccessibleName('Modelo, aberto');
+    await expect(painel(page).getByRole('radiogroup', { name: 'Modelo' }).getByRole('radio')).toHaveCount(6);
+    for (const g of ['Cores', 'Texto', 'Cabeçalho', 'Tabelas']) await expect(grupo(page, g)).toHaveAccessibleName(`${g}, recolhido`);
+    // A frase dos dados de exemplo aparece uma vez só, no topo das prévias; sem abas (o segmento as substituiu).
+    await expect(page.getByText('Dados de exemplo, nenhum é real.', { exact: false })).toHaveCount(1);
+    await expect(page.getByRole('tab')).toHaveCount(0);
     await capturar(page, `1280-${tema.toLowerCase()}`);
 
     await grupo(page, 'Cores').click();
@@ -158,31 +174,67 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
   });
 }
 
-/** Janela → folha esperada. 1536 (área 1296, menos recuo e barra de rolagem): 748, menor que a A4, com o zoom; 1920 e 2560: o teto de 125% (993). */
-const MATRIZ: { janela: number; folha: number; zoom: boolean; tema: Tema; nome: string }[] = [
-  { janela: 1536, folha: 748, zoom: true, tema: 'CLARO', nome: '1536' },
-  { janela: 1920, folha: 993, zoom: false, tema: 'ESCURO', nome: '1920-escuro' },
-  { janela: 1920, folha: 993, zoom: false, tema: 'CLARO', nome: '1920-claro' },
-  { janela: 1920, folha: 993, zoom: false, tema: 'AREIA', nome: '1920-areia' },
-  { janela: 2560, folha: 993, zoom: false, tema: 'CLARO', nome: '2560' },
+/**
+ * Janela → quantas prévias (pela área delas, com o menu aberto): 1536 e 1920 ficam abaixo de 1500 (uma; em 1536 a folha
+ * fica menor que a A4 e o zoom aparece) e 2560 passa de 1500 (duas, cada uma com o segmento). A folha é a coluna menos o
+ * respiro, até o teto de 125% (993).
+ */
+const MATRIZ: { janela: number; previas: 1 | 2; zoom: boolean; tema: Tema; nome: string }[] = [
+  { janela: 1536, previas: 1, zoom: true, tema: 'CLARO', nome: '1536' },
+  { janela: 1920, previas: 1, zoom: false, tema: 'ESCURO', nome: '1920-escuro' },
+  { janela: 1920, previas: 1, zoom: false, tema: 'CLARO', nome: '1920-claro' },
+  { janela: 1920, previas: 1, zoom: false, tema: 'AREIA', nome: '1920-areia' },
+  { janela: 2560, previas: 2, zoom: false, tema: 'CLARO', nome: '2560' },
 ];
 
 for (const m of MATRIZ) {
-  test(`(${m.nome}) painel de 420 à esquerda e a prévia no resto, folha de ${m.folha}`, async ({ page }) => {
+  test(`(${m.nome}) painel de 420 à esquerda e ${m.previas === 1 ? 'uma prévia' : 'duas prévias'} com o segmento no resto`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, m.janela, { tema: m.tema });
     await expect(previa(page)).toContainText('Aluno de Exemplo');
     expect(await largura(page, painel(page))).toBe(420);
-    expect(await largura(page, folha(page))).toBe(m.folha);
-    await expect(page.getByRole('radio', { name: 'Ajustar' })).toHaveCount(m.zoom ? 1 : 0);
-    // A mesa vai do vão do painel até a borda do conteúdo (a da barra): sem faixa vazia à direita.
-    const mesa = await page.getByRole('region', { name: 'Prévia com dados de exemplo' }).boundingBox();
+    const regioes = page.getByRole('region', { name: /^Prévia (do|da) / });
+    await expect(regioes).toHaveCount(m.previas);
+    await expect(segmento(page)).toHaveCount(m.previas);
+    // Cada folha ocupa a sua coluna menos o respiro, até o teto.
+    for (let i = 0; i < m.previas; i++) {
+      const coluna = await largura(page, regioes.nth(i));
+      expect(await largura(page, regioes.nth(i).getByRole('img', { name: /^Prévia do PDF de/ }))).toBe(Math.min(coluna - 2 * RESPIRO, 993));
+    }
+    await expect(page.getByRole('radio', { name: 'Ajustar' })).toHaveCount(m.zoom ? m.previas : 0);
+    // As colunas vão do vão do painel até a borda do conteúdo (a da barra): sem mesa cinza nem faixa vazia à direita.
+    const ultima = await regioes.last().boundingBox();
     const barra = await page.getByRole('toolbar', { name: 'Ações do editor' }).boundingBox();
-    expect(Math.abs(((mesa?.x ?? 0) + (mesa?.width ?? 0)) - ((barra?.x ?? 0) + (barra?.width ?? 0)))).toBeLessThanOrEqual(1);
+    expect(Math.abs(((ultima?.x ?? 0) + (ultima?.width ?? 0)) - ((barra?.x ?? 0) + (barra?.width ?? 0)))).toBeLessThanOrEqual(1);
     expect(await previa(page).evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
+    await expect(page.getByText('Dados de exemplo, nenhum é real.', { exact: false })).toHaveCount(1);
     await grupo(page, 'Cabeçalho').click();
     await expect(page.getByText('Faixa cheia · logo à esquerda · média')).toBeVisible();
-    await page.getByRole('tab', { name: 'Dieta' }).click();
-    await expect(previa(page)).toContainText('Sugestão de plano alimentar');
+    if (m.previas === 1) {
+      await documento(page, 'Dieta').click();
+      await expect(previa(page)).toContainText('Sugestão de plano alimentar');
+      await expect(page.getByRole('region', { name: 'Prévia da dieta' })).toBeVisible();
+    } else {
+      // Padrão: Treino à esquerda e Dieta à direita; as folhas começam na mesma linha.
+      const esquerda = segmento(page, /da esquerda$/);
+      const direita = segmento(page, /da direita$/);
+      await expect(documento(page, 'Treino', esquerda)).toHaveAttribute('aria-checked', 'true');
+      await expect(documento(page, 'Dieta', direita)).toHaveAttribute('aria-checked', 'true');
+      const folhas = page.getByRole('img', { name: /^Prévia do PDF de/ });
+      const [y0, y1] = await Promise.all([folhas.nth(0).boundingBox(), folhas.nth(1).boundingBox()]);
+      expect(Math.abs((y0?.y ?? 0) - (y1?.y ?? 99))).toBeLessThanOrEqual(1);
+      // Escolher à esquerda o que a direita mostra troca os dois: nunca o mesmo documento nos dois lados.
+      await documento(page, 'Dieta', esquerda).click();
+      await expect(documento(page, 'Dieta', esquerda)).toHaveAttribute('aria-checked', 'true');
+      await expect(documento(page, 'Treino', direita)).toHaveAttribute('aria-checked', 'true');
+      await expect(regioes.nth(0)).toHaveAccessibleName('Prévia da dieta');
+      await expect(regioes.nth(1)).toHaveAccessibleName('Prévia do treino');
+      // Pelo teclado: foco na opção e Espaço escolhe (Mobilidade à direita, sem conflito: só ela muda).
+      await documento(page, 'Mobilidade', direita).focus();
+      await page.keyboard.press('Space');
+      await expect(documento(page, 'Mobilidade', direita)).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByRole('region', { name: 'Prévia da mobilidade' }).getByTestId('previa-pdf')).toContainText('Gato-camelo');
+      await expect(documento(page, 'Dieta', esquerda)).toHaveAttribute('aria-checked', 'true');
+    }
     await semRolagemLateral(page);
     await capturar(page, m.nome);
     expect(errosDaPagina).toEqual([]);
@@ -222,34 +274,29 @@ const CAPTURAS: { janela: number; altura: number; tema: Tema }[] = [
 ];
 
 for (const c of CAPTURAS) {
-  const duas = c.janela >= 3440;
-  test(`(${c.janela}x${c.altura}, ${c.tema.toLowerCase()}) grade de modelos em miniaturas, alteração pendente${duas ? ', Treino e Dieta lado a lado' : ''}`, async ({ page }) => {
+  const tres = c.janela >= 3440;
+  test(`(${c.janela}x${c.altura}, ${c.tema.toLowerCase()}) grade de modelos em miniaturas, alteração pendente${tres ? ', as três prévias lado a lado' : ''}`, async ({ page }) => {
     const { pedidos, errosDaPagina } = await abrir(page, c.janela, { tema: c.tema, altura: c.altura });
     await expect(previa(page)).toContainText('Aluno de Exemplo');
     expect(await largura(page, painel(page))).toBe(420);
-    if (duas) {
-      // 3440 com o menu aberto (3104 de conteúdo): duas prévias com título, sem as abas; a segunda troca para Mobilidade.
-      await expect(page.getByRole('tab', { name: 'Dieta' })).toHaveCount(0);
-      await expect(page.getByRole('heading', { level: 2, name: 'Treino', exact: true })).toBeVisible();
-      await expect(page.getByRole('heading', { level: 2, name: 'Dieta', exact: true })).toBeVisible();
+    if (tres) {
+      // 3440 com o menu aberto (área de prévia acima de 2400): as três, cada uma com o título simples, sem segmento.
+      await expect(segmento(page)).toHaveCount(0);
+      for (const nome of ['Treino', 'Dieta', 'Mobilidade']) await expect(page.getByRole('heading', { level: 2, name: nome, exact: true })).toBeVisible();
       const folhas = page.getByRole('img', { name: /^Prévia do PDF de/ });
-      await expect(folhas).toHaveCount(2);
-      expect(await largura(page, folhas.nth(0))).toBe(993);
-      expect(await largura(page, folhas.nth(1))).toBe(993);
-      // As duas folhas começam na mesma linha (o topo com o controle e o só com o título têm a mesma altura).
-      const [y0, y1] = await Promise.all([folhas.nth(0).boundingBox(), folhas.nth(1).boundingBox()]);
-      expect(Math.abs((y0?.y ?? 0) - (y1?.y ?? 99))).toBeLessThanOrEqual(1);
+      await expect(folhas).toHaveCount(3);
+      const larguras = await Promise.all([0, 1, 2].map((i) => largura(page, folhas.nth(i))));
+      expect(new Set(larguras).size).toBe(1);
+      // As três folhas começam na mesma linha.
+      const caixas = await Promise.all([0, 1, 2].map((i) => folhas.nth(i).boundingBox()));
+      for (const caixa of caixas) expect(Math.abs((caixa?.y ?? 0) - (caixas[0]?.y ?? 99))).toBeLessThanOrEqual(1);
       await expect(page.getByRole('region', { name: 'Prévia da dieta' }).getByTestId('previa-pdf')).toContainText('Sugestão de plano alimentar');
-      await page.getByRole('radio', { name: 'Mobilidade' }).click();
       await expect(page.getByRole('region', { name: 'Prévia da mobilidade' }).getByTestId('previa-pdf')).toContainText('Gato-camelo');
-      await page.getByRole('radio', { name: 'Dieta' }).click();
-      await expect(page.getByRole('region', { name: 'Prévia da dieta' })).toBeVisible();
     } else {
-      await expect(page.getByRole('tab', { name: 'Dieta' })).toBeVisible();
+      await expect(segmento(page)).toHaveCount(1);
       expect(await largura(page, folha(page))).toBe(993);
     }
-    // Seis cartões em duas colunas, o escolhido com ✓ e borda da cor de ação.
-    await grupo(page, 'Modelo').click();
+    // "Modelo" chega aberto: seis cartões em duas colunas, o escolhido com ✓ e borda da cor de ação.
     const modelos = painel(page).getByRole('radiogroup', { name: 'Modelo' }).getByRole('radio');
     await expect(modelos).toHaveCount(6);
     const [primeiro, segundo, terceiro] = await Promise.all([0, 1, 2].map((i) => modelos.nth(i).boundingBox()));
@@ -310,7 +357,7 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
   for (const modelo of ['CLASSICO', 'ESPORTIVO'] as const) {
     test(`(1280) aba Mobilidade da prévia: ${modelo}, ${tema}`, async ({ page }) => {
       const { pedidos, errosDaPagina } = await abrir(page, 1280, { tema, busca: modelo === 'CLASSICO' ? '' : `?modelo=${modelo}` });
-      await page.getByRole('tab', { name: 'Mobilidade' }).click();
+      await documento(page, 'Mobilidade').click();
       await expect(previa(page)).toContainText('Aluno de Exemplo');
       await expect(previa(page)).toContainText('Gato-camelo');
       await expect(previa(page)).toContainText('Quadril e pernas');
@@ -333,8 +380,7 @@ test('(1280) ?modelo da galeria abre o modelo como rascunho; trocar e restaurar 
   await expect(page.getByText('Sem alterações')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Salvar' })).toBeEnabled();
 
-  // A troca avisa no aviso (toast) com "Desfazer", sem faixa na tela.
-  await grupo(page, 'Modelo').click();
+  // A troca avisa no aviso (toast) com "Desfazer", sem faixa na tela ("Modelo" já chega aberto).
   await expect(painel(page).getByRole('radio', { name: /^Esportivo\. / })).toHaveAttribute('aria-checked', 'true');
   await painel(page).getByRole('radio', { name: /^Elegante\. / }).click();
   await expect(aviso(page)).toContainText('Modelo trocado para Elegante.');

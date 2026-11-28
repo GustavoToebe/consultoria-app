@@ -1,11 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Check, ImagePlus, Trash2 } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View, type TextInput, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type TextInput } from 'react-native';
 
 import { consultoria as buscarConsultoria, enviarLogo, removerLogo } from '../../api/rotas';
 import type { ConsultoriaResponse, Fonte, Marca, Tema } from '../../api/tipos';
 import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
+import { remetenteDosEmails } from '../../dominio/previaDaMarca';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { CODIGOS_PALETAS_VISIVEIS, espaco, PALETAS as PALETAS_DO_TEMA, RAIO, textoSobre, type Cores } from '../../tema/tokens';
@@ -22,7 +23,8 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { anexarLogo } from './anexarLogo';
-import { arranjoDaMarca, LARGURA_DO_FORMULARIO_DA_MARCA, VAO_DA_PREVIA } from './arranjoDaMarca';
+import { LARGURA_DO_FORMULARIO_DA_MARCA } from './arranjoDaMarca';
+import { ComPrevia } from './ComPrevia';
 import { GradeDeAmostras, OpcaoDeAmostra } from './GradeDeAmostras';
 import { PreviaDaMarca } from './PreviaDaMarca';
 import { RodapeDeSalvar } from './RodapeDeSalvar';
@@ -30,8 +32,6 @@ import { useSalvarConsultoria } from './useSalvarConsultoria';
 
 const LOGO_MAXIMO = 512 * 1024;
 const HEX = /^#[0-9A-Fa-f]{6}$/;
-/** `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native (o mesmo de `plano/TelaDoEditor`). */
-const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), zIndex: 1 } : {}) as unknown as ViewStyle;
 /** Bolinha da cor e miniatura do tema. */
 const BOLINHA = 40;
 const MINIATURA = { largura: 52, altura: 36 };
@@ -71,10 +71,6 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const [confirmarRemocao, setConfirmarRemocao] = useState(false);
   // Erro da logo fica no próprio campo (guia de 11/11, pág. 16): a prévia segue com a logo que valia.
   const [erroLogo, setErroLogo] = useState<string | null>(null);
-  // Largura medida do formulário inteiro (não a janela: o menu lateral e a coluna de Configurações comem largura), num
-  // contêiner que é sempre 100% e não muda com o arranjo. `null` até medir: nenhuma prévia pisca.
-  const [larguraDaTela, setLarguraDaTela] = useState<number | null>(null);
-  const arranjo = arranjoDaMarca(larguraDaTela);
   const { salvar, salvando, erro, campos } = useSalvarConsultoria({
     consultoria, aoSalvar, aoConflito, sucesso: 'Marca salva. Os alunos veem a nova marca ao abrir o app.',
   });
@@ -241,27 +237,22 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     </>
   );
 
-  const larga = arranjo === 'larga';
-  const cartaoDaPrevia = (
-    <Cartao titulo="Prévia do app do aluno" descricao={larga ? 'Muda junto com o que você escolhe ao lado.' : 'Muda junto com o que você escolhe acima.'}>
-      <PreviaDaMarca marca={previa} tema={tema} modo={larga ? 'dupla' : 'unica'} />
-    </Cartao>
-  );
-
   return (
     <>
-      {/* Tela larga: o formulário (cartões e o salvar) numa coluna de 720 e a prévia no resto, fixa ao rolar. */}
-      <View style={larga ? estilos.formularioEPrevia : estilos.empilhado} onLayout={(e) => setLarguraDaTela(e.nativeEvent.layout.width)}>
-        {/* Sempre o mesmo invólucro (só o estilo muda): trocar de arranjo não remonta o formulário nem perde o foco. */}
-        <View testID="coluna-do-formulario" style={larga ? estilos.colunaDoFormulario : estilos.empilhado}>
-          {formulario}
-          {arranjo === 'empilhado' ? cartaoDaPrevia : null}
-          {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
-          <RodapeDeSalvar alterado={alterado} rotulo="Salvar marca" salvando={salvando} motivo={motivo}
-            aoSalvar={() => salvar({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema })} />
-        </View>
-        {larga ? <View testID="coluna-da-previa" style={[estilos.colunaDaPrevia, GRUDADA]}>{cartaoDaPrevia}</View> : null}
-      </View>
+      <ComPrevia
+        largura={LARGURA_DO_FORMULARIO_DA_MARCA}
+        formulario={formulario}
+        previa={(arranjo) => (
+          <PreviaDaMarca marca={previa} tema={tema} arranjo={arranjo} remetente={remetenteDosEmails(consultoria.emailRemetenteNome, previa.nome)} />
+        )}
+        fim={(
+          <>
+            {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
+            <RodapeDeSalvar alterado={alterado} rotulo="Salvar marca" salvando={salvando} motivo={motivo}
+              aoSalvar={() => salvar({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema })} />
+          </>
+        )}
+      />
       <PainelConfirmacao
         visivel={confirmarRemocao}
         titulo="Remover a logo?"
@@ -321,12 +312,6 @@ function MiniaturaDoTema({ cores, marca }: { cores: Cores; marca: string }) {
 }
 
 const estilos = StyleSheet.create({
-  // O mesmo vão que o `Tela` dá entre os blocos.
-  empilhado: { gap: espaco(2) },
-  formularioEPrevia: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO_DA_PREVIA },
-  colunaDoFormulario: { width: LARGURA_DO_FORMULARIO_DA_MARCA, flexShrink: 0, gap: espaco(2) },
-  // A prévia ocupa o resto da linha; `flex-start` para o `sticky` ter para onde andar.
-  colunaDaPrevia: { flex: 1, minWidth: 0, alignSelf: 'flex-start' },
   logo: { gap: espaco(0.75) },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   // Bolinhas numa base de 7 × 64 e o campo do código ao lado; sem lugar, o campo desce (o `wrap`).

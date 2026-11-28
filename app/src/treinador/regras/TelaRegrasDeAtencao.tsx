@@ -24,9 +24,10 @@ const statusDoErro = (erro: unknown): number | undefined =>
  * Configurações › Regras de atenção (`docs/planos/regras-de-atencao.md`, R1 a R9 e C1 a C4): os 6 modelos "me avise quando",
  * salvos num lote só. Lê com `ATUALIZACAO_LER` (a guarda da rota); edita com `REGRA_ATENCAO_ALTERAR`, senão só leitura. Com a
  * chave da plataforma desligada (`regrasAtencaoHabilitada`, padrão falso) ou o 503 `REGRAS_ATENCAO_INDISPONIVEIS`, diz que o
- * recurso não está ativo e não chama a API. Casca no molde de `TelaContratos`; o corpo no de `AbaLembretes`.
+ * recurso não está ativo e não chama a API. Casca no molde de `TelaContratos`. `embutida` (28/11): aberta dentro de
+ * Configurações, na coluna da direita, sem seta nem trilha; a rota inteira (celular) mantém as duas.
  */
-export function TelaRegrasDeAtencao() {
+export function TelaRegrasDeAtencao({ embutida = false }: { embutida?: boolean }) {
   const { pode, regrasAtencaoHabilitada } = useSessao();
   const carga = useCarregar(regrasAtencaoHabilitada ? 'regras-de-atencao' : null, () => obterRegrasDeAtencao());
   const desligado = !regrasAtencaoHabilitada || codigoApi(carga.erro) === REGRAS_ATENCAO_INDISPONIVEIS;
@@ -53,8 +54,7 @@ export function TelaRegrasDeAtencao() {
   return (
     <Tela bordas={['top']}>
       <Cabecalho titulo={TEXTOS_DAS_REGRAS.titulo} descricao={TEXTOS_DAS_REGRAS.descricao}
-        voltar="/treinador/configuracoes"
-        trilha={[{ rotulo: 'Configurações', href: '/treinador/configuracoes' }, { rotulo: TEXTOS_DAS_REGRAS.titulo }]} />
+        {...(embutida ? null : { voltar: '/treinador/configuracoes' as const, trilha: [{ rotulo: 'Configurações', href: '/treinador/configuracoes' as const }, { rotulo: TEXTOS_DAS_REGRAS.titulo }] })} />
       <View style={estilos.corpo}>{corpo()}</View>
     </Tela>
   );

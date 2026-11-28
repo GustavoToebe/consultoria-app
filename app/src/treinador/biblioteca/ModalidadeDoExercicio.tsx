@@ -1,13 +1,18 @@
-import { Check, Image as IconeDeImagem, Play, type LucideIcon } from 'lucide-react-native';
+import { Check, Image as IconeDeImagem, Info, Minus, Play, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Exercicio, Modalidade } from '../../api/tipos';
 import {
-  COR_DA_MODALIDADE, detalheDoExercicio, GRUPOS_SEM_BUSCA, gruposDaBusca, nomeDaModalidade, OPCOES_CURTAS_DE_MIDIA, OPCOES_DE_IMAGEM, OPCOES_DE_VIDEO,
+  COR_DA_MODALIDADE, detalheDoExercicio, nomeDaModalidade, OPCOES_CURTAS_DE_MIDIA, OPCOES_DE_IMAGEM, OPCOES_DE_VIDEO,
   temImagem, temVideo, type FiltrosDeExercicios, type OpcaoDeGrupo,
 } from '../../dominio/exerciciosDaBiblioteca';
 import { inteiroComMilhar } from '../../dominio/formatos';
+import { agruparGruposParecidos, textoDasVariacoes, type GrupoAgrupado } from '../../dominio/gruposMusculares';
+import {
+  alternarGrupo, comMarcadosNoTopo, emDuasColunas, estadoDoGrupo, gruposDaBuscaAgrupada, LARGURA_DA_LISTA_EM_DUAS_COLUNAS, LARGURA_DO_PAINEL_EM_COLUNAS,
+} from '../../dominio/painelDeExercicios';
+import type { EstadoDosVisiveis } from '../../dominio/selecaoMultiplaSuspensa';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../../tema/tokens';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
@@ -133,67 +138,158 @@ export function SeletoresDeExercicios<F extends FiltrosDeExercicios>({ atual, mu
   );
 }
 
+/** Opção de modalidade do painel; a contagem vem quando quem usa tem a lista inteira (`comContagemDasModalidades`). */
+export type OpcaoDaModalidadeNoPainel = { valor: Modalidade; rotulo: string; contagem?: number };
+
+/** "Peito, 18 exercícios" (o nome falado da opção); sem a contagem, só o nome. */
+const nomeComContagem = (rotulo: string, contagem: number | undefined) =>
+  contagem === undefined ? rotulo : `${rotulo}, ${contagem === 1 ? '1 exercício' : `${inteiroComMilhar(contagem)} exercícios`}`;
+
 /**
- * Painel de filtros dos exercícios na Biblioteca e na folha "Escolher exercício": Grupo muscular em chips de várias escolhas
- * com a contagem, Modalidade com as bolinhas e Vídeo e Imagem em segmento (Todos · Com · Sem). O Catálogo continua com os
- * `SeletoresDeExercicios` (lá a API não traz a contagem dos grupos). `comModalidade` falso: a folha do cardio só tem cardio.
+ * Painel de filtros dos exercícios na Biblioteca e na folha "Escolher exercício" (pedido de 27/11): com o painel medindo a
+ * partir de `LARGURA_DO_PAINEL_EM_COLUNAS` (a folha média, 800), duas colunas, Grupo muscular à esquerda e Modalidade, Vídeo
+ * e Imagem à direita; abaixo disso (o celular e o painel lateral de 460), tudo numa coluna. A medida é do painel, não da
+ * janela. `esquerda` troca o Grupo muscular (a folha do cardio põe ali o "Tipo de cardio"); `comModalidade` falso: a folha
+ * do cardio só tem cardio. O Catálogo continua com os `SeletoresDeExercicios` (lá a API não traz a contagem dos grupos).
  */
-export function PainelDeExercicios<F extends FiltrosDeExercicios>({ atual, mudar, grupos, opcoesDeModalidades, comModalidade = true }: {
+export function PainelDeExercicios<F extends FiltrosDeExercicios>({ atual, mudar, grupos, opcoesDeModalidades, comModalidade = true, esquerda }: {
   atual: F; mudar: (f: F) => void; grupos: readonly OpcaoDoGrupoNoPainel[];
-  opcoesDeModalidades: readonly { valor: Modalidade; rotulo: string }[]; comModalidade?: boolean;
+  opcoesDeModalidades: readonly OpcaoDaModalidadeNoPainel[]; comModalidade?: boolean; esquerda?: ReactNode;
 }) {
+  // Antes da primeira medida, empilhado (o que cabe em qualquer largura).
+  const [largura, setLargura] = useState(0);
+  const lado = largura >= LARGURA_DO_PAINEL_EM_COLUNAS;
+  const primeira = esquerda ?? (grupos.length > 0 ? <FiltroDeGrupos opcoes={grupos} marcados={atual.grupos} aoMudar={(m) => mudar({ ...atual, grupos: m })} /> : null);
   return (
-    <>
-      {grupos.length > 0 ? <FiltroDeGrupos opcoes={grupos} marcados={atual.grupos} aoMudar={(m) => mudar({ ...atual, grupos: m })} /> : null}
-      {comModalidade ? <FiltroDeModalidades opcoes={opcoesDeModalidades} marcados={atual.modalidades} aoMudar={(m) => mudar({ ...atual, modalidades: m })} /> : null}
-      <Escolha rotulo="Vídeo" opcoes={OPCOES_CURTAS_DE_MIDIA} valor={atual.video} aoMudar={(v) => mudar({ ...atual, video: v })} />
-      <Escolha rotulo="Imagem" opcoes={OPCOES_CURTAS_DE_MIDIA} valor={atual.imagem} aoMudar={(v) => mudar({ ...atual, imagem: v })} />
-    </>
+    <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={lado ? estilos.colunas : estilos.empilhado}>
+      {primeira ? <View style={[estilos.empilhado, lado && estilos.coluna]}>{primeira}</View> : null}
+      <View style={[estilos.empilhado, lado && estilos.coluna]}>
+        {comModalidade ? <ChipsDeModalidade opcoes={opcoesDeModalidades} marcados={atual.modalidades} aoMudar={(m) => mudar({ ...atual, modalidades: m })} /> : null}
+        {/* Vídeo e Imagem na mesma linha (compactos: os dois cabem nos ~370 px da coluna e nos 358 do celular); só quebram se não couberem. */}
+        <View style={estilos.midias}>
+          <Escolha compacta rotulo="Vídeo" opcoes={OPCOES_CURTAS_DE_MIDIA} valor={atual.video} aoMudar={(v) => mudar({ ...atual, video: v })} />
+          <Escolha compacta rotulo="Imagem" opcoes={OPCOES_CURTAS_DE_MIDIA} valor={atual.imagem} aoMudar={(v) => mudar({ ...atual, imagem: v })} />
+        </View>
+      </View>
+    </View>
   );
 }
 
 /**
- * "Grupo muscular" do painel: um chip por grupo (vários de uma vez; nenhum = todos), em ordem alfabética e com quantos
- * exercícios tem ("Peito 18"; o leitor de tela diz "Peito, 18 exercícios"). Acima de `GRUPOS_SEM_BUSCA` grupos, a busca
- * "Buscar grupo" no topo, que nunca esconde um grupo marcado. Sem a contagem (ainda não chegou), o chip só tem o nome.
- * As peças que já existiam não servem: a `Escolha` é de uma escolha só, a `SelecaoMultiplaSuspensa` não mostra a contagem
- * e abre outra camada por cima do painel, e a `CaixaSelecao` (uma linha por opção) faria 17 linhas.
+ * "Grupo muscular" do painel: a busca "Buscar grupo" no topo (só com mais de `GRUPOS_PARA_BUSCAR` linhas: com poucos
+ * grupos a lista inteira já se lê de uma vez) e, embaixo, uma lista de linhas
+ * iguais (caixa + nome + contagem em mono, alinhada à direita), em duas colunas lidas de cima para baixo quando a lista mede
+ * `LARGURA_DA_LISTA_EM_DUAS_COLUNAS` ou mais. Cada linha é um grupo de `agruparGruposParecidos`: as variações do mesmo
+ * grupo ("Panturrilha" e "Panturrilhas") viram uma linha com o total somado e o ⓘ que mostra as variações; marcar a linha
+ * marca todos os nomes reais (o filtro continua sendo a lista de nomes), e com parte deles marcada a caixa fica mista.
+ * Os marcados ao abrir vêm primeiro; a ordem não muda enquanto se marca (a linha não foge do dedo nem do foco).
+ * A busca nunca esconde um grupo marcado. Sem a contagem (a Biblioteca ainda não trouxe a lista inteira), só os nomes.
  */
+/** Acima disto (linhas da lista, já agrupadas) o filtro de grupos ganha a busca; até aqui, só a lista. */
+export const GRUPOS_PARA_BUSCAR = 12;
+
 export function FiltroDeGrupos({ opcoes, marcados, aoMudar }: {
   opcoes: readonly OpcaoDoGrupoNoPainel[]; marcados: ReadonlySet<string>; aoMudar: (m: Set<string>) => void;
 }) {
   const { cores } = useTema();
   const [busca, setBusca] = useState('');
-  const comBusca = opcoes.length > GRUPOS_SEM_BUSCA;
-  const visiveis: readonly OpcaoDoGrupoNoPainel[] = comBusca ? gruposDaBusca(opcoes.map((o) => ({ ...o, contagem: o.contagem ?? 0 })), busca, marcados) : opcoes;
-  const contagemDe = (valor: string) => opcoes.find((x) => x.valor === valor)?.contagem;
-  const alternar = (valor: string) => {
-    const novo = new Set(marcados);
-    if (novo.has(valor)) novo.delete(valor); else novo.add(valor);
-    aoMudar(novo);
-  };
+  // Os marcados de quando o painel abriu: o painel monta a cada abertura (e o "Limpar filtros" do painel lateral o remonta).
+  const [noTopo] = useState(() => new Set(marcados));
+  const [largura, setLargura] = useState(0);
+  const semContagem = opcoes.some((o) => o.contagem === undefined);
+  const agrupados = agruparGruposParecidos(opcoes.map((o) => ({ nome: o.valor, contagem: o.contagem ?? 0 })));
+  const visiveis = comMarcadosNoTopo(gruposDaBuscaAgrupada(agrupados, busca, marcados), noTopo);
+  const colunas = largura >= LARGURA_DA_LISTA_EM_DUAS_COLUNAS ? emDuasColunas(visiveis) : [visiveis];
   return (
     <View role="group" aria-label="Grupo muscular" style={estilos.grupo}>
       <Texto variante="rotulo" cor={cores.texto}>Grupo muscular</Texto>
-      {comBusca ? <Campo rotulo="Buscar grupo" rotuloOculto valor={busca} aoMudar={setBusca} placeholder="Buscar grupo" autoCorrect={false} autoCapitalize="none" /> : null}
+      {agrupados.length > GRUPOS_PARA_BUSCAR
+        ? <Campo rotulo="Buscar grupo" rotuloOculto valor={busca} aoMudar={setBusca} placeholder="Buscar grupo" autoCorrect={false} autoCapitalize="none" />
+        : null}
+      <View style={estilos.listaDeGrupos} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
+        {colunas.map((coluna, i) => (
+          <View key={i} style={estilos.colunaDeGrupos}>
+            {coluna.map((g) => (
+              <LinhaDoGrupo key={g.chave} grupo={g} semContagem={semContagem} estado={estadoDoGrupo(g, marcados)} aoTocar={() => aoMudar(alternarGrupo(g, marcados))} />
+            ))}
+          </View>
+        ))}
+      </View>
+      {busca.trim() !== '' && visiveis.length === 0 ? <Texto variante="suave" accessibilityLiveRegion="polite">{`Nenhum grupo com “${busca.trim()}”.`}</Texto> : null}
+    </View>
+  );
+}
+
+/**
+ * Uma linha da lista de grupos. O ⓘ é um botão irmão da caixa (não fica dentro dela: tocar nele não marca), um disclosure
+ * como o da `SecaoRecolhivel`: abre as variações logo abaixo, no lugar, sem balão que a rolagem da folha cortaria. O resto
+ * da linha à direita (a contagem) também marca, mas fica fora do Tab e do leitor de tela (a caixa já diz a contagem).
+ */
+function LinhaDoGrupo({ grupo, estado, semContagem, aoTocar }: { grupo: GrupoAgrupado; estado: EstadoDosVisiveis; semContagem: boolean; aoTocar: () => void }) {
+  const { cores } = useTema();
+  const [vendo, setVendo] = useState(false);
+  const [emCima, setEmCima] = useState(false);
+  const variacoes = grupo.variacoes.length > 1 ? (semContagem ? grupo.nomes.join(' · ') : textoDasVariacoes(grupo)) : '';
+  const marcada = estado !== 'nenhum';
+  const sobreA = { onHoverIn: () => setEmCima(true), onHoverOut: () => setEmCima(false) };
+  return (
+    <View>
+      <View style={[estilos.linhaDoGrupo, { backgroundColor: emCima ? cores.sobre : 'transparent' }]}>
+        <Pressable accessibilityRole="checkbox" accessibilityLabel={nomeComContagem(grupo.rotulo, semContagem ? undefined : grupo.total)}
+          accessibilityState={{ checked: estado === 'alguns' ? 'mixed' : marcada }} aria-checked={estado === 'alguns' ? 'mixed' : marcada}
+          onPress={aoTocar} {...sobreA} style={estilos.marcarGrupo}>
+          <View style={[estilos.caixa, { backgroundColor: marcada ? cores.texto : cores.campo, borderColor: marcada ? cores.texto : cores.bordaCampo }]}>
+            {estado === 'todos' ? <Check size={16} color={cores.fundo} strokeWidth={3} aria-hidden /> : null}
+            {estado === 'alguns' ? <Minus size={16} color={cores.fundo} strokeWidth={3} aria-hidden /> : null}
+          </View>
+          <Texto style={[estilos.nomeDoGrupo, { fontFamily: marcada ? fontes.semi : fontes.medio }]}>{grupo.rotulo}</Texto>
+        </Pressable>
+        {variacoes ? (
+          <Pressable accessibilityRole="button" accessibilityLabel={`Variações de ${grupo.rotulo}`} accessibilityState={{ expanded: vendo }} aria-expanded={vendo}
+            onPress={() => setVendo(!vendo)} style={(e) => [estilos.info, { backgroundColor: vendo || sobre(e) ? cores.sobre : 'transparent' }]}>
+            <Info size={16} color={vendo ? cores.texto : cores.textoSuave} strokeWidth={2} aria-hidden />
+          </Pressable>
+        ) : null}
+        <Pressable aria-hidden focusable={false} accessible={false} onPress={aoTocar} {...sobreA} style={estilos.restoDaLinha}>
+          {semContagem ? null : <Texto numerico cor={cores.textoSuave} style={estilos.contagem}>{inteiroComMilhar(grupo.total)}</Texto>}
+        </Pressable>
+      </View>
+      {variacoes && vendo ? <Texto variante="pequeno" style={estilos.variacoes} accessibilityLiveRegion="polite">{variacoes}</Texto> : null}
+    </View>
+  );
+}
+
+/**
+ * "Modalidade" do painel: chips compactos numa linha (bolinha da legenda + nome + contagem em mono), vários de uma vez
+ * (nenhum = todas), quebrando só quando não cabem. A seleção é a neutra dos chips (superfície de seleção, contorno e ✓).
+ */
+function ChipsDeModalidade({ opcoes, marcados, aoMudar }: { opcoes: readonly OpcaoDaModalidadeNoPainel[]; marcados: ReadonlySet<string>; aoMudar: (m: Set<string>) => void }) {
+  const { cores } = useTema();
+  if (opcoes.length === 0) return null;
+  return (
+    <View role="group" aria-label="Modalidade" style={estilos.grupo}>
+      <Texto variante="rotulo" cor={cores.texto}>Modalidade</Texto>
       <View style={estilos.chips}>
-        {visiveis.map((o) => {
+        {opcoes.map((o) => {
           const marcado = marcados.has(o.valor);
           const visual = coresDaSelecao(cores, marcado);
-          const contagem = contagemDe(o.valor);
           return (
             <Pressable key={o.valor} accessibilityRole="checkbox" aria-checked={marcado} accessibilityState={{ checked: marcado }}
-              accessibilityLabel={contagem === undefined ? o.rotulo : `${o.rotulo}, ${contagem === 1 ? '1 exercício' : `${inteiroComMilhar(contagem)} exercícios`}`}
-              onPress={() => alternar(o.valor)}
-              style={(estado) => [estilos.chip, { borderColor: visual.borda, backgroundColor: !marcado && sobre(estado) ? cores.superficie2 : visual.fundo }]}>
-              {marcado ? <Check size={16} color={visual.texto} strokeWidth={2.5} aria-hidden /> : null}
+              accessibilityLabel={nomeComContagem(o.rotulo, o.contagem)}
+              onPress={() => {
+                const novo = new Set(marcados);
+                if (marcado) novo.delete(o.valor); else novo.add(o.valor);
+                aoMudar(novo);
+              }}
+              style={(estado) => [estilos.chip, estilos.chipCompacto, { borderColor: visual.borda, backgroundColor: !marcado && sobre(estado) ? cores.superficie2 : visual.fundo }]}>
+              {marcado ? <Check size={14} color={visual.texto} strokeWidth={2.5} aria-hidden /> : null}
+              <MarcaDaModalidade modalidade={o.valor} />
               <Texto style={[estilos.textoDoChip, { color: visual.texto, fontFamily: marcado ? fontes.semi : fontes.medio }]}>{o.rotulo}</Texto>
-              {contagem === undefined ? null : <Texto numerico aria-hidden style={[estilos.textoDoChip, { color: cores.textoSuave }]}>{inteiroComMilhar(contagem)}</Texto>}
+              {o.contagem === undefined ? null : <Texto numerico aria-hidden style={[estilos.textoDoChip, { color: cores.textoSuave }]}>{inteiroComMilhar(o.contagem)}</Texto>}
             </Pressable>
           );
         })}
       </View>
-      {comBusca && visiveis.length === 0 ? <Texto variante="suave" accessibilityLiveRegion="polite">{`Nenhum grupo com “${busca.trim()}”.`}</Texto> : null}
     </View>
   );
 }
@@ -229,6 +325,25 @@ const estilos = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   textoDoChip: { fontSize: 14, flexShrink: 1, paddingVertical: 4 },
+  chipCompacto: { paddingHorizontal: espaco(1.25) },
+  // Painel: duas colunas iguais com 32 px entre elas (o dobro dos 24 entre os grupos de cada coluna) ou uma coluna só.
+  empilhado: { gap: espaco(3) },
+  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(4) },
+  coluna: { flexBasis: 0, flexGrow: 1, flexShrink: 1, minWidth: 0 },
+  midias: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(2), rowGap: espaco(2) },
+  // Lista de grupos: colunas iguais, linhas de 44 px; o fundo do hover cobre a linha inteira.
+  listaDeGrupos: { flexDirection: 'row', alignItems: 'flex-start', columnGap: espaco(2) },
+  colunaDeGrupos: { flexBasis: 0, flexGrow: 1, flexShrink: 1, minWidth: 0 },
+  linhaDoGrupo: { flexDirection: 'row', alignItems: 'center', minHeight: ALVO_TOQUE, borderRadius: RAIO_CONTROLE, paddingLeft: espaco(1) },
+  marcarGrupo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, flexShrink: 1, minWidth: 0 },
+  caixa: { width: 24, height: 24, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  nomeDoGrupo: { fontSize: 14, flexShrink: 1, paddingVertical: 4 },
+  info: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
+  // O resto da linha: a contagem encostada à direita, com o mesmo recuo da caixa à esquerda.
+  restoDaLinha: { flexGrow: 1, minHeight: ALVO_TOQUE, alignItems: 'flex-end', justifyContent: 'center', paddingLeft: espaco(1), paddingRight: espaco(1) },
+  contagem: { fontSize: 14 },
+  // As variações alinham com o nome (recuo da linha + caixa + vão).
+  variacoes: { paddingLeft: espaco(1) + 24 + espaco(1), paddingBottom: espaco(1) },
   marca: { width: 8, height: 8, borderRadius: 4 },
   legenda: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(1.5), rowGap: espaco(0.5) },
   // Marca e nome andam juntos: o item inteiro passa para a linha de baixo, nunca se parte.

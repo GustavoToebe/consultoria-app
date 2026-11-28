@@ -3,27 +3,30 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import { fixarHoje, MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
+import { colunasEstaveis, conferirAlturasDeColunas } from './alturasDeColunas';
 import { ALUNO, erroApi, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * App do aluno na web, Conta (27/11, contêiner do treinador): as peças (perfil, seções, convite e "Excluir minha conta") em
- * colunas empilhadas (`ui/Alvenaria`, `dominio/colunasDaConta`): 1 no celular e na faixa compacta, 2 na normal, 3 na larga e
- * na ultralarga; o título e a primeira coluna na borda esquerda do contêiner, ao lado do menu, e as colunas terminando perto
- * da mesma altura (sem buraco). Capturas com `E2E_CAPTURAS` (ou `CAPTURAS_ALUNO_LAYOUT`, pasta fora do git), junto com as
- * de Aparência e preferências do treinador na mesma largura, para comparar. Só dados fictícios.
+ * App do aluno na web, Conta (27/11, contêiner do treinador; cartões em 28/11): os cartões (perfil, seções e convite) em
+ * colunas empilhadas pela altura medida (`aluno/inicio/ColunasMedidas`, `dominio/colunasDaConta`): 1 no celular e na faixa
+ * compacta, 2 na normal, 3 na larga e na ultralarga; o perfil no topo da primeira coluna, o título e a primeira coluna na
+ * borda esquerda do contêiner, ao lado do menu, e nenhuma coluna terminando mais de 80 px antes da vizinha
+ * (`e2e/alturasDeColunas`, testID `conta-coluna-<chave>`). Capturas com `E2E_CAPTURAS` (ou `CAPTURAS_ALUNO_LAYOUT`, pasta
+ * fora do git), junto com as de Aparência e preferências do treinador na mesma largura, para comparar. Só dados fictícios.
  */
 
 const BASE = process.env.E2E_CAPTURAS ?? process.env.CAPTURAS_ALUNO_LAYOUT;
+const PREFIXO = 'conta-coluna';
 type Tema = 'ESCURO' | 'CLARO';
-/** Menu aberto (240 px): 1024 de janela = área compacta; 1280 normal; 1920 larga; 3440 ultralarga. */
+/** Menu aberto (240 px): 1024 de janela = área compacta; 1280 normal; 1920 e 2560 larga; 3440 ultralarga. */
 const MATRIZ: { largura: number; altura: number; colunas: number; temas: Tema[] }[] = [
   { largura: 390, altura: 844, colunas: 1, temas: ['ESCURO', 'CLARO'] },
   { largura: 1024, altura: 768, colunas: 1, temas: ['ESCURO'] },
   { largura: 1280, altura: 720, colunas: 2, temas: ['ESCURO', 'CLARO'] },
   { largura: 1920, altura: 1080, colunas: 3, temas: ['ESCURO', 'CLARO'] },
+  { largura: 2560, altura: 1440, colunas: 3, temas: ['ESCURO', 'CLARO'] },
   { largura: 3440, altura: 1440, colunas: 3, temas: ['ESCURO', 'CLARO'] },
 ];
-const PECAS = ['cabecalho-do-perfil', 'secao-perfil', 'secao-dados', 'secao-convite', 'secao-privacidade', 'secao-seguranca', 'secao-app', 'excluir-minha-conta'];
 
 async function preparar(page: Page, largura: number, altura: number, tema: Tema, id = ALUNO.id) {
   await page.setViewportSize({ width: largura, height: altura });
@@ -59,65 +62,59 @@ async function capturar(page: Page, nome: string) {
   fs.mkdirSync(BASE, { recursive: true });
   const janela = page.viewportSize()!;
   await page.setViewportSize({ width: janela.width, height: Math.max(janela.height, 1500) });
-  await page.waitForTimeout(400);
+  await colunasEstaveis(page, PREFIXO);
   await page.screenshot({ path: path.join(BASE, `${nome}.png`) });
   await page.setViewportSize(janela);
 }
 
-const caixas = (page: Page) => Promise.all(PECAS.map(async (id) => {
-  const c = await page.getByTestId(id).boundingBox();
-  if (!c) throw new Error(`sem caixa: ${id}`);
-  return c;
-}));
+/** Caixa de cada peça medida (a moldura posicionada pelas colunas), na ordem do DOM, que é a de leitura. */
+const caixasDasPecas = (page: Page) => page.evaluate((p) => [...document.querySelectorAll<HTMLElement>(`[data-testid^="${p}-"]`)]
+  .map((el) => {
+    const r = el.getBoundingClientRect();
+    return { nome: el.dataset.testid!.slice(p.length + 1), y: r.y, width: r.width, height: r.height, right: r.right };
+  })
+  .filter((c) => c.height >= 1), PREFIXO);
 
 for (const { largura, altura, colunas, temas } of MATRIZ) {
   for (const tema of temas) {
     test(`Conta em ${largura} px ${tema.toLowerCase()}: ${colunas} coluna(s) empilhada(s), sem buraco, na borda do contêiner`, async ({ page }) => {
       await preparar(page, largura, altura, tema);
       const { errosDaPagina } = await abrir(page);
-      // A captura sai mesmo se a conferência falhar (é ela que mostra o buraco).
-      await page.waitForTimeout(600);
+      // A captura sai antes da conferência (é ela que mostra o buraco, se houver).
+      await colunasEstaveis(page, PREFIXO);
       await capturar(page, `conta-${largura}-${tema.toLowerCase()}`);
-      await expect(async () => {
-        const c = await caixas(page);
-        // Colunas pelo x de cada peça (o cartão de excluir tem o recuo por dentro: até 40 px conta como a mesma coluna).
-        const xs = c.map((b) => Math.round(b.x)).sort((a, b) => a - b).filter((x, i, todos) => i === 0 || x - todos[i - 1] > 40);
-        expect(xs.length).toBe(colunas);
-        const colunaDe = (b: { x: number }) => xs.filter((x) => b.x >= x - 1).length - 1;
-        const titulo = (await page.getByRole('heading', { level: 1, name: 'Conta' }).boundingBox())!;
-        // O título e a primeira coluna na mesma borda (a do contêiner, ao lado do menu).
-        expect(Math.abs(xs[0] - titulo.x)).toBeLessThan(4);
-        // A ordem de leitura começa pelo perfil, no topo da primeira coluna.
-        expect(colunaDe(c[0])).toBe(0);
-        if (colunas > 1) {
-          // Colunas terminando perto da mesma altura (diferença de no máximo ~uma linha e meia).
-          const fins = xs.map((_, k) => Math.max(...c.filter((b) => colunaDe(b) === k).map((b) => b.y + b.height)));
-          expect(Math.max(...fins) - Math.min(...fins)).toBeLessThan(140);
-          // As seções (a moldura inteira da peça) têm a mesma largura em todas as colunas.
-          const larguras = c.filter((_, i) => PECAS[i].startsWith('secao-')).map((b) => Math.round(b.width));
-          expect(Math.max(...larguras) - Math.min(...larguras)).toBeLessThan(2);
-          // A última coluna chega perto da borda direita do conteúdo (sem faixa vazia à direita).
-          const direita = Math.max(...c.map((b) => b.x + b.width));
-          expect(largura - direita).toBeLessThan(80);
-        } else {
-          // Uma coluna: as peças em ordem, uma embaixo da outra.
-          for (let i = 1; i < c.length; i++) expect(c[i].y).toBeGreaterThan(c[i - 1].y);
-        }
-      }).toPass({ timeout: 10_000 });
+      const lidas = await conferirAlturasDeColunas(page, { prefixo: PREFIXO, colunasEsperadas: colunas });
+      test.info().annotations.push({ type: 'fim das colunas', description: lidas.map((c) => `${c.pecas.join('+')}: ${Math.round(c.fim)}`).join(' | ') });
+      // A ordem de leitura começa pelo perfil, no topo da primeira coluna.
+      expect(lidas[0].pecas[0]).toBe('perfil');
+      // O título e a primeira coluna na mesma borda (a do contêiner, ao lado do menu).
+      const titulo = (await page.getByRole('heading', { level: 1, name: 'Conta' }).boundingBox())!;
+      expect(Math.abs(lidas[0].x - titulo.x)).toBeLessThan(4);
+      const c = await caixasDasPecas(page);
+      if (colunas > 1) {
+        // Todas as peças com a largura da célula, e a última coluna perto da borda direita (sem faixa vazia à direita).
+        const larguras = c.map((b) => Math.round(b.width));
+        expect(Math.max(...larguras) - Math.min(...larguras)).toBeLessThan(2);
+        expect(largura - Math.max(...c.map((b) => b.right))).toBeLessThan(80);
+      } else {
+        // Uma coluna: as peças em ordem, uma embaixo da outra.
+        for (let i = 1; i < c.length; i++) expect(c[i].y).toBeGreaterThan(c[i - 1].y);
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
       expect(errosDaPagina).toEqual([]);
     });
   }
 }
 
-test('Conta: "Meus dados" e "Trocar senha" abrem a folha a partir da coluna', async ({ page }) => {
+test('Conta: "Trocar senha" abre a folha a partir da coluna', async ({ page }) => {
   await preparar(page, 1920, 1080, 'ESCURO');
   await abrir(page);
+  await colunasEstaveis(page, PREFIXO);
   await page.getByRole('button', { name: /^Trocar senha/ }).click();
   await expect(page.getByRole('dialog', { name: 'Trocar senha' })).toBeVisible();
 });
 
-test('Conta: sem conexão com a API do perfil, as seções que dependem dela somem sem deixar vão', async ({ page }) => {
+test('Conta em 1920: com a API do perfil fora, as linhas dizem que não carregou e as colunas continuam sem buraco', async ({ page }) => {
   await preparar(page, 1920, 1080, 'ESCURO');
   await simularApi(page, {
     ...(await sessaoDeAluno(page)),
@@ -131,22 +128,28 @@ test('Conta: sem conexão com a API do perfil, as seções que dependem dela som
   await page.goto('/aluno/conta');
   await expect(page.getByRole('heading', { level: 1, name: 'Conta' })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Meus dados, Não foi possível carregar/ })).toBeVisible();
+  await colunasEstaveis(page, PREFIXO);
   await capturar(page, 'conta-1920-erro');
+  await conferirAlturasDeColunas(page, { prefixo: PREFIXO, colunasEsperadas: 3 });
 });
 
-// Comparação: Aparência e preferências do treinador (a mesma `Alvenaria`) nas mesmas larguras e temas. Só captura.
+// Comparação: Aparência e preferências do treinador (`ui/Alvenaria`) nas mesmas larguras e temas. Só captura.
 test.describe('capturas de comparação: Aparência e preferências do treinador', () => {
   test.skip(!BASE, 'só com E2E_CAPTURAS');
-  for (const largura of [1280, 1920, 3440]) for (const tema of ['ESCURO', 'CLARO'] as const) {
+  for (const { largura, altura } of MATRIZ.filter((m) => m.largura >= 1280)) for (const tema of ['ESCURO', 'CLARO'] as const) {
     test(`treinador ${largura} ${tema.toLowerCase()}`, async ({ page }) => {
-      await preparar(page, largura, largura === 3440 ? 1440 : largura === 1920 ? 1080 : 720, tema, TREINADOR.id);
+      await preparar(page, largura, altura, tema, TREINADOR.id);
       await simularApi(page, {
         ...(await sessao(page, TREINADOR, { unidadeDeCargaHabilitada: true })),
         'GET /inscricoes': { corpo: { itens: [], total: 0 } },
       });
       await page.goto('/treinador/ajustes');
       await expect(page.getByRole('heading', { name: 'Aparência e preferências', level: 1 })).toBeVisible();
-      await capturar(page, `treinador-ajustes-${largura}-${tema.toLowerCase()}`);
+      if (!BASE) return;
+      const janela = page.viewportSize()!;
+      await page.setViewportSize({ width: janela.width, height: Math.max(janela.height, 1500) });
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: path.join(BASE, `treinador-ajustes-${largura}-${tema.toLowerCase()}.png`) });
     });
   }
 });

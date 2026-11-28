@@ -33,10 +33,7 @@ export const LARGURA_DO_PAINEL = 420;
  * 1280 com o menu aberto (~1040 de área) cairia no empilhado.
  */
 export const JANELA_DAS_COLUNAS = 1280;
-/** A partir desta largura de CONTEÚDO (já sem o recuo e com o teto da preferência), Treino e Dieta lado a lado. */
-export const CONTEUDO_DAS_DUAS_PREVIAS = 2400;
-
-/** O papel dos PDFs é branco em qualquer tema (o `.previa-pdf`; a mesma exceção da `MESA_DA_PREVIA`, 4.10). */
+/** O papel dos PDFs é branco em qualquer tema (o `.previa-pdf`); sem mesa: contorno `divisor` e a sombra do tema (4.10). */
 export const PAPEL_DA_FOLHA = '#FFFFFF';
 
 export type ZoomDaFolha = 'AJUSTAR' | 'CEM';
@@ -44,18 +41,17 @@ export type ZoomDaFolha = 'AJUSTAR' | 'CEM';
 export type ArranjoDoEditor =
   | { tipo: 'compacto' }
   | { tipo: 'empilhado' }
-  | { tipo: 'colunas'; painel: number; previas: 1 | 2 };
+  | { tipo: 'colunas'; painel: number };
 
 /**
- * `area` é a área de conteúdo (4.10); `conteudo`, o que sobra dentro da `TelaDoEditor` (recuo lateral e teto da "Largura do
- * conteúdo" descontados); `janela`, a largura da janela. Abaixo de 1024 de área só se confirma o modelo (D24); com janela
- * abaixo de 1280 (menu recolhido ou minimizado), opções em cima e prévia embaixo; de 1280 de janela em diante, painel de 420
- * à esquerda e a prévia no resto; com 2400 de conteúdo, duas prévias lado a lado (com a preferência "Limitada", 1800, nunca).
+ * `area` é a área de conteúdo (4.10); `janela`, a largura da janela. Abaixo de 1024 de área só se confirma o modelo (D24); com
+ * janela abaixo de 1280 (menu recolhido ou minimizado), opções em cima e prévia embaixo; de 1280 de janela em diante, painel
+ * de 420 à esquerda e a prévia no resto. Quantas prévias cabem é de `dominio/previasDaLargura` (pela área de prévia medida).
  */
-export function arranjoDoEditor(area: number, conteudo: number = area, janela: number = area): ArranjoDoEditor {
+export function arranjoDoEditor(area: number, janela: number = area): ArranjoDoEditor {
   if (faixaDeLargura(area) === 'compacta') return { tipo: 'compacto' };
   if (janela < JANELA_DAS_COLUNAS) return { tipo: 'empilhado' };
-  return { tipo: 'colunas', painel: LARGURA_DO_PAINEL, previas: conteudo >= CONTEUDO_DAS_DUAS_PREVIAS ? 2 : 1 };
+  return { tipo: 'colunas', painel: LARGURA_DO_PAINEL };
 }
 
 /**

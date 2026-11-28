@@ -98,7 +98,7 @@ const TRACEJADO = '6 4';
  */
 export function GraficoLinha({
   pontos, unidade, descricao, semUltimo, faixas, escala, cor, larguraInicial = 0,
-  segmentos = 'suaves', semArea, serieB, rotuloA, textoDaDica, faladoDaDica, corDoPonto, legendaDaEscala, destacarUltimo,
+  segmentos = 'suaves', semArea, serieB, rotuloA, textoDaDica, faladoDaDica, corDoPonto, legendaDaEscala, destacarUltimo, deslocamentoDoPonto,
 }: {
   pontos: PontoGrafico[]; unidade: string; descricao: string; semUltimo?: boolean; faixas?: FaixaDoGrafico[];
   /** Cor da série (curva, área e pontos), com contraste de 3:1 sobre a superfície do cartão. Sem ela, a cor do texto. */
@@ -125,6 +125,11 @@ export function GraficoLinha({
   legendaDaEscala?: string;
   /** Destaque discreto (raio e anel maiores, sem cor nova) no último ponto de cada série. */
   destacarUltimo?: boolean;
+  /**
+   * Afastamento horizontal (px) do marcador e do alvo de toque de um ponto, sem mexer na linha: dois pontos no mesmo lugar
+   * (direito = esquerdo, `dominio/ladosDoGrafico`) aparecem lado a lado em vez de um cobrir o outro. Sem ela, nenhum.
+   */
+  deslocamentoDoPonto?: (serie: QualSerie, indice: number) => number;
 }) {
   const { cores, fatorTexto } = useTema();
   const linha = cor ?? cores.texto;
@@ -155,6 +160,8 @@ export function GraficoLinha({
   const xDe = (s: QualSerie, i: number) =>
     MARGEM.esq + (pelaUniao ? fracaoNoEixo(todos, s === 'A' ? i : pontos.length + i) : fracaoNoEixo(s === 'A' ? pontos : pontosB, i)) * areaW;
   const x = (i: number) => xDe('A', i);
+  // Só o marcador e o alvo de toque se afastam; a linha e o eixo continuam na data.
+  const xDoMarcador = (s: QualSerie, i: number) => xDe(s, i) + (deslocamentoDoPonto?.(s, i) ?? 0);
   const y = (v: number) => MARGEM.topo + (1 - (v - min) / (max - min)) * areaH;
   const marcas = escala || legendaDaEscala !== undefined ? marcasDaEscala(min, max) : marcasDoEixo(min, max);
   const tracar = segmentos === 'retos' ? caminhoReto : caminhoSuave;
@@ -175,8 +182,8 @@ export function GraficoLinha({
 
   // Alvos de toque e de teclado, na ordem do eixo (A antes de B na mesma data): as setas andam nesta ordem.
   const alvos = [
-    ...pontos.map((p, i) => ({ chave: `A${i}`, serie: 'A' as QualSerie, i, p, cx: x(i), cy: y(p.valor) })),
-    ...pontosB.map((p, i) => ({ chave: `B${i}`, serie: 'B' as QualSerie, i, p, cx: xDe('B', i), cy: y(p.valor) })),
+    ...pontos.map((p, i) => ({ chave: `A${i}`, serie: 'A' as QualSerie, i, p, cx: xDoMarcador('A', i), cy: y(p.valor) })),
+    ...pontosB.map((p, i) => ({ chave: `B${i}`, serie: 'B' as QualSerie, i, p, cx: xDoMarcador('B', i), cy: y(p.valor) })),
   ].sort((a, b) => a.cx - b.cx || (a.serie < b.serie ? -1 : a.serie > b.serie ? 1 : 0));
   const areasDeToque = alvos.map((_, i) => areaDeToque(alvos, i));
   const atual = alvos.find((a) => a.chave === ativo) ?? null;
@@ -285,8 +292,8 @@ export function GraficoLinha({
                   strokeDasharray="3 3"
                 />
               ) : null}
-              {pontos.map((p, i) => circulo('A', i, p, x(i), pontos.length))}
-              {pontosB.map((p, i) => circulo('B', i, p, xDe('B', i), pontosB.length))}
+              {pontos.map((p, i) => circulo('A', i, p, xDoMarcador('A', i), pontos.length))}
+              {pontosB.map((p, i) => circulo('B', i, p, xDoMarcador('B', i), pontosB.length))}
               {datasDoEixo.map((d, i) =>
                 i % passoRotulo === 0 || i === datasDoEixo.length - 1 ? (
                   <SvgTexto key={`r${i}`} x={d.x} y={ALTURA - 6} fontSize={fonte} fill={cores.textoSuave} textAnchor="middle">

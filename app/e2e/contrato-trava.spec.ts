@@ -1,17 +1,17 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import type { ContratoDoAlunoDetalhe, ContratoDoAlunoResumo, ModeloDeContrato } from '../src/api/contratos';
+import type { ContratoDoAlunoDetalhe, ContratoDoAlunoResumo } from '../src/api/contratos';
 import type { FinanceiroDoAluno } from '../src/api/financeiroTipos';
 import type { EuResponse } from '../src/api/tipos';
 import type { RegistroLocal } from '../src/offline/repositorioLocal';
 import { sessaoDeAluno } from './aluno';
-import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
+import { ALUNO, erroApi, json, sessao, simularApi, type RespostasApi } from './api-falsa';
 
 /**
  * Contrato digital, passo 5 (`docs/planos/contrato-digital.md`, D3, D8, D19, D21, S6 e S7): a tela de bloqueio do aluno
  * com contrato pendente vencido (dentro do `AlunoProvider`, a fila continua enviando), a assinatura que libera na hora, o
- * menor que espera o responsável, o contrato junto com a pausa por atraso, o "Sair" com treino não enviado e o "Prazo para
- * assinar" em Configurações › Contratos. Só dados fictícios; o código de verificação é inventado. Capturas em
+ * menor que espera o responsável, o contrato junto com a pausa por atraso e o "Sair" com treino não enviado. O prazo para
+ * assinar (Configurações › Contratos) está em `contratos.spec.ts`. Só dados fictícios; o código de verificação é inventado. Capturas em
  * `CAPTURAS_CONTRATOS` quando a variável existe (fora do repositório).
  */
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
@@ -196,88 +196,3 @@ test('trava do contrato em 390 no tema escuro (captura)', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: TITULO_ASSINAR })).toBeVisible();
   await capturar(page, 'trava-com-pausa-390-escuro');
 });
-
-// ---------------------------------------------------------------- treinador: prazo para assinar
-
-const PERMISSOES = [...PERMISSOES_TREINADOR, 'CONTRATO_LER', 'CONTRATO_ALTERAR'];
-const MODELO: ModeloDeContrato = {
-  id: 'm0000000-0000-4000-8000-000000000001', nome: 'Prestação de serviço', texto: 'Contratante: {aluno_nome}.', arquivadoEm: null, versao: 0,
-  atualizadoEm: '2026-11-20T15:00:00Z',
-};
-
-async function abrirPrazo(page: Page, largura: number, o: { prazoDias: number | null; permissoes?: string[]; rotas?: RespostasApi }) {
-  await page.setViewportSize({ width: largura, height: 900 });
-  let prazoDias = o.prazoDias;
-  const api = await simularApi(page, {
-    ...(await sessao(page, TREINADOR, { permissoes: o.permissoes ?? PERMISSOES, contratosHabilitados: true })),
-    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
-    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-    'GET /contratos/modelos': { corpo: [MODELO] },
-    'GET /consultoria/contratos': (_p, r) => json(r, { prazoDias }),
-    'PUT /consultoria/contratos': (p, r) => {
-      prazoDias = (p.corpo as { prazoDias: number | null }).prazoDias;
-      return json(r, { prazoDias });
-    },
-    ...o.rotas,
-  });
-  await page.goto('/treinador/contratos');
-  await expect(page.getByRole('heading', { name: 'Prazo para assinar' })).toBeVisible();
-  return api;
-}
-
-const opcao = (page: Page, rotulo: string) =>
-  page.getByRole('radiogroup', { name: 'Quando o aluno não assina' }).getByRole('radio', { name: rotulo, exact: true });
-
-for (const largura of [390, 1280]) {
-  test.describe(`prazo para assinar em ${largura} px`, () => {
-    test('liga o prazo, salva e volta a "Tudo salvo"; desligar manda nulo', async ({ page }) => {
-      const api = await abrirPrazo(page, largura, { prazoDias: null });
-      await expect(page.getByText('Depois desse prazo, quem não assinou fica sem acesso ao app até assinar. Vale para os contratos gerados daqui em diante.')).toBeVisible();
-      await expect(page.getByText('Tudo salvo')).toBeVisible();
-      await expect(opcao(page, 'Não travar o acesso')).toBeChecked();
-      await opcao(page, 'Travar depois de um prazo').click();
-      await page.getByLabel('Dias para assinar').fill('15');
-      await expect(page.getByText('Alterações não salvas')).toBeVisible();
-      await capturar(page, `prazo-editando-${largura}`);
-      await page.getByRole('button', { name: 'Salvar prazo' }).click();
-      await expect(page.getByText('Prazo para assinar salvo.')).toBeVisible();
-      await expect(page.getByText('Tudo salvo')).toBeVisible();
-      expect(api.pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([{ prazoDias: 15 }]);
-      await opcao(page, 'Não travar o acesso').click();
-      await page.getByRole('button', { name: 'Salvar prazo' }).click();
-      await expect(page.getByText('Tudo salvo')).toBeVisible();
-      expect(api.pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([{ prazoDias: 15 }, { prazoDias: null }]);
-      expect(api.naoTratadas).toEqual([]);
-      expect(api.errosDaPagina).toEqual([]);
-    });
-
-    test('fora de 1 a 60 não chama a API; o 422 do servidor aparece no campo; descartar volta ao gravado', async ({ page }) => {
-      const api = await abrirPrazo(page, largura, {
-        prazoDias: 10,
-        rotas: { 'PUT /consultoria/contratos': erroApi(422, 'Confira o prazo para assinar.', 'CONTRATO_PRAZO_INVALIDO', [{ field: 'prazoDias', message: 'Informe de 1 a 60 dias, ou deixe em branco para não travar o acesso.' }]) },
-      });
-      const dias = page.getByLabel('Dias para assinar');
-      await expect(dias).toHaveValue('10');
-      await dias.fill('0');
-      await page.getByRole('button', { name: 'Salvar prazo' }).click();
-      await expect(page.getByText('Informe um número inteiro de 1 a 60 dias.')).toBeVisible();
-      expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toEqual([]);
-      await dias.fill('30');
-      await page.getByRole('button', { name: 'Salvar prazo' }).click();
-      await expect(page.getByText('Informe de 1 a 60 dias, ou deixe em branco para não travar o acesso.')).toBeVisible();
-      await capturar(page, `prazo-erro-${largura}`);
-      await page.getByRole('button', { name: 'Descartar alterações do prazo para assinar' }).click();
-      await expect(dias).toHaveValue('10');
-      await expect(page.getByText('Tudo salvo')).toBeVisible();
-      expect(api.naoTratadas).toEqual([]);
-    });
-
-    test('só CONTRATO_LER: o prazo só para leitura, sem escolha nem salvar', async ({ page }) => {
-      const api = await abrirPrazo(page, largura, { prazoDias: 15, permissoes: [...PERMISSOES_TREINADOR, 'CONTRATO_LER'] });
-      await expect(page.getByLabel('Quando o aluno não assina: Trava o acesso depois de 15 dias')).toBeVisible();
-      await expect(page.getByRole('radiogroup', { name: 'Quando o aluno não assina' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Salvar prazo' })).toHaveCount(0);
-      expect(api.naoTratadas).toEqual([]);
-    });
-  });
-}

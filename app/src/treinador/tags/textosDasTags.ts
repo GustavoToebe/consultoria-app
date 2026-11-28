@@ -9,6 +9,10 @@ import { chaveDaTag, resumoDasTagsNaLinha, tagPeloNome } from '../../dominio/tag
 /** Aviso fixo (D6) do campo e da tela de gestão. */
 export const AVISO_DAS_TAGS = 'Rótulos só da equipe: o aluno não vê. Não use para saúde.';
 
+/** Tela de gestão (28/11): o "só da equipe" vai no ⓘ do título; o "não use para saúde" fica à vista, com o cadeado. */
+export const SOBRE_A_TELA_DAS_TAGS = 'Rótulos só da equipe para achar e filtrar alunos: o aluno não vê. Renomear ou trocar a cor vale em todos os alunos que têm a tag.';
+export const AVISO_DE_SAUDE_DAS_TAGS = 'Não use tags para dado de saúde.';
+
 /** "Tags: Online, Retorno e mais 2" (o mesmo corte de {@link resumoDasTagsNaLinha}); sem tags, `null`. */
 export function rotuloDasTagsNaLinha(tags: readonly TagDeAluno[]): string | null {
   if (!tags.length) return null;

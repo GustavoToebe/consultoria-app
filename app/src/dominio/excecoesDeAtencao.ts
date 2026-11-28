@@ -27,7 +27,7 @@ export const TEXTOS_DAS_EXCECOES = {
   voltou: 'Voltou à regra geral.',
   conflito: 'Esta exceção foi alterada por outra pessoa. Carregamos a versão atual; confira e salve de novo.',
   titulo: 'Exceções por aluno',
-  semExcecao: 'Nenhum aluno com exceção.',
+  semExcecao: 'Nenhum aluno com exceção · ajuste na ficha do aluno, em Configuração do acompanhamento.',
   ondeFica: 'Ajuste na ficha do aluno, em Configuração do acompanhamento.',
 } as const;
 

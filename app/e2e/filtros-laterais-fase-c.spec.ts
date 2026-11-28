@@ -121,7 +121,7 @@ const CASOS: Caso[] = [
     pronto: (page) => page.getByText('alunos.csv').first(),
     sessao: treinador(),
     rotas: { 'GET /importacoes': (p, route) => json(route, p.busca.has('situacao') ? { itens: [], total: 0, pagina: 0 } : { itens: [IMPORTACAO], total: 1, pagina: 0 }) },
-    ligar: async (_page, painel) => { await opcao(painel, 'Situação', 'Falhou').click(); },
+    ligar: async (_page, painel) => { await painel.getByRole('group', { name: 'Situação' }).getByRole('button', { name: 'Falhou', exact: true }).click(); },
     chip: 'Tirar filtro: Situação: Falhou', vazio: /^Nenhuma importação com esses filtros/,
     periodo: async (painel) => {
       await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/1');
@@ -267,7 +267,7 @@ for (const caso of CASOS) {
         await expect(painel).toBeVisible();
         const campo = await caso.periodo(painel);
         const antes = daLista().length;
-        await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
         await expect(painel).toBeVisible();
         await expect(campo).toHaveAttribute('aria-invalid', 'true');
         await expect(campo).toBeFocused();
@@ -282,7 +282,7 @@ for (const caso of CASOS) {
       await botao.click();
       await expect(painel).toBeVisible();
       await caso.ligar(page, painel);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(page.getByRole('button', { name: caso.chip })).toBeVisible();
@@ -309,7 +309,7 @@ for (const caso of CASOS) {
       const enderecoAplicado = page.url();
       await botao.click();
       await expect(painel).toBeVisible();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       // Espera curta para um pedido indevido ter tempo de sair (não há evento a esperar quando nada acontece).
       await page.waitForTimeout(500);
@@ -345,7 +345,7 @@ for (const largura of [390, 1280]) {
     await botao.click();
     const painel = page.getByRole('dialog', { name: agenda.painel });
     await agenda.ligar(page, painel);
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(painel).toHaveCount(0);
     await expect(page.getByRole('button', { name: agenda.chip })).toBeVisible();
     await expect.poll(() => new URL(page.url()).searchParams.get('meus')).toBe('true');
@@ -386,7 +386,7 @@ test('agenda: o painel aberto e o rascunho sobrevivem a PC → celular → PC', 
   // Nada foi aplicado no caminho: o endereço continua sem o filtro e o Aplicar ainda vale.
   expect(new URL(page.url()).searchParams.get('meus')).toBeNull();
   expect(pedidos.filter((p) => p.caminho === agenda.api && p.busca.get('responsavel') === 'meus')).toHaveLength(0);
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(painel).toHaveCount(0);
   await expect.poll(() => new URL(page.url()).searchParams.get('meus')).toBe('true');
   expect(naoTratadas).toEqual([]);

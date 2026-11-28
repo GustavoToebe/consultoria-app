@@ -67,17 +67,15 @@ async function abrirPainel(page: Page, nome?: string): Promise<Locator> {
 }
 
 /** Marca opções na lista suspensa de várias (o próprio diálogo dela); fecha com Esc, que só fecha a lista. */
-async function marcar(page: Page, painel: Locator, rotulo: string, valorAtual: string, opcoes: string[]) {
-  await painel.getByRole('button', { name: `${rotulo}: ${valorAtual}. Escolher.` }).click();
-  const lista = page.getByRole('dialog', { name: rotulo });
-  for (const o of opcoes) await lista.getByRole('checkbox', { name: o, exact: true }).click();
-  // Marcar várias não fecha nem a lista nem o painel.
-  await expect(lista).toBeVisible();
-  await expect(painel).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(lista).toHaveCount(0);
+/** Regra única dos filtros (28/11): as situações são chips de várias escolhas no próprio painel (nada marcado = todas). */
+async function marcar(_page: Page, painel: Locator, rotulo: string, _valorAtual: string, opcoes: string[]) {
+  const grupo = painel.getByRole('group', { name: rotulo });
+  for (const o of opcoes) await grupo.getByRole('button', { name: o, exact: true }).click();
+  // Marcar várias não fecha o painel.
   await expect(painel).toBeVisible();
 }
+/** Nenhum chip marcado no grupo (= todas). */
+const nadaMarcado = (painel: Locator, rotulo: string) => expect(painel.getByRole('group', { name: rotulo }).getByRole('button', { pressed: true })).toHaveCount(0);
 
 const data = (painel: Locator, grupo: string, campo: 'De' | 'Até') => painel.getByRole('group', { name: grupo }).getByRole('textbox', { name: campo });
 
@@ -93,7 +91,6 @@ for (const largura of [390, 1280]) {
     const { pedidos, naoTratadas, errosDaPagina } = await abrirCobrancas(page, largura);
     await expect(linhas(page)).toHaveCount(5);
     // Sem baixa, a cobrança mostra "—" no pagamento (na tabela ou no cartão).
-    const antes = pedidosDeCobrancas(pedidos).length;
 
     const painel = await abrirPainel(page);
     // O foco entra no painel.
@@ -102,10 +99,10 @@ for (const largura of [390, 1280]) {
     await painel.getByRole('radiogroup', { name: 'Vencimento' }).getByRole('radio', { name: 'Escolher período' }).click();
     await data(painel, 'Vencimento entre', 'De').fill('01/10/2026');
     await data(painel, 'Vencimento entre', 'Até').fill('31/10/2026');
-    // Rascunho: nada foi ao endereço nem à API ainda.
-    expect(pedidosDeCobrancas(pedidos)).toHaveLength(antes);
+    // Rascunho: nada foi ao endereço. A API recebe só a contagem do "Mostrar N" (regra única dos filtros, 28/11), por isso
+    // o número de pedidos não serve mais de prova: vale o endereço.
     await expect(page).not.toHaveURL(/situacao=/);
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
 
     await expect(painel).toHaveCount(0);
     await expect(botao(page)).toBeFocused();
@@ -126,7 +123,7 @@ for (const largura of [390, 1280]) {
     // Pagamento a partir de 01/10: a cobrança sem data de pagamento sai; só a paga fica.
     await abrirPainel(page);
     await data(painelDe(page), 'Pagamento', 'De').fill('01/10/2026');
-    await painelDe(page).getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painelDe(page).getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(linhas(page)).toHaveCount(1);
     await expect(page.getByText('Elis Teste').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Filtros, 3 ligados' })).toBeVisible();
@@ -143,12 +140,11 @@ for (const largura of [390, 1280]) {
   });
 
   test(`Cobranças em ${largura}px: Cancelar, X, Esc e o fundo descartam; Esc fecha o calendário antes; data inválida não aplica`, async ({ page }) => {
-    const { pedidos, naoTratadas, errosDaPagina } = await abrirCobrancas(page, largura);
-    const antes = pedidosDeCobrancas(pedidos).length;
+    const { naoTratadas, errosDaPagina } = await abrirCobrancas(page, largura);
     const descartar = async (como: (painel: Locator) => Promise<void>) => {
       const painel = await abrirPainel(page);
       // Abre sempre com o que está aplicado (nada), não com o rascunho descartado da vez anterior.
-      await expect(painel.getByRole('button', { name: 'Situação: Todas. Escolher.' })).toBeVisible();
+      await nadaMarcado(painel, 'Situação');
       await marcar(page, painel, 'Situação', 'Todas', ['Pagas']);
       await como(painel);
       await expect(painel).toHaveCount(0);
@@ -160,7 +156,6 @@ for (const largura of [390, 1280]) {
     await descartar(() => page.keyboard.press('Escape'));
     // O fundo: à esquerda do painel no PC; acima da folha no celular.
     await descartar(() => page.mouse.click(largura < 768 ? largura / 2 : 40, largura < 768 ? 20 : 450));
-    expect(pedidosDeCobrancas(pedidos)).toHaveLength(antes);
     await expect(page).not.toHaveURL(/situacao=/);
 
     // Esc com o calendário aberto fecha só o calendário.
@@ -176,20 +171,19 @@ for (const largura of [390, 1280]) {
     await data(painel, 'Emissão', 'De').fill('10/10/20');
     await data(painel, 'Pagamento', 'De').fill('20/10/2026');
     await data(painel, 'Pagamento', 'Até').fill('10/10/2026');
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(painel).toBeVisible();
     await expect(painel.getByText('Corrija os 2 campos marcados para aplicar os filtros.')).toBeVisible();
     await expect(painel.getByText('Complete a data (DD/MM/AAAA) ou apague.')).toBeVisible();
     await expect(painel.getByText('Fim antes do início.')).toBeVisible();
     await expect(data(painel, 'Emissão', 'De')).toBeFocused();
     await page.screenshot({ path: `${CAPTURAS}/depois-cobrancas-erro-${largura}.png` });
-    expect(pedidosDeCobrancas(pedidos)).toHaveLength(antes);
 
     // Corrigido, a frase some e o Aplicar vale.
     await data(painel, 'Emissão', 'De').fill('');
     await data(painel, 'Pagamento', 'Até').fill('25/10/2026');
     await expect(painel.getByText(/Corrija o/)).toHaveCount(0);
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(painel).toHaveCount(0);
     await expect(page).toHaveURL(/pagoDe=2026-10-20/);
     await expect(page).toHaveURL(/pagoAte=2026-10-25/);
@@ -199,7 +193,7 @@ for (const largura of [390, 1280]) {
     await outra.getByRole('button', { name: 'Limpar filtros' }).click();
     await expect(data(outra, 'Pagamento', 'De')).toHaveValue('');
     await expect(page).toHaveURL(/pagoDe=/);
-    await outra.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await outra.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(page).not.toHaveURL(/pagoDe=/);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
@@ -217,13 +211,13 @@ test('Cobranças: seleção em lote antes de filtrar; Cancelar e os mesmos filtr
   await expect(page.getByText('4 cobranças selecionadas')).toBeVisible();
 
   painel = await abrirPainel(page);
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(painel).toHaveCount(0);
   await expect(page.getByText('4 cobranças selecionadas')).toBeVisible();
 
   painel = await abrirPainel(page);
   await marcar(page, painel, 'Situação', 'Todas', ['Em aberto']);
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(page.getByText('As 4 cobranças marcadas saíram da seleção porque os filtros mudaram.')).toBeVisible();
   await expect(page.getByText('4 cobranças selecionadas')).toHaveCount(0);
   expect(naoTratadas).toEqual([]);
@@ -239,7 +233,7 @@ test('Cobranças (B3): reabrir logo depois de Aplicar não copia o valor antigo 
   const { naoTratadas, errosDaPagina } = await abrirCobrancas(page, 1280);
   const painel = await abrirPainel(page);
   await marcar(page, painel, 'Situação', 'Todas', ['Pagas']);
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(painel).toHaveCount(0);
   // Toque durante a aplicação pendente: não abre (abriria com "Todas" e o filtro cairia na entrada da folha nova).
   await botao(page).click();
@@ -249,7 +243,7 @@ test('Cobranças (B3): reabrir logo depois de Aplicar não copia o valor antigo 
 
   // Depois de aplicado, abre com o valor novo; Cancelar não leva o endereço de volta ao antigo.
   const outra = await abrirPainel(page);
-  await expect(outra.getByRole('button', { name: 'Situação: Pagas. Escolher.' })).toBeVisible();
+  await expect(outra.getByRole('group', { name: 'Situação' }).getByRole('button', { name: 'Pagas', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await outra.getByRole('button', { name: 'Cancelar' }).click();
   await expect(outra).toHaveCount(0);
   await page.waitForTimeout(600); // o voltar atrasado (300 ms) do Cancelar já passou
@@ -322,8 +316,7 @@ for (const { nome, abertura } of TEMAS) for (const largura of [1280, 390]) {
     const painel = await abrirPainel(page);
     await painel.getByRole('radiogroup', { name: 'Responsável' }).getByRole('radio', { name: 'Meus' }).click();
     await page.screenshot({ path: `${CAPTURAS}/depois-cobrancas-${nome}-${largura}.png` });
-    await painel.getByRole('button', { name: 'Situação: Todas. Escolher.' }).click();
-    await page.getByRole('dialog', { name: 'Situação' }).getByRole('checkbox', { name: 'Pagas', exact: true }).click();
+    await painel.getByRole('group', { name: 'Situação' }).getByRole('button', { name: 'Pagas', exact: true }).click();
     await page.screenshot({ path: `${CAPTURAS}/depois-cobrancas-${nome}-lista-${largura}.png` });
     expect(errosDaPagina).toEqual([]);
   });
@@ -345,12 +338,11 @@ for (const largura of [390, 1280]) {
 for (const largura of [390, 1280]) {
   test(`Cobranças em ${largura}px: vencimento com a data final pela metade segura o Aplicar no campo dela; só o De vale`, async ({ page }) => {
     const { pedidos, naoTratadas, errosDaPagina } = await abrirCobrancas(page, largura, { preferencias: { tema: 'ESCURO' } });
-    const antes = pedidosDeCobrancas(pedidos).length;
     const painel = await abrirPainel(page);
     await painel.getByRole('radiogroup', { name: 'Vencimento' }).getByRole('radio', { name: 'Escolher período' }).click();
     await data(painel, 'Vencimento entre', 'De').fill('01/10/2026');
     await data(painel, 'Vencimento entre', 'Até').fill('3/10');
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(painel).toBeVisible();
     await expect(painel.getByText('Corrija o campo marcado para aplicar os filtros.')).toBeVisible();
     await expect(data(painel, 'Vencimento entre', 'Até')).toHaveAttribute('aria-invalid', 'true');
@@ -358,12 +350,11 @@ for (const largura of [390, 1280]) {
     await expect(data(painel, 'Vencimento entre', 'Até')).toBeFocused();
     await expect(painel.getByText('Complete a data (DD/MM/AAAA) ou apague.')).toBeVisible();
     await page.screenshot({ path: `${CAPTURAS}/a-cobrancas-periodo-incompleto-${largura}.png` });
-    expect(pedidosDeCobrancas(pedidos)).toHaveLength(antes);
 
     // Apagado o Até, o intervalo aberto vale: vencimento a partir de 01/10.
     await data(painel, 'Vencimento entre', 'Até').fill('');
     await expect(painel.getByText(/Corrija o/)).toHaveCount(0);
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(painel).toHaveCount(0);
     await expect(page).toHaveURL(/de=2026-10-01/);
     expect(pedidosDeCobrancas(pedidos).at(-1)!.busca.has('ate')).toBe(false);
@@ -427,7 +418,7 @@ for (const largura of [1280, 390]) {
     await expect(painel.getByLabel(`Aluno: ${ALUNO.nome}`)).toBeVisible();
     await page.screenshot({ path: `${CAPTURAS}/a-cobrancas-painel-com-aluno-escuro-${largura}.png` });
     await marcar(page, painel, 'Situação', 'Todas', ['Pagas']);
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(page.getByRole('button', { name: 'Filtros, 1 ligado' })).toBeVisible();
     await expect(linhas(page)).toHaveCount(1);
     expect(pedidosDeCobrancas(pedidos).at(-1)!.busca.get('alunoId')).toBe(ALUNO_FINANCEIRO_ID);
@@ -443,12 +434,12 @@ for (const largura of [1280, 390]) {
     // "Limpar filtros" do painel também.
     painel = await abrirPainel(page);
     await marcar(page, painel, 'Situação', 'Todas', ['Pagas']);
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(page).toHaveURL(/situacao=PAGA/);
     painel = await abrirPainel(page);
     await painel.getByRole('button', { name: 'Limpar filtros' }).click();
     await expect(painel.getByLabel(`Aluno: ${ALUNO.nome}`)).toBeVisible();
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(page).not.toHaveURL(/situacao=/);
     await expect(page).toHaveURL(new RegExp(`alunoId=${ALUNO_FINANCEIRO_ID}`));
     expect(pedidosDeCobrancas(pedidos).at(-1)!.busca.get('alunoId')).toBe(ALUNO_FINANCEIRO_ID);
@@ -456,7 +447,7 @@ for (const largura of [1280, 390]) {
     // "Ver cobranças de todos os alunos" tira só o aluno: o critério escolhido fica.
     painel = await abrirPainel(page);
     await marcar(page, painel, 'Situação', 'Todas', ['Em aberto']);
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(linhas(page)).toHaveCount(1);
     await faixa.getByRole('button', { name: 'Ver cobranças de todos os alunos' }).focus();
     await page.keyboard.press('Enter');
@@ -561,7 +552,7 @@ for (const largura of [390, 1280]) {
     await page.screenshot({ path: `${CAPTURAS}/depois-alimentos-painel-${largura}.png` });
     // Rascunho: a lista ainda mostra os dois.
     await expect(page.getByText('Arroz branco cozido', { exact: true })).toBeVisible();
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(page.getByText('Arroz branco cozido', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Banana prata', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tirar filtro: Grupo: Frutas e derivados' })).toBeVisible();

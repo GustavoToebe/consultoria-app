@@ -80,14 +80,12 @@ test('cobranças: situação, emissão e pagamento combinados vão juntos ao end
   // Painel lateral "Filtros de cobranças": rascunho até o "Aplicar filtros".
   await page.getByRole('button', { name: /^Filtros/ }).click();
   const painel = page.getByRole('dialog', { name: 'Filtros de cobranças' });
-  await painel.getByRole('button', { name: 'Situação: Todas. Escolher.' }).click();
-  await page.getByRole('dialog', { name: 'Situação' }).getByRole('checkbox', { name: 'Pagas', exact: true }).click();
-  await page.keyboard.press('Escape');
+  await painel.getByRole('group', { name: 'Situação' }).getByRole('button', { name: 'Pagas', exact: true }).click();
   const emissao = painel.getByRole('group', { name: 'Emissão' });
   await emissao.getByRole('textbox', { name: 'De' }).fill('01/10/2026');
   await emissao.getByRole('textbox', { name: 'Até' }).fill('19/10/2026');
   await painel.getByRole('group', { name: 'Pagamento' }).getByRole('textbox', { name: 'De' }).fill('10/10/2026');
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
 
   await expect(page).toHaveURL(/situacao=PAGA/);
   await expect(page).toHaveURL(/emissaoDe=2026-10-01/);

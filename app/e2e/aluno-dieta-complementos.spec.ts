@@ -8,8 +8,8 @@ import { ALUNO, simularApi } from './api-falsa';
  * Dieta do aluno (25/11, T-218): "Fibra —" quando falta (itens, total da opção e Total do dia, com "■ Fibra" na legenda);
  * Medicação e ergogênicos e Suplementação agrupadas pelo horário que o treinador escreveu (ordem do dia, "Sem horário
  * definido" por último, relógio no subtítulo), dose na pílula da quantidade com o espaço entre número e unidade; na tela
- * larga (27/11) a Suplementação no apoio, à direita, e a Medicação na principal, depois das refeições; empilhados no
- * celular; cartão vazio some; e o título do plano (nome de trabalho do
+ * larga (28/11) Suplementação | Medicação na principal, embaixo das refeições (fora do apoio); empilhados no celular;
+ * sem nenhum item com fibra, a fibra some de tudo (28/11); cartão vazio some; e o título do plano (nome de trabalho do
  * treinador) fora da Dieta e do Treino. Só dados fictícios. Com `CAPTURAS=<pasta>`, guarda as telas.
  */
 const item = (uid: string, nome: string, fibra: number | null): ItemDieta => ({
@@ -96,16 +96,24 @@ for (const largura of [390, 1280, 1920]) {
       await expect(suplementacao.getByRole('button', { name: 'Copiar cupom de Creatina fictícia', exact: true })).toBeVisible();
       await expect(suplementacao.getByRole('button', { name: 'Ver produto', exact: true })).toBeVisible();
 
-      // Empilhados no celular (Medicação, depois Suplementação). Na tela larga (27/11) a Suplementação mora no apoio, com a
-      // largura dele (380 na faixa normal, 420 na larga), e a Medicação na principal, à esquerda, depois das refeições.
+      // Empilhados no celular (Medicação, depois Suplementação). Na tela larga (28/11) os dois na principal, embaixo das
+      // refeições e fora do apoio: Suplementação | Medicação lado a lado na faixa larga, um embaixo do outro na normal (1280).
       const a = (await medicacao.boundingBox())!;
       const b = (await suplementacao.boundingBox())!;
       if (largura >= 1280) {
-        await expect(page.getByRole('complementary', { name: 'Resumo da dieta' }).getByRole('heading', { name: 'Suplementação', exact: true })).toBeVisible();
-        expect(Math.abs(b.width - (largura === 1920 ? 420 : 380))).toBeLessThan(2);
-        expect(a.x + a.width).toBeLessThan(b.x);
+        const resumo = page.getByRole('complementary', { name: 'Resumo da dieta' });
+        await expect(resumo).toBeVisible();
+        await expect(resumo.getByRole('heading', { name: 'Suplementação', exact: true })).toHaveCount(0);
         const almoco = (await page.getByText('Almoço', { exact: true }).boundingBox())!;
-        expect(a.y).toBeGreaterThan(almoco.y);
+        const ap = (await resumo.boundingBox())!;
+        for (const c of [a, b]) {
+          expect(c.y).toBeGreaterThan(almoco.y);
+          expect(c.x + c.width).toBeLessThan(ap.x);
+        }
+        if (largura === 1920) {
+          expect(Math.abs(a.y - b.y)).toBeLessThan(2);
+          expect(b.x + b.width).toBeLessThanOrEqual(a.x);
+        } else expect(a.y).toBeGreaterThanOrEqual(b.y + b.height);
       }
       if (largura === 390) expect(b.y).toBeGreaterThanOrEqual(a.y + a.height);
 
@@ -130,12 +138,14 @@ const SEM_FIBRA: ConteudoDieta = {
 };
 
 for (const largura of [390, 1920]) {
-  test(`dieta do aluno sem fibra nenhuma e sem complementos: "Fibra —" no Total do dia e os dois cartões somem (${largura}px)`, async ({ page }) => {
+  test(`dieta do aluno sem fibra nenhuma e sem complementos: nada de fibra (itens, totais, legenda) e os dois cartões somem (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     const { naoTratadas, errosDaPagina } = await abrirDieta(page, SEM_FIBRA);
     const total = cartao(page, 'Total do dia');
-    await expect(total.getByText('Fibra —', { exact: true })).toBeVisible();
-    await expect(total.getByText('Fibra', { exact: true })).toBeVisible();
+    await expect(total.getByText('G = gordura', { exact: true })).toBeVisible();
+    // Gustavo, 28/11: nenhum item com fibra = a fibra some de todo lugar (com algum, "Fibra —" nos que não têm).
+    await expect(page.getByText(/Fibra|fibra/)).toHaveCount(0);
+    await expect(page.getByRole('group', { name: 'Total' }).getByText('Total: 100 kcal, proteína 5,0 g, carboidrato 10,0 g, gordura 2,0 g', { exact: true })).toHaveCount(1);
     await expect(page.getByRole('heading', { name: 'Medicação e ergogênicos', exact: true })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Suplementação', exact: true })).toHaveCount(0);
     expect(naoTratadas).toEqual([]);

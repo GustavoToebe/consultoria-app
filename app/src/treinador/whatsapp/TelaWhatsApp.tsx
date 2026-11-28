@@ -30,6 +30,7 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
+import { CampoDeChave } from '../../ui/CampoDeChave';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
@@ -259,13 +260,13 @@ function ConteudoWhatsApp() {
               placeholder="Ex.: 987654321098765"
               autoCapitalize="none"
             />
-            <Campo
+            {/* Segredo de integração: nunca campo de senha (o navegador punha ali a senha do login; defeito de 28/11). */}
+            <CampoDeChave
+              id="token-da-meta"
               rotulo={conexao.configurada ? 'Novo token de acesso (opcional)' : 'Token de acesso da Meta'}
               valor={accessToken}
               aoMudar={setAccessToken}
               erro={errosConexao.accessToken ?? null}
-              secureTextEntry
-              autoCapitalize="none"
               placeholder={conexao.configurada ? 'Deixe em branco para manter o atual' : 'Cole o token permanente da Meta'}
             />
 

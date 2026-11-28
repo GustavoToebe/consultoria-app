@@ -1,7 +1,7 @@
 import type { PerguntaDaRegra, RegraDeAtencao } from '../api/tipos';
 import {
-  alternarModelo, corpoDoLote, ehTipoDeRegra, errosDasRegras, errosDoLoteDaApi, juntarPerguntas, legendaDaRegra, MODELOS_DE_REGRA, modeloLigado,
-  motivoDoTeto, novaRegra, perguntaDaRegra, perguntaFora, perguntasDoModelo, rascunhoDasRegras, rascunhoMudou, regrasDoModelo,
+  alternarModelo, arranjoDasRegras, corpoDoLote, ehTipoDeRegra, errosDasRegras, errosDoLoteDaApi, juntarPerguntas, legendaDaRegra, MODELOS_DE_REGRA, modeloLigado,
+  fraseDaRegra, motivoDoTeto, novaRegra, perguntaDaRegra, perguntaFora, perguntasDoModelo, rascunhoDasRegras, rascunhoMudou, regrasDoModelo,
   resumoDasRegras, rotuloDaPergunta, temErros, textoDaLeitura, textoDaRegra, textoDosQuestionarios, TIPOS_DE_REGRA,
   vaiNoLote, type RegraEmEdicao,
 } from './regrasDeAtencao';
@@ -31,7 +31,31 @@ describe('modelos', () => {
       NOTA_ABAIXO: ['NOTA', true], NOTA_CAIU: [null, true], SIM: ['SIM_NAO', false],
       PESO_MUDOU: [null, true], POUCOS_TREINOS: [null, true], ITEM_MARCADO: ['ITENS_DO_PLANO', false],
     });
-    expect(MODELOS_DE_REGRA.SIM.semPergunta).toBe('Nenhum questionário de atualização publicado tem pergunta de Sim ou Não.');
+    expect(MODELOS_DE_REGRA.SIM.semPergunta).toBe('Precisa de uma pergunta de Sim ou Não');
+    expect(MODELOS_DE_REGRA.ITEM_MARCADO.semPergunta).toBe('Precisa de uma pergunta de itens do plano');
+  });
+
+  test('a frase do cartão: o número no meio, com a unidade e o plural do que foi digitado; sem número, só a frase', () => {
+    expect(fraseDaRegra('NOTA_ABAIXO', '5')).toEqual({ antes: 'Avisar quando a nota ficar em', depois: 'ou menos' });
+    expect(fraseDaRegra('NOTA_CAIU', '2')).toEqual({ antes: 'Avisar quando uma nota cair', depois: 'pontos ou mais' });
+    expect(fraseDaRegra('NOTA_CAIU', '1').depois).toBe('ponto ou mais');
+    expect(fraseDaRegra('NOTA_CAIU', '').depois).toBe('pontos ou mais');
+    expect(fraseDaRegra('PESO_MUDOU', '1,5')).toEqual({ antes: 'Avisar quando o peso mudar', depois: 'kg ou mais (para cima ou para baixo)' });
+    expect(fraseDaRegra('POUCOS_TREINOS', '2')).toEqual({ antes: 'Avisar quando houver', depois: 'dias de treino ou menos no período' });
+    expect(fraseDaRegra('POUCOS_TREINOS', '1').depois).toBe('dia de treino ou menos no período');
+    expect(fraseDaRegra('SIM', '').depois).toBeNull();
+    expect(fraseDaRegra('ITEM_MARCADO', '').depois).toBeNull();
+    // Todo modelo com número tem frase com número, e vice-versa.
+    for (const t of TIPOS_DE_REGRA) expect(fraseDaRegra(t, '').depois === null).toBe(MODELOS_DE_REGRA[t].campo === null);
+  });
+
+  test('arranjo pela área da Tela: lateral ao lado e 2 colunas a partir de 1280; 3 na ultralarga; 1 coluna abaixo', () => {
+    expect(arranjoDasRegras('compacta', 0)).toEqual({ lado: false, colunas: 1 });
+    expect(arranjoDasRegras('compacta', 358)).toEqual({ lado: false, colunas: 1 });
+    expect(arranjoDasRegras('normal', 1279)).toEqual({ lado: false, colunas: 1 });
+    expect(arranjoDasRegras('normal', 1280)).toEqual({ lado: true, colunas: 2 });
+    expect(arranjoDasRegras('larga', 2000)).toEqual({ lado: true, colunas: 2 });
+    expect(arranjoDasRegras('ultralarga', 2804)).toEqual({ lado: true, colunas: 3 });
   });
 
   test('os textos usam o operador inclusivo: nada de "abaixo de", "mais de" ou "menos de"', () => {

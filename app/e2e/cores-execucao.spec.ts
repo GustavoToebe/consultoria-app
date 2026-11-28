@@ -69,7 +69,7 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
       const cartao = page.getByTestId('serie-cluster');
       const blocos = cartao.getByRole('group', { name: 'Blocos do Cluster, série 3' });
       await expect(blocos).toBeVisible();
-      await expect(blocos.getByText('Pausa entre blocos: 15 s', { exact: true })).toHaveCount(2);
+      await expect(blocos.getByText('Pausa entre os blocos: 15 s (o timer conta).', { exact: true })).toHaveCount(2);
       await expect(blocos.getByText('Meta 4 reps · agora', { exact: true })).toHaveCount(1);
       await expect(cartao.getByText('Feito até agora: 0 de 10 reps', { exact: true })).toBeVisible();
       await expect(cartao.getByText('Faltam 3 blocos para concluir.', { exact: true })).toBeVisible();

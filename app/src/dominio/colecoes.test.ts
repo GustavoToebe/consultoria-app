@@ -1,6 +1,6 @@
 import type { PastaModelo, Receita } from '../api/tipos';
 import {
-  agruparPorColecao, contagemDaColecao, ERRO_NOME_REPETIDO, ERRO_NOME_VAZIO, erroDoNomeDaColecao, filtrarModelos, mensagemDeExcluirColecao,
+  agruparPorColecao, colecaoDoDigitado, contagemDaColecao, ERRO_NOME_DO_MODELO_VAZIO, ERRO_NOME_REPETIDO, erroDoNomeDoModelo, ERRO_NOME_VAZIO, erroDoNomeDaColecao, filtrarModelos, mensagemDeExcluirColecao,
   modelosPorColecao, resumoDeModelos, SEM_COLECAO,
 } from './colecoes';
 
@@ -94,5 +94,24 @@ describe('Organizar coleções', () => {
     expect(erroDoNomeDaColecao('HIPERTROFIA', lista, 'c1')).toBeNull();
     expect(erroDoNomeDaColecao('Hipertrofia', lista, 'c2')).toBe(ERRO_NOME_REPETIDO);
     expect(erroDoNomeDaColecao('Força', lista)).toBeNull();
+  });
+});
+
+describe('folha de novo modelo', () => {
+  const lista = [c('c1', 'Hipertrofia'), c('c2', 'Avançados')];
+
+  it('o texto da busca de coleção: vazio abre o campo, igual a uma existente escolhe ela, senão cria com o nome limpo', () => {
+    expect(colecaoDoDigitado('', lista)).toEqual({ semNome: true });
+    expect(colecaoDoDigitado('   ', lista)).toEqual({ semNome: true });
+    expect(colecaoDoDigitado('  AVANCADOS ', lista)).toEqual({ existente: lista[1] });
+    expect(colecaoDoDigitado('  Força   máxima ', lista)).toEqual({ nova: 'Força máxima' });
+    // Pedaço do nome não é a coleção: vira nova (a lista filtrada mostra a existente acima).
+    expect(colecaoDoDigitado('Hiper', lista)).toEqual({ nova: 'Hiper' });
+  });
+
+  it('nome do modelo vazio ou só com espaços dá erro', () => {
+    expect(erroDoNomeDoModelo('')).toBe(ERRO_NOME_DO_MODELO_VAZIO);
+    expect(erroDoNomeDoModelo('   ')).toBe(ERRO_NOME_DO_MODELO_VAZIO);
+    expect(erroDoNomeDoModelo(' Semana A ')).toBeNull();
   });
 });

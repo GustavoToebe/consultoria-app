@@ -368,7 +368,7 @@ export default function Inscricao() {
         <Campo ref={refNome} rotulo="Nome" valor={dados.nome} aoMudar={mudar('nome')} erro={campos.nome} maxLength={LIMITES_INSCRICAO.nome}
           autoComplete="name" textContentType="name" />
         <Campo ref={refWhatsapp} rotulo="WhatsApp com DDD" valor={dados.whatsapp} aoMudar={mudar('whatsapp')} erro={campos.whatsapp}
-          keyboardType="phone-pad" inputMode="tel" autoComplete="tel" textContentType="telephoneNumber" maxLength={20}
+          keyboardType="phone-pad" inputMode="tel" autoComplete="tel-national" textContentType="telephoneNumber" maxLength={20}
           placeholder="DDD + número" />
         {mostra('EMAIL') ? <Campo ref={refEmail} rotulo="E-mail (opcional)" valor={dados.email} aoMudar={mudar('email')} erro={campos.email}
           autoCapitalize="none" autoCorrect={false} spellCheck={false} keyboardType="email-address" inputMode="email" autoComplete="email"

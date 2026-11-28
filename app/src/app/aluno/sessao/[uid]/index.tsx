@@ -6,12 +6,18 @@ import { Medal, Play } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, Pressable, View } from 'react-native';
 
+import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { DatasDaDivisao } from '../../../../aluno/DatasDaDivisao';
 import { ExerciciosDoDia } from '../../../../aluno/ExerciciosDoDia';
+import { colunasDoExercicio } from '../../../../aluno/exercicio/colunasDoExercicio';
 import { FaixaDoTreino } from '../../../../aluno/FaixaDoTreino';
+import { PorDataDoHistorico, RecentesDoHistorico, temHistorico } from '../../../../aluno/HistoricoDoExercicio';
+import { ehExercicioDeCardio } from '../../../../aluno/serieDoAluno';
+import { ColunaDoProximo, type ProximoDoTreinoDoDia } from '../../../../aluno/treino/ColunaDoProximo';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
+import { posicaoNoGrupo } from '../../../../dominio/combinacoes';
 import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
@@ -29,7 +35,8 @@ import { Esqueleto } from '../../../../ui/Esqueleto';
 import { Vazio } from '../../../../ui/Estados';
 import { Selo } from '../../../../ui/Selo';
 import { PrincipalComApoio } from '../../../../ui/PrincipalComApoio';
-import { Tela, useFaixaDaTela } from '../../../../ui/Tela';
+import { Tela } from '../../../../ui/Tela';
+import { useAreaDaTela } from '../../../../ui/useAreaDaTela';
 import { Texto } from '../../../../ui/Texto';
 import { TelaDoAluno } from '../../../../aluno/TelaDoAluno';
 import { fraseDaDataDoTreino, temColunasDoAluno } from '../../../../aluno/treino/arranjoDoTreino';
@@ -148,6 +155,26 @@ export default function SessaoAluno() {
         </Cartao>
       ) : null}
   </>);
+  // Web larga: o exercício a fazer (o mesmo do "Começar/Continuar") e o histórico dele numa 3ª coluna. Sem nada por fazer
+  // (treino todo marcado, ou dia sem exercício) não há próximo e a coluna não abre: a lista volta a ocupar a largura.
+  const posicaoDoPendente = pendente ? doDia.exercicios.indexOf(pendente) : -1;
+  const grupoDoPendente = pendente ? posicaoNoGrupo(sessao, posicaoDoPendente, dia.config.metodologia) : null;
+  const proximo: ProximoDoTreinoDoDia | null = pendente ? {
+    titulo: feitas ? 'Próximo exercício' : 'Primeiro exercício',
+    cartao: (
+      <CartaoExercicioDoDia exercicio={pendente} posicao={posicaoDoPendente}
+        contagem={contagemDoExercicio(pendente, dia.estaFeita, dia.config.metodologia)}
+        cargaDoDia={dia.cargaDoDia(pendente)} ultima={dia.ultimaCarga(pendente.exercicioId)}
+        tipoTrabalho={dia.config.tipoTrabalho} metodologia={dia.config.metodologia}
+        descansoNaSerie={!grupoDoPendente || grupoDoPendente.descansoPorSerie}
+        href={caminhoDaSessao(sessao.uid, data, pendente.uid)} aoAbrir={() => abrir(pendente.uid)} />
+    ),
+    historico: temHistorico(pendente, ehExercicioDeCardio(pendente)) ? {
+      titulo: `Histórico de ${pendente.nome}`,
+      recentes: <RecentesDoHistorico exercicio={pendente} ultimaVez={dia.ultimaVezDe(pendente)} ultima={dia.ultimaCarga(pendente.exercicioId)} />,
+      porData: (comRotulo: boolean) => <PorDataDoHistorico exercicio={pendente} rotulo={comRotulo} />,
+    } : null,
+  } : null;
   const exercicios = (largo: boolean) => (<>
       <ExerciciosDoDia
         sessao={doDia}
@@ -175,7 +202,7 @@ export default function SessaoAluno() {
         voltar="/aluno/treino"
       />
       </Animated.View>
-      <ArranjoDoDia lateral={lateral} exercicios={exercicios} />
+      <ArranjoDoDia lateral={lateral} exercicios={exercicios} proximo={proximo} />
     </TelaDoAluno>
   );
 }
@@ -184,15 +211,27 @@ const NOTA_DO_SALVAMENTO = 'Cada série marcada fica salva no aparelho na hora e
 
 /**
  * Web, da faixa `normal` em diante (`docs/planos/orientacoes-de-design-26-11.md`, 1.3): o resumo, o começar e as datas no apoio
- * à esquerda, fixo ao rolar (empilhado, antes dos exercícios), e os exercícios numa coluna só. Celular: uma pilha, como antes
- * (o vão é o da `Tela`).
+ * à esquerda, fixo ao rolar (empilhado, antes dos exercícios), e os exercícios na ordem. Na `larga` e na `ultralarga` (item 7
+ * do pedido de 27/11) a régua é a do Exercício (`colunasDoExercicio`, sobre a largura útil medida): a lista para em 880 e o
+ * resto vira a 3ª coluna, também fixa ao rolar, com o próximo exercício e o histórico dele (em duas a partir de 752). Próximo
+ * sem histórico (cardio, exercício livre): a 3ª coluna fica com a largura do apoio e a lista com o resto (em colunas). Sem
+ * próximo, ou abaixo de 640 para a lista, a coluna não abre. Celular: uma pilha, como antes (o vão é o da `Tela`).
  */
-function ArranjoDoDia({ lateral, exercicios }: { lateral: (largo: boolean) => ReactNode; exercicios: (largo: boolean) => ReactNode }) {
-  const largo = temColunasDoAluno(useFaixaDaTela());
-  if (!largo) return <View style={estilos.pilha}>{lateral(false)}{exercicios(false)}</View>;
+function ArranjoDoDia({ lateral, exercicios, proximo }: {
+  lateral: (largo: boolean) => ReactNode;
+  exercicios: (largo: boolean) => ReactNode;
+  proximo: ProximoDoTreinoDoDia | null;
+}) {
+  const area = useAreaDaTela();
+  if (!temColunasDoAluno(area.faixa)) return <View style={estilos.pilha}>{lateral(false)}{exercicios(false)}</View>;
+  const c = proximo ? colunasDoExercicio(area.largura || null, area.faixa, { proximo: true, historico: !!proximo.historico }) : null;
+  // A peça de dentro existe sempre (sem apoio ela não desenha nada): abrir ou fechar a 3ª coluna não remonta a lista.
   return (
-    <PrincipalComApoio apoioAEsquerda apoioNoTopo rotuloDoApoio="Resumo do treino"
-      apoio={lateral(true)} principal={exercicios(true)} />
+    <PrincipalComApoio apoioAEsquerda apoioNoTopo rotuloDoApoio="Resumo do treino" larguraDoApoio={c?.apoio}
+      apoio={lateral(true)} principal={
+        <PrincipalComApoio larguraDoApoio={c?.extras} rotuloDoApoio="Próximo exercício e histórico" idDoApoio="coluna-do-proximo"
+          principal={exercicios(true)} apoio={proximo && c && c.colunasDosExtras > 0 ? <ColunaDoProximo {...proximo} emDuas={c.colunasDosExtras === 2} /> : null} />
+      } />
   );
 }
 

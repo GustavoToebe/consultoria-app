@@ -22,8 +22,8 @@ export function abaDoHistorico(parametro: string | string[] | undefined): AbaDoH
   return ABAS_DO_HISTORICO.find((a) => a.valor === bruto)?.valor ?? 'treinos';
 }
 
-/** Ordem da coluna única (a de antes das abas; o celular não muda). */
-export const ORDEM_NUMA_COLUNA: readonly BlocoDoHistorico[] = ['fotos', 'atualizacoes', 'ainda', 'registros', 'progresso', 'peso', 'avaliacao'];
+/** Ordem da coluna única (celular e app): as fotos depois da avaliação, como no Corpo em uma coluna (Peso, Avaliação, Fotos; 28/11). */
+export const ORDEM_NUMA_COLUNA: readonly BlocoDoHistorico[] = ['atualizacoes', 'ainda', 'registros', 'progresso', 'peso', 'avaliacao', 'fotos'];
 
 /**
  * "Ainda não enviados" pede ação (tentar enviar de novo) e vale para qualquer aba: fica no topo de todas, logo abaixo das
@@ -37,13 +37,14 @@ export interface ArranjoDaAba {
   apoio: readonly BlocoDoHistorico[];
   /** Nome da região de apoio para o leitor de tela (nulo sem apoio). */
   rotuloDoApoio: string | null;
-  /** A principal são cartões soltos que viram colunas nas faixas larga e ultralarga (`dominio/colunasDoHistorico`). */
+  /** A principal são cartões soltos em colunas da faixa normal em diante (o Corpo, `aluno/historico/CorpoDoHistorico`). */
   emColunas: boolean;
 }
 
 /**
- * Treinos: Registros e cargas na principal (as divisões em colunas por dentro), Progresso por exercício no apoio. Corpo:
- * peso, avaliação e fotos em colunas empilhadas (1 até a normal, 2 da larga em diante, 27/11). Atualizações: a lista das enviadas, na
+ * Treinos: Registros e cargas na principal (as divisões em colunas por dentro), Progresso por exercício no apoio. Corpo
+ * (28/11): Peso e Fotos lado a lado com a mesma altura e a Avaliação na largura toda embaixo; numa coluna, Peso, Avaliação
+ * e Fotos (a ordem de `principal`). Atualizações: a lista das enviadas, na
  * largura do contêiner (as linhas em colunas por dentro), começando na borda do título.
  */
 export const ARRANJO_DA_ABA: Readonly<Record<AbaDoHistorico, ArranjoDaAba>> = {
@@ -51,12 +52,6 @@ export const ARRANJO_DA_ABA: Readonly<Record<AbaDoHistorico, ArranjoDaAba>> = {
   corpo: { principal: ['peso', 'avaliacao', 'fotos'], apoio: [], rotuloDoApoio: null, emColunas: true },
   atualizacoes: { principal: ['atualizacoes'], apoio: [], rotuloDoApoio: null, emColunas: false },
 };
-
-/**
- * Altura estimada de cada cartão do Corpo para as colunas empilhadas (`ui/Alvenaria` decide a coluna antes de medir): peso
- * (resumo, lista de até 12) e avaliação (abas, gráfico e datas) são os altos; as fotos ficam com a coluna mais baixa.
- */
-export const PESO_NO_CORPO: Readonly<Partial<Record<BlocoDoHistorico, number>>> = { peso: 3, avaliacao: 3, fotos: 2 };
 
 /**
  * Abas só na web com o menu lateral (a mesma régua do `app/aluno/_layout`: janela ≥ `LARGURA_MENU_LATERAL`). É o modo da

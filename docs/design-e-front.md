@@ -231,7 +231,11 @@ Uso de cada nível (11/11):
   desligadas com `useMovimentoReduzido`; nada segura a ação.
 - Temas disponíveis: **claro** (padrão), **escuro**, **claro areia** (opção pedida na reunião de 29/10; areia mais escura desde 14/11) e
   **contraste alto**. O contraste de cada combinação é conferido por teste (`tema/tokens.test.ts`): texto ≥ 4,5:1 e
-  borda de campo ≥ 3:1.
+  borda de campo ≥ 3:1. **Sem exceção (Gustavo, 29/11):** todo texto a 4,5:1 e toda borda, controle e ícone a 3:1 sobre
+  o fundo real, inclusive superfície pintada. Caso que motivou: o cartão ligado de Configurações › Regras de atenção
+  (pintado com a cor de ação), cujo campo dava 2,99:1 no Escuro Verde-água; o contorno vai a `contornoDoCampoPintado` e
+  passa 3:1 na pintura e no poço `superficie2`, em todas as paletas, com e sem contraste alto e em toda cor de ação
+  (`treinador/regras/cartaoDaRegra.test.ts`).
 - **Contraste alto (`dominio/preferencias.coresComContraste`, 13/11):** `borda` (contorno de linha, item e controle)
   vira `bordaCampo`; `divisor` (linha da faixa do título, divisórias de lista e de tabela) sobe só até a `borda`
   original, para as divisórias não pesarem; `textoSuave` ≥ 7:1. O contorno do `Cartao` é a exceção
@@ -258,7 +262,7 @@ Uso de cada nível (11/11):
 
 | Peça | Para quê |
 | --- | --- |
-| `Cartao` | Seção. Com título ganha a **faixa de cabeçalho**. Pode ser recolhível. `resumo` (25/11): linha de dado abaixo do título, visível também recolhido (ex.: "Objetivo: …" das Orientações do treinador). |
+| `Cartao` | Seção. Com título ganha a **faixa de cabeçalho**. Pode ser recolhível. `resumo` (25/11): linha de dado abaixo do título, visível também recolhido (ex.: "Objetivo: …" das Orientações do treinador). `aoLadoDoTitulo` (leva 3, mesmo nome do `Cabecalho`): peça pequena colada à direita do título, fora do h2 e fora do botão do recolhível (selo "Perfil: Administrador" em `MeuPerfilEquipe`); quebra para a linha de baixo quando não cabe; ações do cartão continuam em `acoes`. |
 | `CabecalhoDeGrupo` | Faixa de grupo (sessão, refeição, pasta, dia), recolhível, com resumo e selo. |
 | `Folha` | Painel por cima da tela (formulários, escolhas). No PC pode ser arrastada pelo cabeçalho; no celular o mesmo arraste fecha. Entra no histórico do navegador. Respeita a área segura inferior em todas as plataformas, Android incluído (25/11; `Folha.areaSegura.test`; sem aparelho Android para ver). |
 | `LinhaDaLista` / `ListaDeLinhas` | Lista de registros numa coluna: título, metadados, selos, ações. `ListaDeLinhas divisorias` (11/11): superfície comum, sem caixa por linha, divisória `divisor` só entre as linhas, realce `sobre` no hover com mouse, no foco e com o conteúdo de baixo aberto; seleção neutra mantida; padrão desligado (hoje só a Biblioteca usa). |
@@ -274,7 +278,7 @@ Uso de cada nível (11/11):
 | `Selo` | Status curto com texto (11/11): `sucesso`/`atencao`/`perigo` viram pílula com ponto e texto na cor sobre o `*Suave` da situação; o estado normal (`neutro`) é só texto secundário, sem pílula; `ponto` no neutro (26/11) põe o "●" em `textoSuave` antes do texto ("Acesso desativado", que assim se separa do "Sem acesso" sem ponto de quem nunca teve conta). `categoria` (tipo de série, refeição: `useTema().identificacao[chave]`) é pílula escura com o texto na cor da categoria, sem ponto. |
 | `Botao` | Um `primario` por área, **neutro** (17/11, D7): fundo `texto` e rótulo `fundo` (preto no Claro e na Areia, branco nas escuras), hover 15% na direção da página (`coresDoBotaoPrincipal`); a marca não pinta botão (exceção: o botão "Ver meu treino" do cartão "Hoje" do aluno, no desenho do primário com fundo `marcaPeca` e texto `textoSobre`, 25/11). O secundário tem borda `bordaCampo` e hover `superficie2`. **`perigo` é tonal (26/11, pedido do Gustavo; o desenho do "Sair sem salvar" estendido a todo destrutivo):** fundo `perigoSuave` (a cor a 12% sobre o cartão, opaco), contorno a 70% entre o fundo e `perigo` (`ui/botaoDePerigo.ts`, `MISTURA_DA_BORDA_DE_PERIGO`; o mínimo que passa 3:1 contra o fundo e as três superfícies nos nove temas, o pior é o Oceano com 3,03; os ~40% do pedido davam ~2:1), rótulo e ícone `perigo` (≥ 4,5:1 sobre o fundo; `contrasteDasPecas.test.ts`), mouse em cima ou apertado com o contorno cheio e o fundo igual, desabilitado no cinza único e a mesma caixa e altura do secundário (trocar de variante não mexe no layout). Vale para todo botão destrutivo: solto na tela (Remover vídeo, Remover imagem, Tirar da biblioteca, Encerrar, Cancelar cobrança), na linha de lista (Excluir coleção, perfil, refeição, exercício) e na confirmação do `PainelConfirmacao perigo`. `perigoTexto` é o nome antigo e hoje desenha igual (como `destaque` para `acao`); código novo usa `perigo`. **Exceções:** o item de perigo do menu ⋯ continua texto vermelho na lista (`ItemDeLista perigo` na `FolhaDeAcoes`, sem caixa) e a lixeira de linha densa de tabela continua `IconeBotao` com nome acessível. `destaque` (17/11, D12) é a ação de apoio que precisa ser achada sem competir com a principal: fundo **opaco** `informacaoSuave` (a informação a 12% sobre o cartão), rótulo e ícone `informacao`, contorno `informacao` com o mouse em cima ou apertado (o fundo não escurece); hoje "Usar receita" do exercício (no título Séries ou no estado vazio), o "Adicionar exercício/refeição/seção" de cada bloco de fim de lista e o "Lista de compras" do cabeçalho "Refeições (N)" da dieta (26/11; era fantasma). "Modelos prontos" da dieta passou a `secundario` em 26/11 (um destaque por área, como no treino). O tipo `cta` saiu. Todos com 44 px de altura mínima, foco pelo `anelFoco`, afundar ao apertar (sem movimento com "reduzir movimento"), carregando com indicador e desabilitado sempre com o porquê (`motivo`). |
 | `Campo` / `MensagemDeErro` | Rótulo permanente, ajuda abaixo do campo, erro com ícone + mensagem + borda `perigo` (`MensagemDeErro` também na `Escolha`, no endereço e na `EscolhaEmFolha`); foco visível pelo `anelFoco`. |
-| `Escolha` | Até cinco opções sem contagem = grupo segmentado; mais = chips com ✓. `contagem` mostra "Todos 48" em texto secundário sem mudar o alvo de toque. |
+| `Escolha` | Até cinco opções sem contagem = grupo segmentado; mais = chips com ✓. `contagem` mostra "Todos 48" em texto secundário sem mudar o alvo de toque. **Regra 17 (Gustavo, 28/11):** escolha única é `ui/Escolha` (grupo de rádio, `radiogroup` com nome e `radio` com `checked`; a cor da tag, `CoresDaTag`, é peça própria com o mesmo papel de rádio e o teclado da APG); escolha múltipla são chips de alternar com `aria-pressed` (`ui/ChipsDeFiltro.ChipsMultiplos`); atalho que só preenche um campo é botão comum, sem estado de escolhido (`PrazoParaAssinar`, `PrazoDaAtualizacao`, atalhos de período). Os seletores que ainda fogem dela estão na fila pós-01/12. |
 | `LinhaDeCompra` / `ListaDeCompras` (`ui/`, 26/11) | Item de lista de compras numa peça só, a do aluno e a da prévia do treinador: nome e, embaixo, de onde veio o número em secundário; quantidade à direita (até 45% da linha) ou abaixo do nome; `inicio` e `fim` para o que cada tela põe nas pontas (a `CaixaRedonda` do aluno; lápis e lixeira); com `aoTocar` o miolo também age e a linha acende. A `ListaDeCompras` põe os grupos como títulos com contagem em duas colunas a partir de 640 px de lista (`Alvenaria`). Detalhes em 4.7 (prévia) e 4.16 (aluno) |
 | `CaixaRedonda` (25/11) | Caixa de marcar redonda para linhas de lista (lista de compras do aluno): círculo vazio com contorno `bordaCampo` ou cheio em `texto` com ✓ em `fundo` (seleção neutra, nunca a cor da marca); alvo de toque de 48 px, `role=checkbox`, Espaço marca na web e o foco volta à caixa se a linha mudar de lugar. A caixa quadrada da `LinhaDaLista` segue nas outras listas. |
 | `Abas` | Aba ativa com texto forte e sublinhado de 2 px em `marcaPeca`; contagem em pílula neutra; sem a versão invertida. |
@@ -282,6 +286,10 @@ Uso de cada nível (11/11):
 | `corDoNumero` (`ui/indicador.ts`) | Número solto fora de cartão de indicador: comum em `texto`, atrasado em `perigo`, zero em `textoSuave`, nunca a marca. Número em cartão de indicador segue o `CartaoDeIndicador` (linha abaixo). |
 | `CartaoDeIndicador` / `GradeDeIndicadores` (23/11, pintado) | Rótulo + número grande + detalhe. Com `tom` (`sucesso`, `atencao`, `perigo`, `informacao`, `conquista`) ou `corDeCategoria` (identificação), o cartão é **pintado** por `ui/superficiePintada` (regra de 26/11 na 4.5): fundo da cor misturada à base a 14%, **liso** nas claras e em degradê de 135° até a base pura em 70% no escuro, borda neutra de 1 px (`divisor`), ponto com brilho (ou `Icone`), valor na cor quando ela passa 4,5:1 sobre o fundo (senão `texto`); rótulo e detalhe neutros, em `textoSuave`. Neutro (sem significado), zero e indisponível: base, borda `divisor`, sem ponto. `lugar="cartao"` usa o poço `superficie2` como base. Contrato para outras peças: `superficiePintada(cor, base, variante, cores)` → `{ base, forte, degrade, borda, texto }` (`degrade` é `null` nas claras) e `fundoPintado(p)` (estilo do fundo: liso nas claras, degradê no escuro). `textual` (24/11): valor em frase, fonte normal, para o que não é número ("Ontem", "Sem atualização pendente"). Cor de categoria pode ser o azul ou o ciano de destaque (`useDestaques()`) quando não há token de categoria; a situação vence a categoria quando o dado já tem uma. Resumo da ficha: três cartões lado a lado na mesma grade; em texto grande a grade empilha. |
 | `EscolhaSuspensa` / `EscolhaEmFolha` | Escolha com busca: lista suspensa no PC, folha no celular. |
+| `ui/EscolhaSuspensa` (`cor`, `rotuloAcessivel`) | Lista suspensa com `cor` (tom do campo) e `rotuloAcessivel` (nome para o leitor de tela quando o rótulo visível não basta). |
+| `ui/DicaDoBotao` | Dica de botão desabilitado: o motivo aparece na dica a partir de 768 px na web; abaixo disso, escrito embaixo do botão. |
+| `ui/CampoQueCresce` (27/11) | Campo de várias linhas que cresce com o texto de `linhas` até `maximoDeLinhas` (depois rola), sem a alça de redimensionar; com 1 linha tem a altura de um campo comum (44). Mobilidade, refeição (observação e preparo), Configuração do plano de treino, folhas de novo modelo, Observações do exercício e da avaliação física. `shortcut:` na web a altura vai no `textarea` pelo DOM. |
+| `ui/DicaDeTexto` (27/11) | ⓘ com balão de texto e nome acessível próprio (`rotulo`, "Variações de Panturrilha"), no comportamento do `AjudaDoCabecalho` (mouse, foco, toque, Esc fecha só o balão antes da `Folha`; o texto é a descrição acessível). Variações dos grupos musculares, observação da avaliação física, rodapé da pasta. |
 | `TabelaDeBlocos` (`treinador/treino`, 16/11) | Blocos de séries do exercício: lista de abas vertical com ativação manual (setas movem o foco, Enter e Espaço escolhem). Colunas Série, Tipo, Carga, Reps e Descanso; em tela ultralarga as colunas têm **largura máxima** (`treinador/treino/colunasDasSeries.ts`: Tipo 360, Carga 320, Reps 140, Descanso 140) e a sobra vai para o fim da linha, em vez de esticar os campos (26/11); abaixo de 390 px da coluna das séries cada bloco vira linha empilhada. Ver 4.7. |
 | `EscolhaDoExercicio` (`treinador/treino`, 16/11) | "Exercício aberto" no celular, com 3 ou mais exercícios na sessão: abre a folha com todos e rola até o escolhido (`EscolhaEmFolha`). |
 | `useFaixaDaTela` (`ui/Tela`, 23/11) | A faixa de largura (4.10) que a `Tela` mede para a área ao lado do menu, por contexto; é com ela que o layout dentro da tela decide colunas e painel fixo (`PainelDaCobranca` na `ultralarga`). Fora de uma `Tela`, `compacta`. |
@@ -327,7 +335,7 @@ Qualquer outro lugar precisa de decisão nova.
 | Situação | Tom (token) | Quando usar | Exemplos | Aluno e treinador | Mínimo WCAG AA | Pior valor medido (claro · areia · escuro; 17/11 nas linhas de ação e situação, 11/11 nas demais) |
 | --- | --- | --- | --- | --- | --- | --- |
 | Ação principal | neutra (17/11, D7): fundo `texto`, rótulo `fundo`, hover `coresDoBotaoPrincipal().fundoAoPassar` | Uma por área | "Salvar", "Publicar treino", "Começar treino" | Sim | 4,5:1 (texto) | rótulo sobre o botão: 14,47 · 12,16 · 19,39; sobre o hover: 10,59 · 9,24 · 13,96 |
-| Ação de apoio em destaque | `acao` do `Botao` (17/11; `destaque` é o mesmo, nome antigo): fundo `acaoSuave`, rótulo e ícone `acao` (índigo por padrão, configurável em Aparência e preferências), contorno a 35% e cheio com o mouse em cima. **Regra da cor de ação (24/11):** `acao` = ação que **cria ou manda algo novo** (adicionar, registrar, enviar, gerar, novo/nova, trocar-por-outro); `secundario` (neutro) = ação que só **altera ou mantém** (editar, mudar, definir senha, copiar, configurar, alterar). Rótulo condicional leva o tipo condicional ("Enviar logo" `acao`, "Trocar logo" `secundario`). Ambíguo (sem verbo, envio de formulário ao lado do `primario`) fica `secundario`; "Trocar" de uma configuração que já existe (foto, chave, credenciais, capa, metodologia) e "Renegociar" são `secundario`; "Cobrar renovação pelo WhatsApp", "Contratar plano", "Usar modelo" e "Usar pacote" são `acao`; "Publicar" é a ação principal da tela e não entra na regra. **Regra complementar (24/11, fechamento do lote):** botão que se repete em cada linha de tabela ou em cada cartão de uma lista fica `secundario`, mesmo que crie ou mande algo ("Registrar pagamento" por linha da inadimplência; "Nova série" tracejado neutro e "Trocar exercício" dentro de cada cartão; "Adicionar pergunta" por seção; "Adicionar item" por seção da mobilidade): a cor de ação aparece uma vez por área. **Exceção (25/11, Gustavo):** o "+ Opção" da refeição voltou a `acao` na tarde de 25/11 (era `acao` desde 20/11 e foi a `secundario` em 24/11 por esta regra); **na noite de 25/11 o destaque da refeição passou ao "Adicionar alimento"** (um por opção aberta) e o "+ Nova opção" virou a aba tracejada, discreta; "Item manual" e "Trocar alimento" seguem neutros. No treino, com o mesmo critério (um destaque por área), só o "Adicionar exercício" é `acao`; "Adicionar cardio", "Modelos prontos", "Usar modelo", "Criar grupo" e "Colar treino" ficaram `secundario`; na dieta, em 26/11, "Modelos prontos" também passou a `secundario` (o `acao` do bloco é o "Adicionar refeição") | Ação de construção que o treinador precisa achar e não é a principal da área; não substitui o `primario` (continua um por área) | "Adicionar exercício", "Usar receita de séries", "Adicionar alimento", "Adicionar refeição", "Adicionar seção" (mobilidade) e "Lista de compras" da dieta | Treinador | 4,5:1 (texto); 3:1 (contorno do hover) | `coresDaAcao` garante ≥ 4,5:1 para rótulo/ícone no cartão e em `acaoSuave` em todas as paletas (`tokens.test.ts` e `contrasteDasPecas.test.ts`) |
+| Ação de apoio em destaque | `acao` do `Botao` (17/11; `destaque` é o mesmo, nome antigo): fundo `acaoSuave`, rótulo e ícone `acao` (índigo por padrão, configurável em Aparência e preferências), contorno a 35% e cheio com o mouse em cima. **Regra da cor de ação (24/11):** `acao` = ação que **cria ou manda algo novo** (adicionar, registrar, enviar, gerar, novo/nova, trocar-por-outro); `secundario` (neutro) = ação que só **altera ou mantém** (editar, mudar, definir senha, copiar, configurar, alterar). Rótulo condicional leva o tipo condicional ("Enviar logo" `acao`, "Trocar logo" `secundario`). Ambíguo (sem verbo, envio de formulário ao lado do `primario`) fica `secundario`; "Trocar" de uma configuração que já existe (foto, chave, credenciais, capa, metodologia) e "Renegociar" são `secundario`; "Cobrar renovação pelo WhatsApp", "Contratar plano", "Usar modelo" e "Usar pacote" são `acao`; "Publicar" é a ação principal da tela e não entra na regra. **Regra complementar (24/11, fechamento do lote):** botão que se repete em cada linha de tabela ou em cada cartão de uma lista fica `secundario`, mesmo que crie ou mande algo ("Registrar pagamento" por linha da inadimplência; "Nova série" tracejado neutro e "Trocar exercício" em cada cartão empilhado do treino; exceção (27/11, Gustavo): no painel do exercício (inspetor das duas colunas), onde aparece uma vez na área, "Trocar exercício" é `acao`; "Adicionar pergunta" por seção; "Adicionar item" por seção da mobilidade): a cor de ação aparece uma vez por área. **Exceção (25/11, Gustavo):** o "+ Opção" da refeição voltou a `acao` na tarde de 25/11 (era `acao` desde 20/11 e foi a `secundario` em 24/11 por esta regra); **na noite de 25/11 o destaque da refeição passou ao "Adicionar alimento"** (um por opção aberta) e o "+ Nova opção" virou a aba tracejada, discreta; "Item manual" e "Trocar alimento" seguem neutros. No treino, com o mesmo critério (um destaque por área), só o "Adicionar exercício" é `acao`; "Adicionar cardio", "Modelos prontos", "Usar modelo", "Criar grupo" e "Colar treino" ficaram `secundario`; na dieta, em 26/11, "Modelos prontos" também passou a `secundario` (o `acao` do bloco é o "Adicionar refeição") | Ação de construção que o treinador precisa achar e não é a principal da área; não substitui o `primario` (continua um por área) | "Adicionar exercício", "Trocar exercício (painel do exercício)", "Usar receita de séries", "Adicionar alimento", "Adicionar refeição", "Adicionar seção" (mobilidade) e "Lista de compras" da dieta | Treinador | 4,5:1 (texto); 3:1 (contorno do hover) | `coresDaAcao` garante ≥ 4,5:1 para rótulo/ícone no cartão e em `acaoSuave` em todas as paletas (`tokens.test.ts` e `contrasteDasPecas.test.ts`) |
 | Destaque da marca | `marcaPeca` (indicador), `marcaTexto` (texto e ícone) | Só nos lugares da lista acima | Menu ativo, nome da marca, cartão Hoje | Sim | 4,5:1 (texto); 3:1 (peça) | `marcaTexto` ≥ 4,5 e `marcaPeca` ≥ 3 por construção (`marcaParaTexto`, `marcaParaPeca`) |
 | Positivo, concluído | `sucesso` | Terminou bem e não falta nada | Paga, Ativa, Revisada, Sincronizado, Treino concluído, Realizado, Com acesso, Publicado | Sim | 4,5:1 | cartão 7,06 · 8,45 · 10,34; pílula 5,89 · 6,94 · 8,12 |
 | Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Para revisar, Responder até, Adiada, Pausada, Contestada, Alterações não salvas, "Falta a carga" e "Sem quantidade" (campo vazio que ainda vai ser preenchido; valor inválido é `perigo`) | Só quem age (a cobrança Em aberto, para os dois: exceção acima) | 4,5:1 | cartão 7,05 · 8,43 · 9,29; pílula 5,89 · 6,92 · 7,29 |
@@ -335,7 +343,7 @@ Qualquer outro lugar precisa de decisão nova.
 | Informação | `informacao` (17/11, D9) | Medida ou estado sem juízo: o que está acontecendo agora | Série em andamento do aluno, número de indicador sem juízo no painel (não no Financeiro: lá não há `informacao` nem `conquista`, 25/11) | Sim | 4,5:1 | cartão 5,82 · 5,82 · 6,02; pílula 4,89 · 4,89 · 5,04 (pior: Oceano, 4,80) |
 | Conquista | `conquista` (17/11, D9) | Recorde, nível, marca pessoal | Aviso de recorde, "Recordes da semana" no painel, `BadgeNivel` | Sim | 4,5:1 | cartão 6,68 · 6,68 · 5,86; pílula 5,52 · 5,52 · 4,93 (pior: Oceano, 4,74) |
 | Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera); rascunho sem erro (11/11): Rascunho, Nunca publicado, Alterações não publicadas, Alterado desde a publicação | Sim | 4,5:1 | `textoSuave` sem pílula: 6,26 · 6,04 · 6,83 (sobre `superficie3`) |
-| Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
+| Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca; exceção (28/11): no palco escuro da foto a seta desabilitada é o cinza fixo `CAMADA_DA_FOTO.iconeDesabilitado` (#BDBDBD), também sem opacidade | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
 | Seleção | neutra (11/11): fundo `sobre` (17/11), contorno `bordaCampo`, ✓ e letra `texto`; caixa de seleção e `Interruptor` seguem preenchidos | Opção escolhida (chips, `Escolha`, calendário, opção de folha) | Chip marcado | Sim | 4,5:1 (texto); 3:1 (contorno) | `texto` sobre `sobre` ≥ 12,6 (pior: ameixa); `bordaCampo` ≥ 3:1 (pior 3,56, ameixa) |
 | Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases, `PALETA_SO_DO_PERFIL`, e fora das cinco a fibra e a água, `PALETA_DA_AGUA`) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo, cor do perfil na Comunidade | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
 
@@ -419,8 +427,11 @@ Qualquer outro lugar precisa de decisão nova.
   ação) aparece num nível só. A lista mestre marca o item escolhido (`ItemDaListaDoEditor`: fundo `acaoSuave`, contorno
   de ação e o selo "Editando", que fica só ali); o painel que está sendo editado ganha a faixa vertical de 6 px à esquerda
   (no treino, `CartaoExercicio` aberto, na cor de ação; na dieta, `CartaoRefeicao`, na cor de identificação da refeição);
-  o item aberto dentro do painel (a série) usa só o fundo tingido (`coresDaEdicao().fundoDoBloco`, 8% da ação sobre o
-  cartão), sem contorno, halo nem selo, com o chevron ↓ na cor de ação. Nada de moldura de ação dentro de moldura de
+  o item aberto dentro do painel usa só o fundo tingido (`coresDaEdicao().fundoDoBloco`, 8% da ação sobre o
+  cartão), sem contorno, halo nem selo, com o chevron ↓ na cor de ação. **Exceção da série do treino (Gustavo, 28/11):**
+  a série aberta (`TabelaDeBlocos`) mantém o fundo pintado na cor do tipo e ganha a borda na cor de ação
+  (`pinturaDaSerie` `ATIVA`, a mesma da série da vez no app do aluno), com o chevron ⌃ na cor de ação; o destaque de
+  edição ali é a borda, não o tingido. O bloco de cardio aberto (`EditorDoCardio`, sem cor de tipo) leva a mesma borda. Nada de moldura de ação dentro de moldura de
   ação, nem o mesmo título repetido (a linha aberta já é o título do bloco; o nome acessível "Editando série N, tipo"
   fica para o leitor de tela). O tingido é 8% e não o `acaoSuave` (13%) porque com a marca amarela como cor de ação nos
   temas escuros o contorno dos campos ficava abaixo de 3:1 (`treinador/treino/blocoAberto.contraste.test.ts`). A dieta já
@@ -523,12 +534,47 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   (`LARGURA_PAINEL_LATERAL`), altura da janela, borda esquerda em `divisor`, sem sombra; entra deslizando da direita em
   180 ms (`withTiming`, saída suave) com o véu clareando junto, e nasce no lugar com movimento reduzido (do sistema ou do
   app); a saída é imediata e o foco volta ao botão "Filtros". No celular é a folha de baixo na largura toda, sem animação nova. Cabeçalho fixo com o X, corpo rolável em uma coluna com grupos
-  `GrupoDoPainel` (título de seção e divisor de 1 px, sem cartão), rodapé fixo `Limpar filtros` (fantasma) · `Cancelar`
-  · `Aplicar filtros` (o único primário). Rascunho copiado do aplicado ao abrir; X, Esc, fundo, Cancelar e o voltar
+  `GrupoDoPainel` (só o divisor de 1 px entre grupos, sem título nem cartão, desde a regra única de 28/11), rodapé fixo
+  `Limpar filtros` (fantasma, só texto) · `Cancelar` · `Mostrar N <itens>` (o único primário; regra única abaixo). Rascunho copiado do aplicado ao abrir; X, Esc, fundo, Cancelar e o voltar
   descartam; Aplicar confere os campos (`useProblemaNoPainel` + `dominio/painelDeFiltros`): com erro, o painel fica, a
   frase vai ao rodapé, cada erro fica no campo e o foco vai ao primeiro marcado. Lista suspensa e calendário abrem
   acima do painel e o Esc fecha primeiro a camada de cima. A página atrás fica inerte e a tabela não muda de largura.
   As escolhas só valem em "Aplicar filtros"; a etiqueta ✕ da página tira o filtro na hora.
+  - **Regra única dos painéis de filtro (Gustavo, 28/11; vale para todo painel, lateral ou etapa de folha):**
+    - **Um rótulo por filtro.** O grupo não tem título visível (saíram "IDENTIFICAÇÃO", "SITUAÇÃO", "DATAS" em caixa alta, que
+      repetiam o rótulo) nem vira grupo para o leitor de tela; a ordem Identificação · Situação · Datas · Outros continua,
+      separada pelo divisor.
+    - **Vários valores = chips de seleção múltipla** (`ui/ChipsDeFiltro.ChipsMultiplos`, botões de alternar com `aria-pressed`, regra 17): sem chip "Todos"
+      (nada marcado = todos). O escolhido tem fundo tonal da cor de ação (`acaoSuave`, contorno a 35% da ação, cheio com o
+      mouse em cima), rótulo e ✓ em `acao`, em semibold; é a exceção tonal da 4.1 estendida aos chips de filtro (o ✓ e o peso
+      dizem a escolha sem depender da cor). Valor com cor de situação ou de categoria leva a bolinha (`tom`/`cor`; Concluída
+      verde, Concluída com erros âmbar, Falhou vermelho; Paga verde, Em aberto e Contestada âmbar, Vencida vermelha).
+    - **Um valor entre 2 e 3 opções curtas (até 16 caracteres) = segmento** na largura toda (`Escolha segmentosIguais`, que
+      nunca quebra a linha), com a opção "Todos" à vista. Mais opções, texto longo ou bolinha = **chips de uma escolha**
+      (`ChipsDeUmaOpcao`, grupo de rádio da APG, o mesmo desenho dos múltiplos), sem chip "Todos": tocar no escolhido o
+      desmarca. Acima de oito opções, a folha com busca (`EscolhaEmFolha`). Quem decide é `treinador/SeletoresDeFiltro.UmaOpcao`.
+    - **Exceção (lista longa ou do cadastro):** pessoa, ação, responsável, tags, perfil, categoria de lançamento e grupo
+      muscular seguem na `SelecaoMultiplaSuspensa` com busca: dezenas ou centenas de opções em chips não têm busca.
+    - **Datas:** "De" e "Até" (`CamposDePeriodo`) e, embaixo, os atalhos **Hoje · 7 dias · 30 dias ·
+      Este mês · Mês passado** (`dominio/atalhosDePeriodo`, hoje de Brasília; 7 e 30 dias terminam hoje e contam hoje; os dois
+      meses são o mês inteiro, do dia 1 ao último). Regra 17 do Gustavo (28/11): atalho que preenche campo é botão comum
+      (`Botao secundario pequeno`, alvo de 44, sem `aria-pressed`, sem ✓ e sem estado de escolhido; o valor mora nos campos):
+      tocar preenche De e Até e leva o foco ao De. Com limite de dias (Atualizações) o atalho mais longo não aparece. Nome
+      acessível "7 dias (<rótulo>)", no grupo "Atalhos de <rótulo>".
+    - **Rodapé:** "Limpar filtros" (texto), "Cancelar" e "Mostrar N <itens>" (`resultado` da `BarraDeFiltros` e da
+      `useEtapaDeFiltros`; `dominio/atalhosDePeriodo.rotuloDeMostrar`: "Mostrar 1 importação", "Mostrar 12 importações").
+      Lista no aparelho conta na hora (`contar`); lista do servidor pede a página 0 com o rascunho (`buscar`, o `total`) depois
+      de 300 ms parado, descarta a resposta de um rascunho velho e, com o rascunho igual ao aplicado, usa o total da tela sem
+      pedir. Sem número ainda (ou se a contagem falhar), "Mostrar importações". O Mostrar nunca espera a contagem.
+    - **Painéis na regra (28/11):** Importação, Auditoria, Alunos, Financeiro › Cobranças e Lançamentos, Interessados,
+      Atualizações, Equipe › Membros, Questionários e Pastas da ficha (com "Mostrar N"; na Auditoria os seis atalhos da barra,
+      Tudo · Sem logins · Alunos · Planos · Financeiro · Equipe, são chips de uma escolha com "Tudo" à vista, sem segmento, e
+      Pessoa e Ação seguem na lista com busca, a exceção acima); Agenda (situações em chips, rodapé
+      ainda "Aplicar filtros": o calendário não tem contagem simples). **Só em parte** (perderam o título de grupo e, onde há
+      datas, ganharam os atalhos, mas o rodapé segue "Aplicar filtros" e a escolha segue a antiga): Biblioteca (abas e
+      Exercícios, que já tinha "Mostrar N exercícios"), Catálogo, Mural e Vídeos (`Escolha chips` com o chip "Todas" e a
+      seleção neutra), Registros e Progresso da ficha. Na Importação, Destino e Situação são chips de várias
+      escolhas, enviados repetidos a `GET /importacoes` (`?destino=alunos&destino=pesos`).
   - **Variantes nomeadas:** (1) com grupos `GrupoDoPainel` (Identificação, Situação, Datas, Outros, nesta ordem; grupo
     sem seletor não aparece); (2) sem grupo: as abas
     da Biblioteca (`BarraDaBiblioteca`: busca mais os seletores da aba, direto no corpo; sem nada a filtrar fica só a
@@ -549,6 +595,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
     (`selecaoDepoisDosFiltros`, `dominio/painelDeFiltros.ts`); a busca que limpa o lote também avisa, em Cobranças com o
     número e em Alunos sem número ("A seleção de alunos foi limpa porque a lista mudou."); sem nada marcado não avisa;
     Aplicar sem mudar nada mantém.
+  - **Filtros de exercícios (27/11):** folha lateral "Filtros de exercícios" com largura `LARGURA_FOLHA_LARGA`; grupos musculares parecidos ficam agrupados numa linha só, com ⓘ para as variações (`dominio/gruposMusculares`); contagem por modalidade; busca no grupo. "Organizar grupos musculares" fica no ⋯ da aba Exercícios da Biblioteca.
   - **Faixa de contexto (Cobranças):** o aluno de "Ver no Financeiro" é contexto obrigatório, não filtro: aparece numa
     faixa neutra acima da barra ("Cobranças de" + o nome) e como leitura no grupo Identificação, não vira etiqueta nem
     entra no contador; os dois "Limpar filtros" o mantêm e só "Ver cobranças de todos os alunos", na faixa, o tira. O
@@ -574,7 +621,11 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   - **Divergência com o guia de 11/11 (pág. 7):** o guia pedia os atalhos com contagem Todos / Para revisar / Atrasados
     na lista de Alunos; eles viraram as opções "Para revisar" e "Atrasada" do filtro Atualização, no painel (um modo só
     de filtrar; a contagem por atalho saiu junto). Decisão do plano `filtros-laterais.md`, passo 4.
-- **Peça:** `Campo`, `CamposEmLinha`, `ParDeDatas`, `CampoData`, `CampoSenha`, `BarraDeFiltros`, `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
+  - **Exceção ao "um modo só de filtrar" (convite em lote, pedido do Gustavo, 28/11):** na lista de Alunos o atalho
+    "Sem acesso ao app" fica fora do painel, logo depois do botão "Filtros" (`depois` da `BarraDeFiltros`): botão
+    `secundario` comum, sem estado de escolhido, que aplica o filtro Acesso = Sem acesso mantendo os outros; quando o Acesso
+    já é só "Sem acesso", some. O filtro em si continua no painel e vira etiqueta como os demais (`docs/planos/convite-em-lote.md`).
+- **Peça:** `Campo`, `CamposEmLinha`, `ParDeDatas`, `CampoData`, `CampoSenha`, `BarraDeFiltros`, `ChipsMultiplos` e `ChipsDeUmaOpcao` (`ui/ChipsDeFiltro`), `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
 - **`BarraDeFiltros` `antes` e `depois`** (23/11, Agenda): `antes` é o que fica à esquerda na linha do botão "Filtros",
   ocupando o que sobra (Hoje, setas e período do calendário); `depois` vem logo depois do botão (o segmento da visão). Uma
   barra só acima da grade; as etiquetas "Filtrando" continuam embaixo da linha inteira.
@@ -749,18 +800,17 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
 - Celular com 3 ou mais exercícios: "Exercício aberto" (`EscolhaDoExercicio`) abre a folha com todos.
 
 **Blocos de séries (`TabelaDeBlocos`; séries no padrão da dieta, 19/11)**
-- O painel do exercício aberto tem a faixa de ação à esquerda (`CartaoExercicio`) e, no cabeçalho, "Exercício N de M ·
-  grupo", o nome e, à direita, "Trocar exercício" (nome acessível "Trocar exercício: <nome>"; abaixo de 768 px só o ícone, com o mesmo nome), ⋯ (mover) e "Excluir".
+- O painel do exercício aberto tem a faixa de ação à esquerda (`CartaoExercicio`) e, no cabeçalho, "Exercício N de M · grupo · modalidade" (nome por extenso de `dominio/modalidades`; sem repetir a palavra quando grupo e modalidade coincidem), o nome e, à direita, "Trocar exercício" (`acao` no painel, `secundario` no cartão empilhado) (nome acessível "Trocar exercício: <nome>"; abaixo de 768 px só o ícone, com o mesmo nome), ⋯ (mover) e "Excluir".
 - Colunas grudadas abaixo da barra do editor (resumo da sessão, total do dia da dieta, índice e prévia do questionário):
   `FixoAbaixoDaBarra` / `useFixoAbaixoDaBarra` de `treinador/plano/TelaDoEditor`, topo = altura medida da barra + 16 px (25/11;
   antes 80 px fixos, a altura da barra em uma linha, e a barra quebra em duas ou três linhas abaixo de ~1300 px).
 - Linha fechada como cartão pintado na cor da série, com borda e faixa reta de 4 px à esquerda (25/11, exceção das séries
   do treino na P5; `ui/CamadaDaSerie`, a mesma peça da tela do exercício do aluno; hover `superficie2`, chevron →), cartões
-  separados por um vão de 6 px (o fio `divisor` saiu). A aberta é um bloco só com o editor embaixo (fundo
-  `coresDaEdicao().fundoDoBloco`, cantos 14, a faixa da série sem borda, chevron ↓ na cor de ação), sem contorno, halo,
+  separados por um vão de 6 px (o fio `divisor` saiu). A aberta é um bloco só com o editor embaixo (28/11, Gustavo: o
+  mesmo fundo pintado na cor do tipo e a borda na cor de ação, `pinturaDaSerie` `ATIVA`; chevron ⌃ na cor de ação), sem halo,
   selo "Editando" nem o título repetido; só uma aberta por vez e tocar na aberta (ou "Fechar edição") fecha. Alça de
   arrastar à esquerda e ⋯ (mover) à direita de cada linha, fora do botão dela.
-- Quatro sinais que não se confundem: foco é o anel do `:focus-visible`; aberta é o fundo tingido de ação; categoria é a
+- Quatro sinais que não se confundem: foco é o anel do `:focus-visible`; aberta é a borda de ação (28/11); categoria é a
   faixa e o fundo pintado na cor do tipo com o selo do nome (no modo "Cor de ação" da preferência "Cor das séries", tudo na
   cor de ação e o selo neutro); problema é o ícone na cor da gravidade (carga vazia é âmbar, "Falta a carga"). O nome
   por extenso embaixo do selo ("Preparação · FS", "WS + Rest pause") só aparece quando diz mais que o selo: "Aquecimento"
@@ -802,7 +852,9 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
 
 **Salvamento, validação e aplicação (três estados separados)**
 - Salvamento (`seloDoEditor`, `dominio/barraDoEditor.ts`): "Alterações não salvas" em neutro com lápis (D12, não é erro),
-  "Salvando…", "Falha ao salvar" e "Data inválida: não salvo" em `perigo`.
+  "Salvando…", "Falha ao salvar" e "Data inválida: não salvo" em `perigo`. Exceção da leva 3 (27/11, sem commit): na faixa
+  única do modelo de treino (`treinador/treino/AcoesDoModelo`, web ≥ 768 px) o texto e o lápis ficam em `atencao`, sem
+  pílula; a `BarraDoModelo` segue neutra. Decisão aberta A2 (5.6).
 - Validação (`ContadoresDoTreino`): "Sem pendências" ou "N pendências · Ir à primeira pendência" no modelo; no plano do
   aluno, "Pronto para publicar" ou o mesmo texto de pendências. Só informa: nada trava salvar.
 - "Ir à primeira pendência" seleciona sessão, exercício e bloco, abre o recolhido e foca o campo com `aria-invalid="true"`.
@@ -814,8 +866,8 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
 **Cor (conferida no código)**
 - Prévia "Para o aluno" (`EditorDoGrupoDeSeries`): ícone ✓ `sucesso` quando não há nada a corrigir; ⚠ âmbar ou ⊗ vermelho
   com aviso ou erro; sem caixa (19/11).
-- "Alterações não salvas" é neutro no código. A linha dessa situação na tabela de 4.5 ainda diz `atencao`: a decisão
-  está pendente (plano, decisão 4 e passo 4). Não conferido qual vale.
+- "Alterações não salvas" é neutro no código, menos na faixa única do modelo de treino (âmbar, leva 3). A linha dessa
+  situação na tabela de 4.5 ainda diz `atencao`: a decisão está pendente (plano, decisão 4 e passo 4; A2 em 5.6).
 
 **Não conferido**
 - Aparelho nativo (Android e iOS), leitor de tela real, web local em `:8088` com conta de demonstração,
@@ -839,7 +891,7 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
   (`aria-invalid`) e o selo `perigo` "Link do YouTube inválido" ligado ao campo; a seção diz "Corrigir".
 - Na tabela, a coluna Vídeo tem ~145 px em 1280 com o menu aberto: o placeholder é "Link do YouTube" e o selo
   "Link inválido" (o rótulo oculto do campo já diz YouTube), sem cortar nem quebrar; empilhado, os textos longos.
-- **Três colunas em tela larga, com prévia ao vivo (26/11; `treinador/mobilidade/SecoesDeMobilidade`, `PreviaDaMobilidade`, `dominio/colunasDaMobilidade`):** a partir da faixa `larga` (1600 de área, medida na própria linha das colunas, a mesma régua do Total do dia da dieta) o editor tem **lista de seções (280, até 320 depois que o editor chega ao máximo) | editor flexível até `LARGURA_EDITOR_DE_CAMPOS` (1400) | prévia de 440 px na `larga` e 560 na `ultralarga`**, vão de 24; o que sobra depois dos máximos vira vão, dividido igualmente entre os dois vãos (como o editor de questionário), nunca uma faixa vazia só à direita. Abaixo da `larga`, as duas colunas de sempre, sem prévia. A **prévia** mostra o que o aluno vê no celular, com os cartões da tela dele (`aluno/PecasDaMobilidade`: `CartaoDaSecaoDaMobilidade` e `CartaoDasOrientacoesDaMobilidade`, reaproveitados), sobre o estado atual do editor, salvo ou não, passado por `mobilidadeParaApi` (então mostra o que a publicação entrega: "—" sem prescrição, sem "Ver vídeo" com link inválido). É `role=region` "Prévia para o aluno", **só olha** (`inert` e `aria-hidden`: fora do Tab e do leitor de tela; a roda do mouse ainda rola a coluna), fica grudada abaixo da barra, com rolagem própria e altura limitada à janela, e **rola até a seção em edição** quando ela muda (não a cada tecla); a primeira seção volta ao topo, com as orientações à vista. Testes: `colunasDaMobilidade.test.ts` e, no e2e, `e2e/editor-mobilidade.spec.ts` (prévia de 440 em 1920 e de 560 em 3440). A prévia é só web.
+- **Três colunas em tela larga, com prévia ao vivo (26/11; `treinador/mobilidade/SecoesDeMobilidade`, `PreviaDaMobilidade`, `dominio/colunasDaMobilidade`):** a partir da faixa `larga` (1600 de área, medida na própria linha das colunas, a mesma régua do Total do dia da dieta) o editor tem **lista de seções | editor | prévia**, pela regra das colunas abaixo. **Regra das colunas dos editores "índice + editor + prévia" (28/11, Gustavo; `dominio/colunasDoEditor.colunasComPrevia` e a linha `treinador/plano/ColunasDoEditor.LinhaComPrevia`): o espaço que sobra vai para as colunas, nunca para os vãos. O vão entre as colunas é fixo (24 px); o índice tem largura fixa (260 px; a lista de seções da mobilidade, 280, a mesma das duas colunas); o editor é flexível até `LARGURA_EDITOR_DE_CAMPOS` (1400) e a prévia, de 440 até 720. O editor cresce primeiro, até o máximo; depois a prévia, até 720. Se ainda sobrar espaço (ultrawide), o conjunto fica alinhado à esquerda e a sobra vai para o fim da linha, nunca entre as colunas.** Vale só para o questionário e a mobilidade (plano e modelo); treino, dieta, modelos, documentos, marca e importação seguem as regras deles. Embaixo da lista, o **Resumo** ("3 seções · 5 itens") e, no plano do aluno, a situação ("Publicado v1 · rascunho com alterações", "Publicado v1 · sem alterações" ou "Ainda não publicado"; o editor não conta as alterações). Abaixo da `larga`, as duas colunas de sempre, sem prévia. A **prévia** mostra o que o aluno vê no celular, com os cartões da tela dele (`aluno/PecasDaMobilidade`: `CartaoDaSecaoDaMobilidade` e `CartaoDasOrientacoesDaMobilidade`, reaproveitados), sobre o estado atual do editor, salvo ou não, passado por `mobilidadeParaApi` (então mostra o que a publicação entrega: "—" sem prescrição, sem "Ver vídeo" com link inválido). O título e a explicação são **uma linha**, "Prévia · como o aluno vê o rascunho", com o ⓘ "Sobre a prévia" (`ui/DicaDeTexto`) levando a explicação. É `role=region` com esse nome, **só olha** (os cartões são `inert` e `aria-hidden`: fora do Tab e do leitor de tela, e o único controle é o ⓘ do título; a roda do mouse ainda rola a coluna), fica grudada abaixo da barra, com rolagem própria e altura limitada à janela, e **rola até a seção em edição** quando ela muda (não a cada tecla); a primeira seção volta ao topo, com as orientações à vista. Testes: `colunasDoEditor.test.ts` (larguras de 1200 a 3440) e, no e2e, `e2e/editor-mobilidade.spec.ts` (prévia de 440 em 1920 e de 720 em 3440, com a sobra à direita). A prévia é só web.
 
 ### 4.8 Seções que abrem e fecham (Gustavo, 18/11/2026; plano `docs/planos/secoes-nascem-fechadas.md`)
 
@@ -939,7 +991,7 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   uma faixa vazia à direita: o inspetor do exercício (`InspetorDoExercicio`) é flexível e ocupa o que resta da lista (e do
   Resumo da sessão, na `ultralarga`) até a borda do conteúdo, sem teto, e o editor de dieta tem a refeição flexível entre
   a lista e o Total do dia (ver 4.7, "Editor de dieta"), de modo que as colunas preenchem a largura nas faixas normal e
-  larga. A regra continua valendo no editor da mobilidade (`SecoesDeMobilidade`, plano e modelo: o editor para em 1400, mas desde 26/11 a sobra não fica vazia, porque a prévia ao vivo ocupa a 3ª coluna e o resto vira vão, 4.7),
+  larga. A regra continua valendo no editor da mobilidade (`SecoesDeMobilidade`, plano e modelo: o editor para em 1400; da faixa `larga` em diante a prévia ao vivo cresce até 720 e, passado isso, a sobra fica no fim da linha, nunca entre as colunas: regra das colunas de 28/11, 4.7),
   no formulário de edição da ficha em três colunas (a ficha em duas colunas, em leitura e edição, não tem mais teto:
   D1 de 25/11).
 - **Três colunas na `ultralarga`** (exemplos que já existem): editor de treino (lista, inspetor flexível e `ResumoDaSessao` fixo ao
@@ -955,21 +1007,28 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   conteúdo. A medida é a da área do próprio editor (`onLayout`, como o `MuralComLateral`), só na web:
   - **abaixo de 1000 px:** só o editor, com as abas Editar e Prévia (celular e tablet nunca mudam; 1280 de janela com o
     menu aberto mede ~990 px de área e fica aqui);
-  - **1000 a < 1440:** índice de 240 px à esquerda, fixo ao rolar (`sticky`, `top` de 80 px, logo abaixo da barra, como o
+  - **1000 a < 1440:** índice de 260 px à esquerda, fixo ao rolar (`sticky`, `top` de 80 px, logo abaixo da barra, como o
     resumo do treino), e o editor no resto; as abas continuam (1536 de janela, o notebook a 125%, cai aqui);
-  - **1440 em diante:** índice (260, até 320 depois que o editor chega ao máximo; os itens param em 320,
-    `LARGURA_MAXIMA_DOS_ITENS`), editor flexível até `LARGURA_EDITOR_DE_CAMPOS` (1400) e a **prévia ao vivo** de 560 px
-    encostada à direita (fixa ao rolar, com rolagem própria: um `RolagemComTopo` dentro da coluna, para o "Avançar" e os
-    erros rolarem a coluna e não a página); as abas somem. Passados os máximos, a sobra vira vão, dividido igualmente entre
-    os dois vãos (índice encostado à esquerda, editor no meio, prévia encostada à direita; `colunasDoEditor().vao`), em vez
-    de uma faixa vazia só.
+  - **1440 em diante:** índice, editor e a **prévia ao vivo** (fixa ao rolar, com rolagem própria: um `RolagemComTopo`
+    dentro da coluna, para o "Avançar" e os erros rolarem a coluna e não a página); as abas somem. **Regra das colunas dos editores "índice + editor + prévia" (28/11, Gustavo; `dominio/colunasDoEditor.colunasComPrevia` e a linha `treinador/plano/ColunasDoEditor.LinhaComPrevia`): o espaço que sobra vai para as colunas, nunca para os vãos. O vão entre as colunas é fixo (24 px); o índice tem largura fixa (260 px; a lista de seções da mobilidade, 280, a mesma das duas colunas); o editor é flexível até `LARGURA_EDITOR_DE_CAMPOS` (1400) e a prévia, de 440 até 720. O editor cresce primeiro, até o máximo; depois a prévia, até 720. Se ainda sobrar espaço (ultrawide), o conjunto fica alinhado à esquerda e a sobra vai para o fim da linha, nunca entre as colunas.** Vale só para o questionário e a mobilidade (plano e modelo); treino, dieta, modelos, documentos, marca e importação seguem as regras deles.
   - **Índice:** `role=navigation` "Seções do questionário", "Nesta página", "Instruções" e cada seção com a contagem
     ("10 perguntas"), selo "Corrigir" quando o último publicar apontou a seção ou uma pergunta dela; o item à vista (lido na
     rolagem da página, `itemVisivel`; no fim da rolagem, o último) tem a seleção neutra da Ajuda (`superficie3`, negrito,
     indicador da marca) e `aria-current="location"`. Tocar abre as perguntas da seção (o acordeão que existe; a seção em si
     não fecha), rola até ela logo abaixo da barra (`TelaDoEditor.mostrarAbaixoDaBarra`, que conta com a barra já
-    grudada no topo, mesmo com a página no início), põe o foco no título e leva a prévia junto.
-  - **Prévia ao vivo:** o mesmo `PreviaDoQuestionario` da aba, numa moldura com o fundo da tela do aluno; atualiza a cada
+    grudada no topo, mesmo com a página no início), põe o foco no título e leva a prévia junto. Os itens formam uma lista
+    (`role=list`) e o índice tem a altura da área visível, com rolagem própria. **Embaixo das seções (28/11), sem deixar a
+    coluna vazia** (`dominio/resumoDoQuestionario`): "Resumo" ("26 perguntas · 4 seções · 3 obrigatórias", contado do
+    rascunho), a situação ("Publicado v1 · rascunho com alterações", "Publicado v1 · sem alterações" ou "Ainda não
+    publicado"; o editor não conta as alterações, só sabe se há) e, se houver, "Para publicar" com um link por tipo de
+    problema ("1 pergunta sem texto"), contado ao vivo pelo validador da publicação (`validarQuestionario`); o link abre a
+    pergunta e leva até ela, com o foco. Os selos "Corrigir" seguem só o último publicar. Na Inscrição, "Seu contato · N
+    campos fixos" (os do cartão "Seu contato" da prévia, sem os escondidos no link; `camposDoSeuContato`)
+    vem antes das Instruções, só nas três colunas, e leva a prévia até os campos fixos; a pergunta parecida com o campo fixo
+    Instagram também entra como problema ("1 pergunta repete o campo fixo Instagram"), e o "Remover pergunta" do aviso é
+    `perigo` tonal.
+  - **Prévia ao vivo:** o mesmo `PreviaDoQuestionario` da aba (título e explicação numa linha, "Prévia · como o aluno vê
+    o rascunho", com o ⓘ "Sobre a prévia"), numa moldura com o fundo da tela do aluno, na largura da coluna (até 720); atualiza a cada
     mudança; ao editar uma seção (ou tocar no índice) vai até ela (na anamnese, à página dela). Na Inscrição, os campos
     fixos da página pública (`CamposFixosNaPrevia`, sem os escondidos no link) vêm antes das perguntas.
   - Somente leitura (sem `QUESTIONARIO_ALTERAR` ou arquivado): só a prévia, como antes, em qualquer largura.
@@ -1147,6 +1206,7 @@ fluidez, mas **dependeu de explicação para se achar**. O diagnóstico é de **
 | Escolher a linha do cabeçalho na importação | Pendente; muda a API e a tela. |
 | A planilha que falhou na reunião | Só dá para reproduzir com os nomes das abas e das colunas, sem dados. |
 | Pendências de design do lote de 26/11 | **Peça compartilhada:** o Espaço não escolhe nos radiogroups do `ToggleGroup`/`Escolha` (limite do primitivo; vale para as grades da folha de lesão); `ui/AjudaDoCabecalho` poderia aceitar o rótulo do ⓘ (o `DicaDaPrevia` da lista de compras o duplica); `CartaoFormasDeRecebimento` ainda usa `fantasmaNaColuna` em "Manter a chave gravada"; `colunasDoHub` (`dominio/colunasPorCelula`) está sem uso; `dominio/mobilidade.resumoDasOrientacoes` é código morto. **Divergências:** "Retomar" por linha da importação é `acao` (a regra de 24/11 diria `secundario`; mantido por pedido); excluir é um botão `perigo` ao lado do ⋯ só na mobilidade (treino: "Remover sessão" no ⋯; dieta: "Excluir" ao lado do ⋯). **Sem aparelho (nativo):** toast da `Folha`, dica do ⓘ da prévia da lista de compras e arraste por toque longo das opções da refeição. **Outras:** em 3440 sobra um vão entre a coluna e o conteúdo das Configurações; rótulos personalizados de opção ("Opção Principal") viram letras na 1ª reordenação; as dúzias da lista de compras não vão ao PDF. |
+| Decisões e sugestões da leva 3 (27/11, sem commit; plano `docs/planos/serie-aberta-e-tela-completa-27-11.md`) | **A1 (Gustavo):** três `acao` perto no painel do exercício: "Trocar exercício" (pedido 36), "Usar receita de séries" no título Séries e "Adicionar exercício" na coluna ao lado, contra o "um `acao` por área" (4.5); até a resposta, segue o pedido. **A2 (Gustavo):** "Alterações não salvas" em âmbar na faixa única do modelo (proposta 0.1, já no código) × D12 neutra (4.7). **Rascunho** da folha da pasta em âmbar (pedido) × o neutro do guia na lista de pastas. **Revisão de 28/11 (decisões abertas):** ~~borda na série aberta~~ decidida pelo Gustavo em 28/11: borda na cor de ação e fundo na cor do tipo (4.5, "Um nível de destaque por vez"); RPE no mesmo seletor do RIR; "Carga diferente por bloco" com os campos em lista; faixa compacta abaixo de 1600 px sem os totais. **Feito em 28/11 (sem commit):** pendência âmbar no descanso vazio do cluster, sem erro no campo; `ImagemProtegida` com `dentroDeBotao` ("Não carregou" sem botão próprio na miniatura). **Sugestões ao design system (não feitas, pedem escopo):** tipo `informacao` no `ui/Selo` (o "Agendado" está neutro por falta dele); `ui/EscolhaSuspensa` sem estado ocupado nem desabilitado e com 52 px de altura (a proposta dizia 46); `ui/Botao` com `aria-disabled` que não perde o foco (decidir); `Icone` no `ui/DicaDeTexto`; `CampoDaSerie` (`LinhaDoFormulario`) com `autoFocus` e `aoValidade`; `ImagemProtegida` com papel `button` (hoje `imagebutton`); token próprio para o palco escuro da foto (o visualizador usa `ESCURO.fundo`). |
 
 ---
 

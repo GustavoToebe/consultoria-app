@@ -99,7 +99,7 @@ for (const largura of [390, 1280]) {
     await painel.getByRole('radiogroup', { name: 'Imagem' }).getByRole('radio', { name: 'Com imagem' }).click();
     await expect(painel.getByRole('radiogroup', { name: 'Na biblioteca' }).getByRole('radio')).toHaveText(['Todos', 'Ainda não', 'Já tenho']);
     await painel.getByRole('radiogroup', { name: 'Na biblioteca' }).getByRole('radio', { name: 'Ainda não' }).click();
-    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect.poll(() => consultas.at(-1)).toBe('modalidade=MAQUINA&modalidade=PESO_CORPORAL&imagem=true&naBiblioteca=false');
     await expect(page.getByRole('button', { name: 'Filtros, 3 ligados' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tirar filtro: Na biblioteca: Ainda não' })).toBeVisible();
@@ -193,7 +193,7 @@ test('catálogo de alimentos: Unidade e "Na biblioteca" vão à API, com chips',
   await lista.getByRole('checkbox', { name: 'Mililitros (ml)', exact: true }).click();
   await page.keyboard.press('Escape');
   await painel.getByRole('radiogroup', { name: 'Na biblioteca' }).getByRole('radio', { name: 'Já tenho' }).click();
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect.poll(() => consultas.at(-1)).toBe('unidade=ml&naBiblioteca=true');
   await expect(page.getByRole('button', { name: 'Tirar filtro: Unidade: Mililitros (ml)' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tirar filtro: Na biblioteca: Já tenho' })).toBeVisible();

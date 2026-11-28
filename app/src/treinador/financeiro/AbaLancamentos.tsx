@@ -36,7 +36,7 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { AcaoDaBusca, avisoDeConflito, CampoMoeda, ehConflito } from './comum';
-import { CamposDePeriodo } from '../SeletoresDeFiltro';
+import { CamposDePeriodo, UmaOpcao } from '../SeletoresDeFiltro';
 import { ListaOuTabela } from './ListaOuTabela';
 import { ResultadoDoMes } from './ResultadoDoMes';
 
@@ -130,12 +130,16 @@ export function AbaLancamentos({ podeAlterar, resultado }: {
         valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
         aoTirar={(chave) => aplicar(semOFiltroDeLancamentos(filtros, chave as ChaveDoFiltroDeLancamentos))}
         painelLateral={{ titulo: 'Filtros de lançamentos' }}
+        resultado={{ itens: { um: 'lançamento', varios: 'lançamentos' }, total: lista.dadosDeOutraChave ? undefined : lista.dados?.total, buscar: (r) => listarLancamentos({
+          pagina: 0, de: r.periodo.de ?? undefined, ate: r.periodo.ate ?? undefined, tipo: r.tipo ?? undefined, categorias: r.categorias, busca: busca || undefined,
+        }).then((p) => p.total) }}
         depois={podeAlterar ? <AcaoDaBusca rotulo="Novo lançamento" Icone={Plus} aoTocar={() => setAberto('novo')} /> : undefined}
         seletores={(atuais, mudar) => (
           <>
             <GrupoDoPainel titulo="Identificação" primeiro>
-              <Escolha<TipoDeLancamento | 'TODOS'> rotulo="Tipo" opcoes={[{ valor: 'TODOS', rotulo: 'Todos' }, ...TIPOS_DO_FILTRO]} valor={atuais.tipo ?? 'TODOS'}
+              <UmaOpcao<TipoDeLancamento | 'TODOS'> rotulo="Tipo" opcoes={[{ valor: 'TODOS', rotulo: 'Todos' }, ...TIPOS_DO_FILTRO]} valor={atuais.tipo ?? 'TODOS'}
                 aoMudar={(v) => mudar({ ...atuais, tipo: v === 'TODOS' ? null : v })} />
+              {/* Exceção da regra única: categoria é texto livre do treinador, pode ser muitas; segue com busca. */}
               <SelecaoMultiplaSuspensa rotulo="Categoria" opcoes={opcoesDeCategoria} marcados={new Set(atuais.categorias)} rotuloDeTodos="Todas"
                 aoMudar={(m) => mudar({ ...atuais, categorias: opcoesDeCategoria.map((o) => o.valor).filter((v) => m.has(v)) })} style={estilos.cheio} />
             </GrupoDoPainel>

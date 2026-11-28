@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 
 import type { Configuracao, EtapaRegistrada } from '../api/tipos';
-import { textoPausa } from '../dominio/agrupamento';
+import { textoPausaComTimer } from '../dominio/agrupamento';
 import { modoComReferenciaExterna, sugestaoSobreReferencia, textoDaOrigem, type SerieCalculada } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
 import {
@@ -92,7 +92,7 @@ export function CartaoSerieComEtapas(p: Props) {
   const cluster = s.tecnica?.tipo === 'CLUSTER';
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
   const temPausa = !!s.tecnica && (s.tecnica.pausaSegundos != null || s.tecnica.pausaRespiracoes != null);
-  const rotuloDaPausa = cluster ? 'Pausa entre blocos' : 'Pausa antes da retomada';
+  const rotuloDaPausa = cluster ? 'Pausa entre os blocos' : 'Pausa antes da retomada';
   // Sugestão de cada etapa sobre a referência congelada na primeira etapa (ou a de agora, antes dela). A da série segue a
   // congelada só nos modos que partem dela.
   const referencia = registro?.referenciaCarga ?? p.calculada.referencia?.valor ?? null;
@@ -157,7 +157,7 @@ export function CartaoSerieComEtapas(p: Props) {
               {i > 0 && temPausa ? (
                 <View style={[estilos.pausa, { borderTopColor: cores.bordaCampo }]}>
                   <Timer size={14} color={cores.textoSuave} />
-                  <Texto numerico variante="pequeno" style={estilos.textoDaPausa}>{`${rotuloDaPausa}: ${textoPausa(s.tecnica!)}`}</Texto>
+                  <Texto numerico variante="pequeno" style={estilos.textoDaPausa}>{`${rotuloDaPausa}: ${textoPausaComTimer(s.tecnica!)}.`}</Texto>
                   {pausa !== null && p.aoIniciarPausa && anteriorFeita ? (
                     <Botao rotulo="Pausa" rotuloAcessivel={`Iniciar a pausa depois de ${previstas[i - 1].rotulo.toLowerCase()} da série ${p.numero}`} tipo="fantasma" Icone={Timer}
                       aoTocar={() => p.aoIniciarPausa!(pausa, rotuloDaPausa, { origem: origemDaPausa(p.execucao, previstas[i - 1].posicao) })} />

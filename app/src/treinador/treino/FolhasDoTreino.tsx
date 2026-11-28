@@ -7,6 +7,7 @@ import { FolhaSalvarReceita } from '../FolhaSalvarReceita';
 import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
 import { OpcaoDeModelo } from '../plano/OpcaoDeModelo';
 import { FolhaUsarReceita } from './FolhaUsarReceita';
+import { FolhaUsarSemana } from './FolhaUsarSemana';
 import { useAviso } from '../../ui/Aviso';
 import { Folha } from '../../ui/Folha';
 
@@ -36,7 +37,7 @@ interface Props {
   planoId: string | undefined;
   salvar: () => Promise<boolean>;
   comDesfazer: (rotulo: string, mudanca: (c: ConteudoTreino) => ConteudoTreino) => void;
-  /** Como `comDesfazer`, com o "Desfazer" no aviso (toast): usado ao aplicar uma receita de séries. */
+  /** Como `comDesfazer`, com o "Desfazer" no aviso (toast): usado ao aplicar uma receita de séries e uma semana de treino. */
   comDesfazerNoAviso: (rotulo: string, mudanca: (c: ConteudoTreino) => ConteudoTreino) => void;
   /** Abre a aba de séries do exercício (a receita aplicada abre a do último grupo, D12). */
   abrirGrupo: (exercicioUid: string, serieUid: string | null) => void;
@@ -111,14 +112,11 @@ export function FolhasDoTreino({ folha: aberta, abrir, fechar, conteudo: c, conf
     }
     case 'receitaPlano':
       return (
-        <FolhaReceitas
-          tipo="PLANO_TREINO"
-          titulo="Usar semana de treino"
-          explicacao="As sessões do plano são trocadas pelas da semana escolhida (o objetivo e as orientações ficam). Dá para desfazer logo depois."
+        <FolhaUsarSemana
           aoFechar={fechar}
           aoUsar={(r) => {
             fechar();
-            comDesfazer(`Semana “${r.nome}” aplicada.`, (a) => aplicarReceitaDePlano(a, r.conteudo));
+            comDesfazerNoAviso(`Semana “${r.nome}” aplicada.`, (a) => aplicarReceitaDePlano(a, r.conteudo));
           }}
         />
       );

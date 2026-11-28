@@ -72,6 +72,26 @@ export function erroDoNomeDaColecao(nome: string, colecoes: readonly PastaModelo
   return colecoes.some((c) => c.id !== idIgnorado && semAcentoMinusculo(c.nome) === termo) ? ERRO_NOME_REPETIDO : null;
 }
 
+/**
+ * O que o texto da busca do seletor de coleção (folha de novo modelo) vira: vazio = `semNome` (a opção "+ Nova coleção…"
+ * abre o campo do nome); igual a uma coleção que já existe (mesma comparação de `erroDoNomeDaColecao`) = essa coleção, para
+ * não nascer outra repetida; senão o nome limpo (espaços sobrando fora) para criar ali mesmo.
+ */
+export function colecaoDoDigitado(texto: string, colecoes: readonly PastaModelo[]): { semNome: true } | { existente: PastaModelo } | { nova: string } {
+  const nome = texto.replace(/\s+/g, ' ').trim();
+  if (!nome) return { semNome: true };
+  const termo = semAcentoMinusculo(nome);
+  const existente = colecoes.find((c) => semAcentoMinusculo(c.nome) === termo);
+  return existente ? { existente } : { nova: nome };
+}
+
+export const ERRO_NOME_DO_MODELO_VAZIO = 'Informe o nome do modelo.';
+
+/** Nome do modelo (folha de novo modelo e "Renomear ou mudar de coleção"): só espaços conta como vazio. */
+export function erroDoNomeDoModelo(nome: string): string | null {
+  return nome.trim() ? null : ERRO_NOME_DO_MODELO_VAZIO;
+}
+
 /** Modelos do tipo cujo nome ou descrição contém a busca (sem acento nem caixa); busca vazia = todos do tipo. */
 export function filtrarModelos(modelos: readonly Receita[], tipo: TipoReceita, busca: string): Receita[] {
   const termo = semAcentoMinusculo(busca);

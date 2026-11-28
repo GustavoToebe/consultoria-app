@@ -48,10 +48,9 @@ for (const largura of [390, 1280]) {
     await expect(campo('Série 2 · Mínimo (%)')).toHaveValue('70');
     await expect(campo('Série 3 · Mínimo (%)')).toHaveValue('85');
     await expect(campo('Série 3 · Máximo (%)')).toHaveValue('90');
-    // O título do grupo aberto diz o que se edita (o tipo como o treinador lê); "Para o aluno" numa linha só, com os números.
-    // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+    // O nome acessível do bloco aberto diz o que se edita; ao lado (embaixo, no celular), a prévia com os cartões do aluno.
     await expect(page.getByRole('region', { name: 'Editando série 1, Preparação · FS', exact: true })).toBeVisible();
-    await expect(page.getByText(/3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Prévia para o aluno' })).toContainText('FS');
     await novaSerie(page, 'Adicionar WS');
     // A técnica não é um tipo: a série é WS e o rest pause vai dentro dela. O "+ Nova série" soma uma WS ao grupo da WS e
     // "Aplicar Rest-pause só na última série" separa a última, com a técnica.
@@ -61,7 +60,6 @@ for (const largura of [390, 1280]) {
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(3);
     if (!(await linhaDaSerie(page, /^Série 3 · WS/, true).count())) await linhaDaSerie(page, /^Série 3 · WS/).click();
     await expect(page.getByRole('region', { name: /^Editando série \d, Trabalho · WS \+ Rest pause$/ })).toBeVisible();
-    await expect(page.getByText(/1×3 a 6 · WS \+ Rest pause/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Técnica da série: Rest pause. Escolher.', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // O "mín" e o "máx" ficam dentro da caixa do número: com três dígitos o texto não passa da área dele (não é cortado).
@@ -104,14 +102,14 @@ for (const largura of [390, 1280]) {
     await campo('Repetições em cada bloco').fill('4');
     await page.getByRole('button', { name: 'Adicionar um bloco', exact: true }).click();
     await page.getByRole('button', { name: 'Adicionar um bloco', exact: true }).click();
-    await expect(page.getByText('4 blocos × 4 reps = 16 reps', { exact: true })).toBeVisible();
-    await page.getByRole('switch', { name: 'Personalizar carga por bloco' }).click();
+    await expect(page.getByText('4 blocos · 16 reps por série', { exact: true })).toBeVisible();
+    await page.getByRole('switch', { name: 'Carga diferente por bloco' }).click();
     for (const bloco of [2, 3, 4]) {
       await page.getByRole('radiogroup', { name: `Bloco ${bloco} (4 reps)` }).getByRole('radio', { name: 'Percentual da carga de trabalho (WS)', exact: true }).click();
       await campo(`Percentual da WS, bloco ${bloco}`).fill('90');
     }
-    // O "Para o aluno" é a linha do grupo, com a carga de cada bloco no fim.
-    await expect(page.getByText(/^Para o aluno: 1×16 \(4×4\) · WS com Cluster 15 s.* · Bloco 1: carga da série · Bloco 2: 90% da WS · Bloco 3: 90% da WS · Bloco 4: 90% da WS$/)).toBeVisible();
+    // A prévia do aluno mostra o cluster (a carga de cada bloco vai no plano salvo, conferido no fim).
+    await expect(page.getByRole('group', { name: 'Prévia para o aluno' })).toContainText('WS');
     await page.screenshot({ path: testInfo.outputPath('cluster-carga-por-bloco.png'), fullPage: true });
 
     // WS com Rest-pause de 2 pausas: retomada 1 com 2 a 3 reps; retomada 2 AMRAP a 85% da WS.
@@ -125,7 +123,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('radiogroup', { name: 'Carga da retomada 2' }).getByRole('radio', { name: 'Percentual da carga de trabalho (WS)', exact: true }).click();
     await campo('Percentual da WS, retomada 2').fill('85');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await expect(page.getByText(/^Para o aluno: 1×3 a 6 · WS \+ Rest pause.* · Retomada 1: 2 a 3 reps, carga da série · Retomada 2: AMRAP, 85% da WS$/)).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Prévia para o aluno' })).toContainText('WS');
     await page.screenshot({ path: testInfo.outputPath('rest-pause-retomadas.png'), fullPage: true });
 
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();

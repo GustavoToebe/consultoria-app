@@ -110,6 +110,30 @@ describe('PDF da avaliação física', () => {
     expect(iguais.corpo).not.toContain('+0,0');
   });
 
+  it('variação embaixo de cada valor, a mesma do histórico da tela: desde a anterior com a medida, "Primeira", "0,0" sem seta', () => {
+    const { corpo } = gerar(['a', 'c'], { meta: 'REDUZIR' });
+    // Cintura: em 01/07 é a primeira; em 01/10 a anterior é 01/09 (fora da tabela), 85,5 → 85,5.
+    expect(corpo).toContain('90,0 cm<div class="var">Primeira</div>');
+    expect(corpo).toContain('85,5 cm<div class="var">0,0</div>');
+    expect(corpo).not.toContain('▲ 0,0');
+    // Braço sem meta: neutro mesmo com a meta do aluno.
+    expect(corpo).toContain('36,2 cm<div class="var">▲ 1,2</div>');
+    // Peso de 01/10: a anterior com peso é 01/07 (01/09 não tem), 82 → 80, a favor de reduzir.
+    expect(corpo).toContain('80 kg<div class="var positivo">▼ 2,0</div>');
+    // Medida não registrada: só o "Não registrada", sem variação embaixo.
+    expect(corpo).not.toMatch(/Não registrada<div/);
+    expect(corpo).toContain('Embaixo de cada valor, a diferença desde a avaliação anterior');
+  });
+
+  it('a cor da meta só em peso, cintura, abdômen e quadril; sem meta tudo neutro', () => {
+    expect(gerar(['c', 'd'], { meta: 'REDUZIR' }).corpo).toContain('84,0 cm<div class="var positivo">▼ 1,5</div>');
+    expect(gerar(['c', 'd'], { meta: 'AUMENTAR' }).corpo).toContain('84,0 cm<div class="var problema">▼ 1,5</div>');
+    expect(gerar(['c', 'd'], { meta: 'REDUZIR' }).corpo).toContain('59,2 cm<div class="var">▼ 0,8</div>');
+    const semMeta = gerar(['c', 'd']).corpo;
+    expect(semMeta).not.toContain('var positivo');
+    expect(semMeta).not.toContain('var problema');
+  });
+
   it('peso do dia fica fora dos grupos, informativo, e sem peso nada aparece', () => {
     const { corpo } = gerar(['a', 'b', 'c']);
     expect(corpo).toContain('Peso do dia (informativo)');

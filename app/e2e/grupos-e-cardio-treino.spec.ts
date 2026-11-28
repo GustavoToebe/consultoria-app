@@ -116,9 +116,9 @@ for (const largura of [390, 1280]) {
     // Remada com observação: também nasce fechada (18/11), e o botão diz que tem observação; abre no toque, com o texto.
     await abrirExercicio(2, 'Remada de teste');
     await expect(extras.last()).toHaveAttribute('aria-expanded', 'false');
-    // 27/11: seção recolhível; o resumo ao lado do título diz que tem observação.
+    // 27/11: seção recolhível; o resumo ao lado do título diz que tem observação e também o que falta (vídeo, cadência).
     await expect(extras.last()).toHaveAccessibleName('Nome de exibição e instruções');
-    await expect(page.getByText('Remada de teste · sem vídeo · com observação', { exact: true })).toBeVisible();
+    await expect(page.getByText('Remada de teste · sem vídeo · sem cadência · com observação', { exact: true })).toBeVisible();
     await expect(observacao).toHaveCount(0);
     await extras.last().click();
     await expect(extras.last()).toHaveAttribute('aria-expanded', 'true');

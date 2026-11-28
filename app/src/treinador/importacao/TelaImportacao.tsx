@@ -16,7 +16,7 @@ import { DESTINOS, destinosPermitidos, faltandoColuna, mapaDasSugestoes, type De
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
   ARQUIVOS, CHAVES_DO_ENDERECO, chipsDosFiltros, lerDoEndereco, paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro, SITUACOES,
-  type ChaveDoFiltro, type FiltrosDaImportacao, type ParametrosDoEndereco,
+  type ChaveDoFiltro, type FiltrosDaImportacao, type ParametrosDoEndereco, type SituacaoDaImportacao,
 } from '../../dominio/filtrosDaImportacao';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { CAMINHO_PLANILHA_COMPLETA, DESTINO_PLANILHA_COMPLETA, ROTULO_PLANILHA_COMPLETA } from '../../dominio/planilhaCompleta';
@@ -25,6 +25,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, LARGURA_EDITOR_DE_CAMPOS, LARGURA_FOLHA_LARGA, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
+import { ChipsMultiplos } from '../../ui/ChipsDeFiltro';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
@@ -123,16 +124,18 @@ export function TelaImportacao() {
       <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips}
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
         painelLateral={{ titulo: 'Filtros de importações' }}
+        resultado={{ itens: { um: 'importação', varios: 'importações' }, total: lista.dados?.total, buscar: (r) => listarImportacoes({ ...pedidoDaApi(r), pagina: 0 }).then((p) => p.total) }}
         seletores={(atuais, mudar) => <>
+          {/* Destino e Situação: vários de cada (nada marcado = todos), repetidos no pedido à API. */}
           <GrupoDoPainel titulo="Identificação" primeiro>
-            <UmaOpcao rotulo="Destino" valor={atuais.destino} aoMudar={(destino) => mudar({ ...atuais, destino })}
-              opcoes={[{ valor: '', rotulo: 'Todos' }, ...permitidos.map((d) => ({ valor: d.id, rotulo: d.rotulo }))]} />
+            <ChipsMultiplos rotulo="Destino" marcados={atuais.destinos} aoMudar={(destinos) => mudar({ ...atuais, destinos })}
+              opcoes={permitidos.map((d) => ({ valor: d.id, rotulo: d.rotulo }))} />
             <UmaOpcao rotulo="Arquivo" valor={atuais.arquivo} aoMudar={(arquivo) => mudar({ ...atuais, arquivo })}
               opcoes={[{ valor: '' as const, rotulo: 'Todos' }, ...ARQUIVOS]} />
           </GrupoDoPainel>
           <GrupoDoPainel titulo="Situação">
-            <UmaOpcao rotulo="Situação" valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })}
-              opcoes={[{ valor: '' as const, rotulo: 'Todas' }, ...SITUACOES]} />
+            <ChipsMultiplos<SituacaoDaImportacao> rotulo="Situação" marcados={atuais.situacoes}
+              aoMudar={(situacoes) => mudar({ ...atuais, situacoes })} opcoes={SITUACOES} />
           </GrupoDoPainel>
           <GrupoDoPainel titulo="Datas">
             <CamposDePeriodo rotulo="Data da importação" regra="PLANEJAMENTO" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />

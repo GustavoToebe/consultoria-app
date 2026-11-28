@@ -1,16 +1,24 @@
 import { colunasDoHistorico, pesoDaDivisao, pesoDaSemana } from './colunasDoHistorico';
 
 describe('colunasDoHistorico', () => {
-  it('1, 2 e 3 colunas nas faixas normal, larga e ultralarga quando cabem', () => {
-    expect(colunasDoHistorico(1500, 'normal', { pecas: 5 })).toBe(1);
+  it('teto de 2 na normal e na larga e de 3 na ultralarga, quando cabem', () => {
+    expect(colunasDoHistorico(1500, 'normal', { pecas: 5 })).toBe(2);
     expect(colunasDoHistorico(1100, 'larga', { pecas: 5 })).toBe(2);
     expect(colunasDoHistorico(1800, 'ultralarga', { pecas: 5 })).toBe(3);
     expect(colunasDoHistorico(900, 'compacta')).toBe(1);
   });
 
+  it('1280 com o menu aberto: o Corpo e as Atualizações (~990 de área) em duas; os Registros ao lado do Progresso em uma', () => {
+    expect(colunasDoHistorico(993, 'normal', { pecas: 3, maximo: 2 })).toBe(2);
+    expect(colunasDoHistorico(955, 'normal')).toBe(2);
+    expect(colunasDoHistorico(581, 'normal', { pecas: 3 })).toBe(1);
+    expect(colunasDoHistorico(838, 'normal', { pecas: 3 })).toBe(1);
+  });
+
   it('só as colunas que cabem com a mínima (Limitada na ultralarga fica com 2)', () => {
     expect(colunasDoHistorico(1286, 'ultralarga', { pecas: 5 })).toBe(2);
-    expect(colunasDoHistorico(900, 'larga', { pecas: 5 })).toBe(1);
+    expect(colunasDoHistorico(903, 'larga', { pecas: 5 })).toBe(1);
+    expect(colunasDoHistorico(904, 'larga', { pecas: 5 })).toBe(2);
   });
 
   it('bloco de cartões nunca abre coluna vazia; lista sem `pecas` usa o teto', () => {

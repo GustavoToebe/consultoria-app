@@ -236,12 +236,10 @@ async function abrirFiltros(page: Page): Promise<Locator> {
   return painel;
 }
 /** Marca opções na lista de várias (o diálogo dela, acima do painel); Esc fecha só a lista. */
-async function marcarNaLista(page: Page, painel: Locator, rotulo: string, valorAtual: string, opcoes: string[]) {
-  await painel.getByRole('button', { name: `${rotulo}: ${valorAtual}. Escolher.` }).click();
-  const lista = page.getByRole('dialog', { name: rotulo, exact: true });
-  for (const o of opcoes) await lista.getByRole('checkbox', { name: o, exact: true }).click();
-  await page.keyboard.press('Escape');
-  await expect(lista).toHaveCount(0);
+/** Regra única dos filtros (28/11): as situações são chips de várias escolhas no próprio painel. */
+async function marcarNaLista(_page: Page, painel: Locator, rotulo: string, _valorAtual: string, opcoes: string[]) {
+  const grupo = painel.getByRole('group', { name: rotulo, exact: true });
+  for (const o of opcoes) await grupo.getByRole('button', { name: o, exact: true }).click();
   await expect(painel).toBeVisible();
 }
 
@@ -381,6 +379,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
         // Painel: as duas agendas fixas e a pessoal, cada uma com a caixa marcada.
         await expect(page.getByRole('heading', { name: 'Minhas agendas', exact: true })).toBeVisible();
+        // Cada agenda é uma caixa de marcar (não um chip de filtro): o "Editar a agenda Pessoal" é botão e não conta.
         const agendas = page.getByRole('group', { name: 'Agendas visíveis' }).getByRole('checkbox');
         await expect(agendas).toHaveCount(3);
         await expect(page.getByRole('checkbox', { name: 'Compromissos com alunos, cor Índigo. Mostrar na agenda', exact: true })).toBeChecked();
@@ -890,7 +889,7 @@ test.describe('filtros em Folha e preferências (1280 px)', () => {
     await painel.getByRole('radio', { name: 'Só os meus', exact: true }).click();
     // Escolher só mexe no rascunho: o endereço e a consulta esperam o Aplicar.
     expect(endereco(page)).toBe('/treinador/agenda');
-    await painel.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(painel).toBeHidden();
     await expect.poll(() => endereco(page)).toBe('/treinador/agenda?meus=true');
     await expect.poll(() => ultimo(pedidos, '/atualizacoes')?.busca.get('meus')).toBe('true');
@@ -990,7 +989,7 @@ test.describe('filtros da agenda no painel (1280 px)', () => {
     const deNovo = await abrirFiltros(page);
     await expect(deNovo.getByRole('radio', { name: 'Toda a equipe', exact: true })).toBeChecked();
     await deNovo.getByRole('radio', { name: 'Bruno Equipe', exact: true }).click();
-    await deNovo.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+    await deNovo.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(deNovo).toBeHidden();
     await expect(botaoDeFiltros(page)).toBeFocused();
     await expect(page.getByRole('button', { name: 'Filtros, 1 ligado', exact: true })).toBeVisible();
@@ -1012,7 +1011,7 @@ test.describe('filtros da agenda no painel (1280 px)', () => {
     const painel = await abrirFiltros(page);
     await marcarNaLista(page, painel, 'Compromissos', 'Todos', ['Agendados', 'Realizados', 'Faltas']);
     await expect(painel.getByText('Com vários alunos, aparecem os compromissos em que algum aluno está em alguma dessas situações.')).toBeVisible();
-    await painel.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect.poll(() => decodeURIComponent(endereco(page))).toBe('/treinador/agenda?situacao=AGENDADO,REALIZADO,FALTOU');
     await expect.poll(() => ultimo(pedidos, '/agenda/compromissos')?.busca.getAll('situacao').join(',')).toBe('AGENDADO,REALIZADO,FALTOU');
     await expect(page.getByRole('button', { name: 'Tirar filtro: Compromissos: Agendados, Realizados, Faltas', exact: true })).toBeVisible();
@@ -1020,7 +1019,7 @@ test.describe('filtros da agenda no painel (1280 px)', () => {
     // Marcar a quarta é o mesmo que nenhuma: nada no endereço nem na consulta, e nenhuma etiqueta.
     const quatro = await abrirFiltros(page);
     await marcarNaLista(page, quatro, 'Compromissos', 'Agendados, Realizados e mais 1', ['Cancelados']);
-    await quatro.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+    await quatro.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect.poll(() => endereco(page)).toBe('/treinador/agenda');
     await expect.poll(() => ultimo(pedidos, '/agenda/compromissos')?.busca.has('situacao')).toBe(false);
     await expect(page.getByRole('button', { name: 'Filtros, nenhum ligado', exact: true })).toBeVisible();
@@ -1031,7 +1030,7 @@ test.describe('filtros da agenda no painel (1280 px)', () => {
     await marcarNaLista(page, outra, 'Compromissos', 'Todos', ['Agendados']);
     await outra.getByRole('button', { name: 'Limpar filtros', exact: true }).click();
     await expect(outra.getByRole('radio', { name: 'Toda a equipe', exact: true })).toBeChecked();
-    await outra.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+    await outra.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(outra).toBeHidden();
     expect(endereco(page)).toBe('/treinador/agenda');
     expect(naoTratadas).toEqual([]);
@@ -1081,16 +1080,13 @@ test.describe('filtros da agenda no painel (390 px)', () => {
     await expect(agendas).toBeHidden();
 
     const painel = await abrirFiltros(page);
-    await painel.getByRole('button', { name: 'Compromissos: Todos. Escolher.', exact: true }).click();
-    const lista = page.getByRole('dialog', { name: 'Compromissos', exact: true });
-    for (const caixa of await lista.getByRole('checkbox').all()) expect((await caixa.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-    await lista.getByRole('checkbox', { name: 'Agendados', exact: true }).click();
-    await expect(lista.getByRole('checkbox', { name: 'Agendados', exact: true })).toBeChecked();
-    await lista.getByRole('button', { name: 'Fechar', exact: true }).click();
-    // O painel continua aberto, com o rascunho no campo.
-    await expect(painel).toBeVisible({ timeout: 3000 });
-    await expect(painel.getByRole('button', { name: /^Compromissos: Agendados/ })).toBeVisible();
-    await painel.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+    // Regra única dos filtros (28/11): as situações são chips de várias escolhas no painel.
+    const lista = painel.getByRole('group', { name: 'Compromissos', exact: true });
+    for (const caixa of await lista.getByRole('button').all()) expect((await caixa.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await lista.getByRole('button', { name: 'Agendados', exact: true }).click();
+    await expect(lista.getByRole('button', { name: 'Agendados', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(painel).toBeVisible();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect.poll(() => endereco(page)).toBe('/treinador/agenda?situacao=AGENDADO');
     await expect.poll(() => ultimo(pedidos, '/agenda/compromissos')?.busca.get('situacao')).toBe('AGENDADO');
     await semRolagemHorizontal(page);
@@ -1106,7 +1102,7 @@ test.describe('filtros da agenda no painel (390 px)', () => {
     await painel.getByRole('radio', { name: 'Só os meus', exact: true }).click();
     await expect(painel).toBeVisible();
     await semRolagemHorizontal(page);
-    await painel.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+    await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect.poll(() => endereco(page)).toBe('/treinador/agenda?meus=true');
     await expect.poll(() => ultimo(pedidos, '/atualizacoes')?.busca.get('meus')).toBe('true');
   });

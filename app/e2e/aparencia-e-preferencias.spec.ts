@@ -1,7 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
-import { ALUNO, erroApi, sessao, simularApi, TREINADOR } from './api-falsa';
+import { colunasEstaveis, diferencasVizinhas } from './alturasDeColunas';
+import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type Resposta } from './api-falsa';
 
 /**
  * Aparência e preferências (25/11): título igual ao menu, "Restaurar padrão" secundário no cabeçalho com confirmação na tela,
@@ -9,6 +10,8 @@ import { ALUNO, erroApi, sessao, simularApi, TREINADOR } from './api-falsa';
  * vez só, temas sem código de cor, prévia da cor de ação inerte, e as seções em colunas empilhadas pela faixa (1 no
  * celular, 2 na normal e na larga, 3 na ultralarga). O aluno vê o mesmo componente numa folha, numa coluna. Menu aberto
  * (o padrão). Capturas só com `E2E_CAPTURAS` (pasta fora do git). Só dados fictícios.
+ * Sem vazios (28/11): o cartão "Avisos no celular" (regras de atenção ligadas) entra nas colunas como mais uma peça, na mais
+ * baixa (embaixo de Navegador em 2 colunas, de Leitura em 3), e nenhum cartão ocupa a largura toda.
  */
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -17,6 +20,9 @@ const SECOES = ['Tema e cores', 'Leitura', 'Layout', 'Treino e dados', 'Navegado
 const NOMES = ['Tema', 'Cor de ação', 'Tamanho do texto', 'Contraste', 'Bordas reforçadas', 'Animações', 'Largura do conteúdo', 'Detalhes abrem', 'Unidade da carga', 'Mostrar gráficos', 'Barras de rolagem escuras'];
 /** Colunas esperadas (área ao lado do menu de 240 px): 1040 é normal, 1680 é larga, 3200 é ultralarga. */
 const COLUNAS: Record<number, number> = { 390: 1, 1280: 2, 1920: 2, 3440: 3 };
+/** A seção embaixo da qual o "Avisos no celular" cai (a coluna mais baixa pelo peso, `dominio/alvenaria.test.ts`). */
+const VIZINHA_DOS_AVISOS: Record<number, string> = { 1: 'navegador', 2: 'navegador', 3: 'leitura' };
+const AVISOS = 'Avisos no celular';
 
 /** A rolagem é da `Tela`, não da página: para caber tudo, a janela cresce na altura (a faixa depende só da largura). */
 async function capturar(page: Page, nome: string, inteira = true) {
@@ -37,16 +43,21 @@ async function caixa(alvo: Locator) {
 const semRolagemHorizontal = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 const secao = (page: Page | Locator, titulo: string) => page.getByRole('heading', { name: titulo, level: 2, exact: true });
 
-async function abrirAjustes(page: Page, largura: number, preferencias: object = {}) {
+async function abrirAjustes(page: Page, largura: number, preferencias: object = {}, pushDemorado?: Resposta) {
   await page.setViewportSize({ width: largura, height: 900 });
   await page.addInitScript(([id, p]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify(p)), [TREINADOR.id, preferencias] as const);
+  // Com as regras de atenção ligadas e quem recebe o aviso, para o cartão "Avisos no celular" entrar nas colunas.
   const { errosDaPagina } = await simularApi(page, {
-    ...(await sessao(page, TREINADOR, { unidadeDeCargaHabilitada: true })),
+    ...(await sessao(page, TREINADOR, { unidadeDeCargaHabilitada: true, regrasAtencaoHabilitada: true, permissoes: [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    // Com ATUALIZACAO_LER o menu busca o ponto das atualizações.
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+    'GET /eu/preferencias-de-push': pushDemorado ?? { corpo: { atencao: true } },
   });
   await page.goto('/treinador/ajustes');
   await expect(page.getByRole('heading', { name: 'Aparência e preferências', level: 1 })).toBeVisible();
   await expect(secao(page, 'Navegador')).toBeVisible();
+  if (!pushDemorado) await expect(secao(page, AVISOS)).toBeVisible();
   return errosDaPagina;
 }
 
@@ -62,6 +73,20 @@ for (const largura of [390, 1280, 1920, 3440]) for (const tema of ['ESCURO', 'CL
       // Sem metade da tela vazia: a última coluna começa longe da primeira.
       if (COLUNAS[largura] > 1) expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(300);
     }).toPass({ timeout: 10_000 });
+
+    // Todos os cartões nas colunas (28/11): "Avisos no celular" é mais uma peça, na coluna mais baixa no momento, com a
+    // largura de uma coluna; nenhuma peça na largura toda.
+    const colunas = await colunasEstaveis(page, 'preferencias');
+    expect(colunas).toHaveLength(COLUNAS[largura]);
+    const daVizinha = colunas.find((c) => c.pecas.includes(VIZINHA_DOS_AVISOS[COLUNAS[largura]]))!;
+    expect(daVizinha.pecas.at(-1), colunas.map((c) => c.pecas.join('+')).join(' | ')).toBe('avisos');
+    const larguraDaColuna = (await caixa(page.getByTestId('preferencias-tema'))).width;
+    for (const chave of ['leitura', 'layout', 'treino', 'navegador', 'avisos']) {
+      expect(Math.abs((await caixa(page.getByTestId(`preferencias-${chave}`))).width - larguraDaColuna)).toBeLessThan(2);
+    }
+    // Em 2 colunas as duas terminam perto (estimado: ~80 px em 1280, ~30 em 1920); em 3, Tema e cores sozinho manda na
+    // altura e não há o que equilibrar. Folga larga de propósito: o limite foi estimado, não medido.
+    if (COLUNAS[largura] === 2) expect(Math.max(...diferencasVizinhas(colunas)), colunas.map((c) => `${c.pecas.join('+')}=${Math.round(c.fim)}`).join(' | ')).toBeLessThan(160);
 
     // Cada opção tem o nome escrito uma vez só (o "Variações de tom" também), e nenhum título repete o da seção.
     // "Cor de ação" também é opção da linha "Cor das séries" (a outra é "Cor do tipo"): 2 textos.
@@ -98,6 +123,20 @@ for (const largura of [390, 1280, 1920, 3440]) for (const tema of ['ESCURO', 'CL
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+test('treinador 1280 px: com o aviso ainda carregando, as seções já aparecem; o cartão entra nas colunas quando chega', async ({ page }) => {
+  let soltar = () => {};
+  const chegou = new Promise<void>((r) => { soltar = r; });
+  const errosDaPagina = await abrirAjustes(page, 1280, {}, async (_p, r) => { await chegou; await json(r, { atencao: true }); });
+  // A peça do aviso existe vazia (altura 0) e não segura a alvenaria: as cinco seções aparecem, sem o cartão.
+  for (const titulo of SECOES) await expect(secao(page, titulo)).toBeVisible();
+  await expect(secao(page, AVISOS)).toHaveCount(0);
+  soltar();
+  await expect(page.getByRole('switch', { name: 'Avisar quando a atualização de um aluno tiver pontos de atenção' })).toBeChecked();
+  const colunas = await colunasEstaveis(page, 'preferencias');
+  expect(colunas.find((c) => c.pecas.includes('navegador'))!.pecas.at(-1)).toBe('avisos');
+  expect(errosDaPagina).toEqual([]);
+});
 
 test('treinador 1280 px: Restaurar abre a confirmação, Cancelar não muda nada e Restaurar volta ao padrão', async ({ page }) => {
   const errosDaPagina = await abrirAjustes(page, 1280, { contraste: 'ALTO', tema: 'ESCURO' });

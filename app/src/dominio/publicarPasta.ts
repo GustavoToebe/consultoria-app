@@ -67,14 +67,6 @@ export function contagemDePendentes(planos: PlanosDaPasta | null): number | null
   return TIPOS_DA_PASTA.reduce((n, t) => n + (planos[t] ?? []).filter(planoPendente).length, 0);
 }
 
-/** "Vai publicar 2 planos: “Treino 17” e “Dieta 17”."; `null` com a contagem desconhecida ou zero. */
-export function resumoDosPendentes(planos: PlanosDaPasta | null): string | null {
-  const n = contagemDePendentes(planos);
-  if (!planos || !n) return null;
-  const titulos = TIPOS_DA_PASTA.flatMap((t) => (planos[t] ?? []).filter(planoPendente).map((p) => `“${p.titulo}”`));
-  return `Vai publicar ${n === 1 ? '1 plano' : `${n} planos`}: ${listaComE(titulos)}.`;
-}
-
 /**
  * Trava dos pendentes duplicados antes de enviar: dois ou mais pendentes do mesmo tipo, o mesmo critério do 409
  * `PLANOS_PENDENTES_DUPLICADOS` da API (só nas listas conhecidas). `null` = nenhum.

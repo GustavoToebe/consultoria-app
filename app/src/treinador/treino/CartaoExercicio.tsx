@@ -4,8 +4,9 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { AlternativaDeExercicio, Configuracao, ExercicioPlano, MedidaDeCardio } from '../../api/tipos';
 import { descreverSeries } from '../../dominio/agrupamento';
-import { blocoContinuo, resumoDaLista } from '../../dominio/cardio';
 import { resumoDosExtras } from '../../dominio/camposDaSerie';
+import { blocoContinuo, resumoDaLista } from '../../dominio/cardio';
+import { MODALIDADES } from '../../dominio/modalidades';
 import { erroDaCadencia, erroDaIsometria, normalizarCadencia, textoExecucao } from '../../dominio/execucaoDoExercicio';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { erroDoVideo } from '../../dominio/video';
@@ -102,11 +103,16 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const nomeDoExercicio = e.nome || 'o exercício';
   const acoesDoMenu = acoesDeMover({ nome: nomeDoExercicio, posicao: p.posicao, total: p.total, aoMover: p.aoMover });
   const [explicarExecucao, setExplicarExecucao] = useState(false);
+  // Fechada, a seção diz também o que falta ("Agachamento livre · sem vídeo · sem cadência", 27/11).
+  const resumoDosDados = resumoDosExtras(e);
+  // "Trocar exercício" (Gustavo, 27/11): `acao` no painel do exercício (inspetor, sem `aoAbrir`: aparece uma vez na área);
+  // `secundario` nos cartões empilhados, onde se repete em cada um (regra complementar da cor de ação).
+  const tipoDoTrocar = p.aoAbrir ? 'secundario' : 'acao';
 
   const dados = <>
     {/* Seção recolhível de verdade (27/11): o título com a seta e, fechada, o resumo do que há dentro. Aberta, em grade:
         nome | vídeo; a observação na largura de leitura; cadência | isometria. As explicações ficam no ⓘ. */}
-    <SecaoRecolhivel titulo="Nome de exibição e instruções" resumo={resumoDosExtras(e)} aberta={extrasAbertos} aoMudar={setEscolhaDosExtras}>
+    <SecaoRecolhivel titulo="Nome de exibição e instruções" resumo={resumoDosDados} aberta={extrasAbertos} aoMudar={setEscolhaDosExtras}>
       <View style={estilos.extras}>
         <View style={estilos.linhaDosExtras}>
           <View style={estilos.metade}>
@@ -163,9 +169,11 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         {explicarExecucao ? <Explicacao texto="Cadência: descida-pausa embaixo-subida-pausa em cima, em segundos; X = o mais rápido possível. Isometria: segure N s; diga onde na observação." /> : null}
       </View>
     </SecaoRecolhivel>
-    {p.aoAdicionarAlternativa && p.aoTrocarEmTodas ? (
+    {p.aoAdicionarAlternativa && p.aoTrocarEmTodas ? <>
+      {/* Uma linha entre as duas seções, como entre o cabeçalho e elas (mock de 27/11). */}
+      <Divisor />
       <AlternativasDoExercicio exercicio={e} erros={erros} aoMudar={p.aoMudar} aoAdicionar={p.aoAdicionarAlternativa} aoTrocarEmTodas={p.aoTrocarEmTodas} />
-    ) : null}
+    </> : null}
     {p.noGrupo && p.aoTirarDoGrupo ? (
       <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
     ) : null}
@@ -220,9 +228,9 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
           disabled={!p.aoAbrir}
           onPress={p.aoAbrir}
           style={estilos.titulo}>
-          {/* A posição por extenso, pequena, em cima ("Exercício 2 de 5 · Peito"): não se confunde com o número da série
-              (reunião de 30/10). O nome é o título; ao lado, um selo só, o da situação. */}
-          <Texto variante="pequeno" numerico>{[`Exercício ${p.posicao + 1} de ${p.total}`, p.grupoMuscular].filter(Boolean).join(' · ')}</Texto>
+          {/* A posição por extenso, pequena, em cima ("Exercício 1 de 7 · Quadríceps · Peso livre", 27/11): não se confunde
+              com o número da série (reunião de 30/10); o cardio com grupo "Cardio" não repete a palavra. O nome é o título; ao lado, um selo só, o da situação. */}
+          <Texto variante="pequeno" numerico>{[...new Set([`Exercício ${p.posicao + 1} de ${p.total}`, p.grupoMuscular, e.modalidade ? MODALIDADES[e.modalidade] : null])].filter(Boolean).join(' · ')}</Texto>
           <View style={estilos.linhaDoNome}>
             <Texto variante="bloco" style={estilos.nome}>{e.nome || 'sem nome'}</Texto>
             {estado.tipo === 'sucesso' ? null : <Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} />}
@@ -231,17 +239,17 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
               tem campo: fica também aberto. */}
           {!p.aberto ? resumo.map((r, i) => <Texto key={i} variante="suave">{r}</Texto>) : null}
           {!p.aberto && execucao ? <Texto variante="suave">{execucao}</Texto> : null}
-          {(!p.aberto && cardio) || foraDaBiblioteca ? (
+          {/* O "Cardio" já está na linha de cima (a modalidade, 27/11): sem o selo repetido. */}
+          {foraDaBiblioteca ? (
             <View style={estilos.selos}>
-              {!p.aberto && cardio ? <Selo texto="Cardio" tipo="neutro" /> : null}
-              {foraDaBiblioteca ? <Selo texto="Fora da biblioteca" tipo="neutro" /> : null}
+              <Selo texto="Fora da biblioteca" tipo="neutro" />
             </View>
           ) : null}
         </Pressable>
         <View style={[estilos.acoes, largo ? estilos.acoesLargas : estilos.acoesEstreitas]}>
           {largo
             // WCAG 2.5.3: o nome acessível começa pelo texto visível ("Trocar exercício: Supino reto").
-            ? <Botao rotulo="Trocar exercício" rotuloAcessivel={`Trocar exercício: ${e.nome || 'o exercício'}`} tipo="secundario" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
+            ? <Botao rotulo="Trocar exercício" rotuloAcessivel={`Trocar exercício: ${e.nome || 'o exercício'}`} tipo={tipoDoTrocar} Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
             : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar exercício: ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
           {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações de ${nomeDoExercicio}`} aoTocar={() => setMenu(true)} /> : null}
           {/* 26/11: o mesmo "Excluir" dos três editores (tonal, ao lado do ⋯, rótulo com o objeto). */}

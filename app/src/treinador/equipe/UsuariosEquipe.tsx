@@ -27,6 +27,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
+import { ChipsMultiplos } from '../../ui/ChipsDeFiltro';
 import { Tabela } from '../../ui/Tabela';
 import { useFaixaDaTela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -66,12 +67,13 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome ou e-mail'}} valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips}
       aoTirar={(chave)=>setFiltros(semOFiltro(filtros,chave as ChaveDoFiltro))}
       painelLateral={{titulo:'Filtros de membros'}}
+      resultado={{itens:{um:'membro',varios:'membros'},contar:(r)=>filtrarMembros(base,r,busca).length}}
       seletores={(atuais,mudar)=><>
         <GrupoDoPainel titulo="Identificação" primeiro>
           <SelecaoMultiplaSuspensa rotulo="Perfil" opcoes={opcoesDePerfil} marcados={new Set(atuais.perfis)} aoMudar={(m)=>mudar({...atuais,perfis:naOrdem(m,opcoesDePerfil)})} rotuloDeTodos="Todos" style={{alignSelf:'stretch'}}/>
         </GrupoDoPainel>
         <GrupoDoPainel titulo="Situação">
-          <SelecaoMultiplaSuspensa rotulo="Situação" opcoes={situacoes} marcados={new Set(atuais.situacoes)} aoMudar={(m)=>mudar({...atuais,situacoes:naOrdem(m,situacoes)})} rotuloDeTodos="Todas" style={{alignSelf:'stretch'}}/>
+          <ChipsMultiplos rotulo="Situação" opcoes={situacoes} marcados={atuais.situacoes} aoMudar={(situacoes)=>mudar({...atuais,situacoes})}/>
         </GrupoDoPainel>
       </>}/>
     {base.length&&!visiveis.length?<Vazio titulo="Nenhum membro encontrado" texto="Tente outro nome ou tire algum filtro." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>setFiltros(SEM_FILTROS)}:undefined}/>:null}

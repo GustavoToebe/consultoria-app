@@ -19,17 +19,13 @@ describe('arranjoDoEditor (pela área de conteúdo)', () => {
   it('janela abaixo de 1280 (área de 1024 em diante): opções em cima e prévia embaixo', () => {
     expect(arranjoDoEditor(1024)).toEqual({ tipo: 'empilhado' });
     expect(arranjoDoEditor(1279)).toEqual({ tipo: 'empilhado' });
-    expect(arranjoDoEditor(1112, 1080, 1200)).toEqual({ tipo: 'empilhado' });
+    expect(arranjoDoEditor(1112, 1200)).toEqual({ tipo: 'empilhado' });
   });
-  it('a partir de 1280 de janela: painel de 420 e uma prévia; duas lado a lado só com 2400 de conteúdo', () => {
+  it('a partir de 1280 de janela: painel de 420 e a prévia no resto (quantas prévias é de previasDaLargura)', () => {
     // 1280 de janela com o menu aberto: ~1040 de área, ainda em colunas (a janela decide, não a área).
-    expect(arranjoDoEditor(1040, 1008, 1280)).toEqual({ tipo: 'colunas', painel: 420, previas: 1 });
-    expect(arranjoDoEditor(1280)).toEqual({ tipo: 'colunas', painel: 420, previas: 1 });
-    expect(arranjoDoEditor(2399)).toEqual({ tipo: 'colunas', painel: 420, previas: 1 });
-    expect(arranjoDoEditor(2400)).toEqual({ tipo: 'colunas', painel: 420, previas: 2 });
-    // 3440 com o menu aberto (área 3200): com o recuo de 48 sobram 3104; com a preferência "Limitada", 1800.
-    expect(arranjoDoEditor(3200, 3104)).toEqual({ tipo: 'colunas', painel: 420, previas: 2 });
-    expect(arranjoDoEditor(3200, 1800)).toEqual({ tipo: 'colunas', painel: 420, previas: 1 });
+    expect(arranjoDoEditor(1040, 1280)).toEqual({ tipo: 'colunas', painel: 420 });
+    expect(arranjoDoEditor(1280)).toEqual({ tipo: 'colunas', painel: 420 });
+    expect(arranjoDoEditor(3200)).toEqual({ tipo: 'colunas', painel: 420 });
   });
 });
 

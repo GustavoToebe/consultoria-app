@@ -98,6 +98,91 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/importacoes?arquivo=csv", api.novoTreinador(), 200).path("total").asLong()).isZero();
     }
 
+    /** Destino e situação repetíveis (painel de filtros da leva 3): "ou" no mesmo parâmetro, "e" entre eles. */
+    @Test
+    void historicoFiltraPorVariosDestinosESituacoes() throws Exception {
+        String config = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        List<String> ids = new ArrayList<>();
+        for (String nome : List.of("eva", "ivo", "lia")) {
+            String csv = "nome;email\n" + nome + " Fictício;" + unico(nome) + "\n";
+            ids.add(confirmar("alunos", nome + ".csv", csv.getBytes(StandardCharsets.UTF_8), config,
+                    hash("alunos", nome + ".csv", csv, config)).path("id").asString());
+        }
+        // A primeira fica "alunos"/CONCLUIDA/csv de hoje; as outras viram destinos e situações diferentes.
+        jdbc.update("update importacao set destino = 'outros', situacao = 'FALHOU', criado_em = now() - interval '20 days' "
+                + "where id = ?::uuid", ids.get(1));
+        jdbc.update("update importacao set destino = 'exercicios', situacao = 'CONCLUIDA_COM_ERROS', nome_arquivo = '.xlsx' "
+                + "where id = ?::uuid", ids.get(2));
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+
+        assertThat(total("/importacoes?destino=alunos&destino=outros", treinador)).isEqualTo(2);
+        assertThat(total("/importacoes?destino=alunos,outros", treinador)).isEqualTo(2);
+        assertThat(total("/importacoes?destino=alunos&destino=alunos", treinador)).isEqualTo(1);
+        assertThat(total("/importacoes?situacao=falhou&situacao=CONCLUIDA_COM_ERROS", treinador)).isEqualTo(2);
+        assertThat(total("/importacoes?situacao=CONCLUIDA,falhou", treinador)).isEqualTo(2);
+        assertThat(total("/importacoes?destino=alunos&destino=exercicios&situacao=CONCLUIDA_COM_ERROS", treinador))
+                .isEqualTo(1);
+        assertThat(total("/importacoes?destino=alunos&destino=outros&arquivo=csv&de=" + hoje.minusDays(5), treinador))
+                .isEqualTo(1);
+        assertThat(total("/importacoes?destino=exercicios,outros&arquivo=xlsx", treinador)).isEqualTo(1);
+        assertThat(total("/importacoes?destino=planilha-completa", treinador)).isZero();
+        // O total conta o filtro inteiro, mesmo numa página sem itens.
+        JsonNode segunda = api.get("/importacoes?destino=alunos&destino=outros&destino=exercicios&pagina=1", treinador, 200);
+        assertThat(segunda.path("total").asLong()).isEqualTo(3);
+        assertThat(segunda.path("itens").size()).isZero();
+        assertThat(segunda.path("pagina").asInt()).isEqualTo(1);
+        JsonNode primeira = api.get("/importacoes?destino=outros&destino=exercicios", treinador, 200);
+        assertThat(primeira.path("itens").size()).isEqualTo(2);
+        assertThat(primeira.path("itens").get(0).path("destino").asString()).isEqualTo("exercicios");
+        // Outra consultoria não vê nada daqui.
+        assertThat(total("/importacoes?destino=alunos,outros,exercicios", api.novoTreinador())).isZero();
+    }
+
+    /** Valor desconhecido ou mais de 50 valores = 400 FILTRO_INVALIDO, sem repetir o valor na resposta. */
+    @Test
+    void filtroDesconhecidoDoHistoricoE400SemRepetirOValor() throws Exception {
+        for (String consulta : List.of("destino=xpto-inexistente", "destino=Alunos", "destino=alunos&destino=xpto-inexistente",
+                "destino=alunos,xpto-inexistente", "situacao=xpto-inexistente", "situacao=FALHOU&situacao=xpto-inexistente")) {
+            JsonNode erro = api.get("/importacoes?" + consulta, treinador, 400);
+            assertThat(erro.path("codigo").asString()).as(consulta).isEqualTo("FILTRO_INVALIDO");
+            assertThat(erro.toString()).as(consulta).doesNotContain("xpto").doesNotContain("Alunos");
+        }
+        StringBuilder destinos = new StringBuilder();
+        StringBuilder situacoes = new StringBuilder();
+        for (int i = 0; i <= br.com.treinos.api.web.FiltrosDeLista.MAXIMO_VALORES; i++) {
+            destinos.append(i == 0 ? "" : "&").append("destino=d").append(i);
+            situacoes.append(i == 0 ? "" : "&").append("situacao=s").append(i);
+        }
+        assertThat(api.get("/importacoes?" + destinos, treinador, 400).path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        assertThat(api.get("/importacoes?" + situacoes, treinador, 400).path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+    }
+
+    /** Destino que existe mas o perfil não vê = 403, também no meio de outros; desconhecido continua 400. */
+    @Test
+    void destinoQueOPerfilNaoVeNoHistoricoE403() throws Exception {
+        String perfil = api.post("/perfis", treinador, Map.of("nome", "Só cadastro fictício",
+                "permissoes", java.util.Set.of("ALUNO_LER", "ALUNO_ALTERAR")), 200).path("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", treinador, Map.of("nome", "Cadastro Fictício",
+                "email", ApiDeTeste.emailUnico("cadastro"), "perfilId", perfil), 200);
+        JsonNode editor = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
+        String csv = "nome;email\nOto Fictício;" + unico("oto") + "\n";
+        String config = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        confirmar("alunos", "oto.csv", csv.getBytes(StandardCharsets.UTF_8), config, hash("alunos", "oto.csv", csv, config));
+
+        api.get("/importacoes?destino=outros", editor, 403);
+        api.get("/importacoes?destino=alunos&destino=exercicios", editor, 403);
+        api.get("/importacoes?destino=alunos,outros", editor, 403);
+        assertThat(api.get("/importacoes?destino=xpto-inexistente", editor, 400).path("codigo").asString())
+                .isEqualTo("FILTRO_INVALIDO");
+        assertThat(total("/importacoes?destino=alunos", editor)).isEqualTo(1);
+        assertThat(total("/importacoes", editor)).isEqualTo(1);
+    }
+
+    private long total(String caminho, JsonNode login) throws Exception {
+        return api.get(caminho, login, 200).path("total").asLong();
+    }
+
     @Test
     void previaNaoGravaECsvEXlsxCriamAluno() throws Exception {
         String email = unico("ana");

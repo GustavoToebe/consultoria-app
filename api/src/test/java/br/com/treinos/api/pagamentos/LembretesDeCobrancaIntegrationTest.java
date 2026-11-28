@@ -249,7 +249,10 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
         String texto = recebidas.get(0).texto();
         assertThat(texto).startsWith("Olá, Bruna.").contains("no valor de R$ 150,00 vence em")
                 .contains("/aluno/conta").doesNotContain("Fictícia Lembrada");
-        assertThat(recebidas.get(0).html()).contains("/aluno/conta");
+        // A frase fixa, o nome da consultoria no topo (sem logo enviada, sem imagem) e nenhum link além do da Conta.
+        assertThat(recebidas.get(0).html()).contains("/aluno/conta").contains("Abra o app para ver como pagar: ")
+                .contains("border-bottom:3px solid #").doesNotContain("<img");
+        assertThat(recebidas.get(0).html().split("<a ", -1)).hasSize(2);
         List<Map<String, Object>> linhas = linhas(cobranca);
         assertThat(linhas).hasSize(1);
         assertThat(linhas.get(0).get("tipo")).isEqualTo("ANTES");

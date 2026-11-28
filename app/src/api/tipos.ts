@@ -116,11 +116,22 @@ export interface TermosVigentes {
   versao: string;
   rascunho: boolean;
   aceito: boolean;
+  /** Instante do aceite da versão vigente por este usuário (nulo = ainda não aceitou). */
+  aceitoEm?: string | null;
+  /** Os dois documentos já vêm com o contato da consultoria montado (`ContatoDosTermos` na API) e sem as notas internas. */
   documentos: DocumentoDeTermos[];
+  /** Notas para a revisão do advogado: só a equipe as recebe (o aluno, lista vazia); nunca estão no texto. */
+  notasInternas?: NotaInternaDosTermos[];
 }
 
-/** `GET /publico/termos` (sem login): os mesmos documentos do `GET /termos`, sem o `aceito`. */
-export type TermosPublicos = Omit<TermosVigentes, 'aceito'>;
+export interface NotaInternaDosTermos {
+  documentoId: DocumentoDeTermos['id'];
+  documentoTitulo: string;
+  texto: string;
+}
+
+/** `GET /publico/termos` (sem login): os mesmos documentos do `GET /termos` (com o contato genérico), sem o aceite. */
+export type TermosPublicos = Omit<TermosVigentes, 'aceito' | 'aceitoEm' | 'notasInternas'>;
 
 /** `POST /publico/convites-equipe/consultar`: só a marca da consultoria (nada de quem foi convidado). */
 export interface ConviteEquipePublico {

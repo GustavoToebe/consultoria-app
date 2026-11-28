@@ -1,7 +1,7 @@
 import type { AvaliacaoFisica } from '../../api/avaliacaoFisicaTipos';
 import { medidasVazias } from '../../dominio/avaliacaoFisica';
 import { formatadorDeDatas } from '../../dominio/comparacaoDeAvaliacoes';
-import { escalaDoGrafico, graficoDoPdf, graficoDoPdfDasMarcadas, linhasDaDica, seriesDaEvolucao, textoDaEscala } from './apresentacao';
+import { corDaVariacao, escalaDoGrafico, graficoDoPdf, graficoDoPdfDasMarcadas, linhasDaDica, seriesDaEvolucao, textoDaEscala } from './apresentacao';
 
 const av = (id: string, data: string, medidas: Partial<AvaliacaoFisica['medidas']>): AvaliacaoFisica =>
   ({ id, data, medidas: { ...medidasVazias(), ...medidas }, observacao: null, pesoKg: null, versao: 0 }) as unknown as AvaliacaoFisica;
@@ -100,5 +100,14 @@ describe('balão do ponto', () => {
   test('com duas séries o nome da série vem primeiro; índice fora devolve vazio', () => {
     expect(linhasDaDica(pontos, 0, 'Braço esquerdo')[0]).toBe('Braço esquerdo');
     expect(linhasDaDica(pontos, 9)).toEqual([]);
+  });
+});
+
+describe('cor da variação', () => {
+  const cores = { sucesso: 'verde', perigo: 'vermelho', texto: 'texto', textoSuave: 'suave' };
+  it('a favor verde, contra vermelho, neutro suave', () => {
+    expect(corDaVariacao('positivo', cores)).toBe('verde');
+    expect(corDaVariacao('problema', cores)).toBe('vermelho');
+    expect(corDaVariacao('neutro', cores)).toBe('suave');
   });
 });

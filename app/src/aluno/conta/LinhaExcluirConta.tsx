@@ -1,31 +1,28 @@
 import { router } from 'expo-router';
 import { UserX } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
-import { espaco } from '../tema/tokens';
-
-import { entradaDoPublico } from '../dominio/entradaPorPublico';
-import { avisoDeNaoEnviados, EXPLICACAO_DA_EXCLUSAO, motivoParaNaoExcluir, PALAVRA_DE_CONFIRMACAO } from '../dominio/excluirConta';
-import { diasDeAguaNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../dominio/treinosNaoEnviados';
-import { useAluno } from '../offline/AlunoProvider';
-import { useSessao } from '../sessao/SessaoProvider';
-import { useAviso } from '../ui/Aviso';
-import { Botao } from '../ui/Botao';
-import { Campo } from '../ui/Campo';
-import { CampoSenha } from '../ui/CampoSenha';
-import { MensagemErro } from '../ui/Estados';
-import { textoDoErro } from '../ui/erros';
-import { PainelConfirmacao } from '../ui/PainelConfirmacao';
-import { Texto } from '../ui/Texto';
+import { entradaDoPublico } from '../../dominio/entradaPorPublico';
+import { avisoDeNaoEnviados, EXPLICACAO_DA_EXCLUSAO, motivoParaNaoExcluir, PALAVRA_DE_CONFIRMACAO } from '../../dominio/excluirConta';
+import { diasDeAguaNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
+import { useAluno } from '../../offline/AlunoProvider';
+import { useSessao } from '../../sessao/SessaoProvider';
+import { useAviso } from '../../ui/Aviso';
+import { Campo } from '../../ui/Campo';
+import { CampoSenha } from '../../ui/CampoSenha';
+import { MensagemErro } from '../../ui/Estados';
+import { textoDoErro } from '../../ui/erros';
+import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { LinhaDaConta } from './SecaoDaConta';
 
 /**
- * "Excluir minha conta" (App Store 5.1.1(v), LGPD): o último bloco da Conta do aluno, separado das seções (23/11: sem
- * cartão, o botão de perigo com texto e a frase do que acontece). O painel explica o que se apaga
+ * "Excluir minha conta" (App Store 5.1.1(v), LGPD): a última linha do cartão Segurança da Conta do aluno (28/11; antes um
+ * botão solto depois das seções), com o título em `perigo`, a frase do que acontece e o ›. O painel explica o que se apaga
  * e o que fica, pede a senha e a palavra EXCLUIR (a API confere as duas) e, ao concluir, apaga tudo do aparelho como o
- * "Sair" (inclusive a fila de envio) e volta ao Entrar. Some sem conexão, como a troca de senha: a exclusão é no servidor.
+ * "Sair" (inclusive a fila de envio) e volta ao Entrar. Sem sessão no servidor (modo offline) a tela nem a põe no cartão,
+ * como a troca de senha: a exclusão é no servidor.
  */
-export function CartaoExcluirConta() {
+export function LinhaExcluirConta() {
   const sessao = useSessao();
   const { registros, mobilidadeNoAparelho, sessoesConcluidasNoAparelho, aguaNoAparelho } = useAluno();
   const { avisar } = useAviso();
@@ -63,11 +60,9 @@ export function CartaoExcluirConta() {
   const mensagem = [EXPLICACAO_DA_EXCLUSAO, avisoDeNaoEnviados(treinosNaoEnviados(registros, sessoesConcluidasNoAparelho), diasDeMobilidadeNaoEnviados(mobilidadeNoAparelho), diasDeAguaNaoEnviados(aguaNoAparelho))].filter(Boolean).join(' ');
 
   return (
-    <View style={estilos.bloco} testID="excluir-minha-conta">
-      <View style={estilos.linha}>
-        <Botao rotulo="Excluir minha conta" tipo="perigoTexto" Icone={UserX} aoTocar={() => setAberto(true)} />
-      </View>
-      <Texto variante="pequeno" style={estilos.texto}>Apaga os seus dados pessoais desta consultoria. Não tem volta.</Texto>
+    <>
+      <LinhaDaConta titulo="Excluir minha conta" resumo="Apaga os seus dados pessoais desta consultoria. Não tem volta." Icone={UserX} perigo
+        aoTocar={() => setAberto(true)} />
       <PainelConfirmacao
         visivel={aberto}
         titulo="Excluir a sua conta?"
@@ -84,14 +79,6 @@ export function CartaoExcluirConta() {
           autoCapitalize="characters" autoCorrect={false} autoComplete="off" />
         {erro ? <MensagemErro texto={erro} /> : null}
       </PainelConfirmacao>
-    </View>
+    </>
   );
 }
-
-const estilos = StyleSheet.create({
-  // Respiro maior que o das seções: é outra coisa, destrutiva, e não deve parecer parte do grupo App.
-  bloco: { marginTop: espaco(3), gap: espaco(0.5) },
-  // O ícone do botão fantasma fica na borda dos títulos das seções (o botão tem 16 de recuo interno; os títulos, 4).
-  linha: { flexDirection: 'row', flexWrap: 'wrap', marginLeft: -espaco(1.5) },
-  texto: { paddingHorizontal: espaco(0.5) },
-});

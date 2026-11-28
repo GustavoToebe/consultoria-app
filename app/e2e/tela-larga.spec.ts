@@ -7,14 +7,14 @@ import type { Alimento, AlunoDetalhe, Atualizacao, ConteudoDieta, ConteudoMobili
 import { fixarHoje } from './aluno';
 import { ALUNO, erroApi, MARCA, PERMISSOES_TREINADOR, simularApi, TREINADOR, type PedidoFalso } from './api-falsa';
 import { LARGURA_MAXIMA_DAS_COLUNAS } from '../src/treinador/treino/colunasDasSeries';
-import { colunasDaMobilidade } from '../src/dominio/colunasDaMobilidade';
+import { colunasComPrevia } from '../src/dominio/colunasDoEditor';
 import { BIBLIOTECA, PLANO_ID as TREINO_ID, planoDetalhe } from './editor-inspetor.dados';
 import { estadoFinanceiro, INADIMPLENTE, PAINEL_COM_DADOS, PERMISSOES_FINANCEIRO, rotasDoFinanceiro, sessaoComFinanceiro } from './financeiro-falso';
 
 /**
  * Tela larga (Ondas A e B): verifica larguras de 1366 a 3440 px com menu aberto e recolhido, ausência de rolagem
  * horizontal, preferência "Largura do conteúdo" (Automática vs Limitada em 1800 px) e as 3 colunas na faixa
- * `ultralarga` (Início, Resumo do aluno, Editor de treino com ResumoDaSessao ao lado, Editor de dieta com TotalDoDia
+ * `ultralarga` (Início, Resumo do aluno, Editor de treino com ResumoDaSessao ao lado (já da faixa larga), Editor de dieta com TotalDoDia
  * ao lado, Ajuda com 3 colunas e texto corrido limitado, Financeiro › Visão geral). Gera capturas em pasta fora do git.
  */
 
@@ -395,7 +395,7 @@ test('3440 px (ultralarga): Automática abre 3 colunas e supera 1800 px; Limitad
   // 3. Editor de treino (3 colunas: lista | inspetor | ResumoDaSessao ao lado)
   await page.goto(`/treinador/treinos/${TREINO_ID}`);
   await expect(page.getByRole('button', { name: /^Editar sessão/ })).toBeVisible();
-  // Em ultralarga o resumo sai do cartão da sessão e vira a 3ª coluna (`coluna-resumo-sessao`), à direita da lista.
+  // Da faixa larga (1600 px de conteúdo) em diante o resumo vira a 3ª coluna (`coluna-resumo-sessao`), à direita da lista.
   let tituloTreinoX = 0;
   await assentado(async () => {
     const resumoSessao = await caixa(page.getByTestId('coluna-resumo-sessao'));
@@ -416,23 +416,14 @@ test('3440 px (ultralarga): Automática abre 3 colunas e supera 1800 px; Limitad
     expect(Math.abs(tituloTreinoX - tituloDieta.x)).toBeLessThanOrEqual(1);
   });
 
-  // 5. Ajuda (3 colunas: índice | conteúdo | Consultar, com texto corrido limitado)
-  await page.goto('/treinador/ajuda');
+  // 5. Ajuda (28/11, a partir de 1920): índice | artigo (até 760) | "Nesta página" (240), alinhados à esquerda com a sobra à direita.
+  await page.goto('/treinador/ajuda?secao=inicio');
   await assentado(async () => {
+    const tituloDaAjuda = await caixa(page.getByRole('heading', { name: 'Ajuda', level: 1 }));
     const indice = await caixa(page.getByRole('navigation', { name: 'Tópicos da ajuda' }));
-    const comecar = await caixa(titulo(page, 'Começar a usar'));
-    const consultar = await caixa(page.getByRole('heading', { name: 'Consultar', level: 2 }));
-    expect(comecar.x).toBeGreaterThan(indice.x + indice.width);
-    expect(consultar.x).toBeGreaterThan(comecar.x + comecar.width);
-    expect(comecar.width).toBeLessThanOrEqual(800);
-    // O bloco de 3 colunas fica centralizado na área (margem esquerda igual à direita), como o de 2 colunas.
-    const margens = await page.getByTestId('bloco-da-ajuda').evaluate((bloco) => {
-      const b = bloco.getBoundingClientRect();
-      const area = bloco.parentElement!.getBoundingClientRect();
-      return { esquerda: b.left - area.left, direita: area.right - b.right };
-    });
-    expect(margens.esquerda).toBeGreaterThan(100);
-    expect(Math.abs(margens.esquerda - margens.direita)).toBeLessThanOrEqual(2);
+    const nestaPagina = await caixa(page.getByRole('navigation', { name: 'Nesta página' }));
+    expect(Math.abs(indice.x - tituloDaAjuda.x)).toBeLessThanOrEqual(8);
+    expect(nestaPagina.x + nestaPagina.width - indice.x).toBeLessThanOrEqual(1308);
   });
 
   // 6. Financeiro › Visão geral (6 indicadores na mesma linha, tabela <= 1800 px)
@@ -502,8 +493,8 @@ test('capturas visuais em 1920 px (Automática), 3440 px (Automática) e 3440 px
 /**
  * Editor de uma coluna de campos (19/11): o painel do item (inspetor do treino e da mobilidade) para em
  * `LARGURA_EDITOR_DE_CAMPOS` (1400), alinhado à esquerda junto da lista; a sobra fica vazia à direita. Abaixo disso nada
- * muda (em 1280 e 1920 com o menu aberto o painel já é menor). Na ultralarga, a 3ª coluna (Resumo da sessão) vem logo
- * depois do painel, no mesmo grupo à esquerda. A dieta saiu da regra em 25/11: da faixa `larga` em diante, lista |
+ * muda (em 1280 e 1920 com o menu aberto o painel já é menor). No treino, da faixa larga em diante (27/11), a 3ª coluna
+ * (Resumo da sessão) vem logo depois do inspetor. A dieta saiu da regra em 25/11: da faixa `larga` em diante, lista |
  * refeição (sem teto) | Total do dia (400 na larga, 460 na ultralarga) preenchem a largura do conteúdo.
  */
 const TETO = 1400 + 2;
@@ -514,7 +505,6 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
     const { errosDaPagina } = await prepararAmbiente(page, largura, { altura: 1600 });
     // Com o menu aberto (240 px) e 16 px de recuo, a partir de 2400 o painel teria mais de 1400 px sem o teto.
     const limitado = largura >= 2400;
-    const tres = largura >= 2800;
 
     // Mobilidade: lista de seções | painel da seção.
     await page.goto(`/treinador/mobilidades/${MOB_ID}`);
@@ -524,16 +514,20 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
     const lista = await caixa(page.getByRole('group', { name: 'Seções da mobilidade' }));
     const secao = await caixa(page.locator('#secao-s1'));
     expect(secao.width).toBeLessThanOrEqual(TETO);
-    // 26/11: da faixa larga (1920 com o menu aberto) em diante, a 3ª coluna é a prévia ao vivo (`colunasDaMobilidade`).
+    // 26/11: da faixa larga (1920 com o menu aberto) em diante, a 3ª coluna é a prévia ao vivo (regra `colunasComPrevia`, lista de 280).
     if (largura >= 1920) {
       // Medido de novo a cada tentativa: a linha pode ainda estar assentando com a prévia (era a intermitência do teste).
       await expect(async () => {
         const listaDeNovo = await caixa(page.getByRole('group', { name: 'Seções da mobilidade' }));
         const secaoDeNovo = await caixa(page.locator('#secao-s1'));
         const previa = await caixa(page.getByTestId('previa-da-mobilidade'));
-        const esperado = colunasDaMobilidade(Math.round(previa.x + previa.width - listaDeNovo.x))!;
+        const linha = await caixa(page.getByRole('group', { name: 'Seções da mobilidade' }).locator('xpath=../..'));
+        const esperado = colunasComPrevia(Math.floor(linha.width), 280);
+        expect(Math.abs(listaDeNovo.width - esperado.indice)).toBeLessThanOrEqual(2);
         expect(Math.abs(secaoDeNovo.width - esperado.editor)).toBeLessThanOrEqual(2);
+        expect(Math.abs(previa.width - esperado.previa)).toBeLessThanOrEqual(2);
         expect(Math.abs(secaoDeNovo.x - (listaDeNovo.x + listaDeNovo.width) - esperado.vao)).toBeLessThanOrEqual(2);
+        expect(Math.abs(previa.x - (secaoDeNovo.x + secaoDeNovo.width) - esperado.vao)).toBeLessThanOrEqual(2);
       }).toPass({ timeout: 5_000 });
     } else {
       if (limitado) expect(secao.width).toBeGreaterThan(1390);
@@ -553,8 +547,10 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
     await semRolagemHorizontal(page);
     await capturar(page, `${largura}-automatica-dieta-abas`);
 
-    // Treino (25/11): lista de exercícios como antes (360 px) | inspetor sem teto | (ultralarga) Resumo da sessão de 380 px
-    // logo depois; a última coluna termina na borda do bloco da sessão (a largura do conteúdo), sem faixa vazia à direita.
+    // Treino (27/11): lista de exercícios de 300 px | inspetor sem teto | Resumo da sessão de 320 px logo depois, da faixa
+    // larga (1920 com o menu aberto) em diante (`tresColunas(…, 'larga')`); a última coluna termina na borda do bloco da
+    // sessão (a largura do conteúdo), sem faixa vazia à direita.
+    const tres = largura >= 1920;
     await page.goto(`/treinador/treinos/${TREINO_ID}`);
     const inspetorDoTreino = page.locator('#inspetor-do-exercicio');
     await expect(async () => {
@@ -562,14 +558,15 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
       const blocoDaSessao = await caixa(inspetorDoTreino.locator('xpath=ancestor::*[starts-with(@id,"sessao-")][1]'));
       const listaDoTreino = await caixa(page.getByRole('group', { name: 'Exercícios da sessão' }));
       expect(Math.abs(inspetor.x - (listaDoTreino.x + listaDoTreino.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
-      if (largura >= 1920) expect(Math.round(listaDoTreino.width)).toBe(360);
+      if (largura >= 1920) expect(Math.round(listaDoTreino.width)).toBe(300);
       const ultima = tres ? await caixa(page.getByTestId('coluna-resumo-sessao')) : inspetor;
       if (tres) {
-        expect(Math.round(ultima.width)).toBe(380);
+        expect(Math.round(ultima.width)).toBe(320);
         expect(Math.abs(ultima.x - (inspetor.x + inspetor.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
       }
       expect(Math.abs(ultima.x + ultima.width - (blocoDaSessao.x + blocoDaSessao.width))).toBeLessThanOrEqual(2);
-      if (limitado) expect(inspetor.width).toBeGreaterThan(1400);
+      // Com as 3 colunas, em 2400 o inspetor fica perto de 1400 px: o "sem teto" já sai das bordas acima; a conta só a partir de 2800.
+      if (largura >= 2800) expect(inspetor.width).toBeGreaterThan(1400);
     }).toPass({ timeout: 10_000 });
     await semRolagemHorizontal(page);
     await capturar(page, `${largura}-automatica-treino`);

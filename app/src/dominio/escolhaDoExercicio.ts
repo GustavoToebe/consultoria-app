@@ -1,6 +1,5 @@
 import type { Exercicio } from '../api/tipos';
 import { SEM_FILTROS_DE_EXERCICIOS, type FiltrosDeExercicios } from './exerciciosDaBiblioteca';
-import { semAcento } from './telas';
 
 /**
  * Folha "Escolher exercício" do editor de treino (adicionar, trocar, cardio e alternativa): pré-filtro da troca, a linha do
@@ -29,15 +28,14 @@ export function filtrosAoAbrir({ grupo, tipoDeCardio }: PreFiltroDaTroca): Filtr
 }
 
 /**
- * A última linha da lista com a busca preenchida: usar o texto como exercício (ou cardio) manual, fora da biblioteca.
- * Não existe na alternativa (é sempre da biblioteca) nem quando o texto já é o nome de um exercício da lista (seria o mesmo).
+ * A linha com a busca preenchida que não achou nada na lista (`resultados` = quantos passaram na busca e nos filtros):
+ * usar o texto como exercício (ou cardio) manual, fora da biblioteca. Com algum resultado não aparece (pedido do Gustavo:
+ * só quando a busca não acha nada), nem na alternativa (é sempre da biblioteca).
  */
-export function linhaDoManual(busca: string, contexto: { alternativa: boolean; cardio: boolean; nomesDaLista: readonly string[] }):
+export function linhaDoManual(busca: string, contexto: { alternativa: boolean; cardio: boolean; resultados: number }):
   { nome: string; texto: string; rotulo: string } | null {
   const nome = busca.trim();
-  if (!nome || contexto.alternativa) return null;
-  const igual = semAcento(nome);
-  if (contexto.nomesDaLista.some((n) => semAcento(n) === igual)) return null;
+  if (!nome || contexto.alternativa || contexto.resultados > 0) return null;
   const tipo = contexto.cardio ? 'cardio' : 'exercício';
   return { nome, texto: `Usar “${nome}” como ${tipo} manual`, rotulo: `Usar só o nome ${nome}, fora da biblioteca` };
 }

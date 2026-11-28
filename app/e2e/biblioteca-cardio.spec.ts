@@ -6,7 +6,7 @@ import { erroApi, json, paginaDeExerciciosFalsa, PERMISSOES_TREINADOR, sessao, s
 
 /**
  * Biblioteca › Novo/Editar exercício com Modalidade = Cardio (docs/planos/cardio-e-hiit.md, P4a, D12 e D13): somem Grupo
- * muscular e Equipamento, aparecem "Tipo de cardio (opcional)" e "Medidas que fazem sentido"; o corpo leva o tipo e as
+ * muscular e Equipamento (seletores com busca desde 27/11), aparecem "Tipo de cardio (opcional)" e "Medidas que fazem sentido"; o corpo leva o tipo e as
  * medidas só no Cardio, com grupo e equipamento nulos; o 422 aparece no campo; o cardio antigo avisa o que sai ao salvar.
  * E a Ajuda "Cardio e HIIT" (`?secao=cardio-e-hiit`) com as definições do ⓘ. `CAPTURAS` aponta a pasta das capturas.
  * Só dados fictícios.
@@ -63,11 +63,13 @@ for (const largura of [390, 1280]) {
     test(`novo exercício com Cardio: troca os campos e manda tipo e medidas (${largura} px, ${tema})`, async ({ page }) => {
       const { salvos, naoTratadas, errosDaPagina } = await abrir(page, largura, { tema });
       await page.getByRole('button', { name: 'Novo exercício' }).click();
-      await expect(folha(page).getByText('Grupo muscular (opcional)')).toBeVisible();
+      await expect(folha(page).getByRole('button', { name: /^Grupo muscular · opcional: / })).toBeVisible();
+      await expect(folha(page).getByRole('button', { name: /^Equipamento · opcional: / })).toBeVisible();
       await folha(page).getByLabel('Nome', { exact: true }).fill('Escada nova fictícia');
       await escolher(page, 'Modalidade', 'Máquina', 'Cardio');
-      await expect(folha(page).getByText('Grupo muscular (opcional)')).toHaveCount(0);
-      await expect(folha(page).getByText('Equipamento (opcional)')).toHaveCount(0);
+      await expect(folha(page).getByRole('button', { name: /^Grupo muscular/ })).toHaveCount(0);
+      await expect(folha(page).getByRole('button', { name: /^Equipamento/ })).toHaveCount(0);
+      await expect(folha(page).getByRole('button', { name: 'Tipo de cardio (opcional): Não informado. Escolher.' })).toBeVisible();
       const medidas = folha(page).getByRole('group', { name: 'Medidas que fazem sentido' });
       await expect(medidas.getByRole('checkbox', { name: 'Distância' })).toHaveAttribute('aria-checked', 'true');
       await expect(medidas.getByRole('checkbox', { name: 'Ritmo' })).toHaveAttribute('aria-checked', 'true');
@@ -77,13 +79,14 @@ for (const largura of [390, 1280]) {
       await expect(medidas.getByRole('checkbox', { name: 'Distância' })).toHaveAttribute('aria-checked', 'false');
 
       if (largura === 1280) {
-        // Modalidade e Tipo lado a lado, mesma altura; as duas medidas também lado a lado.
+        // Modalidade e Tipo lado a lado, mesma altura (46, a dos três seletores fora do Cardio); as duas medidas também lado a lado.
         const [m, t] = await Promise.all([
           folha(page).getByRole('button', { name: /^Modalidade:/ }).boundingBox(),
           folha(page).getByRole('button', { name: /^Tipo de cardio/ }).boundingBox(),
         ]);
         expect(Math.abs(m!.y - t!.y)).toBeLessThanOrEqual(1);
         expect(Math.abs(m!.height - t!.height)).toBeLessThanOrEqual(1);
+        expect(Math.abs(m!.height - 46)).toBeLessThanOrEqual(1);
         expect(t!.x).toBeGreaterThan(m!.x + m!.width);
       }
       await page.screenshot({ path: captura(`novo-cardio-${largura}-${tema}.png`) });
@@ -105,10 +108,13 @@ test('fora do Cardio o corpo não leva tipo nem medidas, e o grupo digitado volt
   const { salvos, naoTratadas, errosDaPagina } = await abrir(page, 1280);
   await page.getByRole('button', { name: 'Novo exercício' }).click();
   await folha(page).getByLabel('Nome', { exact: true }).fill('Remada fictícia');
-  await folha(page).getByLabel('Grupo muscular (opcional)').fill('Costas');
+  // Grupo novo pela busca do seletor ("+ Usar"): nenhum exercício da lista é de Costas.
+  await folha(page).getByRole('button', { name: 'Grupo muscular · opcional: Não informado. Escolher.' }).click();
+  await page.getByRole('textbox', { name: 'Buscar ou criar grupo' }).fill('Costas');
+  await page.getByRole('option', { name: '+ Usar “Costas”, Grupo muscular novo' }).click();
   await escolher(page, 'Modalidade', 'Máquina', 'Cardio');
   await escolher(page, 'Modalidade', 'Cardio', 'Peso livre');
-  await expect(folha(page).getByLabel('Grupo muscular (opcional)')).toHaveValue('Costas');
+  await expect(folha(page).getByRole('button', { name: 'Grupo muscular · opcional: Costas. Escolher.' })).toBeVisible();
   await folha(page).getByRole('button', { name: 'Salvar' }).click();
   await expect(page.getByText('Exercício salvo.')).toBeVisible();
   expect(salvos[0].corpo).toEqual({ nome: 'Remada fictícia', grupoMuscular: 'Costas', equipamento: null, modalidade: 'LIVRE', videoUrl: null, observacoes: null });
@@ -178,9 +184,9 @@ for (const largura of [390, 1280]) {
         'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
       });
       await page.goto('/treinador/ajuda?secao=cardio-e-hiit', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('button', { name: 'Cardio e HIIT, aberto' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Cardio e HIIT' })).toBeVisible();
       for (const p of PROTOCOLOS) await expect(page.getByText(p.definicao, { exact: false }).first()).toBeVisible();
-      await page.getByRole('button', { name: 'Cardio e HIIT, aberto' }).scrollIntoViewIfNeeded();
+      await page.getByRole('heading', { level: 2, name: 'Cardio e HIIT' }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: captura(`ajuda-cardio-e-hiit-${largura}-${tema}.png`) });
       expect(errosDaPagina).toEqual([]);
     });

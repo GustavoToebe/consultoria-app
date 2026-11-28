@@ -18,15 +18,15 @@ import { FolhaDoEvento, PainelDoEvento } from '../../treinador/auditoria/Detalhe
 import { ListaDeEventos } from '../../treinador/auditoria/ListaDeEventos';
 import { ACOES_AUDITORIA } from '../../treinador/equipe/acoesAuditoria';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
+import { ChipsDeUmaOpcao } from '../../ui/ChipsDeFiltro';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro,Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { FaixaDeChips } from '../../ui/FaixaDeChips';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
+import { Texto } from '../../ui/Texto';
 import { Tela, useFaixaDaTela } from '../../ui/Tela';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -47,7 +47,11 @@ interface Mais { chave: string; itens: EventoAuditoria[]; pagina: number; total:
  *   filtro "Ação" por interseção; sem ação em comum, a tela não pergunta à API e diz o porquê.
  * - Lista agrupada por dia de Brasília ("Hoje", "Ontem", a data), a hora na coluna Quando, a bolinha da categoria na ação
  *   e as iniciais de quem fez; o resumo diz o objeto afetado ("Aluno Vitor Luiz Santos") ou a origem.
- * - "Carregar mais" acrescenta a página seguinte (50 por vez) e a contagem do filtro continua no topo.
+ * - "Carregar mais" acrescenta a página seguinte (50 por vez) e a contagem do filtro continua na barra.
+ * - Tela larga (28/11): os atalhos são chips de uma escolha à esquerda (`ui/ChipsDeFiltro.ChipsDeUmaOpcao`, tonal com ✓; seis
+ *   opções não cabem em segmento pela regra única dos filtros), o "Filtros" logo ao lado
+ *   e a contagem ("252 eventos neste filtro", texto secundário e região viva) na própria barra; o cartão da lista não tem
+ *   mais o título "Eventos".
  * - A partir da faixa `larga` (1600 px de área), a tabela ocupa o espaço e o detalhe fica num painel fixo de 420 px à
  *   direita (`PainelDoEvento`); abaixo, ou com "Detalhes abrem: No centro", o detalhe abre na folha.
  */
@@ -114,9 +118,15 @@ function CorpoDaAuditoria() {
   const rotuloDoAtalho=OPCOES_DE_ATALHO.find(o=>o.valor===atalho)?.rotulo??'Tudo';
   const escolher=(e:EventoAuditoria)=>{ if(chave!==null)setEscolhido({chave,id:e.id}); };
   const fechar=()=>setEscolhido(null);
+  // Sempre montada (região viva): o leitor de tela ouve a contagem nova ao trocar o filtro; some na carga e com a lista velha.
+  const contagem=(
+    <View accessibilityLiveRegion="polite" aria-live="polite">
+      {itens.length&&dados&&!desatualizada?<Texto variante="suave" numerico>{textoDaContagem(total)}</Texto>:null}
+    </View>
+  );
 
   const lista=itens.length&&dados?(
-    <Cartao titulo="Eventos" descricao={desatualizada?undefined:`${textoDaContagem(total)}.`}>
+    <Cartao>
       <View style={desatualizada?estilos.esmaecido:null} pointerEvents={desatualizada?'none':'auto'}>
         <ListaDeEventos grupos={agruparPorDia(itens,hojeEmBrasilia())} selecionadoId={selecionado?.id??null} aoEscolher={escolher}/>
       </View>
@@ -132,12 +142,16 @@ function CorpoDaAuditoria() {
   return <>
     <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips} aoTirar={(c)=>aplicar(semOFiltro(filtros,c as ChaveDoFiltro))}
       painelLateral={{titulo:'Filtros de eventos'}}
+      // "Mostrar N eventos": o mesmo pedido da lista (com o atalho em vigor), página 0, lendo o total.
+      resultado={{itens:{um:'evento',varios:'eventos'},total:desatualizada?undefined:dados?.total,buscar:(r)=>{ const p=pedidoComAtalho(r,atalho,ACOES_AUDITORIA); return p==='NENHUMA'?Promise.resolve(0):listarAuditoria({...p,pagina:0}).then(x=>x.total); }}}
       // Atalhos à esquerda do "Filtros", na mesma linha: o recorte mais usado sem abrir o painel.
-      antes={<FaixaDeChips quebrar accessibilityLabel="Atalhos de eventos">
-        <Escolha chips descricao="Atalhos de eventos" valor={atalho} aoMudar={mudarAtalho} opcoes={[...OPCOES_DE_ATALHO]}/>
-      </FaixaDeChips>}
+      // Seis opções de uma escolha: chips da regra única (tonal com ✓), não segmento; "Tudo" fica à vista.
+      antes={<ChipsDeUmaOpcao<AtalhoDeAuditoria> rotulo="Atalhos de eventos" rotuloVisivel={false} opcoes={OPCOES_DE_ATALHO} valor={atalho} aoMudar={mudarAtalho}/>}
+      // Uma linha só, à esquerda: atalhos, "Filtros · N", as etiquetas com o "Limpar" e a contagem no fim.
+      arranjo="linhaUnica" fim={contagem}
       seletores={(atuais,mudar)=><>
-        {/* Pessoa e ação com o mesmo padrão: várias opções com busca (nada marcado = todas). */}
+        {/* Pessoa e ação com o mesmo padrão: várias opções com busca (nada marcado = todas). Exceção da regra única dos
+            filtros: são listas longas e do cadastro (dezenas de pessoas, centenas de ações), que em chips não teriam busca. */}
         <GrupoDoPainel titulo="Identificação" primeiro>
           <SelecaoMultiplaSuspensa rotulo="Pessoa" opcoes={opcoesDePessoa(membros??[])} marcados={new Set(atuais.pessoas)} rotuloDeTodos="Todas as pessoas" aoMudar={(m)=>mudar({...atuais,pessoas:[...m]})} style={{alignSelf:'stretch'}}/>
           {/* Falha da lista de pessoas é do filtro: fica no controle dele, não como segundo alerta acima da lista. */}

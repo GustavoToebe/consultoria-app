@@ -191,7 +191,7 @@ for (const largura of [390, 1280]) {
       'GET /aluno/uso-de-imagem': { corpo: { autorizadoEm: null } },
     });
     await page.goto('/aluno/conta');
-    await expect(page.getByText('Redes da consultoria')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Sua consultoria' })).toBeVisible();
     const nomes = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'LinkedIn', 'Telegram', 'X', 'site'];
     await expect(page.getByRole('button', { name: /^Abrir (Instagram|TikTok|YouTube|Facebook|LinkedIn|Telegram|X|site)$/ })).toHaveCount(8);
     let anterior = -1;
@@ -222,7 +222,8 @@ for (const largura of [390, 1280]) {
     });
     await page.goto('/aluno/conta');
     await expect(page.getByRole('link', { name: /^Ajuda/ })).toBeVisible();
-    await expect(page.getByText('Redes da consultoria')).toHaveCount(0);
+    // Sem WhatsApp nem redes, o cartão "Sua consultoria" não existe (nem vazio).
+    await expect(page.getByTestId('secao-consultoria')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Abrir / })).toHaveCount(0);
   });
 }

@@ -22,6 +22,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { chaveDaSecao, idDoBloco, quantasPerguntas } from '../../dominio/indiceDoQuestionario';
+import { chaveDaPergunta } from '../../dominio/resumoDoQuestionario';
 import { GaleriaDeTipos } from './GaleriaDeTipos';
 import { EditorDeCondicao, PropriedadesDaPergunta } from './PropriedadesDaPergunta';
 
@@ -152,7 +153,8 @@ function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, probl
   // Aberta = em edição: sobe para a superfície do cartão com o contorno forte (o "escolhido sobe" do segmento; a de
   // seleção, `superficie3`, apagaria a opção escolhida das `Escolha` de dentro); o erro vence o
   // contorno. O número da pergunta é contexto neutro, fora do título.
-  return <View style={[estilos.pergunta, { backgroundColor: aberta ? cores.superficie : cores.superficie2, borderColor: problemas.length ? cores.perigo : aberta ? cores.bordaCampo : cores.divisor }]}>
+  // `nativeID`: destino do link de problema do índice (rolagem e foco).
+  return <View nativeID={idDoBloco(chaveDaPergunta(p.id))} collapsable={false} style={[estilos.pergunta, { backgroundColor: aberta ? cores.superficie : cores.superficie2, borderColor: problemas.length ? cores.perigo : aberta ? cores.bordaCampo : cores.divisor }]}>
     <CabecalhoDoItem titulo={p.rotulo || 'Pergunta sem texto'} contexto={`Pergunta ${posicao + 1}`} resumo={resumo} aberto={aberta} aoAlternar={aoAlternar} nomeDoItem={`a pergunta ${posicao + 1}`}
       selo={problemas.length ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
       posicao={posicao} total={total} aoMover={somenteLeitura ? undefined : aoMover}

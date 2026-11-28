@@ -25,6 +25,9 @@ export function avisoDoPlanoDoAluno(tipo: TipoPlano): string {
 
 export const AVISO_DO_MODELO = 'Este é um modelo do Planejamento. Mudar aqui não altera os alunos que já receberam uma cópia.';
 
+/** Subtítulo do cabeçalho do editor de treino no modelo (o `AVISO_DO_MODELO` segue na dieta e no `EditorModelo`). */
+export const SUBTITULO_DO_MODELO = 'Modelo do Planejamento · mudar aqui não altera os alunos que já receberam uma cópia';
+
 const TIPO_DO_MODELO: Record<TipoReceita, string> = {
   PLANO_TREINO: 'semana de treino',
   SESSAO_TREINO: 'dia de treino',

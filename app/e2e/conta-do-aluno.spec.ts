@@ -12,7 +12,8 @@ import { ALUNO, erroApi, json, sessao, simularApi, type PedidoFalso, type Respos
  * web com o cabeçalho fixo. Só dados fictícios; 529.982.247-25 é um CPF de teste válido, sem dono.
  */
 const LINK = 'https://exemplo.test/inscricao/codigo-ficticio#indicacao=00000000-0000-4000-8000-0000000000aa';
-const ORDEM = ['Meu plano', 'Perfil na Comunidade', 'Meus dados', 'Convidar um amigo', 'Privacidade', 'Segurança', 'App'];
+// Títulos dos cartões na ordem de leitura (28/11); o Perfil não tem título (a foto e o nome são o topo dele).
+const ORDEM = ['App', 'Meu plano', 'Convidar um amigo', 'Meus dados', 'Privacidade', 'Segurança'];
 const conquista = (tipo: string, titulo: string) => ({ id: `c-${tipo}`, tipo, titulo, descricao: `Conquista fictícia: ${titulo}.`, icone: 'award', conquistadaEm: '2026-11-01T12:00:00-03:00' });
 const PERFIL: PreferenciasDoPerfil = {
   perfilReservado: false, reservadoEfetivo: false, destaques: ['PRIMEIRO_TREINO', 'DEZ_TREINOS'], cor: 'ROXO', moldura: 'DUPLA', exibicaoDoNome: 'NOME_E_APELIDO',
@@ -104,8 +105,17 @@ for (const largura of [390, 1280]) {
       await expect(app.getByRole('button', { name: 'Sincronizar agora' })).toBeVisible();
       await expect(app.getByRole('link', { name: /^Ajuda/ })).toBeVisible();
 
-      // h) Excluir minha conta, por último, com a mesma confirmação.
-      await page.getByRole('button', { name: 'Excluir minha conta' }).click();
+      // Perfil num cartão só: a linha "Perfil na comunidade" com o apelido, sem o resumo antigo dos destaques.
+      await expect(page.getByRole('button', { name: 'Perfil na comunidade, Testinho' })).toBeVisible();
+      await expect(page.getByText(/Apelido: /)).toHaveCount(0);
+
+      // h) Excluir minha conta: a última linha de Segurança, com a descrição, e a mesma confirmação.
+      const seguranca = page.getByTestId('secao-seguranca');
+      const excluir = seguranca.getByRole('button', { name: 'Excluir minha conta, Apaga os seus dados pessoais desta consultoria. Não tem volta.' });
+      await expect(excluir).toBeVisible();
+      const linhas = await seguranca.getByRole('button').allTextContents();
+      expect(linhas.at(-1)).toContain('Excluir minha conta');
+      await excluir.click();
       await expect(page.getByRole('alertdialog', { name: 'Excluir a sua conta?' })).toBeVisible();
       await page.getByRole('button', { name: 'Cancelar' }).click();
 
@@ -116,6 +126,11 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
+    test('sem apelido, a linha do perfil diz "Sem apelido"', async ({ page }) => {
+      await abrir(page, { dados: { apelido: null } });
+      await expect(page.getByRole('button', { name: 'Perfil na comunidade, Sem apelido' })).toBeVisible();
+    });
+
     test('sem plano contratado, o cabeçalho não tem selo', async ({ page }) => {
       await abrir(page, { financeiro: { ...FINANCEIRO, plano: null, abertas: [] } });
       await expect(cabecalho(page).getByText(/ · /)).toHaveCount(0);
@@ -124,7 +139,7 @@ for (const largura of [390, 1280]) {
 
     test('Meu perfil: uma barra de salvar só, "Sair sem salvar?" e o apelido no mesmo Salvar', async ({ page }) => {
       const { api } = await abrir(page);
-      await page.getByRole('button', { name: /^Meu perfil, Aluno \(Testinho\) · Apelido: Testinho, 2 destaques/ }).click();
+      await page.getByRole('button', { name: 'Perfil na comunidade, Testinho' }).click();
       const folha = page.getByRole('dialog', { name: 'Meu perfil' });
       await expect(folha.getByText('Tudo salvo')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Salvar perfil' })).toHaveCount(0);
@@ -152,6 +167,7 @@ for (const largura of [390, 1280]) {
       await expect(folha).toHaveCount(0);
       // O cabeçalho e a linha já mostram o apelido novo, sem ler de novo.
       await expect(cabecalho(page).getByLabel('Nome para os colegas: Aluno (Testão)')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Perfil na comunidade, Testão' })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -180,12 +196,17 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: /^Trocar senha/ }).click();
       const folha = page.getByRole('dialog', { name: 'Trocar senha' });
       await expect(folha.getByLabel('Senha atual')).toBeVisible();
-      await expect(folha.getByText('Mínimo de 8 caracteres. As outras sessões são encerradas.')).toBeVisible();
+      await expect(folha.getByText('Mínimo de 8 caracteres.')).toBeVisible();
+      await expect(folha.getByText('Ao trocar, as outras sessões são encerradas.')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Trocar senha' })).toBeDisabled();
       await folha.getByLabel('Senha atual').fill('senha-ficticia-1');
       await folha.getByLabel('Nova senha').fill('curta');
-      await folha.getByRole('button', { name: 'Trocar senha' }).click();
-      await expect(folha.getByText('A nova senha precisa ter pelo menos 8 caracteres.')).toBeVisible();
+      // 28/11: com a nova curta o botão nem habilita; o indicador de força diz o que falta.
+      await expect(folha.getByText('Força da senha: curta. Use pelo menos 8 caracteres.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Trocar senha' })).toBeDisabled();
+      await folha.getByLabel('Nova senha').fill('Abcdefgh123!');
+      await expect(folha.getByText('Força da senha: forte.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Trocar senha' })).toBeEnabled();
       await folha.getByRole('button', { name: 'Fechar' }).click();
 
       await page.getByRole('button', { name: 'Sair', exact: true }).click();
@@ -204,10 +225,10 @@ test('1280 px: duas colunas empilhadas e os detalhes abrem em folha lateral', as
   await page.setViewportSize({ width: 1280, height: 800 });
   await abrir(page);
   // Colunas empilhadas (27/11): o perfil no topo da primeira coluna; a coluna de cada seção sai das alturas medidas
-  // (`colunasEquilibradas`), então só se confere que há duas colunas da mesma largura.
+  // (`ColunasMedidas`, com o teto de `dominio/colunasDaConta`), então só se confere que há duas colunas da mesma largura.
   await expect(async () => {
     const topo = (await cabecalho(page).boundingBox())!;
-    const secoes = await Promise.all(['secao-plano', 'secao-perfil', 'secao-dados', 'secao-privacidade', 'secao-seguranca', 'secao-app']
+    const secoes = await Promise.all(['secao-plano', 'secao-dados', 'secao-convite', 'secao-privacidade', 'secao-seguranca', 'secao-app']
       .map(async (id) => (await page.getByTestId(id).boundingBox())!));
     const xs = [...new Set(secoes.map((s) => Math.round(s.x / 10)))];
     expect(xs).toHaveLength(2);

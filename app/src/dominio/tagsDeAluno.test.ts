@@ -4,7 +4,7 @@ import type { TagDeAluno } from '../api/tipos';
 import { CHAVES_DE_IDENTIFICACAO } from '../tema/tokens';
 import {
   chaveDaTag, COR_DAS_TAGS, erroDoNomeDaTag, idsDasTags, LIMITE_DE_TAGS, lerTagsDoEndereco, nomeDaTagParaEnviar,
-  podeAdicionarTag, proximasTags, resumoDasTagsNaLinha, tagPeloNome, tagsParaEndereco, textoDeApagarTag, textoDeRenomear,
+  podeAdicionarTag, proximasTags, resumoDasTagsNaLinha, tagPeloNome, tagsParaEndereco, textoDeRenomear,
   traduzirErroDeTag,
 } from './tagsDeAluno';
 
@@ -86,12 +86,6 @@ describe('resumo na linha', () => {
 });
 
 describe('textos dos painéis', () => {
-  it('apagar diz em quantos alunos a tag está', () => {
-    expect(textoDeApagarTag({ totalAlunos: 4 })).toBe('A tag está em 4 alunos; ao apagar, sai de todos.');
-    expect(textoDeApagarTag({ totalAlunos: 1 })).toBe('A tag está em 1 aluno; ao apagar, sai dele.');
-    expect(textoDeApagarTag({ totalAlunos: 0 })).toBe('Nenhum aluno usa esta tag.');
-  });
-
   it('renomear diz onde a mudança vale', () => {
     expect(textoDeRenomear({ totalAlunos: 4 })).toBe('A tag está em 4 alunos; a mudança vale em todos.');
     expect(textoDeRenomear({ totalAlunos: 1 })).toBe('A tag está em 1 aluno; a mudança vale nele.');

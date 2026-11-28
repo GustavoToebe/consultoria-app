@@ -55,16 +55,17 @@ treinos:
     produto: ${TREINOS_INTEGRACAO_PRODUTO:TREINOS}
     tolerancia-horas: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:72}
     bloqueio-ativo: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:false}
-  # Cadastro público de treinador (POST /auth/cadastro-treinador). Fechado por padrão: aberto, qualquer pessoa cria uma
-  # consultoria, descobre se um e-mail já tem conta e ocupa o e-mail de quem ainda vai contratar pela Central (que vincula
-  # pelo e-mail do administrador). Consultoria nova em produção entra pela Central. Fechado, a rota responde 404.
+  # Cadastro público de treinador (POST /auth/cadastro-treinador). Fechado por padrão (404): decisão de 29/11, aberto SÓ com o
+  # Turnstile ligado e testado, então se liga pelo ambiente (TREINOS_CADASTRO_ABERTO=true) depois do TREINOS_TURNSTILE_HABILITADO;
+  # variável esquecida não abre o cadastro sem a proteção. Aberto, qualquer pessoa cria uma consultoria, descobre se um e-mail já
+  # tem conta e ocupa o e-mail de quem ainda vai contratar pela Central (que vincula pelo e-mail do administrador).
   cadastro:
     aberto: ${TREINOS_CADASTRO_ABERTO:false}
-  # Aplica o plano da Central (limites e funcionalidades de direitos_locais) a quem cria algo novo. Desligada por padrão:
-  # ligar antes de o produto ter as funcionalidades configuradas na Central tiraria Mobilidade e Equipe das consultorias.
-  # Sem linha em direitos_locais (integração desligada, demo) nada é barrado, ligada ou não. docs/integracao-central.md.
+  # Aplica o plano da Central (limites e funcionalidades de direitos_locais) a quem cria algo novo. Ligada por padrão (28/11):
+  # consultoria com linha em direitos_locais sem MOBILIDADE, PDF ou EQUIPE perde o que falta, e os limites passam a barrar o
+  # novo. Sem linha em direitos_locais (integração desligada, demo) nada é barrado, ligada ou não. docs/integracao-central.md.
   plano:
-    aplicar: ${TREINOS_PLANO_APLICAR:false}
+    aplicar: ${TREINOS_PLANO_APLICAR:true}
   # Importação assistida por IA (Lote Misto PDF/DOCX/XLSX/Texto). Provedores: regras (padrão), gemini, claude.
   importacao:
     ia:
@@ -75,11 +76,11 @@ treinos:
       # Haiku 5.5 é o mais barato da família; esforço low|medium|high|xhigh|max (high pensa mais e gasta mais).
       claude-modelo: ${TREINOS_IA_CLAUDE_MODELO:claude-haiku-5-5}
       claude-esforco: ${TREINOS_IA_CLAUDE_ESFORCO:medium}
-      # LGPD, fail-closed: com false (padrão) nada do arquivo sai do servidor e o roteador usa sempre as regras locais,
-      # mesmo com provedor gemini/claude e chave. Só ligar depois de decisão registrada; ligado, vai SÓ o texto extraído
-      # (sem PDF nem nome do arquivo), inteiro: nome, peso, dieta, CPF, e-mail, telefone e CEP (decisão de 10/11/2026;
-      # o redator só serve para vincular o aluno no servidor).
-      enviar-dados-ao-provedor: ${TREINOS_IA_ENVIAR_DADOS_AO_PROVEDOR:false}
+      # Ligado por padrão (regra de 28/11: nada fica desligado esperando LGPD). Só tem efeito com TREINOS_IA_PROVEDOR gemini
+      # ou claude e a chave dele; com o provedor regras (padrão) nada sai do servidor. Ligado, vai SÓ o texto extraído (sem
+      # PDF nem nome do arquivo), inteiro: nome, peso, dieta, CPF, e-mail, telefone e CEP (decisão de 10/11/2026; o redator
+      # só serve para vincular o aluno no servidor). false = sempre as regras locais.
+      enviar-dados-ao-provedor: ${TREINOS_IA_ENVIAR_DADOS_AO_PROVEDOR:true}
       # PDF sem texto e imagem (JPG/PNG) inteiros ao Claude (D1). Ligado por padrão (Gustavo, 28/11: tudo liberado), mas só vale
       # com enviar-dados-ao-provedor=true, provedor claude e a chave do Claude; faltando algum, a API sobe normal, o GET /eu diz
       # importacaoPorImagemHabilitada=false, JPG e PNG são recusados e o PDF segue pelo texto (ConfiguracaoIaImportacao).
@@ -104,10 +105,11 @@ treinos:
     habilitado: ${TREINOS_CEP_HABILITADO:true}
     url-principal: ${TREINOS_CEP_URL_PRINCIPAL:}
     url-reserva: ${TREINOS_CEP_URL_RESERVA:}
-  # Os recursos abaixo que sobem sem segredo nascem LIGADOS (01/12, primeiro cliente real): ciclo, retorno, push, contratos,
-  # vitrine/loja/marketplace, unidade de carga, migração assistida e pagamentos. O padrão só vale para variável ausente no
-  # ambiente; false na variável desliga. Os que exigem segredo (WhatsApp, fotos, Turnstile, InfinitePay, Kiwify, Asaas, e-mail)
-  # continuam desligados por padrão.
+  # Regra de 28/11: toda chave de funcionalidade que sobe sem segredo nasce LIGADA (ciclo, retorno, push, contratos, regras de
+  # atenção, vitrine/loja/marketplace, unidade de carga, migração assistida, pagamentos, Pagar no celular, plano aplicado, IA
+  # enviar dados). O cadastro aberto fica false no padrão: só liga pelo ambiente, depois do Turnstile (decisão de 29/11). O padrão só vale para variável AUSENTE (vazia não conta); false desliga. As que fariam a
+  # API recusar a subida sem segredo (WhatsApp, fotos, Turnstile, InfinitePay, Kiwify, Asaas, integração) e o e-mail (sem o
+  # Resend o provedor log fingiria envio) seguem false: ligar no ambiente junto com os segredos. Exceção de lançamento: cardio.
   # Acompanhamento do ciclo menstrual. Desligado (false), as rotas respondem 503 CICLO_INDISPONIVEL_NO_APP e o app esconde tudo
   # (GET /eu traz cicloHabilitado).
   ciclo:
@@ -204,9 +206,10 @@ treinos:
     chaves: ${TREINOS_PAGAMENTOS_CHAVES:}
     chave-ativa: ${TREINOS_PAGAMENTOS_CHAVE_ATIVA:}
     # Chaves da plataforma para o botão "Pagar" no celular (só UI: GET /eu traz pagarNoIos e pagarNoAndroid; o servidor não
-    # distingue plataforma). Desligadas por padrão; quem decide ligar é o dono, conforme as regras de cada loja.
-    pagar-no-ios: ${TREINOS_PAGAMENTOS_PAGAR_NO_IOS:false}
-    pagar-no-android: ${TREINOS_PAGAMENTOS_PAGAR_NO_ANDROID:false}
+    # distingue plataforma). Ligadas por padrão (28/11, decisão do dono): pagamento fora da loja no app pode pesar na revisão
+    # da Apple e do Google; false esconde o botão no celular.
+    pagar-no-ios: ${TREINOS_PAGAMENTOS_PAGAR_NO_IOS:true}
+    pagar-no-android: ${TREINOS_PAGAMENTOS_PAGAR_NO_ANDROID:true}
     # Recebimento online pela InfinitePay (o aluno paga por um link na conta do treinador). Desligado por padrão: as rotas dele
     # respondem 503 RECEBIMENTO_ONLINE_INDISPONIVEL e GET /eu traz recebimentoOnlineHabilitado=false. Ligado, a API só sobe com as
     # chaves acima e com TREINOS_PAGAMENTOS_URL_PUBLICA (https, a URL pela qual a internet chega nesta API: é a base do webhook).

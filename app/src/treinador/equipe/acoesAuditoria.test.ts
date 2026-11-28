@@ -75,7 +75,7 @@ test('ações de pausa de acesso (Fase 2) e ficha rápida/cortesia (Fase 3) têm
 });
 
 test('ações do acesso do aluno ao app têm rótulo no filtro da auditoria', () => {
-  for (const acao of ['ALUNO_EMAIL_DE_ACESSO_ALTERADO', 'ALUNO_ACESSO_DESATIVADO', 'ALUNO_ACESSO_REATIVADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+  for (const acao of ['ALUNO_EMAIL_DE_ACESSO_ALTERADO', 'ALUNO_ACESSO_DESATIVADO', 'ALUNO_ACESSO_REATIVADO', 'ALUNOS_CONVITES_GERADOS']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
 
 test('a verificação em duas etapas tem rótulo no filtro da auditoria (a API grava as três)', () => {
@@ -88,4 +88,8 @@ test('ações do contrato digital têm rótulo no filtro da auditoria', () => {
 
 test('ações das regras de atenção têm rótulo no filtro da auditoria', () => {
   for (const acao of ['REGRA_ATENCAO_CRIADA', 'REGRA_ATENCAO_ALTERADA', 'REGRA_ATENCAO_REMOVIDA', 'REGRA_ATENCAO_EXCECAO_DEFINIDA', 'REGRA_ATENCAO_EXCECAO_REMOVIDA', 'PUSH_ATENCAO_ALTERADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});
+
+test('unir grupos musculares da biblioteca tem rótulo no filtro da auditoria', () => {
+  expect(ACOES_AUDITORIA.GRUPOS_MUSCULARES_UNIDOS).toBeTruthy();
 });

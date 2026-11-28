@@ -159,7 +159,8 @@ for (const largura of [1280, 390]) {
     await capturar(page, `sem-cardio-${largura}-claro`);
     await folha.getByRole('textbox', { name: 'Buscar na biblioteca' }).fill('Esteira');
     await expect(folha.getByText('Usar “Esteira” como cardio manual', { exact: true })).toBeVisible();
-    await folha.getByRole('button', { name: 'Cancelar' }).click();
+    // Escolha única (27.5): sem rodapé de "Cancelar"; fecha pelo ✕.
+    await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
     await expect(folha).toHaveCount(0);
 
     // Só o cardio do catálogo, sem tipo: o filtro diz por que não há tipo para escolher.

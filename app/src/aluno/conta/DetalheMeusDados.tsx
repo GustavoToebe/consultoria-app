@@ -5,8 +5,9 @@ import { StyleSheet, View } from 'react-native';
 import { salvarMeusDados } from '../../api/rotas';
 import type { MeusDadosResponse } from '../../api/tipos';
 import { useFecharComAviso } from '../../comunidade/useFecharComAviso';
-import { CAMPOS_DO_ENDERECO, CPF_EM_USO, enderecoParaLeitura, MENSAGEM_CPF_EM_USO, mascaraCpf, mascaraTelefone } from '../../dominio/cadastroDoAluno';
+import { CAMPOS_DO_ENDERECO, CPF_EM_USO, enderecoParaLeitura, MENSAGEM_CPF_EM_USO, mascaraCpf } from '../../dominio/cadastroDoAluno';
 import { cpfMascarado } from '../../dominio/contaDoAluno';
+import { entradaDoTelefone } from '../../dominio/entradaDoTelefone';
 import {
   ALUNO_ANONIMIZADO, corpoDoPut, cpfEditavel, CPF_SO_PELO_TREINADOR, ehConflitoDeEdicao, emailParaLeitura, errosDoForm, errosDoServidor, formDeMeusDados,
   houveMudanca, mensagemDeErroMeusDados, temErros, TEXTO_SO_LEITURA, type ErrosMeusDados, type FormMeusDados,
@@ -54,6 +55,8 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
   const [salvando, setSalvando] = useState(false);
   const [doServidor, setDoServidor] = useState<ErrosMeusDados>(SEM_ERROS);
   const [verCpf, setVerCpf] = useState(false);
+  // Texto que não é telefone (o e-mail preenchido pelo navegador) é recusado e fica só este erro no campo.
+  const [recusaDoTelefone, setRecusaDoTelefone] = useState<string | null>(null);
   const status = useRef<View>(null);
   const resp = dados.dados;
   const mudou = !!form && !!resp && houveMudanca(form, resp);
@@ -61,6 +64,7 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
 
   const cancelar = () => {
     setForm(null);
+    setRecusaDoTelefone(null);
     setDoServidor(SEM_ERROS);
   };
 
@@ -74,6 +78,7 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
         setSalvando(false);
         dados.definir(novo);
         setForm(null);
+        setRecusaDoTelefone(null);
         if (sexoDoCampo(novo.sexo) !== sexoAntes) avisarQueOSexoMudou();
         avisar('Seus dados foram salvos.', 'sucesso');
       },
@@ -136,8 +141,11 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
             <View style={[estilos.bloco, estilos.divisoria, { borderTopColor: cores.divisor }]}>
               {form ? (
                 <>
-                  <Campo rotulo="Telefone (opcional)" valor={form.telefone} aoMudar={(t) => mudar({ telefone: mascaraTelefone(t) })}
-                    erro={locais.telefone ?? doServidor.telefone} keyboardType="phone-pad" autoComplete="tel" maxLength={15} numerico />
+                  {/* 30, não 15: o "+55 (45) 99999-9999" colado chega inteiro à máscara, que tira o +55. */}
+                  <Campo rotulo="Telefone (opcional)" valor={form.telefone} numerico maxLength={30}
+                    aoMudar={(t) => { const entrada = entradaDoTelefone(t, form.telefone); setRecusaDoTelefone(entrada.erro); mudar({ telefone: entrada.valor }); }}
+                    erro={recusaDoTelefone ?? locais.telefone ?? doServidor.telefone}
+                    keyboardType="phone-pad" inputMode="tel" autoComplete="tel-national" textContentType="telephoneNumber" />
                   <SecaoDeRedes>
                     <RedesSociais modo="edicao" redesPermitidas={REDES_SOCIAIS_DO_ALUNO} valores={form.redes} aoMudar={(redes) => mudar({ redes })} erros={errosDasRedes} />
                   </SecaoDeRedes>

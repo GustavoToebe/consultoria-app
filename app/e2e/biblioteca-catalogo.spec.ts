@@ -49,7 +49,7 @@ test('catálogo: no painel, marcar vários grupos filtra por "ou" no Aplicar, Ma
     return filtros;
   };
   const aplicar = async (filtros: Locator) => {
-    await filtros.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await filtros.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(filtros).toHaveCount(0);
   };
   let filtros = await abrirPainel();
@@ -187,8 +187,9 @@ const botaoDa = (onde: Locator | Page, rotulo: string, valor: string) => onde.ge
 /** Todas as opções da lista aberta cabem na largura da janela, e a lista não sai da janela por baixo. */
 async function listaNaJanela(page: Page, lista: Locator, quantas: number) {
   const janela = page.viewportSize()!;
+  // No PC a lista abre depois de medir o botão (assíncrono) e o `.all()` não espera: primeiro a contagem exata.
+  await expect(lista.getByRole('option')).toHaveCount(quantas);
   const opcoes = await lista.getByRole('option').all();
-  expect(opcoes).toHaveLength(quantas);
   for (const opcao of opcoes) {
     const b = (await opcao.boundingBox())!;
     const nome = await opcao.getAttribute('aria-label');

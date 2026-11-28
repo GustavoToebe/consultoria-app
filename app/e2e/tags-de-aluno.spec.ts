@@ -245,7 +245,7 @@ for (const largura of [1280, 390]) {
       await lista.getByRole('checkbox', { name: 'Retorno', exact: true }).click();
       await capturar(page, `painel-tags-${largura}-claro`);
       await page.keyboard.press('Escape');
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(page).toHaveURL(new RegExp(`tag=${ONLINE.id}(%2C|,)${RETORNO.id}`));
       await expect(page.getByText('Tags: Online, Retorno')).toBeVisible();
       await expect.poll(() => pedidos.filter((p) => p.caminho === '/alunos').at(-1)!.busca.getAll('tag')).toEqual([ONLINE.id, RETORNO.id]);
@@ -269,98 +269,167 @@ for (const largura of [1280, 390]) {
       await capturar(page, `painel-falha-${largura}-escuro`);
     });
 
-    test('Configurações › Tags dos alunos: renomear, trocar a cor e apagar com a contagem; 409 recarrega', async ({ page }) => {
+    test('Configurações › Tags dos alunos: lista compacta, cor na hora com Desfazer, renomear na linha e excluir com a contagem', async ({ page }) => {
       const e: Estado = { consultoria: [...CONSULTORIA], doAluno: [] };
       const { pedidos, errosDaPagina } = await preparar(page, { largura, rotas: rotasDasTags(e) });
+      const puts = () => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.startsWith('/tags-de-alunos/'));
       await page.goto('/treinador/configuracoes');
       await page.getByRole('link', { name: /Tags dos alunos/ }).click();
       await expect(page.getByRole('heading', { level: 1, name: 'Tags dos alunos' })).toBeVisible();
-      await expect(page.getByText('Ciano · 3 alunos')).toBeVisible();
-      await expect(page.getByText('Magenta · Nenhum aluno')).toBeVisible();
+      await expect(page.getByText('Não use tags para dado de saúde.')).toBeVisible();
+      // Ordem alfabética sem acento; a contagem é link para Alunos filtrado pela tag (todos, inativos também); sem aluno, só texto.
+      await expect(page.getByRole('radiogroup', { name: /^Cor da tag / })).toHaveCount(4);
+      const grupos = await page.getByRole('radiogroup', { name: /^Cor da tag / }).evaluateAll((l) => l.map((g) => g.getAttribute('aria-label')));
+      expect(grupos).toEqual(['Cor da tag Avançado', 'Cor da tag Online', 'Cor da tag Presencial', 'Cor da tag Retorno']);
+      await expect(page.getByRole('link', { name: '3 alunos', exact: true })).toHaveAttribute('href', new RegExp(`tag=${ONLINE.id}`));
+      await expect(page.getByText('Nenhum aluno', { exact: true })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Buscar tag' })).toHaveCount(0);
       await capturar(page, `configuracoes-${largura}-claro`);
 
-      // Renomear e trocar a cor na linha, com a versão lida.
-      await page.getByRole('button', { name: 'Editar tag Online' }).click();
-      await expect(page.getByText('A tag está em 3 alunos; a mudança vale em todos.')).toBeVisible();
-      await page.getByRole('textbox', { name: 'Nome da tag Online' }).fill('Online ao vivo');
-      // A linha em edição vem antes do cartão "Nova tag", que também tem a escolha da cor.
-      await page.getByRole('radio', { name: 'Violeta' }).first().click();
-      await page.waitForTimeout(400);
-      await capturar(page, `configuracoes-editar-${largura}-claro`);
-      await page.getByRole('button', { name: 'Salvar tag' }).click();
-      await expect(page.getByText('Violeta · 3 alunos')).toBeVisible();
-      expect(pedidos.find((p) => p.metodo === 'PUT')!.corpo).toEqual({ nome: 'Online ao vivo', cor: 'VIOLETA', versao: 0 });
+      // A cor é escolha única (regra 17): grupo de rádio com a escolhida marcada.
+      const coresDoOnline = page.getByRole('radiogroup', { name: 'Cor da tag Online' });
+      await expect(coresDoOnline.getByRole('radio', { name: 'Cor: Ciano' })).toHaveAttribute('aria-checked', 'true');
+      await expect(coresDoOnline.getByRole('radio', { name: 'Cor: Azul' })).toHaveAttribute('aria-checked', 'false');
 
-      // Apagar: o painel diz em quantos alunos ela está.
-      await page.getByRole('button', { name: 'Apagar tag Avançado' }).click();
-      await expect(page.getByText('A tag está em 2 alunos; ao apagar, sai de todos. Não dá para desfazer.')).toBeVisible();
-      await capturar(page, `configuracoes-apagar-${largura}-claro`);
-      await page.getByRole('button', { name: 'Apagar tag', exact: true }).click();
-      await expect(page.getByText('Índigo · 2 alunos')).toHaveCount(0);
+      // Trocar a cor grava na hora, com a versão lida; o "Desfazer" do aviso volta à cor de antes com a versão nova.
+      await coresDoOnline.getByRole('radio', { name: 'Cor: Violeta' }).click();
+      await expect(coresDoOnline.getByRole('radio', { name: 'Cor: Violeta' })).toHaveAttribute('aria-checked', 'true');
+      expect(puts().at(-1)!.corpo).toEqual({ nome: 'Online', cor: 'VIOLETA', versao: 0 });
+      await expect(page.getByText('Cor da tag “Online”: Violeta.')).toBeVisible();
+      await page.getByRole('button', { name: 'Desfazer' }).click();
+      await expect.poll(() => puts().at(-1)!.corpo).toEqual({ nome: 'Online', cor: 'CIANO', versao: 1 });
+      await expect(coresDoOnline.getByRole('radio', { name: 'Cor: Ciano' })).toHaveAttribute('aria-checked', 'true');
+
+      // Teclado de rádio: um só ponto no Tab (a escolhida); cada seta move o foco E escolhe, uma gravação por seta.
+      const coresDoPresencial = page.getByRole('radiogroup', { name: 'Cor da tag Presencial' });
+      await expect(coresDoPresencial.getByRole('radio', { name: 'Cor: Magenta' })).toHaveAttribute('tabindex', '0');
+      await expect(coresDoPresencial.getByRole('radio', { name: 'Cor: Violeta' })).toHaveAttribute('tabindex', '-1');
+      const antesDasSetas = puts().length;
+      await coresDoPresencial.getByRole('radio', { name: 'Cor: Magenta' }).focus();
+      await page.keyboard.press('ArrowLeft');
+      await expect(coresDoPresencial.getByRole('radio', { name: 'Cor: Violeta' })).toBeFocused();
+      await expect(coresDoPresencial.getByRole('radio', { name: 'Cor: Violeta' })).toHaveAttribute('aria-checked', 'true');
+      expect(puts().at(-1)!.corpo).toEqual({ nome: 'Presencial', cor: 'VIOLETA', versao: 0 });
+      await page.keyboard.press('Home');
+      await expect(coresDoPresencial.getByRole('radio', { name: 'Cor: Ciano' })).toBeFocused();
+      await expect(coresDoPresencial.getByRole('radio', { name: 'Cor: Ciano' })).toHaveAttribute('aria-checked', 'true');
+      expect(puts().at(-1)!.corpo).toEqual({ nome: 'Presencial', cor: 'CIANO', versao: 1 });
+      expect(puts()).toHaveLength(antesDasSetas + 2);
+
+      // Renomear pelo ⋯: o selo vira campo focado; Esc cancela sem gravar, Enter salva.
+      const antes = puts().length;
+      await page.getByRole('button', { name: 'Mais ações da tag Retorno' }).click();
+      await page.getByRole('button', { name: /^Renomear/ }).click();
+      const nomeDoRetorno = page.getByRole('textbox', { name: 'Nome da tag Retorno' });
+      await expect(nomeDoRetorno).toBeFocused();
+      await nomeDoRetorno.fill('Volta');
+      await page.keyboard.press('Escape');
+      await expect(nomeDoRetorno).toHaveCount(0);
+      await page.getByRole('button', { name: 'Mais ações da tag Online' }).click();
+      await page.getByRole('button', { name: /^Renomear/ }).click();
+      const nomeDoOnline = page.getByRole('textbox', { name: 'Nome da tag Online' });
+      await expect(page.getByText('A tag está em 3 alunos; a mudança vale em todos.')).toBeVisible();
+      await nomeDoOnline.fill('Online ao vivo');
+      await capturar(page, `configuracoes-renomeando-${largura}-claro`);
+      await nomeDoOnline.press('Enter');
+      await expect(page.getByRole('radiogroup', { name: 'Cor da tag Online ao vivo' })).toBeVisible();
+      expect(puts()).toHaveLength(antes + 1);
+      expect(puts().at(-1)!.corpo).toEqual({ nome: 'Online ao vivo', cor: 'CIANO', versao: 2 });
+
+      // Excluir: item de perigo do ⋯ e o painel diz de quantos alunos a tag sai.
+      await page.getByRole('button', { name: 'Mais ações da tag Avançado' }).click();
+      await page.getByRole('button', { name: /^Excluir/ }).click();
+      await expect(page.getByText('A tag sai de 2 alunos; os alunos continuam como estão. Não dá para desfazer.')).toBeVisible();
+      await capturar(page, `configuracoes-excluir-${largura}-claro`);
+      await page.getByRole('button', { name: 'Excluir tag', exact: true }).click();
+      await expect(page.getByRole('radiogroup', { name: 'Cor da tag Avançado' })).toHaveCount(0);
       const apagou = pedidos.find((p) => p.metodo === 'DELETE')!;
       expect([apagou.caminho, apagou.busca.get('versao')]).toEqual([`/tags-de-alunos/${AVANCADO.id}`, '0']);
 
-      // Criar uma tag nova; nome repetido é recusado antes de ir à API.
-      await page.getByRole('textbox', { name: 'Nome da nova tag' }).fill('retorno');
-      await page.getByRole('button', { name: 'Criar tag', exact: true }).click();
+      // Criar na linha do topo: nome repetido é recusado antes da API; a cor escolhida vai no POST e o foco volta ao campo.
+      const novo = page.getByRole('textbox', { name: 'Nome da nova tag' });
+      await novo.fill('retorno');
+      await novo.press('Enter');
       await expect(page.getByText('Já existe uma tag com esse nome.')).toBeVisible();
-      await page.getByRole('textbox', { name: 'Nome da nova tag' }).fill('Tarde');
+      await novo.fill('Tarde');
+      await page.getByRole('radiogroup', { name: 'Cor da nova tag' }).getByRole('radio', { name: 'Cor: Magenta' }).click();
       await page.getByRole('button', { name: 'Criar tag', exact: true }).click();
-      await expect(page.getByText('Azul · Nenhum aluno')).toBeVisible();
+      await expect(page.getByRole('radiogroup', { name: 'Cor da tag Tarde' })).toBeVisible();
+      expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/tags-de-alunos')!.corpo).toEqual({ nome: 'Tarde', cor: 'MAGENTA' });
+      await expect(novo).toHaveValue('');
+      await expect(novo).toBeFocused();
 
       // Outra pessoa mudou a tag: 409, a lista volta e o aviso fica no topo.
       e.consultoria = e.consultoria.map((t) => (t.id === RETORNO.id ? { ...t, versao: 5 } : t));
-      await page.getByRole('button', { name: 'Editar tag Retorno' }).click();
-      await page.getByRole('textbox', { name: 'Nome da tag Retorno' }).fill('Retorno 2');
-      await page.getByRole('button', { name: 'Salvar tag' }).click();
+      await page.getByRole('radiogroup', { name: 'Cor da tag Retorno' }).getByRole('radio', { name: 'Cor: Azul' }).click();
       await expect(page.getByText('A tag mudou enquanto você editava. Confira e tente de novo.')).toBeVisible();
-      await expect(page.getByRole('textbox', { name: 'Nome da tag Retorno' })).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('tema escuro: ficha (leitura e sugestões), lista com +N, painel e Configurações com o painel de apagar', async ({ page }) => {
-      const e: Estado = { consultoria: [...CONSULTORIA], doAluno: [ONLINE, RETORNO] };
-      const alunos: AlunoResumo[] = [{ id: ALUNO_ID, nome: 'Paula Fictícia', ativo: true, temAcesso: false, planoAtivo: null, ultimoRegistro: null, responsavelId: TREINADOR.id, atualizacao: null, tags: [ONLINE, RETORNO, PRESENCIAL] }];
-      const { errosDaPagina } = await preparar(page, { largura, tema: 'ESCURO', alunos, ficha: { ...FICHA, tags: [ONLINE, RETORNO] }, rotas: rotasDasTags(e) });
-      await abrirFicha(page);
-      await linhaDasTags(page).scrollIntoViewIfNeeded();
-      await capturar(page, `ficha-leitura-${largura}-escuro`);
-      await editar(page);
-      await campo(page).fill('pre');
-      await expect(sugestoes(page).getByRole('option')).toHaveText(['Presencial', 'Criar tag “pre”']);
-      await capturar(page, `ficha-sugestoes-${largura}-escuro`);
-      await page.keyboard.press('Escape');
-      await capturar(page, `ficha-edicao-${largura}-escuro`);
-
-      await page.goto('/treinador/alunos');
-      await expect(page.getByText('+1', { exact: true })).toBeVisible();
-      await capturar(page, `lista-${largura}-escuro`);
-      await page.getByRole('button', { name: /^Filtros, / }).click();
-      await expect(page.getByRole('dialog', { name: 'Filtros de alunos' }).getByRole('button', { name: 'Tags: Qualquer. Escolher.' })).toBeVisible();
-      await capturar(page, `painel-${largura}-escuro`);
-
+    test('Configurações › Tags dos alunos: 409 e 422 da API no campo de criar; mais de 12 tags mostra a busca sem acento', async ({ page }) => {
+      const muitas = [...CONSULTORIA, ...Array.from({ length: 9 }, (_, i) => daConsultoria(tag(30 + i, `Grupo ${i + 1}`), i))];
+      let posts = 0;
+      const e: Estado = { consultoria: muitas, doAluno: [] };
+      await preparar(page, {
+        largura, tema: 'ESCURO',
+        rotas: rotasDasTags(e, {
+          'POST /tags-de-alunos': (_p, r) => {
+            posts += 1;
+            return posts === 1
+              ? json(r, erroApi(409, 'Nome em uso.', 'TAG_NOME_EM_USO').corpo, 409)
+              : json(r, erroApi(422, 'Inválida.', 'TAG_INVALIDA', [{ field: 'nome', message: 'x' }]).corpo, 422);
+          },
+        }),
+      });
       await page.goto('/treinador/alunos/tags');
-      await expect(page.getByText('Ciano · 3 alunos')).toBeVisible();
+      const novo = page.getByRole('textbox', { name: 'Nome da nova tag' });
+      await novo.fill('Noite');
+      await novo.press('Enter');
+      await expect(page.getByText('Já existe uma tag com esse nome.')).toBeVisible();
+      await novo.fill('Outra');
+      await novo.press('Enter');
+      await expect(page.getByText('Confira o nome da tag: de 1 a 30 caracteres.')).toBeVisible();
+
+      const busca = page.getByRole('textbox', { name: 'Buscar tag' });
+      await busca.fill('AVANC');
+      await expect(page.getByRole('radiogroup', { name: /^Cor da tag / })).toHaveCount(1);
+      await busca.fill('zzz');
+      await expect(page.getByText('Nenhuma tag encontrada')).toBeVisible();
+    });
+
+    test('tema escuro: lista e o painel de excluir', async ({ page }) => {
+      const e: Estado = { consultoria: [...CONSULTORIA], doAluno: [] };
+      const { errosDaPagina } = await preparar(page, { largura, tema: 'ESCURO', rotas: rotasDasTags(e) });
+      await page.goto('/treinador/alunos/tags');
+      await expect(page.getByRole('radiogroup', { name: 'Cor da tag Online' })).toBeVisible();
       await capturar(page, `configuracoes-${largura}-escuro`);
-      // Trocar a cor no "Nova tag" (fora da linha); a captura espera a transição do fundo de seleção (150 ms) terminar.
-      const magenta = page.getByRole('radio', { name: 'Magenta' }).last();
-      await magenta.click();
-      await expect(magenta).toHaveAttribute('aria-checked', 'true');
-      await page.waitForTimeout(400);
-      await capturar(page, `configuracoes-nova-cor-${largura}-escuro`);
-      await page.getByRole('button', { name: 'Apagar tag Retorno' }).click();
-      await expect(page.getByText('A tag está em 1 aluno; ao apagar, sai dele. Não dá para desfazer.')).toBeVisible();
-      await capturar(page, `configuracoes-apagar-${largura}-escuro`);
+      await page.getByRole('button', { name: 'Mais ações da tag Retorno' }).click();
+      await page.getByRole('button', { name: /^Excluir/ }).click();
+      await expect(page.getByText('A tag sai de 1 aluno; os alunos continuam como estão. Não dá para desfazer.')).toBeVisible();
+      await capturar(page, `configuracoes-excluir-${largura}-escuro`);
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('Configurações › Tags dos alunos: vazio e só leitura sem ALUNO_ALTERAR', async ({ page }) => {
+    test('Configurações › Tags dos alunos: erro ao carregar, vazio e só leitura sem ALUNO_ALTERAR', async ({ page }) => {
+      await preparar(page, { largura, rotas: { 'GET /tags-de-alunos': erroApi(503, 'Fora do ar.') } });
+      await page.goto('/treinador/alunos/tags');
+      await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
+
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
       await preparar(page, { largura, tema: 'ESCURO', permissoes: SO_LEITURA, rotas: { 'GET /tags-de-alunos': { corpo: [] } } });
       await page.goto('/treinador/alunos/tags');
       await expect(page.getByRole('heading', { level: 1, name: 'Tags dos alunos' })).toBeVisible();
       await expect(page.getByText('A equipe ainda não criou tags para os alunos.')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Criar tag' })).toHaveCount(0);
       await capturar(page, `configuracoes-vazio-${largura}-escuro`);
+
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await preparar(page, { largura, permissoes: SO_LEITURA, rotas: { 'GET /tags-de-alunos': { corpo: CONSULTORIA } } });
+      await page.goto('/treinador/alunos/tags');
+      await expect(page.getByRole('link', { name: '3 alunos', exact: true })).toBeVisible();
+      await expect(page.getByRole('radiogroup', { name: /^Cor da tag / })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Mais ações da tag/ })).toHaveCount(0);
     });
   });
 }

@@ -217,7 +217,7 @@ test('montador: a BarraDeFiltros do catálogo abre o painel lateral, aplica o ra
   await page.keyboard.press('Escape');
   await expect(lista).toHaveCount(0);
   if (pastaPrints) await page.screenshot({ path: join(pastaPrints, 'd-catalogo-painel-1280.png') });
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(painel).toHaveCount(0);
   await expect(exemplo.getByText('Situação: Em dia', { exact: true })).toBeVisible();
   await expect(exemplo.getByRole('button', { name: /^Filtros, 2 / })).toBeFocused();

@@ -333,7 +333,8 @@ public class GravacaoDaPlanilha {
      * coluna própria se passarem de algumas centenas.
      */
     private void exigirAindaNaoConfirmada(String hash) {
-        var anteriores = importacoes.buscar(List.of(DESTINO), DESTINO, null, "", Instant.EPOCH,
+        var anteriores = importacoes.buscar(List.of(DESTINO),
+                br.com.treinos.api.importacao.ImportacaoService.SituacaoDaImportacao.todas(), "", Instant.EPOCH,
                 Instant.parse("9999-12-31T00:00:00Z"), org.springframework.data.domain.Pageable.unpaged());
         for (Importacao i : anteriores) {
             if (hash.equals(json.readTree(i.getConfiguracao()).path("hash").asString(""))

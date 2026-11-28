@@ -4,7 +4,6 @@ import { dataParaTela } from '../dominio/formatos';
 import { Carregando, MensagemErro } from './Estados';
 import { textoDoErro } from './erros';
 import { LinksDosTermos } from './LinksDosTermos';
-import { Selo } from './Selo';
 import { TelaPublica } from './TelaPublica';
 import { DocumentoDosTermos } from './TextosDosTermos';
 import { useCarregar } from './useCarregar';
@@ -26,10 +25,8 @@ export function TelaDoDocumentoPublico({ id, titulo }: { id: DocumentoDeTermos['
       ) : !documento ? (
         <MensagemErro texto="Não foi possível carregar o texto." tentarDeNovo={termos.recarregar} />
       ) : (
-        <>
-          {termos.dados.rascunho ? <Selo texto="Rascunho em revisão" tipo="atencao" /> : null}
-          <DocumentoDosTermos documento={documento} />
-        </>
+        // Sem selo de rascunho: o aluno (e quem chega pela loja) nunca vê aviso de rascunho; só a equipe, na tela dela.
+        <DocumentoDosTermos documento={documento} />
       )}
       <LinksDosTermos todas />
     </TelaPublica>

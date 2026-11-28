@@ -814,6 +814,11 @@ export const CAMADA_DA_FOTO = {
   /** Fundo do botão em hover ou pressionado, por cima da camada. */
   sobre: 'rgba(255,255,255,0.18)',
   icone: '#FFFFFF',
+  /**
+   * Ícone do botão desabilitado (seta do visualizador na primeira e na última foto): cinza, sem opacidade. Passa 3:1 até
+   * sobre foto branca coberta pela camada e fica bem mais escuro que o branco do habilitado (`fotos/camadaDaFoto.test.ts`).
+   */
+  iconeDesabilitado: '#BDBDBD',
 } as const;
 /**
  * Mesa da prévia de documento (o "papel sobre a mesa" do editor e da galeria dos PDFs): o mesmo cinza neutro em todos os

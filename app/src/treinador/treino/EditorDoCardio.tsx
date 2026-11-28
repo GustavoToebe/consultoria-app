@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, CircleAlert, Copy, Ellipsis, Plus, TriangleAlert } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, CircleAlert, Copy, Ellipsis, Plus, TriangleAlert } from 'lucide-react-native';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -13,7 +13,6 @@ import { CamadaDaSerie, fundoDaSerie } from '../../ui/CamadaDaSerie';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { pinturaDaSerie } from '../../ui/pinturaDaSerie';
-import { coresDaEdicao } from '../../ui/selecao';
 import { Selo } from '../../ui/Selo';
 import { sobre as comMouse } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -63,7 +62,6 @@ export function EditorDoCardio({ series, medidas, aoMudar, blocoAbertoUid, aoAbr
   const cheio = series.length >= LIMITE_SERIES;
   const motivoCheio = cheio ? `O exercício já tem ${LIMITE_SERIES} blocos, o máximo.` : undefined;
   const idDoDetalhe = `detalhe-do-bloco-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const fundoDoBloco = coresDaEdicao(cores).fundoDoBloco;
   // "Fechar edição" e "Excluir bloco" (web) somem com o botão e o foco cairia no corpo da página: ele volta à linha do bloco
   // que ficou aberto, ou à do que fechou (WCAG 2.4.3, como na `TabelaDeBlocos`). Só quando o foco se perdeu.
   const linhasRef = useRef(new Map<string, View | null>());
@@ -110,12 +108,14 @@ export function EditorDoCardio({ series, medidas, aoMudar, blocoAbertoUid, aoAbr
     const [modo, ...resto] = partesDaPrevia(c);
     const detalhe = resto.join(' · ') || 'Sem prescrição';
     const Icone = nivel === 'perigo' ? CircleAlert : TriangleAlert;
-    const Seta = sel ? ChevronDown : ChevronRight;
-    const p = pinturaDaSerie(null, 'CHEIA', cores, variante, bordas.item);
+    // ⌄ fechado, ⌃ aberto: o mesmo chevron da `TabelaDeBlocos` (quadro de 27/11).
+    const Seta = sel ? ChevronUp : ChevronDown;
+    // O aberto com a borda de ação, como a série aberta da `TabelaDeBlocos` (28/11).
+    const p = pinturaDaSerie(null, sel ? 'ATIVA' : 'CHEIA', cores, variante, bordas.item);
     const rotulo = [`Bloco ${i + 1} · ${modo}`, detalhe, nivel === 'perigo' ? 'com problema a corrigir' : nivel === 'atencao' ? 'com aviso' : null].filter(Boolean).join(', ');
     return (
       <View key={s.uid} testID={sel ? 'bloco-de-cardio-aberto' : undefined}
-        style={[estilos.item, sel ? [estilos.bloco, { backgroundColor: fundoDoBloco }] : fundoDaSerie(p, cores.superficie)]}>
+        style={[estilos.item, sel ? estilos.bloco : null, fundoDaSerie(p, cores.superficie)]}>
         <View style={estilos.cabecaDaLinha}>
           <Pressable ref={(n) => { linhasRef.current.set(s.uid, n); }} accessibilityRole="button" accessibilityLabel={rotulo} aria-expanded={sel}
             {...(Platform.OS === 'web' && sel ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
@@ -141,7 +141,7 @@ export function EditorDoCardio({ series, medidas, aoMudar, blocoAbertoUid, aoAbr
               aoMudar={(nc) => mudarBloco(i, nc)} aoRemover={() => remover(i)} aoFechar={() => abrir(NENHUM_BLOCO_ABERTO)} />
           </View>
         ) : null}
-        <CamadaDaSerie pintura={p} ativa={false} raio={sel ? RAIO_DO_BLOCO : RAIO_DA_LINHA} semBorda={sel} />
+        <CamadaDaSerie pintura={p} ativa={sel} raio={sel ? RAIO_DO_BLOCO : RAIO_DA_LINHA} />
       </View>
     );
   };

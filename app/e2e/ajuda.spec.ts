@@ -4,9 +4,10 @@ import { ALUNO, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './ap
 import { sessaoDeAluno } from './aluno';
 
 /**
- * Ajuda (F16 e F17): busca sem acento que abre o que casou (e, ao limpar, volta ao estado de antes) e diz "Nenhum resultado" com o foco de volta no
- * campo, índice lateral no PC (o tópico escolhido em negrito e com o indicador; o clique rola até a seção), seletor no
- * topo do celular, sem rolagem lateral de 390 a 1920 px, com o menu aberto e recolhido, nos temas claro e escuro e com o
+ * Ajuda em formato de documentação (28/11): página inicial "Começar a usar" (tutorial, passeio, Primeiros passos e a
+ * grade dos assuntos), índice dos assuntos à esquerda no PC (seletor "Assunto" no celular), o artigo do assunto com um
+ * h3 por tópico e "Nesta página" à direita na tela larga; a busca lista os tópicos com o trecho e Enter abre o primeiro;
+ * `?secao=&topico=` abre o artigo no tópico. Sem rolagem lateral de 390 a 1920 px, nos temas claro e escuro e com o
  * texto maior; o treinador e o aluno têm cada um o seu guia. A fonte de vídeos começa vazia: nada de bloco de vídeo.
  * `CAPTURAS` aponta a pasta das capturas (sem ela, a pasta de resultados de cada teste). Só dados fictícios.
  */
@@ -20,7 +21,7 @@ async function preferir(page: Page, id: string, prefs: Preferencias) {
   await page.addInitScript(([chave, valor]) => localStorage.setItem(chave, valor), [`treinos:${id}:preferencias`, JSON.stringify(prefs)] as const);
 }
 
-async function abrirTreinador(page: Page, largura: number, opcoes: { prefs?: Preferencias; menuRecolhido?: boolean } = {}) {
+async function abrirTreinador(page: Page, largura: number, opcoes: { prefs?: Preferencias; menuRecolhido?: boolean; caminho?: string } = {}) {
   await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
   if (opcoes.prefs) await preferir(page, TREINADOR.id, opcoes.prefs);
   if (opcoes.menuRecolhido) await page.addInitScript(() => localStorage.setItem('menu-lateral-recolhido', '1'));
@@ -29,7 +30,7 @@ async function abrirTreinador(page: Page, largura: number, opcoes: { prefs?: Pre
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
   });
-  await page.goto('/treinador/ajuda', { waitUntil: 'domcontentloaded' });
+  await page.goto(opcoes.caminho ?? '/treinador/ajuda', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Ajuda', level: 1 })).toBeVisible();
   return { errosDaPagina };
 }
@@ -44,130 +45,122 @@ async function abrirAluno(page: Page, largura: number, prefs?: Preferencias) {
 }
 
 const indice = (page: Page) => page.getByRole('navigation', { name: 'Tópicos da ajuda' });
-const seletor = (page: Page) => page.getByRole('button', { name: /^Ir para o tópico/ });
+const nestaPagina = (page: Page) => page.getByRole('navigation', { name: 'Nesta página' });
+const seletor = (page: Page) => page.getByRole('button', { name: /^Assunto: .*\. Escolher\.$/ });
 const campoDaBusca = (page: Page) => page.getByLabel('Buscar na ajuda');
-const secao = (page: Page, titulo: string) => page.getByRole('button', { name: new RegExp(`^${titulo.replace(/[()]/g, '\\$&')}, (aberto|recolhido)$`) });
-
-/** A busca não passa da borda direita da coluna de leitura (a seção "Início" ou a primeira que casou). */
-async function buscaAlinhada(page: Page, titulo: string) {
-  const campo = await campoDaBusca(page).boundingBox();
-  const cartao = await secao(page, titulo).boundingBox();
-  // O botão da faixa fica 16 px para dentro da borda do cartão; a busca alinha com a borda.
-  expect(campo!.x + campo!.width).toBeLessThanOrEqual(cartao!.x + cartao!.width + 16 + 1);
-}
+const resultados = (page: Page) => page.getByRole('list', { name: 'Resultados da busca' });
+const artigo = (page: Page, titulo: string) => page.getByRole('heading', { name: titulo, level: 2, exact: true });
+const topico = (page: Page, titulo: string) => page.getByRole('heading', { name: titulo, level: 3, exact: true });
 
 async function semRolagemLateral(page: Page) {
   const { documento, janela } = await page.evaluate(() => ({ documento: document.documentElement.scrollWidth, janela: document.documentElement.clientWidth }));
   expect(documento).toBeLessThanOrEqual(janela);
 }
 
-test('treinador no PC (1280, menu aberto): índice ao lado, busca sem acento reabre a seção e "Nenhum resultado" devolve o foco', async ({ page }) => {
+test('treinador no PC (1280): página inicial, busca em lista com o trecho, Enter abre o primeiro e "Nenhum resultado" devolve o foco', async ({ page }) => {
   const { errosDaPagina } = await abrirTreinador(page, 1280);
   await expect(indice(page)).toBeVisible();
   await expect(seletor(page)).toHaveCount(0);
-  await expect(secao(page, 'Financeiro (cobrar seus alunos)')).toHaveAccessibleName(/recolhido$/);
-  // Começar a usar e a fonte de vídeos vazia: nenhum bloco de vídeo.
-  await expect(page.getByRole('button', { name: 'Tutorial passo a passo' })).toBeVisible();
+  await expect(artigo(page, 'Começar a usar')).toBeVisible();
+  await expect(indice(page).getByRole('button', { name: 'Começar a usar' })).toHaveAttribute('aria-current', 'location');
+  await expect(page.getByRole('button', { name: 'Começar o tutorial' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Conhecer o menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Início, \d+ tópicos$/ }).first()).toBeVisible();
   await expect(page.getByText(/Vídeos? \(abre fora do app\)/)).toHaveCount(0);
   // O nome acessível começa pelo texto visível (WCAG 2.5.3).
-  await expect(page.getByRole('button', { name: /^Abrir o guia \(.+ em PDF\)$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Abrir o guia \(PDF\)/ })).toBeVisible();
+  // Abaixo de ~1190 px de área (1280 com o menu aberto) não há "Nesta página".
+  await indice(page).getByRole('button', { name: /^Início,/ }).click();
+  await expect(artigo(page, 'Início')).toBeVisible();
+  await expect(nestaPagina(page)).toHaveCount(0);
   await semRolagemLateral(page);
-  await page.screenshot({ path: captura('ajuda-treinador-1280.png'), fullPage: false });
+  await page.screenshot({ path: captura('ajuda-treinador-1280.png') });
 
-  // Sem acento acha "Emissão" e abre a seção recolhida; o índice passa a listar só o que casou.
+  // Sem acento acha "Emissão": a lista traz o assunto, o tópico e o trecho com a palavra.
   await campoDaBusca(page).fill('emissao');
   await expect(page.getByText(/^\d+ resultados?$/)).toBeVisible();
-  await expect(secao(page, 'Financeiro (cobrar seus alunos)')).toHaveAccessibleName(/aberto$/);
-  await expect(page.getByRole('heading', { name: 'Achar uma cobrança', level: 3 })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tutorial passo a passo' })).toHaveCount(0);
-  await expect(indice(page).getByRole('button', { name: 'Começar a usar' })).toHaveCount(0);
-  await expect(indice(page).getByRole('button', { name: 'Financeiro (cobrar seus alunos)' })).toBeVisible();
-  // Com acento, o mesmo resultado.
+  const achado = resultados(page).getByRole('link', { name: /Achar uma cobrança/ });
+  await expect(achado).toBeVisible();
+  await expect(achado).toContainText(/emissão/i);
   await campoDaBusca(page).fill('Emissão');
-  await expect(page.getByRole('heading', { name: 'Achar uma cobrança', level: 3 })).toBeVisible();
+  await expect(achado).toBeVisible();
   await page.screenshot({ path: captura('ajuda-treinador-1280-busca.png') });
+  await achado.click();
+  await expect(page).toHaveURL(/secao=financeiro&topico=achar-uma-cobranca/);
+  await expect(campoDaBusca(page)).toHaveValue('');
+  await expect(topico(page, 'Achar uma cobrança')).toBeInViewport();
+
+  // Enter abre o primeiro resultado (o tópico cujo título casa vem primeiro).
+  await campoDaBusca(page).fill('trocas para ver');
+  await campoDaBusca(page).press('Enter');
+  await expect(page).toHaveURL(/secao=inicio&topico=trocas-para-ver/);
+  await expect(topico(page, 'Trocas para ver')).toBeInViewport();
 
   await campoDaBusca(page).fill('xyzzy');
   await expect(page.getByText('Nenhum resultado', { exact: true }).first()).toBeVisible();
-  await expect(indice(page).getByText('Nesta página')).toHaveCount(0);
-  await page.screenshot({ path: captura('ajuda-treinador-1280-sem-resultado.png') });
   await page.getByRole('button', { name: 'Limpar busca' }).click();
   await expect(campoDaBusca(page)).toBeFocused();
   await expect(campoDaBusca(page)).toHaveValue('');
-  await expect(page.getByRole('button', { name: 'Tutorial passo a passo' })).toBeVisible();
-  // Limpar a busca volta ao estado de antes dela: a seção que a busca abriu volta a ficar recolhida.
-  await expect(secao(page, 'Financeiro (cobrar seus alunos)')).toHaveAccessibleName(/recolhido$/);
   expect(errosDaPagina).toEqual([]);
 });
 
-test('treinador no PC: o clique no índice rola até a seção, abre e marca o tópico; o índice fica à vista', async ({ page }) => {
-  const { errosDaPagina } = await abrirTreinador(page, 1440);
-  const ultimo = indice(page).getByRole('button', { name: 'Perguntas frequentes' });
-  // O índice mais alto que a janela rola por dentro: o último tópico é alcançável.
-  await ultimo.scrollIntoViewIfNeeded();
-  await expect(ultimo).toBeInViewport();
-  await expect(secao(page, 'Perguntas frequentes')).not.toBeInViewport();
+for (const largura of [1920, 3440]) test(`treinador em ${largura}: conjunto junto do menu, "Nesta página" acompanha a rolagem e o índice fica parado`, async ({ page }) => {
+  const { errosDaPagina } = await abrirTreinador(page, largura, { caminho: '/treinador/ajuda?secao=inicio' });
+  await expect(artigo(page, 'Início')).toBeVisible();
+  await expect(nestaPagina(page)).toBeVisible();
+  // Sem faixa vazia antes do título: o índice começa na mesma borda do título "Ajuda" e a coluna de leitura para em 760.
+  const titulo = await page.getByRole('heading', { name: 'Ajuda', level: 1 }).boundingBox();
+  const caixaDoIndice = await indice(page).boundingBox();
+  expect(Math.abs(caixaDoIndice!.x - titulo!.x)).toBeLessThanOrEqual(8);
+  const leitura = await artigo(page, 'Início').evaluate((el) => el.parentElement!.parentElement!.getBoundingClientRect().width);
+  expect(leitura).toBeLessThanOrEqual(760);
+  // A sobra fica à direita do conjunto (índice + artigo + "Nesta página", até 1308 px), não entre as colunas.
+  const caixaDaNesta = await nestaPagina(page).boundingBox();
+  expect(caixaDaNesta!.x + caixaDaNesta!.width - caixaDoIndice!.x).toBeLessThanOrEqual(1308 + 8);
+  const ultimo = nestaPagina(page).getByRole('link').last();
   await ultimo.click();
-  await expect(secao(page, 'Perguntas frequentes')).toHaveAccessibleName(/aberto$/);
-  await expect(secao(page, 'Perguntas frequentes')).toBeInViewport();
   await expect(ultimo).toHaveAttribute('aria-current', 'location');
-  await expect(ultimo).not.toHaveAttribute('aria-selected');
-  await expect(indice(page).getByRole('button', { name: 'Começar a usar' })).not.toHaveAttribute('aria-current', 'location');
-  // Parado enquanto a página rola.
   const topoDoIndice = await indice(page).evaluate((el) => el.getBoundingClientRect().top);
   expect(topoDoIndice).toBeGreaterThanOrEqual(0);
   expect(topoDoIndice).toBeLessThan(40);
-  await expect(ultimo).toBeInViewport();
+  await expect(indice(page).getByRole('button', { name: /^Início,/ })).toHaveAttribute('aria-current', 'location');
   await semRolagemLateral(page);
-  await page.screenshot({ path: captura('ajuda-treinador-1440-indice.png') });
-  // Teclado: da busca, o Tab vai ao índice e o Enter escolhe o tópico.
-  await campoDaBusca(page).focus();
-  await page.keyboard.press('Tab');
-  await expect(indice(page).getByRole('button', { name: 'Começar a usar' })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Enter');
-  await expect(indice(page).getByRole('button', { name: 'Primeiros passos' })).toHaveAttribute('aria-current', 'location');
-  await expect(page.getByRole('heading', { name: 'Primeiros passos', level: 2 })).toBeInViewport();
-  await page.screenshot({ path: captura('ajuda-treinador-1440-teclado.png') });
+  await page.screenshot({ path: captura(`ajuda-treinador-${largura}-artigo.png`) });
   expect(errosDaPagina).toEqual([]);
 });
 
-for (const largura of [1280, 1920]) {
-  test(`treinador em ${largura} com o menu recolhido: índice ao lado e sem rolagem lateral`, async ({ page }) => {
-    const { errosDaPagina } = await abrirTreinador(page, largura, { menuRecolhido: largura === 1280 });
-    if (largura === 1280) await expect(page.getByRole('menubar').getByRole('button', { name: 'Expandir barra lateral' })).toBeVisible();
-    await expect(indice(page)).toBeVisible();
-    await semRolagemLateral(page);
-    // A coluna de leitura não passa de 800 px.
-    const larguraDaSecao = await secao(page, 'Início').evaluate((el) => el.getBoundingClientRect().width);
-    expect(larguraDaSecao).toBeLessThanOrEqual(800);
-    await buscaAlinhada(page, 'Início');
-    await page.screenshot({ path: captura(`ajuda-treinador-${largura}${largura === 1280 ? '-menu-recolhido' : ''}.png`) });
-    expect(errosDaPagina).toEqual([]);
-  });
-}
+test('o "Saiba mais" abre o artigo no tópico, destacado por um instante', async ({ page }) => {
+  const { errosDaPagina } = await abrirTreinador(page, 1440, { caminho: '/treinador/ajuda?secao=inicio&topico=graficos' });
+  await expect(artigo(page, 'Início')).toBeVisible();
+  await expect(topico(page, 'Gráficos')).toBeInViewport();
+  // Deep-link antigo, só com a seção: o artigo no topo.
+  await page.goto('/treinador/ajuda?secao=consultoria', { waitUntil: 'domcontentloaded' });
+  await expect(artigo(page, 'Consultoria')).toBeInViewport();
+  // Seção que não existe: a página inicial.
+  await page.goto('/treinador/ajuda?secao=nao-existe', { waitUntil: 'domcontentloaded' });
+  await expect(artigo(page, 'Começar a usar')).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
 
-test('treinador no celular (390): seletor no topo leva ao tópico, sem índice e sem rolagem lateral', async ({ page }) => {
+test('treinador no celular (390): seletor de assunto no topo, sem índice e sem rolagem lateral', async ({ page }) => {
   const { errosDaPagina } = await abrirTreinador(page, 390);
   await expect(indice(page)).toHaveCount(0);
   await expect(seletor(page)).toBeVisible();
   await semRolagemLateral(page);
   await page.screenshot({ path: captura('ajuda-treinador-390.png') });
   await seletor(page).click();
-  await page.getByRole('radio', { name: 'Agenda presencial', exact: true }).click();
-  await expect(secao(page, 'Agenda presencial')).toHaveAccessibleName(/aberto$/);
-  await expect(secao(page, 'Agenda presencial')).toBeInViewport();
+  await page.getByRole('option', { name: /Agenda presencial/ }).click();
+  await expect(artigo(page, 'Agenda presencial')).toBeVisible();
   await semRolagemLateral(page);
-  await page.screenshot({ path: captura('ajuda-treinador-390-topico.png') });
+  await page.screenshot({ path: captura('ajuda-treinador-390-artigo.png') });
   expect(errosDaPagina).toEqual([]);
 });
 
 test('treinador no tema escuro e com o texto maior (1280 e 390): sem rolagem lateral', async ({ page }) => {
   const { errosDaPagina } = await abrirTreinador(page, 1280, { prefs: { tema: 'ESCURO', tamanhoTexto: 'EXTRA' } });
   await campoDaBusca(page).fill('lote');
-  await expect(page.getByRole('heading', { name: 'Registrar pagamentos em lote', level: 3 })).toBeVisible();
+  await expect(resultados(page).getByRole('link', { name: /Registrar pagamentos em lote/ })).toBeVisible();
   await semRolagemLateral(page);
-  await buscaAlinhada(page, 'Financeiro (cobrar seus alunos)');
   await page.screenshot({ path: captura('ajuda-treinador-1280-escuro-extra.png') });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(seletor(page)).toBeVisible();
@@ -176,30 +169,27 @@ test('treinador no tema escuro e com o texto maior (1280 e 390): sem rolagem lat
   expect(errosDaPagina).toEqual([]);
 });
 
-test('aluno: guia próprio, busca e seletor no celular; índice no PC, também no tema escuro', async ({ page }) => {
+test('aluno: guia próprio, busca e seletor no celular', async ({ page }) => {
   const { errosDaPagina } = await abrirAluno(page, 390);
   await expect(seletor(page)).toBeVisible();
-  await expect(secao(page, 'Comunidade')).toBeVisible();
-  await expect(secao(page, 'Financeiro (cobrar seus alunos)')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Comunidade, \d+ tópicos$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Financeiro \(cobrar seus alunos\)/ })).toHaveCount(0);
   await expect(page.getByText(/Vídeos? \(abre fora do app\)/)).toHaveCount(0);
   await semRolagemLateral(page);
   await page.screenshot({ path: captura('ajuda-aluno-390.png') });
   await campoDaBusca(page).fill('colecoes');
-  await expect(secao(page, 'Comunidade')).toHaveAccessibleName(/aberto$/);
-  await expect(page.getByRole('heading', { name: 'Vídeos', level: 3 })).toBeVisible();
+  await expect(resultados(page).getByRole('link', { name: /Comunidade/ }).first()).toBeVisible();
   await semRolagemLateral(page);
   await page.screenshot({ path: captura('ajuda-aluno-390-busca.png') });
-  await campoDaBusca(page).fill('');
-  await expect(secao(page, 'Comunidade')).toHaveAccessibleName(/recolhido$/);
   expect(errosDaPagina).toEqual([]);
 });
 
 test('aluno no PC (1280, escuro): índice ao lado e sem rolagem lateral', async ({ page }) => {
   const { errosDaPagina } = await abrirAluno(page, 1280, { tema: 'ESCURO' });
   await expect(indice(page)).toBeVisible();
-  await indice(page).getByRole('button', { name: 'Sem internet' }).click();
-  await expect(secao(page, 'Sem internet')).toHaveAccessibleName(/aberto$/);
-  await expect(secao(page, 'Sem internet')).toBeInViewport();
+  await indice(page).getByRole('button', { name: /^Sem internet,/ }).click();
+  await expect(artigo(page, 'Sem internet')).toBeInViewport();
+  await expect(indice(page).getByRole('button', { name: /^Sem internet,/ })).toHaveAttribute('aria-current', 'location');
   await semRolagemLateral(page);
   await page.screenshot({ path: captura('ajuda-aluno-1280-escuro.png') });
   expect(errosDaPagina).toEqual([]);

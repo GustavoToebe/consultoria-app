@@ -119,7 +119,8 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Nova avaliação' }).click();
       const folha = page.getByRole('dialog', { name: 'Nova avaliação física' });
       const data = folha.getByLabel('Data', { exact: true });
-      await folha.getByLabel('Cintura (cm)').fill('85,5');
+      // Desde a leva 3 o rótulo é "Cintura" e a unidade "cm" fica dentro do campo.
+      await folha.getByRole('textbox', { name: 'Cintura', exact: true }).fill('85,5');
       const envios = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho === `/alunos/${ALUNO_ID}/avaliacoes-fisicas`);
 
       for (const invalida of ['05/05/0261', '20/10/2026']) {

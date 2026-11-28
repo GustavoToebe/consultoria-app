@@ -57,12 +57,32 @@ public class ConviteService {
     public ConviteResponse gerar(UUID alunoId) {
         Aluno aluno = alunos.buscarParaAlterar(alunoId)
                 .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
-        if (!aluno.isAtivo()) {
+        Impedimento impedimento = impedimento(aluno);
+        if (impedimento == Impedimento.ANONIMIZADO || impedimento == Impedimento.INATIVO) {
             throw new ConflictException("Aluno inativo. Reative para convidar.", "ALUNO_INATIVO");
         }
-        if (aluno.getUsuarioId() != null) {
+        if (impedimento == Impedimento.JA_TEM_ACESSO) {
             throw new ConflictException("Este aluno já tem acesso.", "ALUNO_COM_ACESSO");
         }
+        return emitir(aluno);
+    }
+
+    /** O que impede convidar o aluno (rota individual e lote); o anonimizado também está inativo. */
+    enum Impedimento { ANONIMIZADO, INATIVO, JA_TEM_ACESSO }
+
+    /** Nulo = pode convidar. Acesso desativado (MANUAL/ATRASO) sempre tem usuário, então cai em {@code JA_TEM_ACESSO}. */
+    static Impedimento impedimento(Aluno aluno) {
+        if (aluno.isAnonimizado()) {
+            return Impedimento.ANONIMIZADO;
+        }
+        if (!aluno.isAtivo()) {
+            return Impedimento.INATIVO;
+        }
+        return aluno.getUsuarioId() != null ? Impedimento.JA_TEM_ACESSO : null;
+    }
+
+    /** Gera ou renova o convite do aluno já travado e liberado por {@link #impedimento}: o código novo invalida o anterior. */
+    ConviteResponse emitir(Aluno aluno) {
         String codigo = novoCodigo();
         Instant expiraEm = Instant.now().plus(VALIDADE);
         aluno.novoConvite(hash(codigo), expiraEm);

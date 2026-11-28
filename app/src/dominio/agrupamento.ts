@@ -225,12 +225,26 @@ function listaComE(numeros: readonly number[]): string {
   return `${numeros.slice(0, -1).join(', ')} e ${numeros[numeros.length - 1]}`;
 }
 
-/** Pausa da técnica: "20 s", "5 respirações", "5 respirações ou 10 s"; "— s" quando o treinador ainda não informou. */
+/** Pausa da técnica: "20 s", "5 respirações", "10 s ou 5 respirações" (o tempo primeiro); "— s" quando o treinador ainda não informou. */
 export function textoPausa(t: Pick<Tecnica, 'pausaSegundos' | 'pausaRespiracoes'>): string {
   const r = t.pausaRespiracoes != null && t.pausaRespiracoes > 0 ? `${t.pausaRespiracoes} ${t.pausaRespiracoes === 1 ? 'respiração' : 'respirações'}` : '';
   const s = t.pausaSegundos != null && t.pausaSegundos > 0 ? `${t.pausaSegundos} s` : '';
-  if (r && s) return `${r} ou ${s}`;
+  if (r && s) return `${s} ou ${r}`;
   return r || s || '— s';
+}
+
+/**
+ * " (o timer conta)" quando a pausa da técnica tem segundos: são eles que o cronômetro do app do aluno conta (no cartão
+ * por etapas e no botão da pausa, `tecnicasDoExercicio`), em qualquer técnica (Cluster, Rest-pause, Myo-reps, Drop-set).
+ * A pausa só em respirações não tem timer: vazio.
+ */
+export function marcaDoTimer(t: Pick<Tecnica, 'pausaSegundos'>): string {
+  return t.pausaSegundos != null && t.pausaSegundos > 0 ? ' (o timer conta)' : '';
+}
+
+/** A pausa com a marca do timer: "15 s ou 3 respirações (o timer conta)"; só respirações, "3 respirações". */
+export function textoPausaComTimer(t: Pick<Tecnica, 'pausaSegundos' | 'pausaRespiracoes'>): string {
+  return `${textoPausa(t)}${marcaDoTimer(t)}`;
 }
 
 const REGIAO_CURTA = { ALONGADA: 'alongadas', ENCURTADA: 'encurtadas', LIVRE: '' } as const;
@@ -287,20 +301,20 @@ export function textoTecnicaPorExtenso(t: Tecnica | null | undefined, config?: C
         : `blocos de ${listaComE(b)} repetições`;
       const pausa = t.pausaSegundos == null && t.pausaRespiracoes == null
         ? 'A pausa entre os blocos não foi informada.'
-        : `Pausa entre os blocos: ${textoPausa(t)}.`;
+        : `Pausa entre os blocos: ${textoPausaComTimer(t)}.`;
       return `${nome}: faça ${estrutura}. São ${soma} repetições previstas no total e ${pausas} ${pausas === 1 ? 'pausa interna' : 'pausas internas'}. Encerre ao terminar o ${b.length}º bloco. ${pausa}`;
     }
     case 'DROP_SET': {
       const reduza = t.reducaoPercentual ? `reduza a carga cerca de ${t.reducaoPercentual}%` : 'reduza a carga';
       const depois = t.repsPorQueda ? `faça mais ${t.repsPorQueda} repetições` : 'continue até a falha';
       const vezes = t.quedas === 1 ? '1 vez' : `${n(t.quedas)} vezes`;
-      const pausa = t.pausaSegundos ? ` Descanse ${t.pausaSegundos} s entre as quedas.` : '';
+      const pausa = t.pausaSegundos ? ` Descanse ${t.pausaSegundos} s entre as quedas${marcaDoTimer(t)}.` : '';
       return `${nome}: ao terminar, ${reduza} e ${depois}, ${vezes}.${pausa}`;
     }
     case 'MYO_REPS': {
       const quantas = t.miniSeries ? `${t.miniSeries} mini-séries` : 'várias mini-séries';
       const reps = t.repsPorMiniSerie ? ` de ${t.repsPorMiniSerie} ${t.repsPorMiniSerie === 1 ? 'repetição' : 'repetições'}` : ' curtas';
-      return `${nome}: depois da série de ativação, faça ${quantas}${reps} com a mesma carga, com ${textoPausa(t)} de pausa entre elas.`;
+      return `${nome}: depois da série de ativação, faça ${quantas}${reps} com a mesma carga, com ${textoPausa(t)} de pausa entre elas${marcaDoTimer(t)}.`;
     }
     case 'PARTIAL_REPS': {
       const quantas = t.repsParciais ? `mais ${t.repsParciais} ${t.repsParciais === 1 ? 'repetição parcial' : 'repetições parciais'}` : 'repetições parciais';
@@ -312,7 +326,7 @@ export function textoTecnicaPorExtenso(t: Tecnica | null | undefined, config?: C
     }
     default: {
       const vezes = t.pausas != null && t.pausas > 1 ? `, ${t.pausas} vezes` : '';
-      return `${nome}: depois da série, ${textoPausa(t)} de pausa e continue com a mesma carga até a falha${vezes}.`;
+      return `${nome}: depois da série, ${textoPausa(t)} de pausa${marcaDoTimer(t)} e continue com a mesma carga até a falha${vezes}.`;
     }
   }
 }

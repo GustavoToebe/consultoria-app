@@ -26,9 +26,17 @@ async function abrirPlano(page: Page, comProblema = false, ajustar?: (d: ReturnT
     },
   });
   await page.goto(`/treinador/treinos/${PLANO_ID}`);
-  await expect(esperarSessao ? page.getByRole('button', { name: /^Editar sessão/ }) : page.getByText('Sessões (0)', { exact: true })).toBeVisible();
+  await expect(esperarSessao ? page.getByRole('button', { name: /^Editar sessão/ }) : page.getByText('0 sessões · 0 exercícios · 0 séries', { exact: true })).toBeVisible();
   return api;
 }
+
+/** Todas as séries (fora do cardio) com descanso: sem pontos para revisar ("Falta o descanso", SERIE-ABERTA 0.6). */
+const comDescanso = (d: ReturnType<typeof planoDetalhe>) => {
+  // Membros do superset ficam como estão: o descanso deles é só do grupo (fora dos pontos).
+  for (const s of d.rascunho.sessoes) for (const e of s.exercicios) for (const x of e.series) if (!x.cardio && !e.grupoUid) x.descansoSegundos ??= 90;
+};
+/** O selo das Sessões (clicável quando há pendência). */
+const seloDasPendencias = (page: Page) => page.getByRole('button', { name: /· Ir à primeira pendência$/ });
 
 /** Passo 5 do plano, "muitos exercícios e blocos": 14 exercícios na 1ª sessão e o 1º com 7 blocos (repetições diferentes separam os blocos). */
 const muitos = (d: ReturnType<typeof planoDetalhe>) => {
@@ -159,11 +167,14 @@ test.describe('PC (1280)', () => {
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('sem pendência, o plano do aluno diz "Pronto para publicar"; distribuição sempre à vista e totais na sessão', async ({ page }) => {
-    await abrirPlano(page);
+  test('sem pendência, o plano do aluno diz "Pronto para publicar"; totais no cabeçalho da sessão e distribuição recolhível', async ({ page }) => {
+    await abrirPlano(page, false, comDescanso);
     await expect(page.getByText('Pronto para publicar', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/^\d+ exercícios · \d+ séries · \d+ séries de trabalho$/)).toBeVisible();
-    // Visual-ponytail (17/11): a distribuição não fica mais recolhida.
+    // 27/11: os totais da sessão vão para o cabeçalho dela, depois do dia e do tipo.
+    await expect(page.getByText(/^Segunda · Treino · \d+ exercícios · \d+ séries · \d+ de trabalho$/)).toBeVisible();
+    // Abaixo de 1600 px o resumo é a faixa compacta: o detalhe por tipo e grupo fica recolhido (SERIE-ABERTA 0.5).
+    await expect(page.getByText('Séries por tipo', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Séries por tipo e por grupo', exact: true }).click();
     await expect(page.getByText('Séries por tipo', { exact: true })).toBeVisible();
     // "Salvar como dia de treino" mora no ⋯ da sessão.
     await page.getByRole('button', { name: /^Mais ações da sessão/ }).click();
@@ -190,9 +201,15 @@ test.describe('PC (1280)', () => {
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('modelo: o nome é o título, "Editar nome" abre o campo com foco e o estado diz "Sem pendências"', async ({ page }) => {
+  test('modelo: o nome é o título, "Editar nome" abre o campo com foco e o selo conta as séries sem descanso', async ({ page }) => {
     const api = await abrirModelo(page);
-    await expect(page.getByText('Sem pendências', { exact: true }).first()).toBeVisible();
+    // Os dados têm séries sem descanso: no modelo, o selo diz "N pendências" em âmbar (SERIE-ABERTA 0.6), não "Sem pendências".
+    await expect(seloDasPendencias(page)).toHaveAccessibleName(/^\d+ pendências · Ir à primeira pendência$/);
+    // O selo leva ao 1º ponto (os FS do supino, bloco 1): abre o bloco e foca o Descanso, mesmo com outro bloco aberto.
+    await bloco(page, 2).click();
+    await seloDasPendencias(page).click();
+    await expect(bloco(page, 1)).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator(':focus')).toHaveAccessibleName(/^Descanso: /);
     await expect(page.getByRole('button', { name: /^Aplicar ao aluno/ })).toBeEnabled();
     await expect(page.getByRole('textbox', { name: 'Nome do modelo' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Editar nome', exact: true }).click();
@@ -203,9 +220,13 @@ test.describe('PC (1280)', () => {
     await expect(blocos(page)).toHaveCount(3);
     // Salvamento separado da validação: renomeado sem salvar, o selo diz e "Aplicar ao aluno" pede para salvar antes.
     await expect(page.getByText('Alterações não salvas', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Sem pendências', { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Aplicar ao aluno/ })).toBeDisabled();
-    await expect(page.getByText('Salve o modelo antes.', { exact: true })).toBeVisible();
+    await expect(seloDasPendencias(page)).toHaveAccessibleName(/^\d+ pendências · Ir à primeira pendência$/);
+    // Cabeçalho único (a partir de 768 px): o motivo vai na dica do botão e na descrição acessível, não escrito embaixo.
+    const aplicar = page.getByRole('button', { name: /^Aplicar ao aluno/ });
+    await expect(aplicar).toBeDisabled();
+    await expect(aplicar).toHaveAccessibleDescription('Salve o modelo antes.');
+    await aplicar.hover();
+    await expect(page.getByTestId('dica-do-botao')).toHaveText('Salve o modelo antes.');
     expect(await semRolagemLateral(page)).toBe(true);
     expect(api.errosDaPagina).toEqual([]);
   });

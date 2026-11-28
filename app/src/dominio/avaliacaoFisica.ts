@@ -1,12 +1,16 @@
 import type { AvaliacaoFisica, CampoDaMedida, DadosAvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
+import type { MetaDoPeso } from '../api/tipos';
+import { tomDaVariacaoDoPeso, type TomDoPeso } from './corDaVariacaoDoPeso';
 import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
 import { SEM_DADO } from './formatos';
-import { textoDaDiferenca } from './variacaoDoPeso';
+import { pesoComCasas, textoDaDiferenca } from './variacaoDoPeso';
 
 /**
  * Avaliação física (circunferências em cm por data): validação espelhada da API (`ValidacaoDaAvaliacao`: mudou uma,
- * mude a outra), formatação e a comparação de 2 a 4 datas. Só guarda e compara: nada de percentual de gordura,
- * classificação, cor de "bom/ruim" ou texto que interprete. Ausente é "—", nunca zero.
+ * mude a outra), formatação, a comparação de datas e a variação desde a avaliação anterior. Nada de percentual de
+ * gordura, classificação ou texto que interprete. A única cor é a da meta do peso do aluno (27/11, pedido do Gustavo), no
+ * peso e nas medidas que acompanham o peso (cintura, abdômen e quadril); o resto fica neutro. Ausente é "—", nunca zero;
+ * variação zero é "0,0" sem seta e a primeira medida é "Primeira" (`variacaoCurta`).
  */
 
 export const MEDIDA_MINIMA_CM = 5;
@@ -102,13 +106,6 @@ export function diferencaParaTela(d: number | null, unidade: 'cm' | 'kg' = 'cm')
   return `${sinal}${Math.abs(d).toFixed(1).replace('.', ',')} cm`;
 }
 
-/** Marca ou desmarca uma avaliação para comparar; acima do máximo não entra (a tela avisa pelo `motivo`). */
-export function alternarEscolha(escolhidas: readonly string[], id: string): string[] {
-  if (escolhidas.includes(id)) return escolhidas.filter((e) => e !== id);
-  if (escolhidas.length >= COMPARAR_MAXIMO) return [...escolhidas];
-  return [...escolhidas, id];
-}
-
 /**
  * Quando o "Baixar comparativo" aparece (a funcionalidade `PDF` do plano é conferida à parte, por `NoPlano`). A equipe
  * sempre o tem. O aluno só com internet (o PDF baixa a logo e a rota não funciona sem rede) e com a marca da sessão.
@@ -172,4 +169,73 @@ export function graficoDaMedida(pontos: number, graficosLigados: boolean): 'linh
   if (pontos === 0) return 'nada';
   if (!graficosLigados) return 'desligado';
   return pontos === 1 ? 'ponto' : 'linha';
+}
+
+// ---------- Variação desde a avaliação anterior (histórico em tabela e folha, 27/11) ----------
+
+/** Uma coluna do histórico: o peso do dia ou uma circunferência. */
+export type ColunaDoHistorico = CampoDaMedida | 'peso';
+
+/** Só estas seguem a meta do peso do aluno (o peso e as que descem junto com ele); o resto não tem meta e fica neutro. */
+export const COLUNAS_COM_META: readonly ColunaDoHistorico[] = ['peso', 'cintura', 'abdomen', 'quadril'];
+
+export function valorDaColuna(a: AvaliacaoFisica, coluna: ColunaDoHistorico): number | null {
+  if (coluna !== 'peso') return valorDaMedida(a, coluna);
+  return a.pesoKg === null || !Number.isFinite(a.pesoKg) ? null : a.pesoKg;
+}
+
+/** "90,0" (kg) ou "39,5" (cm), sem a unidade (ela fica no cabeçalho); ausente = "—". */
+export function valorParaTabela(coluna: ColunaDoHistorico, v: number | null): string {
+  if (v === null) return SEM_DADO;
+  return coluna === 'peso' ? pesoComCasas(v) : cmParaTela(v);
+}
+
+/**
+ * Valor da coluna na avaliação mais recente ANTES de `data` (estritamente) que a tem: a que não mediu fica de fora (a
+ * variação compara com a última medida de verdade, a mesma do "anterior" da folha). `excetoId` tira a que está em edição.
+ */
+export function valorAnterior(avaliacoes: readonly AvaliacaoFisica[], coluna: ColunaDoHistorico, data: string, excetoId?: string): number | null {
+  let achada: { data: string; valor: number } | null = null;
+  for (const a of avaliacoes) {
+    if (a.id === excetoId || a.data >= data) continue;
+    const valor = valorDaColuna(a, coluna);
+    if (valor !== null && (!achada || a.data > achada.data)) achada = { data: a.data, valor };
+  }
+  return achada?.valor ?? null;
+}
+
+/** Sem avaliação anterior com a medida (decisão do Gustavo, 27/11): texto pequeno e secundário, nunca "—". */
+export const TEXTO_PRIMEIRA = 'Primeira';
+
+export interface VariacaoCurta {
+  /**
+   * `mudou` ("▲ 0,5"/"▼ 1,0"), `igual` ("0,0", sem seta), `primeira` (sem anterior: "Primeira") e `semValor` (a medida não
+   * foi preenchida: "—").
+   */
+  tipo: 'mudou' | 'igual' | 'primeira' | 'semValor';
+  /** "▲ 0,5", "▼ 1,0", "0,0", "Primeira" ou "—". Sem "+" e sem unidade. */
+  texto: string;
+  /** Neutro fora de `COLUNAS_COM_META`, sem meta, com `SEM_META` e fora do `mudou`. */
+  tom: TomDoPeso;
+  /** Para o leitor de tela, sem a seta: "desceu 1,0 cm, a favor da meta", "sem variação", "primeira medida"; vazio no "—". */
+  falado: string;
+}
+
+/** A variação quando a medida não foi preenchida (o valor já mostra "—"). */
+export const VARIACAO_SEM_VALOR: VariacaoCurta = { tipo: 'semValor', texto: SEM_DADO, tom: 'neutro', falado: '' };
+
+/**
+ * Atual − anterior (cm com 1 casa, kg com 2), com seta e a cor da meta só nas colunas que a têm. Zero é "0,0" neutro e sem
+ * seta; sem anterior, "Primeira"; "—" só sem o valor atual. Regra única da tela (histórico e folha) e do PDF.
+ */
+export function variacaoCurta(coluna: ColunaDoHistorico, anterior: number | null, atual: number | null, meta: MetaDoPeso | null | undefined): VariacaoCurta {
+  const kg = coluna === 'peso';
+  if (atual === null) return VARIACAO_SEM_VALOR;
+  if (anterior === null) return { tipo: 'primeira', texto: TEXTO_PRIMEIRA, tom: 'neutro', falado: 'primeira medida' };
+  const d = diferenca(anterior, atual, kg ? 2 : 1) ?? 0;
+  if (d === 0) return { tipo: 'igual', texto: kg ? pesoComCasas(0) : cmParaTela(0), tom: 'neutro', falado: 'sem variação' };
+  const tom = COLUNAS_COM_META.includes(coluna) ? tomDaVariacaoDoPeso(d, meta) : 'neutro';
+  const numero = kg ? pesoComCasas(Math.abs(d)) : cmParaTela(Math.abs(d));
+  const daMeta = tom === 'positivo' ? ', a favor da meta' : tom === 'problema' ? ', contra a meta' : '';
+  return { tipo: 'mudou', texto: `${d > 0 ? '▲' : '▼'} ${numero}`, tom, falado: `${d > 0 ? 'subiu' : 'desceu'} ${numero} ${kg ? 'kg' : 'cm'}${daMeta}` };
 }

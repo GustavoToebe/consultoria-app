@@ -164,4 +164,11 @@ public final class BibliotecaDtos {
 
     public record ImportacaoResultado(int importados, int ignorados) {
     }
+
+    /** Sem anotações de propósito: o serviço confere e responde 422 {@code GRUPOS_INVALIDOS} por campo (anotação daria 400). */
+    public record UnirGruposRequest(List<String> origem, String destino) {
+    }
+
+    public record UnirGruposResultado(int exerciciosAlterados) {
+    }
 }

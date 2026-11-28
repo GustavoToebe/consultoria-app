@@ -28,8 +28,9 @@ export function larguraDoApoioDaFaixa(faixa: FaixaDeLargura): number {
 export const larguraDoApoioPorArea = (area: number | null): number => larguraDoApoioDaFaixa(faixaDeLargura(area ?? 0));
 
 /**
- * Coluna fixa que só gruda ao rolar se a altura dela couber na janela (maior que isso, rola com a página). A
- * `PrincipalComApoio` não usa: ela gruda sempre e, mais alta que a janela, rola por dentro (o treinador e a Dieta contam com isso).
+ * Coluna fixa que só gruda ao rolar se a altura dela couber na janela (maior que isso, rola com a página): a do treino e a
+ * da Dieta do aluno (`aluno/dieta/DietaComApoio`, 28/11). A `PrincipalComApoio` não usa: ela gruda sempre e, mais alta que a
+ * janela, rola por dentro (o treinador conta com isso).
  */
 export const apoioGruda = (alturaDoApoio: number, alturaDisponivel: number): boolean => alturaDoApoio <= alturaDisponivel;
 

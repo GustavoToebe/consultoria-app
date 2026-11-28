@@ -23,21 +23,23 @@ export function useRecuoDaConta() {
 }
 
 /**
- * Seção da Conta no estilo lista de ajustes (23/11): título pequeno em caixa alta fora do cartão (h2; o texto fica em caixa
- * normal e a variante `secao` sobe as letras) e um cartão com as linhas, separadas por um fio `divisor` de ponta a ponta.
- * Peça local de propósito: o `ItemDeLista` é um cartão por item e não agrupa (sugestão para o design system se outra tela
- * precisar).
+ * Cartão da Conta no estilo lista de ajustes: o título é o do cartão (28/11; antes um título pequeno em caixa alta fora dele)
+ * e as linhas vão rentes às bordas, separadas por um fio `divisor` de ponta a ponta. O corpo do `Cartao` com título tem o
+ * recuo dele; a margem negativa (o mesmo recuo) devolve as linhas à borda. Peça local de propósito: o `ItemDeLista` é um
+ * cartão por item e não agrupa (sugestão para o design system se outra tela precisar).
  */
 export function SecaoDaConta({ chave, titulo, children }: { chave: string; titulo: string; children: ReactNode }) {
   const { cores, bordas } = useTema();
+  const recuo = useRecuoDaConta();
   return (
     <AlvoDeRolagem chave={alvoDaSecao(chave)}>
-      <View style={estilos.secao} testID={`secao-${chave}`}>
-        <Texto variante="secao" nivel={2} style={estilos.titulo}>{titulo}</Texto>
-        <Cartao style={estilos.cartao}>
-          {Children.toArray(children).map((filho, i) => (
-            <View key={i} style={i === 0 ? null : { borderTopWidth: bordas.item, borderTopColor: cores.divisor }}>{filho}</View>
-          ))}
+      <View testID={`secao-${chave}`}>
+        <Cartao titulo={titulo}>
+          <View style={{ margin: -recuo }}>
+            {Children.toArray(children).map((filho, i) => (
+              <View key={i} style={i === 0 ? null : { borderTopWidth: bordas.item, borderTopColor: cores.divisor }}>{filho}</View>
+            ))}
+          </View>
         </Cartao>
       </View>
     </AlvoDeRolagem>
@@ -65,6 +67,8 @@ interface PropsDaLinha {
   rotulo?: string;
   /** Sem o › (ação que não abre detalhe, como "Sair"). */
   semSeta?: boolean;
+  /** Ação destrutiva ("Excluir minha conta"): título e ícone em `perigo`, como o item de perigo do `ItemDeLista`. */
+  perigo?: boolean;
   /** Controles à direita, numa linha que não é tocável (interruptor, "Sincronizar agora"). */
   direita?: ReactNode;
   /** Texto de apoio ou controles embaixo, na largura dos textos. */
@@ -75,7 +79,7 @@ interface PropsDaLinha {
  * Uma linha da seção: ícone, título, resumo e o › quando abre um detalhe. Com `aoTocar` ou `href` a linha inteira é o toque
  * (e não leva controle dentro: nada de botão dentro de botão); sem eles, os controles vão em `direita` e em `children`.
  */
-export function LinhaDaConta({ titulo, resumo, Icone, antes, aoTocar, href, rotulo, semSeta, direita, children }: PropsDaLinha) {
+export function LinhaDaConta({ titulo, resumo, Icone, antes, aoTocar, href, rotulo, semSeta, perigo, direita, children }: PropsDaLinha) {
   const { cores } = useTema();
   const recuo = useRecuoDaConta();
   const caminho = usePathname();
@@ -83,9 +87,9 @@ export function LinhaDaConta({ titulo, resumo, Icone, antes, aoTocar, href, rotu
   const tocavel = !!aoTocar || !!href;
   const corpo = (
     <>
-      {antes ?? (Icone ? <View style={estilos.icone}><Icone size={20} color={cores.textoSuave} strokeWidth={2} /></View> : null)}
+      {antes ?? (Icone ? <View style={estilos.icone}><Icone size={20} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} /></View> : null)}
       <View style={estilos.textos}>
-        <Texto style={[estilos.tituloDaLinha, { color: cores.texto }]}>{titulo}</Texto>
+        <Texto style={[estilos.tituloDaLinha, { color: perigo ? cores.perigo : cores.texto }]}>{titulo}</Texto>
         {resumo ? <Texto variante="suave">{resumo}</Texto> : null}
         {children}
       </View>
@@ -109,9 +113,6 @@ export function LinhaDaConta({ titulo, resumo, Icone, antes, aoTocar, href, rotu
 }
 
 const estilos = StyleSheet.create({
-  secao: { gap: espaco(1) },
-  titulo: { paddingHorizontal: espaco(0.5) },
-  cartao: { padding: 0, gap: 0, overflow: 'hidden' },
   bloco: { gap: espaco(1.5) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE + espaco(2), paddingVertical: espaco(1.5) },
   // Controles à direita quebram para baixo quando não cabem (390 px com texto grande).

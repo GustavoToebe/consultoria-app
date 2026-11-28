@@ -30,6 +30,11 @@ test('senha provisória: o login pede a senha nova, confere as duas e entra depo
   await expect(page.getByRole('heading', { name: 'Crie sua senha' })).toBeVisible();
   await expect(page.getByText('Seu treinador criou uma senha provisória. Escolha agora a sua senha para entrar.')).toBeVisible();
   expect(logins()).toHaveLength(1);
+  // Gerenciador de senhas (28/11): as duas são `new-password` e o usuário oculto leva o e-mail digitado no passo anterior.
+  await expect(page.getByLabel('Nova senha', { exact: true })).toHaveAttribute('autocomplete', 'new-password');
+  await expect(page.getByLabel('Repita a nova senha')).toHaveAttribute('autocomplete', 'new-password');
+  await expect(page.locator('input[autocomplete="username"]')).toHaveValue(ALUNO.email);
+  await expect(page.locator('input[autocomplete="username"]')).toBeHidden();
 
   // Conferência local: nada vai para a API.
   await page.getByLabel('Nova senha', { exact: true }).fill('curta');

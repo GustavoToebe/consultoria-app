@@ -189,8 +189,16 @@ for (const largura of LARGURAS) {
     // Botão de cobrança teste começa desabilitado antes de salvar homologação
     await expect(page.getByRole('button', { name: 'Gerar cobrança de teste' })).toBeDisabled();
 
-    // 3. Preencher titular e conta de repasse
-    await page.getByLabel('CPF do titular').fill('52998224725');
+    // 3. Preencher titular e conta de repasse. O documento pede ao navegador e aos gerenciadores de senha para não preencher
+    // (defeito de 28/11), e nenhum campo da aba é de senha.
+    const documento = page.getByLabel('CPF do titular');
+    await expect(documento).toHaveAttribute('autocomplete', 'off');
+    await expect(documento).toHaveAttribute('id', 'documento-do-titular');
+    await expect(documento).toHaveAttribute('data-1p-ignore', 'true');
+    await expect(documento).toHaveAttribute('data-lpignore', 'true');
+    await expect(documento).toHaveAttribute('data-form-type', 'other');
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+    await documento.fill('52998224725');
     await page.getByLabel('Nome completo do titular').fill('Treinadora Teste Silva');
     await page.getByLabel('E-mail financeiro').fill('financeiro@exemplo.test');
     await page.getByLabel('Telefone').fill('45999998888');

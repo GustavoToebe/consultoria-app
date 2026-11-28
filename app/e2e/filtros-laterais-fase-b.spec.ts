@@ -44,7 +44,13 @@ interface Caso {
   largas?: boolean;
 }
 
+/** Regra única dos filtros (28/11): opções fixas em chips no painel; pessoa e responsável seguem na lista com busca. */
+const EM_CHIPS = ['Acesso ao app', 'Origem', 'Situação'];
 async function marcar(page: Page, painel: Locator, rotulo: string, todos: string, opcoes: string[]) {
+  if (EM_CHIPS.includes(rotulo)) {
+    for (const o of opcoes) await painel.getByRole('group', { name: rotulo }).getByRole('button', { name: o, exact: true }).click();
+    return;
+  }
   await painel.getByRole('button', { name: `${rotulo}: ${todos}. Escolher.` }).click();
   const lista = page.getByRole('dialog', { name: rotulo });
   for (const o of opcoes) await lista.getByRole('checkbox', { name: o, exact: true }).click();
@@ -124,7 +130,7 @@ const CASOS: Caso[] = [
   },
   {
     tela: 'auditoria', caminho: '/treinador/auditoria', painel: 'Filtros de eventos', api: '/auditoria', parametro: 'usuarioId',
-    pronto: (page) => page.getByText('Cadastrou um aluno.').first(),
+    pronto: (page) => page.getByLabel('Eventos da auditoria').getByText('Aluno cadastrado', { exact: true }).first(),
     sessao: (page) => sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'AUDITORIA_LER'] }),
     rotas: () => ({
       'GET /auditoria/pessoas': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }, OUTRA] },
@@ -137,7 +143,7 @@ const CASOS: Caso[] = [
     chip: 'Tirar filtro: Pessoa: Bia Fictícia', vazio: /^Sem eventos neste filtro$/,
     comResultado: {
       ligar: (page, painel) => marcar(page, painel, 'Pessoa', 'Todas as pessoas', [TREINADOR.nome]),
-      chip: `Tirar filtro: Pessoa: ${TREINADOR.nome}`, mostra: (page) => page.getByText('Cadastrou um aluno.').first(),
+      chip: `Tirar filtro: Pessoa: ${TREINADOR.nome}`, mostra: (page) => page.getByLabel('Eventos da auditoria').getByText('Aluno cadastrado', { exact: true }).first(),
     },
     periodo: async (painel) => {
       await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/1');
@@ -260,7 +266,7 @@ for (const caso of CASOS) {
         await expect(painel).toBeVisible();
         const campo = await caso.periodo(painel);
         const antes = daLista().length;
-        await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
         await expect(painel).toBeVisible();
         await expect(campo).toHaveAttribute('aria-invalid', 'true');
         await expect(campo).toBeFocused();
@@ -275,7 +281,7 @@ for (const caso of CASOS) {
       await botao.click();
       await expect(painel).toBeVisible();
       await caso.ligar(page, painel);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(page.getByRole('button', { name: caso.chip })).toBeVisible();
@@ -292,7 +298,7 @@ for (const caso of CASOS) {
       const enderecoAplicado = page.url();
       await botao.click();
       await expect(painel).toBeVisible();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       // Espera curta para um pedido indevido ter tempo de sair (não há evento a esperar quando nada acontece).
       await page.waitForTimeout(500);
@@ -309,7 +315,7 @@ for (const caso of CASOS) {
       await botao.click();
       await expect(painel).toBeVisible();
       await caso.comResultado.ligar(page, painel);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(page.getByRole('button', { name: caso.comResultado.chip })).toBeVisible();

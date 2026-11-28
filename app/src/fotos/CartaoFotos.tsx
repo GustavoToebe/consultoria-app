@@ -1,5 +1,5 @@
 import { CircleCheck } from 'lucide-react-native';
-import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useState } from 'react';
 
 import { ErroApi, urlDaApi } from '../api/cliente';
@@ -36,6 +36,7 @@ import {
   type PedidoDeComparacao,
 } from '../dominio/comparacaoDeFotos';
 import { dataParaTela, numeroParaTela, SEM_DADO } from '../dominio/formatos';
+import { enviosDasFotos, gradeDasMiniaturas } from '../dominio/gradeDeFotos';
 import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
 import { alternarComLimite } from '../dominio/selecaoMultipla';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -56,6 +57,7 @@ import { textoDoErro } from '../ui/erros';
 import { useCarregar } from '../ui/useCarregar';
 import { baixarComparacao } from './baixarComparacao';
 import { PreviaDaImagem } from './PreviaDaImagem';
+import { VisualizadorDeFotos } from './VisualizadorDeFotos';
 
 const AVISO_AUTORIZACAO = 'O aluno ainda não autorizou o uso das fotos. Ele autoriza em Conta › Uso das suas fotos.';
 /** Teto da largura de cada foto na comparação: em tela larga o par fica junto, em vez de espalhado pelo cartão. */
@@ -66,12 +68,14 @@ const PROPORCAO_DA_FOTO = 3 / 4;
 
 /**
  * Fotos do aluno: lista e comparação. Na ficha do treinador também gera a imagem.
- * No Histórico do aluno é o mesmo cartão, sem "Gerar imagem".
+ * No Histórico do aluno é o mesmo cartão, sem "Gerar imagem". `style` vai ao `Cartao` (o Corpo do Histórico o estica até a
+ * altura do Peso, ao lado).
  */
-export function CartaoFotos({ alunoId, autorizadoEm, aoRecarregar }: {
+export function CartaoFotos({ alunoId, autorizadoEm, aoRecarregar, style }: {
   alunoId?: string;
   autorizadoEm?: string | null;
   aoRecarregar?: () => void;
+  style?: StyleProp<ViewStyle>;
 }) {
   const doAluno = !alunoId;
   const { dados, erro, carregando, recarregar } = useCarregar(
@@ -85,7 +89,7 @@ export function CartaoFotos({ alunoId, autorizadoEm, aoRecarregar }: {
       : baixarFotoDoTreinador(foto.origemId, foto.fotoId);
   };
   return (
-    <Cartao titulo="Fotos" periodo={dados ? periodoDesdeOPrimeiro(dados.map((f) => f.data)) : undefined} descricao="Fotos enviadas na anamnese e nas atualizações.">
+    <Cartao style={style} titulo="Fotos" periodo={dados ? periodoDesdeOPrimeiro(dados.map((f) => f.data)) : undefined} descricao="Fotos enviadas na anamnese e nas atualizações.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhuma foto enviada ainda.</Texto> : null}
@@ -224,11 +228,7 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
           ) : null}
         </View>
       ) : null}
-      <Folha titulo="Foto" visivel={ampliada !== null} aoFechar={() => setAmpliada(null)} largura={LARGURA_EDITOR}>
-        {ampliada ? (
-          <ImagemProtegida chave={`grande:${ampliada.fotoId}`} carregar={() => baixar(ampliada)} descricao={ampliada.posicao} tamanho={360} altura={450} />
-        ) : null}
-      </Folha>
+      {ampliada ? <VisualizadorDeFotos fotos={fotos} fotoInicialId={ampliada.fotoId} baixar={baixar} aoFechar={() => setAmpliada(null)} /> : null}
       {gerar && folha ? (
         <FolhaGerar
           titulo={folha === 'carrossel' ? 'Gerar carrossel' : 'Gerar imagem'}
@@ -244,42 +244,34 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
   );
 }
 
+/**
+ * Um grupo por envio, do mais recente ao mais antigo, com "11/11/2026 · Atualização · 90 kg" (`dominio/gradeDeFotos`), e as
+ * miniaturas em grade na largura do cartão (perto de 120 px, a linha fecha sem sobra); tocar abre o visualizador.
+ */
 function Lista({ fotos, baixar, aoAbrir }: {
   fotos: FotoDaLinha[];
   baixar: (foto: FotoDaLinha) => Promise<Blob>;
   aoAbrir: (foto: FotoDaLinha) => void;
 }) {
-  const envios = new Map<string, FotoDaLinha[]>();
-  for (const foto of [...fotos].sort((a, b) => b.data.localeCompare(a.data) || a.ordem - b.ordem)) {
-    const chave = `${foto.origem}:${foto.origemId}`;
-    const lista = envios.get(chave) ?? [];
-    lista.push(foto);
-    envios.set(chave, lista);
-  }
+  const [largura, setLargura] = useState(0);
+  const grade = gradeDasMiniaturas(largura, ESPACO_ENTRE_FOTOS);
   return (
-    <View style={estilos.corpo}>
-      {[...envios.values()].map((grupo) => {
-        const primeiro = grupo[0];
-        return (
-          <View key={`${primeiro.origem}:${primeiro.origemId}`} style={estilos.envio}>
-            <Texto numerico>
-              {dataParaTela(primeiro.data)} · {primeiro.origem === 'ANAMNESE' ? 'Anamnese' : 'Atualização'} · {primeiro.pesoKg == null ? SEM_DADO : `${numeroParaTela(primeiro.pesoKg)} kg`}
-            </Texto>
-            <View style={estilos.chips}>
-              {grupo.map((foto) => (
-                <ImagemProtegida
-                  key={foto.fotoId}
-                  chave={`lista:${foto.fotoId}`}
-                  carregar={() => baixar(foto)}
-                  descricao={foto.posicao}
-                  tamanho={72}
-                  aoTocar={() => aoAbrir(foto)}
-                />
-              ))}
-            </View>
+    <View style={estilos.corpo} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
+      {grade ? enviosDasFotos(fotos).map((envio) => (
+        <View key={envio.chave} style={estilos.envio}>
+          <Texto numerico>{envio.rotulo}</Texto>
+          <View style={estilos.grade}>
+            {envio.fotos.map((foto) => (
+              // Botão próprio: o `imagebutton` da `ImagemProtegida` não vira papel nenhum na web.
+              <Pressable key={foto.fotoId} accessibilityRole="button" accessibilityLabel={`Abrir foto: ${foto.posicao || 'Foto'}, ${dataParaTela(foto.data)}`}
+                onPress={() => aoAbrir(foto)} style={estilos.miniatura}>
+                <ImagemProtegida chave={`lista:${foto.fotoId}`} carregar={() => baixar(foto)} descricao={foto.posicao}
+                  tamanho={grade.tamanho} altura={Math.round(grade.tamanho / PROPORCAO_DA_FOTO)} dentroDeBotao />
+              </Pressable>
+            ))}
           </View>
-        );
-      })}
+        </View>
+      )) : null}
     </View>
   );
 }
@@ -466,6 +458,8 @@ const estilos = StyleSheet.create({
   fileira: { flexDirection: 'row', gap: ESPACO_ENTRE_FOTOS },
   celula: { gap: 2 },
   envio: { gap: espaco(1) },
+  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO_ENTRE_FOTOS },
+  miniatura: { borderRadius: RAIO },
   gerar: { gap: espaco(3) },
   gerarLadoALado: { flexDirection: 'row', alignItems: 'flex-start' },
   previas: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: espaco(2) },

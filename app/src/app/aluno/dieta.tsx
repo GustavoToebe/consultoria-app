@@ -27,8 +27,9 @@ export default function DietaAluno() {
   const { dados, erro, carregando, recarregar } = useDietaDoAluno();
   // A água marcada é por dia, contra a meta da dieta em uso (a pasta escolhida para consulta não muda o registro).
   const meta = dados?.dieta?.conteudo.aguaLitros;
-  // No apoio do computador, "−1 copo" e "+1 copo" dividem a largura do cartão (como no Início); no celular, os de sempre.
-  const agua = (noApoio: boolean) => (meta ? <CartaoAguaDoDia metaLitros={meta} botoesCheios={noApoio} /> : null);
+  // No apoio do computador, "−1 copo" e "+1 copo" dividem a largura do cartão (como no Início) e os dias ficam numa linha
+  // rolável com "Hoje" à direita; no celular, os de sempre.
+  const agua = (noApoio: boolean) => (meta ? <CartaoAguaDoDia metaLitros={meta} botoesCheios={noApoio} diasNumaLinha={noApoio} /> : null);
   // Com a dieta na tela, a água vai com ela (`lado`: no apoio ao lado das refeições, ou no topo no celular); sem dieta, fica aqui.
   const temDieta = escolhida ? !!escolhida.planos.dieta : !!dados?.dieta;
 

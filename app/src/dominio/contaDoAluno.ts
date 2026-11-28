@@ -2,38 +2,55 @@ import type { ContratoDoAlunoResumo } from '../api/contratos';
 import type { PeriodoDoPlano, SituacaoDaContratacao } from '../api/financeiroTipos';
 import { dataEmBrasilia } from './agendaPresencial';
 import { apelidoParaEnviar } from './comunidade';
+import { linkParaFalarComOTreinador } from './contatoDaConsultoria';
 import { rotuloDaPeriodicidade } from './financeiro';
 import { dataCurta, dataParaTela } from './formatos';
 import { corpoDoPerfil, perfilMudou, type CorpoDoPerfil, type EdicaoDoPerfil, type PreferenciasLidas } from './perfilDaComunidade';
+import { redesPreenchidas, type LinkDeRede } from './redesSociais';
 
 // Conta do aluno reorganizada (23/11, `docs/planos/conta-do-aluno.md`): só apresentação. As regras de cada dado continuam
 // nos domínios dele (meusDados, perfilDaComunidade, financeiro); aqui ficam a ordem das seções, os resumos das linhas, a
 // máscara de leitura do CPF e o que o "Salvar" do Meu perfil manda.
 
-export type ChaveDaSecao = 'plano' | 'contratos' | 'perfil' | 'dados' | 'convite' | 'privacidade' | 'seguranca' | 'app';
+export type ChaveDaSecao = 'perfil' | 'consultoria' | 'app' | 'plano' | 'contratos' | 'convite' | 'dados' | 'privacidade' | 'seguranca';
 
-/** Ordem do pedido de 23/11; o título vai em caixa alta pela variante `secao` (o texto fica em caixa normal). */
-export const SECOES_DA_CONTA: readonly { chave: ChaveDaSecao; titulo: string }[] = [
+/**
+ * Os cartões da Conta na ordem de leitura (28/11): a do DOM, a do celular e a das colunas empilhadas da web. `coluna` prende
+ * o cartão a uma coluna nas colunas empilhadas (`aluno/inicio/ColunasMedidas`): o Perfil no topo da primeira e "Sua
+ * consultoria", logo depois dele, no topo da segunda (com 2 ou 3 colunas). O título é o do cartão (o Perfil não mostra o
+ * dele: a foto e o nome já são o topo).
+ */
+export const SECOES_DA_CONTA: readonly { chave: ChaveDaSecao; titulo: string; coluna?: number }[] = [
+  { chave: 'perfil', titulo: 'Perfil', coluna: 0 },
+  { chave: 'consultoria', titulo: 'Sua consultoria', coluna: 1 },
+  { chave: 'app', titulo: 'App' },
   { chave: 'plano', titulo: 'Meu plano' },
   { chave: 'contratos', titulo: 'Meus contratos' },
-  { chave: 'perfil', titulo: 'Perfil na Comunidade' },
-  { chave: 'dados', titulo: 'Meus dados' },
   { chave: 'convite', titulo: 'Convidar um amigo' },
+  { chave: 'dados', titulo: 'Meus dados' },
   { chave: 'privacidade', titulo: 'Privacidade' },
   { chave: 'seguranca', titulo: 'Segurança' },
-  { chave: 'app', titulo: 'App' },
 ];
 
 /**
- * As seções que existem agora, na ordem (a tela e o índice da web usam a mesma lista). As quatro (e os contratos) dependem do que a
- * tela já sabe e seguem as regras de sempre: o plano só com o financeiro ligado (sem internet ele diz que espera a conexão);
- * perfil, dados e convite só com internet ou com o dado já lido (o convite também some com o 404 da consultoria sem link).
- * Privacidade, Segurança e App sempre têm linha (Termos, Sair, Aparência).
+ * Os cartões que existem agora, na ordem (a tela usa a mesma lista). Os que dependem do que a tela já sabe seguem as regras
+ * de sempre: o plano só com o financeiro ligado (sem internet ele diz que espera a conexão); dados e convite só com internet
+ * ou com o dado já lido (o convite também some com o 404 da consultoria sem link); contratos e "Sua consultoria" só quando
+ * marcados (ausente = não existe). Perfil, App, Privacidade e Segurança sempre têm linha (Trocar foto, Aparência, Termos, Sair).
  */
-export function secoesVisiveis(existe: { plano: boolean; perfil: boolean; dados: boolean; convite: boolean; contratos?: boolean }) {
-  // `contratos` ausente = não existe (ao contrário do que a lista não conhece, que sempre aparece).
-  const visivel: Record<string, boolean> = { contratos: false, ...existe };
+export function secoesVisiveis(existe: { plano: boolean; dados: boolean; convite: boolean; contratos?: boolean; consultoria?: boolean }) {
+  const visivel: Record<string, boolean> = { contratos: false, consultoria: false, ...existe };
   return SECOES_DA_CONTA.filter((s) => (s.chave in visivel ? visivel[s.chave] : true));
+}
+
+/**
+ * "Sua consultoria" (28/11): o link do "Falar com o treinador" (WhatsApp) e as redes da consultoria em modo leitura (só as
+ * https seguras). Sem nenhum dos dois, `null`: o cartão não existe (nem vazio).
+ */
+export function contatoDaConsultoriaNaConta(whatsapp: string | null | undefined, redes: Parameters<typeof redesPreenchidas>[0]): { whatsapp: string | null; redes: LinkDeRede[] } | null {
+  const link = linkParaFalarComOTreinador(whatsapp);
+  const lidas = redesPreenchidas(redes);
+  return link || lidas.length ? { whatsapp: link, redes: lidas } : null;
 }
 
 /** "Meus contratos" existe com a chave ligada, internet e ao menos um contrato (pendente ou assinado); nada fica no aparelho. */
@@ -70,12 +87,8 @@ export function seloDoPlano(plano: { periodicidade: PeriodoDoPlano; situacao: Si
   return { texto: `${plano.contratoFechado ? 'Contrato' : rotuloDaPeriodicidade(plano.periodicidade)} · ${situacao.texto}`, tom: situacao.tom };
 }
 
-const destaques = (n: number) => (n === 0 ? 'sem destaques' : n === 1 ? '1 destaque' : `${n} destaques`);
-
-/** Resumo da linha "Meu perfil": "Apelido: —, 2 destaques"; reservado, diz isso no lugar dos destaques (eles não aparecem). */
-export function resumoDoPerfil(apelido: string | null | undefined, quantosDestaques: number, reservado: boolean): string {
-  return `Apelido: ${apelido?.trim() || '—'}, ${reservado ? 'perfil reservado' : destaques(quantosDestaques)}`;
-}
+/** Resumo da linha "Perfil na comunidade": o apelido, ou "Sem apelido". */
+export const resumoDoApelido = (apelido: string | null | undefined) => apelido?.trim() || 'Sem apelido';
 
 /** Resumo da linha "Meus dados": nome e telefone. */
 export const resumoDosDados = (nome: string, telefone: string | null | undefined) => `${nome} · ${telefone?.trim() || 'Sem telefone'}`;

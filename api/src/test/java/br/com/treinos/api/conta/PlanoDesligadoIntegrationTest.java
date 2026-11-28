@@ -5,6 +5,7 @@ import br.com.treinos.api.ApiDeTeste;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
@@ -17,8 +18,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Chave {@code TREINOS_PLANO_APLICAR} desligada (padrão): direitos restritivos gravados, e nada é barrado. */
+/** {@code TREINOS_PLANO_APLICAR=false} (o padrão é ligada): direitos restritivos gravados, e nada é barrado. */
 @AutoConfigureMockMvc
+@TestPropertySource(properties = "treinos.plano.aplicar=false")
 class PlanoDesligadoIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;

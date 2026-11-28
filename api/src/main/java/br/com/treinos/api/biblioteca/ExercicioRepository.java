@@ -25,4 +25,8 @@ public interface ExercicioRepository extends JpaRepository<Exercicio, UUID> {
     List<String> nomesAtivos();
 
     List<Exercicio> findByIdIn(Collection<UUID> ids);
+
+    /** Ativos e arquivados com o grupo (sem espaço nas pontas, como a tela o vê) em {@code origem} e diferente do destino. */
+    @Query("select e from Exercicio e where trim(e.grupoMuscular) in :origem and trim(e.grupoMuscular) <> :destino")
+    List<Exercicio> comGrupoParaUnir(Collection<String> origem, String destino);
 }

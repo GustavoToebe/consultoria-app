@@ -159,9 +159,115 @@ test('1280 e 1920: Configurações › Contratos dentro das Configurações', as
     await abrirModelos(page, { largura, modelos: [MODELO, modelo(2, 'Termo antigo', { arquivadoEm: '2026-11-01T12:00:00Z' })] }, '/treinador/configuracoes/contratos');
     await expect(page.getByRole('heading', { level: 1, name: 'Contratos' })).toBeVisible();
     await expect(page.getByText('Prestação de serviço')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Como funciona' })).toBeVisible();
+    // 28/11: a partir de 1280 de área (1920 de janela, com o menu e a lista), o apoio fica à direita dos modelos e na mesma
+    // altura; em 1280 de janela a área é menor e ele desce para baixo dos modelos.
+    const modelos = await page.getByRole('heading', { name: /^Modelos de contrato/ }).boundingBox();
+    const apoio = await page.getByRole('complementary', { name: 'Prazo e campos do contrato' }).boundingBox();
+    expect(modelos && apoio).toBeTruthy();
+    if (largura === 1920) expect(apoio!.x).toBeGreaterThan(modelos!.x + 400);
+    else expect(apoio!.y).toBeGreaterThan(modelos!.y);
     await capturar(page, `configuracoes-contratos-${largura}`);
     await page.unrouteAll({ behavior: 'ignoreErrors' });
   }
+});
+
+// ---------------------------------------------------------------- treinador: prazo para assinar (28/11, apoio da tela)
+
+/** `GET`/`PUT /consultoria/contratos` com o valor guardado entre as chamadas. */
+function rotasDoPrazo(inicial: number | null, put?: RespostasApi[string]): RespostasApi {
+  let prazoDias = inicial;
+  return {
+    'GET /consultoria/contratos': (_p, r) => json(r, { prazoDias }),
+    'PUT /consultoria/contratos': put ?? ((p, r) => {
+      prazoDias = (p.corpo as { prazoDias: number | null }).prazoDias;
+      return json(r, { prazoDias });
+    }),
+  };
+}
+const opcaoDoPrazo = (page: Page, rotulo: string) =>
+  page.getByRole('radiogroup', { name: 'Quando o aluno não assina' }).getByRole('radio', { name: rotulo, exact: true });
+const putsDoPrazo = (pedidos: PedidoFalso[]) => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === '/consultoria/contratos').map((p) => p.corpo);
+
+for (const largura of [390, 1280]) {
+  test.describe(`prazo para assinar em ${largura} px`, () => {
+    test('"Travar" nasce com 7 dias, o atalho troca, salvar pelo rodapé; sem "Tudo salvo" solto; desligar manda nulo', async ({ page }) => {
+      const api = await abrirModelos(page, { largura, modelos: [MODELO], rotas: rotasDoPrazo(null) });
+      await expect(opcaoDoPrazo(page, 'Não travar o acesso')).toBeChecked();
+      await expect(page.getByText('Tudo salvo')).toHaveCount(0);
+      await expect(page.getByText('Alterações não salvas')).toHaveCount(0);
+      // A explicação longa é o ⓘ do título.
+      await expect(page.getByRole('button', { name: 'Sobre o prazo para assinar' })).toBeVisible();
+      await opcaoDoPrazo(page, 'Travar depois de um prazo').click();
+      const dias = page.getByLabel('Dias para assinar', { exact: true });
+      await expect(dias).toHaveValue('7');
+      await expect(page.getByText('De 1 a 60 dias. Vale para os contratos gerados daqui em diante.')).toBeVisible();
+      await expect(page.getByText('Alterações não salvas')).toBeVisible();
+      // Atalho que preenche o campo (regra 17): botão comum; o campo recebe o valor e o foco.
+      await page.getByRole('group', { name: 'Atalhos de dias para assinar' }).getByRole('button', { name: '15 dias', exact: true }).click();
+      await expect(dias).toHaveValue('15');
+      await expect(dias).toBeFocused();
+      await page.getByRole('button', { name: 'Salvar prazo' }).click();
+      await expect(page.getByText('Prazo para assinar salvo.')).toBeVisible();
+      await expect(page.getByText('Alterações não salvas')).toHaveCount(0);
+      await opcaoDoPrazo(page, 'Não travar o acesso').click();
+      await page.getByRole('button', { name: 'Salvar prazo' }).click();
+      await expect(page.getByText('Alterações não salvas')).toHaveCount(0);
+      expect(putsDoPrazo(api.pedidos)).toEqual([{ prazoDias: 15 }, { prazoDias: null }]);
+      expect(api.naoTratadas).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('fora de 1 a 60 não chama a API; o 422 aparece junto do campo; Cancelar volta ao salvo', async ({ page }) => {
+      const api = await abrirModelos(page, {
+        largura, modelos: [MODELO],
+        rotas: rotasDoPrazo(10, erroApi(422, 'Confira o prazo para assinar.', 'CONTRATO_PRAZO_INVALIDO', [{ field: 'prazoDias', message: 'Informe de 1 a 60 dias, ou deixe em branco para não travar o acesso.' }])),
+      });
+      const dias = page.getByLabel('Dias para assinar', { exact: true });
+      await expect(dias).toHaveValue('10');
+      await dias.fill('0');
+      await page.getByRole('button', { name: 'Salvar prazo' }).click();
+      await expect(page.getByText('Informe um número inteiro de 1 a 60 dias.')).toBeVisible();
+      await expect(dias).toBeFocused();
+      expect(putsDoPrazo(api.pedidos)).toEqual([]);
+      await dias.fill('30');
+      await page.getByRole('button', { name: 'Salvar prazo' }).click();
+      await expect(page.getByText('Informe de 1 a 60 dias, ou deixe em branco para não travar o acesso.')).toBeVisible();
+      await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+      await expect(dias).toHaveValue('10');
+      await expect(page.getByText('Alterações não salvas')).toHaveCount(0);
+      expect(api.naoTratadas).toEqual([]);
+    });
+
+    test('só CONTRATO_LER: o prazo só para leitura com o motivo, sem escolha nem salvar', async ({ page }) => {
+      const api = await abrirModelos(page, { largura, modelos: [MODELO], permissoes: [...PERMISSOES_TREINADOR, 'CONTRATO_LER'], rotas: rotasDoPrazo(15) });
+      await expect(page.getByLabel('Quando o aluno não assina: Trava o acesso depois de 15 dias')).toBeVisible();
+      await expect(page.getByText('Seu perfil só vê o prazo. Para mudar, peça a quem administra a consultoria.')).toBeVisible();
+      await expect(page.getByRole('radiogroup', { name: 'Quando o aluno não assina' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Salvar prazo' })).toHaveCount(0);
+      // Os campos para copiar continuam à vista (servem para ler o modelo).
+      await expect(page.getByRole('button', { name: 'Copiar campo Nome do aluno' })).toBeVisible();
+      expect(api.naoTratadas).toEqual([]);
+    });
+
+    test('erro ao carregar o prazo: mensagem com "Tentar de novo" só no cartão; os modelos seguem', async ({ page }) => {
+      await abrirModelos(page, { largura, modelos: [MODELO], rotas: { 'GET /consultoria/contratos': erroApi(500, 'Erro interno no servidor.') } });
+      await expect(page.getByText('Prestação de serviço')).toBeVisible();
+      await expect(page.getByText('Erro interno no servidor.')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
+    });
+  });
+}
+
+test('vazio útil: três passos e um só "Novo modelo"; copiar um campo avisa', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await abrirModelos(page, { largura: 1280 });
+  await expect(page.getByText('Nenhum modelo de contrato')).toBeVisible();
+  await expect(page.getByText('Use os campos que o app preenche, como nome, CPF, plano e valor.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Novo modelo' })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Copiar campo CPF do aluno' }).click();
+  await expect(page.getByText('Campo CPF do aluno copiado.')).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('{aluno_cpf}');
 });
 
 // ---------------------------------------------------------------- treinador: ficha

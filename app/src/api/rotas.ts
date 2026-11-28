@@ -1006,9 +1006,11 @@ export type TipoBiblioteca = 'exercicios' | 'alimentos';
 export const importarDoCatalogo = (tipo: TipoBiblioteca, ids: string[]) =>
   requisicao<ImportacaoResultado>(`/${seg(tipo)}/importar-catalogo`, { metodo: 'POST', corpo: { ids } });
 
-export const listarImportacoes = (filtro: { destino?: string; situacao?: string; arquivo?: 'xlsx' | 'csv'; de?: string; ate?: string; pagina: number }) => {
+/** `destino` e `situacao` vão repetidos (`?destino=alunos&destino=pesos`); `arquivo`, `de` e `ate`, um de cada. */
+export const listarImportacoes = (filtro: { destino?: readonly string[]; situacao?: readonly string[]; arquivo?: 'xlsx' | 'csv'; de?: string; ate?: string; pagina: number }) => {
   const q = new URLSearchParams();
-  for (const campo of ['destino', 'situacao', 'arquivo', 'de', 'ate'] as const) {
+  for (const campo of ['destino', 'situacao'] as const) for (const v of filtro[campo] ?? []) q.append(campo, v);
+  for (const campo of ['arquivo', 'de', 'ate'] as const) {
     const valor = filtro[campo];
     if (valor) q.set(campo, valor);
   }

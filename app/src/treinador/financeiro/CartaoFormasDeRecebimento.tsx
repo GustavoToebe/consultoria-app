@@ -18,6 +18,7 @@ import { espaco, fontes, LARGURA_FORMULARIO, RAIO_CONTROLE } from '../../tema/to
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { semPreencher } from '../../ui/CampoDeChave';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
@@ -423,9 +424,10 @@ function Formulario({
                 <View style={estilos.chave}>
                   <Campo ref={refChave} rotulo={estado.chaveConfigurada ? 'Nova chave Pix' : 'Chave Pix'} valor={estado.chave}
                     aoMudar={(t) => mudar({ chave: mascaraDaChavePix(estado.tipoChave, t) }, 'chave')} erro={erros.chave ?? null}
-                    ajuda={ajudaDaChave} editable={!!estado.tipoChave}
-                    keyboardType={doTipo?.teclado} inputMode={doTipo?.modo} autoCapitalize={estado.tipoChave === 'CNPJ' ? 'characters' : 'none'}
-                    autoCorrect={false} autoComplete="off" spellCheck={false} maxLength={LIMITES_DO_PIX.chave} />
+                    ajuda={ajudaDaChave} editable={!!estado.tipoChave} maxLength={LIMITES_DO_PIX.chave}
+                    // Chave do tipo E-mail é onde o navegador poria o e-mail do login (defeito de 28/11): pede para não preencher.
+                    {...semPreencher('chave-pix')}
+                    keyboardType={doTipo?.teclado} inputMode={doTipo?.modo} autoCapitalize={estado.tipoChave === 'CNPJ' ? 'characters' : 'none'} />
                   {estado.chaveConfigurada && estado.tipoChave === estado.tipoChaveGravado ? (
                     <LinhaDeAcoes>
                       {/* O campo some ao tocar: o foco vai ao "Trocar a chave", que volta no lugar dele (senão cairia no início da página). */}

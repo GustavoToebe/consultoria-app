@@ -19,6 +19,10 @@ jest.mock('../ui/Campos', () => ({
 const frases: string[] = [];
 jest.mock('../ui/Texto', () => ({ Texto: ({ children }: { children?: unknown }) => { frases.push(String(children)); return null; } }));
 jest.mock('../ui/Escolha', () => ({ Escolha: () => null }));
+// Os atalhos de data são botões comuns: o dublê guarda cada um pelo rótulo, para o teste tocar.
+const atalhos: Record<string, { rotuloAcessivel?: string; aoTocar: () => void }> = {};
+jest.mock('../ui/Botao', () => ({ Botao: (p: { rotulo: string; rotuloAcessivel?: string; aoTocar: () => void }) => { atalhos[p.rotulo] = p; return null; } }));
+jest.mock('../ui/ChipsDeFiltro', () => ({ ChipsDeUmaOpcao: () => null }));
 jest.mock('../ui/EscolhaEmFolha', () => ({ EscolhaEmFolha: () => null, OPCOES_PARA_BUSCAR: 8 }));
 
 const VAZIO = { de: null, ate: null };
@@ -81,4 +85,24 @@ it('fora do painel (e no painel antes do Aplicar) os avisos são os de antes: fr
   digitar('Até', '01/09/2026');
   expect(campos['Até'].erro).toBe('Fim antes do início.');
   expect(campos.De.erro).toBeNull();
+});
+
+it('os atalhos são botões comuns que preenchem as duas datas; com limite de dias, os longos não aparecem', () => {
+  jest.useFakeTimers({ now: new Date('2026-11-28T15:00:00Z') });
+  try {
+    const aoMudar = jest.fn();
+    for (const k of Object.keys(atalhos)) delete atalhos[k];
+    montar({ aoMudar });
+    expect(Object.keys(atalhos)).toEqual(['Hoje', '7 dias', '30 dias', 'Este mês', 'Mês passado']);
+    expect(atalhos['7 dias'].rotuloAcessivel).toBe('7 dias (Data)');
+    act(() => { atalhos['7 dias'].aoTocar(); });
+    expect(aoMudar).toHaveBeenLastCalledWith({ de: '2026-11-22', ate: '2026-11-28' });
+    act(() => { atalhos['Este mês'].aoTocar(); });
+    expect(aoMudar).toHaveBeenLastCalledWith({ de: '2026-11-01', ate: '2026-11-30' });
+    for (const k of Object.keys(atalhos)) delete atalhos[k];
+    montar({ aoMudar, maximoDias: 7 });
+    expect(Object.keys(atalhos)).toEqual(['Hoje', '7 dias']);
+  } finally {
+    jest.useRealTimers();
+  }
 });
