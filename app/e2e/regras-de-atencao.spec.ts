@@ -82,7 +82,7 @@ for (const largura of [390, 1280]) {
       await expect(titulo(page)).toBeVisible();
       await expect(page.getByText('1 de 6 ligada')).toBeVisible();
       await expect(page.getByText('Tudo salvo')).toBeVisible();
-      // ⓘ do cabeçalho com a explicação da tela (sem "Saiba mais": não há seção da Ajuda para ela ainda).
+      // ⓘ do cabeçalho com a explicação da tela; o "Saiba mais" leva à seção `regras-de-atencao` da Ajuda.
       await expect(page.getByRole('button', { name: 'Sobre esta tela' })).toBeVisible();
 
       await page.getByRole('switch', { name: 'Nota até um número' }).click();

@@ -1,4 +1,4 @@
-import { Droplet, Minus, Plus } from 'lucide-react-native';
+import { Droplet, Minus, Plus, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -24,7 +24,7 @@ import { DatasDaMobilidade } from './DatasDaMobilidade';
 /**
  * Água do dia (docs/planos/agua-do-aluno.md): o aluno marca copos de 250 ml (−/+) e vê "1,5 L de 3,0 L" contra a "Água
  * por dia" da dieta. Grava no aparelho na hora e vai na mesma fila de envio das séries, inclusive sem internet. Só aparece
- * com meta na dieta (quem chama confere). Hoje e os 6 dias anteriores, no "hoje" de Brasília (o do servidor). A barra usa
+ * com meta na dieta (quem chama confere). Hoje e os 6 dias anteriores, no "hoje" de Brasília (o do servidor). A gota, a barra e o contorno e ícone dos −/+ usam
  * a cor da água (`identificacao.AGUA`, 27/11, a mesma do gráfico da ficha): categoria, sem cor de alerta nem comemoração, o
  * app não julga quanto o aluno tomou. Em todas as larguras o cartão é
  * uma pilha só (título, números, barra e botões embaixo, que quebram se não couberem). `compacto` (o Início, onde o
@@ -57,6 +57,7 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false, botoesCheios = f
   };
 
   const semCopo = ml <= 0 ? 'Nenhum copo marcado neste dia.' : undefined;
+  const podeTirar = !(ml <= 0 || gravando);
   // Botões cheios: o motivo do "−" desabilitado vai numa linha embaixo dos dois (dentro do botão ele encolhia só o "−").
   const botoes = (
     <View style={botoesCheios ? estilos.blocoCheio : undefined}>
@@ -66,13 +67,13 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false, botoesCheios = f
           // Com o motivo fora do botão, ele vai no nome acessível (o `Botao` só o põe no hint quando o desenha).
           rotuloAcessivel={botoesCheios && semCopo ? `Tirar um copo. ${semCopo}` : 'Tirar um copo'}
           tipo="secundario"
-          Icone={Minus}
-          desabilitado={ml <= 0 || gravando}
+          Icone={podeTirar ? MenosNaCorDaAgua : Minus}
+          desabilitado={!podeTirar}
           motivo={botoesCheios ? undefined : semCopo}
           aoTocar={() => mudar(menosUmCopo(ml))}
-          style={[botoesCheios && estilos.metade, !(ml <= 0 || gravando) && { borderColor: agua }]}
+          style={[botoesCheios && estilos.metade, podeTirar && { borderColor: agua }]}
         />
-        <Botao rotulo="1 copo" rotuloAcessivel="Mais um copo" tipo="secundario" Icone={Plus} desabilitado={gravando} aoTocar={() => mudar(maisUmCopo(ml))}
+        <Botao rotulo="1 copo" rotuloAcessivel="Mais um copo" tipo="secundario" Icone={gravando ? Plus : MaisNaCorDaAgua} desabilitado={gravando} aoTocar={() => mudar(maisUmCopo(ml))}
           style={[botoesCheios && estilos.metade, !gravando && { borderColor: agua }]} />
       </View>
       {botoesCheios && semCopo ? <Texto variante="pequeno">{semCopo}</Texto> : null}
@@ -106,6 +107,20 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false, botoesCheios = f
     </Cartao>
   );
 }
+
+interface PropsDoIcone { size?: number; strokeWidth?: number }
+
+/**
+ * Ícone do −/+ na cor da água (27/11): o `Botao` pinta o ícone com a cor do rótulo, então a cor vem por aqui. Desabilitado
+ * fica o ícone comum (o cinza do botão). Sobre o poço do secundário (`superficie2`, também ao passar o mouse) a água passa
+ * 4,5:1 em todas as paletas (`tokens.test.ts`, "cor da água").
+ */
+function IconeNaCorDaAgua({ Icone, size, strokeWidth }: PropsDoIcone & { Icone: LucideIcon }) {
+  const { identificacao } = useTema();
+  return <Icone size={size} strokeWidth={strokeWidth} color={identificacao.AGUA.cor} />;
+}
+const MenosNaCorDaAgua = ((p: PropsDoIcone) => <IconeNaCorDaAgua Icone={Minus} {...p} />) as unknown as LucideIcon;
+const MaisNaCorDaAgua = ((p: PropsDoIcone) => <IconeNaCorDaAgua Icone={Plus} {...p} />) as unknown as LucideIcon;
 
 const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
