@@ -373,7 +373,7 @@ for (const largura of [390, 1280]) {
       expect(api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `${BASE}/s1`).length).toBeGreaterThan(leiturasAntes);
 
       await gravar(page).click();
-      await expect(page.getByRole('alert').filter({ hasText: /Nada foi gravado\. Escolha Ignorar nesses grupos/ })).toBeVisible();
+      await expect(page.getByRole('alert').filter({ hasText: /Nada foi gravado\. Escolha Ignorar nesses alunos/ })).toBeVisible();
       await capturar(page, `importacao-403-${largura}`);
       expect(api.errosDaPagina).toEqual([]);
     });
@@ -565,7 +565,7 @@ for (const largura of [390, 1280]) {
       const primeira = lista.getByRole('listitem').first();
       await expect(primeira.getByText('24/11/2026 14:30')).toBeVisible();
       await expect(primeira.getByText('Em revisão')).toBeVisible();
-      await expect(primeira.getByText('2 arquivos · 16 grupos · 26 dúvidas')).toBeVisible();
+      await expect(primeira.getByText('2 arquivos · 16 alunos · 26 dúvidas')).toBeVisible();
       await expect(primeira.getByText('expira em 3 dias')).toBeVisible();
       // Antes de ler não há grupos nem dúvidas para contar: só os arquivos.
       const segunda = lista.getByRole('listitem').nth(1);
@@ -758,7 +758,8 @@ for (const largura of [390, 1280]) {
       await expect.poll(() => api.pedidos.find((p) => p.metodo === 'PUT' && p.caminho === `${BASE}/s1/grupos/g4`)?.corpo).toEqual({ nome: 'Joana Ficticia' });
       await expect(page.getByText(/O app usou o nome do arquivo/)).toHaveCount(0);
       await expect(caixas.nth(3)).toBeEnabled();
-      await caixas.nth(3).click();
+      // Sem a seleção mexida, quem fica pronto já entra marcado (a seleção nasce com os prontos).
+      await expect(caixas.nth(3)).toBeChecked();
       await expect(gravar(page)).toBeEnabled();
       expect(api.errosDaPagina).toEqual([]);
     });

@@ -161,7 +161,7 @@ for (const largura of [390, 1280]) {
     await capturar(page, `visualizador-erro-${largura}`);
     falhar = false;
     await foto.getByRole('button', { name: 'Tentar de novo', exact: true }).click();
-    await expect(foto.getByRole('img', { name: 'Frente, 01/03/2026' })).toBeVisible();
+    await expect(foto.getByRole('img', { name: 'Frente, 01/03/2026', exact: true })).toBeVisible();
   });
 
   test(`com uma data só, Comparar fica desabilitado com o motivo em ${largura}px`, async ({ page }) => {
