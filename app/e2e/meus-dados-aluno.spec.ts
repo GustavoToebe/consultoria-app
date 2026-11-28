@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 
 import type { CicloDaAluna, EuResponse, MeusDadosRequest, MeusDadosResponse } from '../src/api/tipos';
 import { ALUNO, erroApi, json, simularApi, type PedidoFalso, type RespostasApi } from './api-falsa';
-import { NAO_E_TELEFONE } from '../src/dominio/entradaDoTelefone';
+import { NAO_E_TELEFONE } from '../src/dominio/textoDoTelefone';
 import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
 
 /**

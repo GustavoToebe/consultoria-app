@@ -99,8 +99,11 @@ export function ajudaDaCargaDoGrupo(g: GrupoDeSeries, config: Configuracao, semC
 const LARGURA_DO_NOME_DA_SERIE = 64;
 const LARGURA_DO_RIR = 96;
 const LARGURA_DO_KG = 88;
-/** A coluna da carga nas linhas por série: o RIR fica alinhado de uma série para a outra. */
-const LARGURA_DA_CARGA = 260;
+/**
+ * A coluna da carga nas linhas por série: o RIR fica alinhado de uma série para a outra. Cabe "[85] a [90] % da WS" (~220);
+ * com 260 a linha (64 + 260 + 96 + vãos) passava dos ~418 px dos controles com a prévia ao lado em 1280 e o RIR descia.
+ */
+const LARGURA_DA_CARGA = 224;
 
 type Esforco = 'RIR' | 'RPE';
 const OPCOES_DO_ESFORCO: { valor: Esforco; rotulo: string }[] = [{ valor: 'RIR', rotulo: 'RIR' }, { valor: 'RPE', rotulo: 'RPE' }];

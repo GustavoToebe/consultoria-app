@@ -40,11 +40,12 @@ export function PrazoDaAtualizacao({ dias, aoMudar, aoValidade, legivel, erro }:
         <Texto variante="rotulo">Nova atualização a cada</Texto>
         <View style={estilos.caixa}>
           <CampoNumerico key={chave} autoFocus={chave > 0} rotulo="Nova atualização a cada (dias)" rotuloOculto inteiro mono centralizado valor={dias}
-            aoMudar={aoMudar} aoValidade={aoValidade} erro={erro} erroSemTexto />
+            aoMudar={aoMudar} aoValidade={aoValidade} erro={legivel ? erro : null} erroSemTexto />
         </View>
         <Texto variante="rotulo">dias</Texto>
       </View>
-      {erro ? <MensagemDeErro erro={erro} /> : !legivel ? <MensagemDeErro erro="Use só números inteiros." /> : null}
+      {/* O texto que não é número vem antes: o erro da faixa seria do último número lido ("400"), não do que está na caixa. */}
+      {!legivel ? <MensagemDeErro erro="Use só números inteiros." /> : erro ? <MensagemDeErro erro={erro} /> : null}
       <View role="group" accessibilityLabel="Atalhos do prazo" style={estilos.atalhos}>
         {ATALHOS_DOS_DIAS.map((n) => (
           <Botao key={n} tipo="secundario" tamanho="pequeno" rotulo={String(n)} rotuloAcessivel={`${n} dias`} style={estilos.atalho}

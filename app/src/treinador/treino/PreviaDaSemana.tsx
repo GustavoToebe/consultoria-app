@@ -85,7 +85,7 @@ export function PreviaDaSemana({ semana: r, gruposMusculares, colecao }: {
         <View role="region" aria-label={`Exercícios de ${dia}, ${nomeDaAberta}`} style={estilos.bloco}>
           <Texto variante="secao">{`${dia} · ${nomeDaAberta}`}</Texto>
           <LegendaDasModalidades modalidades={modalidades} />
-          <View role="list" style={estilos.exercicios}>
+          <View role="list" aria-label="Exercícios da sessão" style={estilos.exercicios}>
             {sessao.exercicios.map((e) => <LinhaDoExercicio key={e.uid} exercicio={e} grupo={e.exercicioId ? gruposMusculares.get(e.exercicioId) ?? null : null} />)}
           </View>
         </View>

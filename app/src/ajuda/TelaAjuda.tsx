@@ -11,6 +11,7 @@ import { Cabecalho } from '../ui/Cabecalho';
 import { Campo } from '../ui/Campo';
 import { EscolhaSuspensa } from '../ui/EscolhaSuspensa';
 import { Vazio } from '../ui/Estados';
+import { depoisDeFecharAsFolhas } from '../ui/historicoDasFolhas';
 import { usePasseio } from '../ui/Passeio';
 import { useRolagem } from '../ui/RolagemComTopo';
 import { Tela } from '../ui/Tela';
@@ -175,10 +176,11 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
               <View accessibilityLiveRegion="polite" aria-live="polite">
                 {buscando ? <Texto variante="suave" numerico>{textoDoResultado(resultados.length)}</Texto> : null}
               </View>
+              {/* No celular a lista abre numa Folha: gravar o assunto no endereço com ela aberta seria desfeito pelo fechar. */}
               {!lateral ? (
                 <EscolhaSuspensa rotulo="Assunto" titulo="Assuntos da ajuda" valor={atual} rotuloDaBusca="Buscar assunto" textoVazio="Nenhum assunto encontrado."
                   opcoes={entradas.map((e) => ({ valor: e.id, rotulo: e.rotulo, detalhe: e.quantos === undefined ? undefined : `${e.quantos} ${e.quantos === 1 ? 'tópico' : 'tópicos'}` }))}
-                  aoMudar={(id) => abrir(id)} />
+                  aoMudar={(id) => depoisDeFecharAsFolhas(() => abrir(id))} />
               ) : null}
               {conteudo}
             </View>

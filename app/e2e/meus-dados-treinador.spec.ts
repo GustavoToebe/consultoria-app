@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { EuResponse, LoginResponse } from '../src/api/tipos';
-import { NAO_E_TELEFONE } from '../src/dominio/entradaDoTelefone';
+import { NAO_E_TELEFONE } from '../src/dominio/textoDoTelefone';
 import { CONTATO_DO_SUPORTE } from '../src/dominio/produto';
 import { erroApi, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 

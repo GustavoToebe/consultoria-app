@@ -176,7 +176,10 @@ for (const { largura, altura, temas } of CASOS) {
     });
   }
 
-  test(`evidência 06 ${largura}px: "Criar e editar" sem nome mostra o motivo uma vez, com o mesmo alinhamento do botão`, async ({ page }) => {
+  // Leva 3 (B-001 de `docs/planos/serie-aberta-e-tela-completa-27-11.md`): o "Criar e editar" fica sempre habilitado e,
+  // sem nome, o erro vai no campo (uma vez, sob ele), não como motivo no rodapé. O motivo colado sob a ação (evidência 06)
+  // continua conferido no "Salvar" do Editar exercício, acima.
+  test(`rodapé ${largura}px: "Criar e editar" sem nome fica habilitado, o erro vai no campo e a ação não sai do lugar`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrir(page, largura, altura, { tema: 'CLARO' }, '/treinador/planejamento', ['MODELO_LER', 'MODELO_ALTERAR'], {
       'GET /pastas-modelos': { corpo: [] },
       'GET /receitas': { corpo: [] },
@@ -185,13 +188,32 @@ for (const { largura, altura, temas } of CASOS) {
     await page.getByRole('button', { name: 'Nova metodologia', exact: true }).click();
     const dialogo = page.getByRole('dialog');
     const criar = dialogo.getByRole('button', { name: 'Criar e editar', exact: true });
-    await expect(criar).toBeDisabled();
+    await expect(criar).toBeEnabled();
     const m = await medirFolha(dialogo);
     expect(m.painel.fundo - m.rodape.fundo).toBeLessThanOrEqual(3);
-    const botao = await caixa(criar);
-    expect(Math.abs(botao.x + botao.width - (m.painel.direita - 16))).toBeLessThanOrEqual(2);
-    if (celular(largura)) expect(Math.abs(botao.x - (m.painel.esquerda + 16))).toBeLessThanOrEqual(2);
-    await conferirMotivo(dialogo, criar, 'Informe o nome do modelo.', largura);
+    const antes = await caixa(criar);
+    expect(Math.abs(antes.x + antes.width - (m.painel.direita - 16))).toBeLessThanOrEqual(2);
+    if (celular(largura)) expect(Math.abs(antes.x - (m.painel.esquerda + 16))).toBeLessThanOrEqual(2);
+
+    await criar.click();
+    // Uma vez só, sob o campo do nome (acima do rodapé), com contraste; o foco volta ao campo e nada vai à API (`naoTratadas`).
+    const erro = dialogo.getByText('Informe o nome do modelo.', { exact: true });
+    await expect(erro).toHaveCount(1);
+    const nome = dialogo.getByRole('textbox', { name: 'Nome do modelo' });
+    await expect(nome).toBeFocused();
+    const campo = await caixa(nome);
+    const l = await letras(erro);
+    expect(l.topo).toBeGreaterThanOrEqual(campo.y + campo.height - 1);
+    expect(l.fundo).toBeLessThanOrEqual((await caixa(criar)).y);
+    expect(await contraste(erro)).toBeGreaterThanOrEqual(4.5);
+    // O erro cresce o corpo, não o rodapé: no PC a folha centralizada continua no meio (P4 só ancora o que vem do
+    // rodapé, `ui/ancoraDoRodape`), então a ação pode descer metade do erro; ela continua na mesma ponta e sem nada por cima.
+    const comErro = await medirFolha(dialogo);
+    const depois = await caixa(criar);
+    expect(Math.abs(depois.x + depois.width - (comErro.painel.direita - 16))).toBeLessThanOrEqual(2);
+    expect(Math.abs(depois.width - antes.width)).toBeLessThanOrEqual(1);
+    expect(await semNadaPorCima(criar)).toBe(true);
+    expect(comErro.painel.fundo - comErro.rodape.fundo).toBeLessThanOrEqual(3);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

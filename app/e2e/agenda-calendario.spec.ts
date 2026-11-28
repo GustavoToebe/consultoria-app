@@ -379,7 +379,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
         // Painel: as duas agendas fixas e a pessoal, cada uma com a caixa marcada.
         await expect(page.getByRole('heading', { name: 'Minhas agendas', exact: true })).toBeVisible();
-        const agendas = page.getByRole('group', { name: 'Agendas visíveis' }).getByRole('button');
+        // Cada agenda é uma caixa de marcar (não um chip de filtro): o "Editar a agenda Pessoal" é botão e não conta.
+        const agendas = page.getByRole('group', { name: 'Agendas visíveis' }).getByRole('checkbox');
         await expect(agendas).toHaveCount(3);
         await expect(page.getByRole('checkbox', { name: 'Compromissos com alunos, cor Índigo. Mostrar na agenda', exact: true })).toBeChecked();
         await expect(page.getByRole('checkbox', { name: 'Atualizações, cor Ardósia. Mostrar na agenda', exact: true })).toBeChecked();
@@ -793,7 +794,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByRole('link', { name: /^Abrir atualização de Bruno Exemplo/ })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Criar', exact: true })).toHaveCount(0);
       const onde = await painel(page);
-      await expect(onde.getByRole('group', { name: 'Agendas visíveis' }).getByRole('button')).toHaveCount(1);
+      await expect(onde.getByRole('group', { name: 'Agendas visíveis' }).getByRole('checkbox')).toHaveCount(1);
       await expect(onde.getByRole('checkbox', { name: 'Atualizações, cor Ardósia. Mostrar na agenda', exact: true })).toBeChecked();
       await expect(onde.getByRole('button', { name: 'Nova agenda', exact: true })).toHaveCount(0);
       await fecharPainel(page);

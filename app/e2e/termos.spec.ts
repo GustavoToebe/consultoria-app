@@ -37,13 +37,19 @@ for (const largura of [390, 1280, 1920]) {
         await expect(indice).toBeVisible();
         await expect(indice.getByRole('button')).toHaveCount(8);
         await expect(indice.getByRole('button', { name: '1. O que é este aplicativo' })).toHaveAttribute('aria-current', 'location');
-        // Rolar sem tocar no índice também move a marca (a leitura da rolagem acha os h3 pelo `id`).
-        await page.getByRole('heading', { level: 3, name: '4. Uso adequado' }).evaluate((h) => h.scrollIntoView({ block: 'start' }));
-        await expect(indice.getByRole('button', { name: '4. Uso adequado' })).toHaveAttribute('aria-current', 'location');
+        // Rolar sem tocar no índice também move a marca (a leitura da rolagem acha os h3 pelo `id`). Em 1000 px de altura o texto
+        // de exemplo rola só ~350 px e chega ao fim antes de qualquer título passar da linha: a janela mais baixa deixa o meio à prova.
+        await page.setViewportSize({ width: largura, height: 700 });
+        await page.getByRole('heading', { level: 3, name: '2. Sua conta' }).evaluate((h) => h.scrollIntoView({ block: 'start' }));
+        await expect(indice.getByRole('button', { name: '2. Sua conta' })).toHaveAttribute('aria-current', 'location');
         await expect(indice).toBeInViewport();
-        await indice.getByRole('button', { name: '8. Contato' }).click();
-        await expect(page.getByRole('heading', { level: 3, name: '8. Contato' })).toBeInViewport();
+        // No fim da rolagem acende o último (a seção curta do fim não fica sem marca).
+        await page.getByRole('heading', { level: 3, name: '8. Contato' }).evaluate((h) => h.scrollIntoView({ block: 'start' }));
         await expect(indice.getByRole('button', { name: '8. Contato' })).toHaveAttribute('aria-current', 'location');
+        // O toque no índice rola até a seção e a marca fica nela, mesmo com a rolagem já no fim.
+        await indice.getByRole('button', { name: '4. Uso adequado' }).click();
+        await expect(page.getByRole('heading', { level: 3, name: '4. Uso adequado' })).toBeInViewport();
+        await expect(indice.getByRole('button', { name: '4. Uso adequado' })).toHaveAttribute('aria-current', 'location');
         // Parado ao rolar: o índice continua à vista com o fim do texto.
         await expect(indice).toBeInViewport();
       }

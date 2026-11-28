@@ -199,7 +199,7 @@ for (const largura of [390, 1280]) {
       // A explicação longa é o ⓘ do título.
       await expect(page.getByRole('button', { name: 'Sobre o prazo para assinar' })).toBeVisible();
       await opcaoDoPrazo(page, 'Travar depois de um prazo').click();
-      const dias = page.getByLabel('Dias para assinar');
+      const dias = page.getByLabel('Dias para assinar', { exact: true });
       await expect(dias).toHaveValue('7');
       await expect(page.getByText('De 1 a 60 dias. Vale para os contratos gerados daqui em diante.')).toBeVisible();
       await expect(page.getByText('Alterações não salvas')).toBeVisible();
@@ -223,7 +223,7 @@ for (const largura of [390, 1280]) {
         largura, modelos: [MODELO],
         rotas: rotasDoPrazo(10, erroApi(422, 'Confira o prazo para assinar.', 'CONTRATO_PRAZO_INVALIDO', [{ field: 'prazoDias', message: 'Informe de 1 a 60 dias, ou deixe em branco para não travar o acesso.' }])),
       });
-      const dias = page.getByLabel('Dias para assinar');
+      const dias = page.getByLabel('Dias para assinar', { exact: true });
       await expect(dias).toHaveValue('10');
       await dias.fill('0');
       await page.getByRole('button', { name: 'Salvar prazo' }).click();

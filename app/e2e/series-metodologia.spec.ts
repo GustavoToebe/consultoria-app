@@ -170,8 +170,9 @@ for (const largura of [390, 1280]) {
     await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
     // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
     await expect(page.getByRole('region', { name: /^Editando série \d, Trabalho · WS com Cluster$/ })).toBeVisible();
-    // A linha da série diz os blocos e o total; o formulário, o resumo da linha Blocos.
-    await expect(page.getByText('4+2 (6)', { exact: true }).first()).toBeVisible();
+    // A linha da série diz os blocos e o total (na coluna Reps no PC; no fim do resumo corrido da linha no celular, leva 3);
+    // o formulário, o resumo da linha Blocos.
+    await expect(linhaDaSerie(page, /^Série 2 · WS, 1 série, repetições 4\+2 \(6\)/, true).getByText(/(^| · )4\+2 \(6\)$/).first()).toBeVisible();
     await expect(page.getByText('2 blocos · 6 reps por série', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('tela-editada.png'), fullPage: true });
@@ -389,7 +390,8 @@ for (const largura of [390, 1280]) {
     // Dois grupos, duas abas; a aberta é a última (WS com Cluster) e o título dela traz a faixa dos números.
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
     await expect(page.getByRole('region', { name: /^Editando série \d, Trabalho · WS com Cluster$/ })).toBeVisible();
-    await expect(page.getByText('4 × 4 (16)', { exact: true }).first()).toBeVisible();
+    // Na coluna Reps no PC; no fim do resumo corrido da linha no celular (o formulário da leva 3 não tem outra cópia dela).
+    await expect(linhaDaSerie(page, /^Série 2 · WS, 1 série, repetições 4 × 4 \(16\)/, true).getByText(/(^| · )4 × 4 \(16\)$/).first()).toBeVisible();
     await expect(page.getByText('3 a 6 reps', { exact: true })).toHaveCount(0);
     await linhaDaSerie(page, /^Série 1 · FS/).click();
     await expect(page.getByRole('textbox', { name: 'Reps mín.', exact: true })).toHaveValue('10');

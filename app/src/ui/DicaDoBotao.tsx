@@ -42,6 +42,11 @@ export function DicaDoBotao({ rotulo, motivo, children }: Props) {
   });
 
   if (!comDica) return <>{children(motivo)}</>;
+  // `aria-disabled` pelas props faz o react-native-web emitir um botão nativo com `disabled`, que sai do Tab e não mostra o motivo
+  // pelo teclado (WCAG 2.1.1): o atributo vai direto no nó, e o envoltório segue focável.
+  const marcarDesabilitado = (no: unknown) => {
+    if (Platform.OS === 'web' && no && typeof (no as HTMLElement).setAttribute === 'function') (no as HTMLElement).setAttribute('aria-disabled', 'true');
+  };
   const doMouse = {
     onPointerEnter: (e: { nativeEvent: { pointerType?: string } }) => {
       if (e.nativeEvent.pointerType !== 'mouse') return;
@@ -53,8 +58,8 @@ export function DicaDoBotao({ rotulo, motivo, children }: Props) {
   return (
     <View
       role="button"
+      ref={marcarDesabilitado}
       aria-label={rotulo}
-      aria-disabled
       aria-describedby={id}
       accessibilityHint={motivo}
       tabIndex={0}

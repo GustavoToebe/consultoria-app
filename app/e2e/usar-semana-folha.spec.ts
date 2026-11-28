@@ -130,7 +130,8 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
       const segunda = previa.getByRole('button', { name: 'Segunda: Full Body A, 3 exercícios', exact: true });
       await expect(segunda).toHaveAttribute('aria-pressed', 'true');
       const exercicios = previa.getByRole('region', { name: 'Exercícios de Segunda, Full Body A' });
-      await expect(exercicios.getByRole('listitem')).toHaveCount(3);
+      // Só a lista dos exercícios: a legenda das modalidades, acima dela, também é uma lista.
+      await expect(exercicios.getByRole('list', { name: 'Exercícios da sessão' }).getByRole('listitem')).toHaveCount(3);
       await expect(exercicios.getByText('4 séries · Quadríceps', { exact: true })).toBeVisible();
       await expect(previa.getByText('Coleção: Força', { exact: true })).toBeVisible();
       // Rodapé: o aviso uma vez e as duas ações.
@@ -214,7 +215,7 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
     await expect(f.getByRole('heading', { name: 'Full body fictício' })).toBeVisible();
     await expect(f.getByRole('option')).toHaveCount(0);
     await expect(f.getByRole('button', { name: 'Segunda: Full Body A, 3 exercícios', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(f.getByRole('region', { name: 'Exercícios de Segunda, Full Body A' }).getByRole('listitem')).toHaveCount(3);
+    await expect(f.getByRole('region', { name: 'Exercícios de Segunda, Full Body A' }).getByRole('list', { name: 'Exercícios da sessão' }).getByRole('listitem')).toHaveCount(3);
     await expect(f.getByText(AVISO, { exact: true })).toBeVisible();
     expect(await semRolagemDeLado(page)).toBe(true);
     await capturar(page, 'completa-segunda', 390, tema);

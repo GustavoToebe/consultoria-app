@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe, Atualizacao, ItemDeAtividade, Lesao, PastaResumo } from '../src/api/tipos';
+import { tituloDaFolhaDaPasta } from '../src/dominio/folhaDaPasta';
 import { CLARO, contraste, coresDeDestaque, misturar } from '../src/tema/tokens';
 import { ALUNO, erroApi, PERMISSOES_TREINADOR as BASE, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
@@ -457,7 +458,8 @@ test('mudar a pasta (finalizar) atualiza a lista e o Resumo com 1 pedido novo da
   await expect(page.getByText(VENCE)).toBeVisible();
   await aba(page, 'Planos').click();
   await page.getByRole('button', { name: new RegExp(`^Pasta ${pasta.titulo}, aberta`) }).click();
-  await page.getByRole('dialog', { name: pasta.titulo }).getByRole('button', { name: 'Finalizar pasta' }).click();
+  // Leva 3: o título da folha é o período da pasta, não o nome gravado.
+  await page.getByRole('dialog', { name: tituloDaFolhaDaPasta(pasta), exact: true }).getByRole('button', { name: 'Finalizar pasta' }).click();
   const lista = () => contar(pedidos, `/alunos/${ALUNO_ID}/pastas`);
   const vigente = () => contar(pedidos, `/alunos/${ALUNO_ID}/pastas/vigente`);
   expect([lista(), vigente()]).toEqual([1, 1]);

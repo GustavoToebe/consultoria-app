@@ -54,6 +54,13 @@ async function caixa(alvo: Locator): Promise<Caixa> {
   });
 }
 
+/** Caixa do próprio elemento (grupo de chips, sem borda). */
+async function grupo(alvo: Locator): Promise<Caixa> {
+  const r = await alvo.boundingBox();
+  expect(r).not.toBeNull();
+  return r!;
+}
+
 const perto = (a: number, b: number, folga = 1) => Math.abs(a - b) <= folga;
 const sobrepoe = (a: Caixa, b: Caixa) => a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1;
 
@@ -76,7 +83,8 @@ for (const { largura, temas } of CASOS) {
         await expect(page.getByRole('textbox', { name: 'De', exact: true })).toHaveCount(0);
         // Tudo medido de uma vez: as contagens dos chips chegam depois e podem quebrar a linha da Situação entre duas medidas.
         const [responsavel, origem, ...datas] = await Promise.all([
-          caixa(page.getByRole('button', { name: /^Responsável:/ })), caixa(page.getByRole('group', { name: 'Origem' })),
+          // O grupo de chips da Origem não tem borda própria: mede o grupo, não a caixa com borda em volta dele (o painel).
+          caixa(page.getByRole('button', { name: /^Responsável:/ })), grupo(page.getByRole('group', { name: 'Origem', exact: true })),
           ...DATAS.map((n) => caixa(page.getByRole('textbox', { name: n, exact: true }))),
         ]);
         const [entradaDe, entradaAte, atividadeDe, atividadeAte] = datas;
@@ -135,7 +143,7 @@ for (const { largura, temas } of CASOS) {
           // O grupo de opções não tem borda própria: mede ele mesmo, não o painel em volta.
           // Medidos juntos: preencher as datas rolou o corpo do painel no celular.
           const [origemAgora, situacao, entradaAgora] = await Promise.all([
-            caixa(page.getByRole('group', { name: 'Origem' })), page.getByRole('radiogroup', { name: 'Situação' }).boundingBox(),
+            grupo(page.getByRole('group', { name: 'Origem', exact: true })), page.getByRole('radiogroup', { name: 'Situação' }).boundingBox(),
             caixa(page.getByRole('textbox', { name: DATAS[0], exact: true })),
           ]);
           expect(situacao!.y).toBeGreaterThanOrEqual(origemAgora.y + origemAgora.height - 1);

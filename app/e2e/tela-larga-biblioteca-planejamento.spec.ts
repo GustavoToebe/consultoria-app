@@ -300,7 +300,8 @@ test('390 px: os botões da busca do Planejamento quebram linha e "Nova semana d
   // tela larga: revisão (24/11)
   await preparar(page, 390, 844);
   await page.goto('/treinador/planejamento?aba=treino');
-  const nova = page.getByRole('button', { name: 'Nova semana de treino' });
+  // A do topo; cada coleção tem o seu "+" ("Nova semana de treino em <coleção>").
+  const nova = page.getByRole('button', { name: 'Nova semana de treino', exact: true });
   await expect(nova).toBeVisible();
   const caixa = (await nova.boundingBox())!;
   expect(caixa.x + caixa.width).toBeLessThanOrEqual(390 - 16);

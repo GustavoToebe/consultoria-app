@@ -78,7 +78,7 @@ function Detalhe({ resumo, coluna }: { resumo: ResumoDaSessaoPorContagem; coluna
   const maior = Math.max(1, ...resumo.porGrupoMuscular.map((g) => g.seriesDeTrabalho));
   return (
     <View style={[estilos.bloco, coluna ? estilos.blocoEmColuna : null, { borderTopColor: cores.divisor }]}>
-      <View style={estilos.parte}>
+      <View style={[estilos.parte, coluna ? estilos.parteEmColuna : null]}>
         <Texto variante="rotulo" cor="suave">Séries por tipo</Texto>
         {resumo.porTipo.length ? (
           <View style={estilos.tipos}>
@@ -100,7 +100,7 @@ function Detalhe({ resumo, coluna }: { resumo: ResumoDaSessaoPorContagem; coluna
           </View>
         ) : <Texto variante="suave">—</Texto>}
       </View>
-      <View style={estilos.parte}>
+      <View style={[estilos.parte, coluna ? estilos.parteEmColuna : null]}>
         <Texto variante="rotulo" cor="suave">Séries de trabalho por grupo</Texto>
         {resumo.porGrupoMuscular.length ? (
           <View style={estilos.grupos}>
@@ -126,6 +126,8 @@ const estilos = StyleSheet.create({
   bloco: { borderTopWidth: 1, paddingTop: espaco(1.5), flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3) },
   blocoEmColuna: { flexDirection: 'column', flexWrap: 'nowrap' },
   parte: { flexGrow: 1, flexBasis: 300, minWidth: 0, gap: espaco(1) },
+  // Empilhadas, a base de 300 viraria altura (um vão de ~100 px sob os ladrilhos e a coluna fixa mais alta que a janela).
+  parteEmColuna: { flexGrow: 0, flexBasis: 'auto' },
   tipos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   tipo: { flexGrow: 1, flexBasis: 100, minWidth: 90, borderWidth: 1, borderRadius: 12, paddingVertical: espaco(1), paddingHorizontal: espaco(1.5), gap: 2 },
   // 2 × 2 na coluna: duas por linha, a ímpar estica.

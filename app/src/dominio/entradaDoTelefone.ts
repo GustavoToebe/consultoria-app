@@ -1,7 +1,8 @@
 import { erroDoTelefone, mascaraTelefone } from './cadastroDoAluno';
+import { NAO_E_TELEFONE } from './textoDoTelefone';
 
-/** Erro do campo quando chega texto que não é telefone (o preenchimento automático pondo o e-mail no lugar, 28/11). */
-export const NAO_E_TELEFONE = 'Isto não é um telefone. Digite só o DDD e o número, como (45) 99999-9999.';
+export { NAO_E_TELEFONE };
+
 
 /**
  * Entrada do campo Telefone: com letra ou "@" (um e-mail colado ou preenchido pelo navegador) a digitação é recusada, o

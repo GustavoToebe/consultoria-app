@@ -281,6 +281,8 @@ test('1920: Orientações | Observações: a recolhida fica com a altura própri
   const { errosDaPagina } = await abrir(page, { largura: 1920 }, true, {}, longa);
   await esperarArranjo(page, true);
   const medir = () => Promise.all([cartaoDe(page, 'Orientações'), cartaoDe(page, 'Observações')].map(caixa));
+  // As caixas são da janela: a linha já à vista antes de medir, senão o clique rola a página até o título e o `y` muda junto.
+  await page.getByRole('button', { name: 'Orientações, expandido' }).scrollIntoViewIfNeeded();
   const [ori0, obs0] = await medir();
   // Abertas: mesma altura na linha (28/11).
   expect(Math.abs(ori0.height - obs0.height)).toBeLessThan(2);

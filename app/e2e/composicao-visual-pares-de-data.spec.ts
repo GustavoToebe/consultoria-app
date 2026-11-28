@@ -145,7 +145,8 @@ const CASOS: Caso[] = [
       const inicio = dialogo.getByRole('textbox', { name: 'De', exact: true });
       await expect(inicio).toBeVisible();
       // Rótulo de grupo à vista e, dentro dele, os rótulos "De" e "Até" à vista (WCAG 3.3.2).
-      await expect(dialogo.getByRole('group', { name: 'Período' })).toBeVisible();
+      // Exato: os atalhos de 28/11 ficam no grupo vizinho "Atalhos de Período".
+      await expect(dialogo.getByRole('group', { name: 'Período', exact: true })).toBeVisible();
       return { dialogo, inicio, fim: dialogo.getByRole('textbox', { name: 'Até', exact: true }), principal: dialogo.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }), errosDaPagina };
     },
     erro: async (inicio, fim) => {

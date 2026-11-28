@@ -39,6 +39,7 @@ describe('alturaDaPreviaFixa', () => {
   it('a da coluna do formulário, sem passar da janela', () => {
     expect(alturaDaPreviaFixa(null, 1080)).toBeUndefined();
     expect(alturaDaPreviaFixa(900, 1080)).toBe(900);
-    expect(alturaDaPreviaFixa(1500, 1080)).toBe(1080 - 32);
+    // O recuo de cima (16) e a folga do botão de voltar ao topo (68) no fim da rolagem.
+    expect(alturaDaPreviaFixa(1500, 1080)).toBe(1080 - 16 - 68);
   });
 });

@@ -512,7 +512,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Remada curvada', { exact: true })).toHaveCount(0);
 
     const painel = await abrirPainel(page, 'Filtros de exercícios');
-    await painel.getByRole('group', { name: 'Grupo muscular' }).getByRole('button', { name: /^Peito,/ }).click();
+    await painel.getByRole('group', { name: 'Grupo muscular' }).getByRole('checkbox', { name: /^Peito,/ }).click();
     await page.screenshot({ path: `${CAPTURAS}/depois-exercicios-lista-longa-${largura}.png` });
     await painel.getByRole('button', { name: /^Mostrar / }).click();
     await expect(painel).toHaveCount(0);

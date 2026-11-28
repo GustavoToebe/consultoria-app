@@ -118,6 +118,8 @@ export function CartaoPrazoParaAssinar({ prazo, campo, podeAlterar }: { prazo: P
 
 function FormularioDoPrazo({ prazo, campo }: { prazo: PrazoParaAssinar; campo: RefObject<TextInput | null> }) {
   const { modo, dias } = prazo;
+  // Altura da dica, guardada para o erro que toma o lugar dela (abaixo).
+  const [alturaDaDica, setAlturaDaDica] = useState(0);
   return (
     <View style={estilos.bloco}>
       {prazo.erroGeral ? <Alerta tom="perigo" texto={prazo.erroGeral} /> : null}
@@ -133,14 +135,21 @@ function FormularioDoPrazo({ prazo, campo }: { prazo: PrazoParaAssinar; campo: R
             </View>
             <Texto>dias sem assinar</Texto>
           </View>
-          {prazo.erroDoCampo ? <MensagemDeErro erro={prazo.erroDoCampo} /> : null}
+          {/*
+            O erro toma o lugar da dica, logo abaixo do campo, com o espaço dela reservado: o erro de sair do campo (clique no
+            "Salvar prazo") não empurra o rodapé para baixo do ponteiro no meio do clique, que se perdia.
+          */}
+          <View style={{ minHeight: alturaDaDica }}>
+            {prazo.erroDoCampo ? <MensagemDeErro erro={prazo.erroDoCampo} /> : (
+              <Texto variante="suave" onLayout={(e) => setAlturaDaDica(e.nativeEvent.layout.height)}>De 1 a 60 dias. Vale para os contratos gerados daqui em diante.</Texto>
+            )}
+          </View>
           {/* Atalho que preenche o campo (regra 17): botão comum, sem estado de escolhido; o valor vive no campo, que recebe o foco. */}
           <View role="group" accessibilityLabel="Atalhos de dias para assinar" style={estilos.atalhos}>
             {ATALHOS.map((d) => (
               <Botao key={d} tipo="secundario" tamanho="pequeno" rotulo={`${d} dias`} aoTocar={() => { prazo.mudarDias(String(d)); setTimeout(() => campo.current?.focus(), 0); }} />
             ))}
           </View>
-          <Texto variante="suave">De 1 a 60 dias. Vale para os contratos gerados daqui em diante.</Texto>
         </View>
       ) : (
         <Texto variante="suave">O contrato fica como pendência para o aluno, sem travar o acesso.</Texto>

@@ -2,7 +2,7 @@
 
 Tudo que o Gustavo mandou entre 27 e 29/11 e que, pelo **plano até 30/11 12h** (congelamento), fica para depois da entrada do primeiro cliente real. Nada daqui entra nas levas 2, 3 e 4, exceto o que o plano autoriza antes de 01/12 (ver "O que entra antes", no fim).
 
-Atualizado em 29/11/2026. Estado local, sem commit. Cada item tem origem e o que falta; antes de começar um, conferir se a decisão continua valendo.
+Atualizado em 29/11/2026. Estado das levas: leva 2 em produção desde 28/11 (`e60bab1a`, CI 46125418439 verde); levas 3 e 4 em verificação, sem commit na `main`. Cada item tem origem e o que falta; antes de começar um, conferir se a decisão continua valendo.
 
 ## Telas
 

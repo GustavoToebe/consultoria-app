@@ -95,14 +95,17 @@ export function CartaoSessao(p: Props) {
           acoes={
             <>
               <BotaoEditarSessao sessao={s} aberto={dadosAbertos} aoAlternar={() => setEscolhaDosDados(!dadosAbertos)} />
-              {p.total > 1 ? (
-                <>
-                  <IconeBotao moldura Icone={ArrowLeft} rotulo="Mover sessão para antes" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-                  <IconeBotao moldura Icone={ArrowRight} rotulo="Mover sessão para depois" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
-                </>
-              ) : null}
-              {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações da sessão ${s.nome || p.posicao + 1}`} aoTocar={() => setMenu(true)} /> : null}
-              {excluivel ? <Botao tipo="perigo" rotulo="Excluir sessão" rotuloAcessivel={`Excluir sessão: ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : null}
+              {/* ← → ⋯ e "Excluir sessão" andam juntos: no celular quem desce de linha é o "Editar sessão", não o "Excluir". */}
+              <View style={estilos.acoesJuntas}>
+                {p.total > 1 ? (
+                  <>
+                    <IconeBotao moldura Icone={ArrowLeft} rotulo="Mover sessão para antes" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
+                    <IconeBotao moldura Icone={ArrowRight} rotulo="Mover sessão para depois" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+                  </>
+                ) : null}
+                {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações da sessão ${s.nome || p.posicao + 1}`} aoTocar={() => setMenu(true)} /> : null}
+                {excluivel ? <Botao tipo="perigo" rotulo="Excluir sessão" rotuloAcessivel={`Excluir sessão: ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : null}
+              </View>
             </>
           }
         />
@@ -212,6 +215,8 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco(2), paddingVertical: espaco(0.75), borderRadius: RAIO_CONTROLE, borderWidth: 1,
   },
   rotuloEditar: { fontFamily: fontes.semi, fontSize: 15 },
+  // O mesmo vão das ações do `CabecalhoDeGrupo`; quebra por dentro só se nem os quatro juntos couberem (telas abaixo de 390).
+  acoesJuntas: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1), maxWidth: '100%' },
   // Os campos ocupam a largura da sessão (11/11), com o fio à esquerda do acordeão (como as instruções do exercício).
   areaDosDados: { gap: espaco(2), paddingLeft: espaco(1.5), borderLeftWidth: 2 },
   linhaSessao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5) },

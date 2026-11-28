@@ -244,8 +244,9 @@ for (const [largura, altura] of LARGURAS) {
     await semRolagemHorizontal(page);
 
     // Ajuda (formato de documentação): índice, artigo (até 760) e "Nesta página" (240) em linha, à esquerda, a partir de 1188 px.
+    // Com `?secao=` abre o artigo do assunto (28/11), não a página inicial "Começar a usar" da `TELAS`.
     await page.goto('/treinador/ajuda?secao=inicio');
-    await TELAS[3].pronta(page);
+    await expect(page.getByRole('heading', { name: 'Início', level: 2, exact: true })).toBeVisible();
     await assentado(async () => {
       const indice = await caixa(page, page.getByRole('navigation', { name: 'Tópicos da ajuda' }));
       const artigo = await caixa(page, page.getByRole('heading', { level: 2 }).first());

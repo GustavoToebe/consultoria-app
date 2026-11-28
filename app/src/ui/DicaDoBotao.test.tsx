@@ -29,7 +29,9 @@ const botao = (m: string | undefined) => <RN.Text testID="botao">{m ?? 'sem moti
 
 function montar(motivo?: string): ReactTestRenderer {
   let raiz!: ReactTestRenderer;
-  Renderer.act(() => { raiz = Renderer.create(<DicaDoBotao rotulo="Aplicar ao aluno" motivo={motivo}>{botao}</DicaDoBotao>); });
+  Renderer.act(() => {
+    raiz = Renderer.create(<DicaDoBotao rotulo="Aplicar ao aluno" motivo={motivo}>{botao}</DicaDoBotao>);
+  });
   return raiz;
 }
 const envoltorio = (raiz: ReactTestRenderer): ReactTestInstance | undefined => raiz.root.findAll((n) => n.props.role === 'button' && typeof n.type !== 'string')[0];
@@ -71,7 +73,9 @@ describe('DicaDoBotao', () => {
     const raiz = montar(MOTIVO);
     const env = envoltorio(raiz)!;
     expect(env.props['aria-label']).toBe('Aplicar ao aluno');
-    expect(env.props['aria-disabled']).toBe(true);
+    // Pelas props, `aria-disabled` faria o react-native-web emitir um botão nativo com `disabled` (sai do Tab, WCAG 2.1.1): o
+    // atributo vai direto no nó, por ref (o DOM de verdade é conferido em `e2e/editor-cabecalho-unico.spec.ts`, teclado e Esc).
+    expect(env.props['aria-disabled']).toBeUndefined();
     expect(env.props.tabIndex).toBe(0);
     expect(env.props.accessibilityHint).toBe(MOTIVO);
     expect(typeof env.props['aria-describedby']).toBe('string');

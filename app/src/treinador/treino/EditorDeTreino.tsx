@@ -49,7 +49,9 @@ import { FolhaCriarGrupo } from '../../treinador/treino/FolhaCriarGrupo';
 import { FolhaImportarDeTexto } from '../../treinador/treino/FolhaImportarDeTexto';
 import { criarGrupoPronto, dicaDoGrupo, motivoSemGrupo, vizinhosQuePodemEntrar } from '../../treinador/treino/acoesDeGrupo';
 import { juntarProblemas, problemasDoExercicio, problemasDoGrupo } from '../../treinador/treino/problemasDaSessao';
-import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { useTema } from '../../tema/TemaProvider';
+import { escalar } from '../../dominio/preferencias';
 import { nomeDaCombinacao } from '../../dominio/metodologia';
 import { descansoSoDoGrupo } from '../../dominio/textoDoGrupo';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
@@ -376,7 +378,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // única, o estado e as ações à direita; no celular as ações seguem na barra à parte.
   const cabecalho = modelo
     ? <Cabecalho titulo={nomeDoModelo || titulo} subtitulo={SUBTITULO_DO_MODELO} descricao="O molde que você reaproveita: monte aqui e aplique a um aluno, que recebe uma cópia sem ligação com o modelo." trilha={trilhaDoPlano(true, estado.plano.alunoId, titulo)} voltar="/treinador/planejamento"
-        aoLadoDoTitulo={nomeDoModelo && !editandoNome ? <IconeBotao moldura Icone={Pencil} rotulo="Editar nome" aoTocar={() => setEditandoNome(true)} /> : undefined}
+        aoLadoDoTitulo={nomeDoModelo && !editandoNome ? <LapisDoNome aoTocar={() => setEditandoNome(true)} /> : undefined}
         acoesNaLinha={cabecalhoUnico} acoes={cabecalhoUnico ? <AcoesDoModeloDoEditor editor={comVerificacao} receita={receita} /> : undefined} />
     : <Cabecalho titulo={titulo} descricao="Monte as sessões, os exercícios e as séries em rascunho. O aluno só vê o que você publica, e cada publicação vira uma versão." trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />;
 
@@ -692,6 +694,22 @@ function FotoNaBarra({ alunoId, nome }: { alunoId: string; nome: string | null }
   if (!duas) return null;
   return <FotoDePerfil chave={`perfil:${alunoId}`} carregar={() => baixarFotoDePerfilDoAluno(alunoId)} nome={nome} tamanho={32} />;
 }
+
+/**
+ * O lápis "Editar nome" ao lado do título: o alvo de 44 centrado na primeira linha do título (32 × tamanho do texto) com
+ * margens negativas, como o ⓘ (`AjudaDoCabecalho`). Sem isso ele descia 6 px e alongava a linha do título.
+ */
+function LapisDoNome({ aoTocar }: { aoTocar: () => void }) {
+  const { fatorTexto } = useTema();
+  return (
+    <View style={{ marginVertical: (escalar(LINHA_DO_TITULO, fatorTexto) - ALVO_TOQUE) / 2 }}>
+      <IconeBotao moldura Icone={Pencil} rotulo="Editar nome" aoTocar={aoTocar} />
+    </View>
+  );
+}
+
+/** Altura da primeira linha do título do `Cabecalho` (a do `AjudaDoCabecalho`). */
+const LINHA_DO_TITULO = 32;
 
 const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },

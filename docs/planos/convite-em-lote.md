@@ -1,6 +1,6 @@
 # Convite de acesso em lote (links e WhatsApp)
 
-Situação: Em andamento (verificação final da leva 2) · Onde: branch `leva-2` · Atualizado: 29/11/2026
+Situação: Entregue (leva 2, em produção em 28/11, `e60bab1a`) · Onde: `main` · Atualizado: 29/11/2026
 
 ## Objetivo
 O treinador gera, de uma vez, o link de acesso ao app de todos os alunos que ainda não entraram e envia cada um pelo WhatsApp, copia a mensagem ou baixa um CSV. Sem e-mail de convite ao aluno (`TREINOS_EMAIL_HABILITADO` segue desligado até o Resend estar configurado). Pedido do Gustavo em 28/11 como exceção ao congelamento: os alunos do Saraiva já estão no app como cadastro, sem acesso, e entram em 01/12.
@@ -19,11 +19,11 @@ O treinador gera, de uma vez, o link de acesso ao app de todos os alunos que ain
 | D9 | CSV | `nome;telefone;link;validade`, só dos gerados, com o aviso "O arquivo tem links de acesso: não compartilhe."; os links só vivem na memória da folha | Gustavo, 28/11 |
 
 ## Passos
-- [x] 1. API: `ConvitesEmLote`, rota no `AlunoLoteController`, `ConviteService.impedimento/emitir` compartilhados com o convite individual, `ConvitesEmLoteIntegrationTest` (6 casos) — commit/run: —
-- [x] 2. App: `dominio/convitesEmLote.ts`, `api/convitesEmLote.ts`, `treinador/convites/ConvitesEmLote.tsx`, lista de Alunos, `acoesAuditoria.ts` (65 ações em Alunos) — commit/run: —
-- [x] 3. Ajuda: "Convidar vários alunos de uma vez" — commit/run: —
-- [x] 4. e2e `convites-em-lote.spec.ts` (390 e 1280) rodado e verde (8 de 8; o nome acessível do "Baixar CSV" só leva o aviso quando há convite gerado) — commit/run: —
-- [x] 5. `mvn verify` (3857 testes, 0 falhas) e e2e completa da leva 2 (3940 passaram; as falhas que sobraram eram specs defasados pelo lote de 27/11 ou corridas nos testes, corrigidos; `ficha-folha-de-lesao` ainda oscila com 2 workers e passa isolada 68 de 68, intermitência por carga) — commit/run: —
+- [x] 1. API: `ConvitesEmLote`, rota no `AlunoLoteController`, `ConviteService.impedimento/emitir` compartilhados com o convite individual, `ConvitesEmLoteIntegrationTest` (6 casos) — commit/run: `e60bab1a` (push de 28/11 na `main`), CI 46125418439 (publicar: success)
+- [x] 2. App: `dominio/convitesEmLote.ts`, `api/convitesEmLote.ts`, `treinador/convites/ConvitesEmLote.tsx`, lista de Alunos, `acoesAuditoria.ts` (65 ações em Alunos) — commit/run: `e60bab1a` (push de 28/11 na `main`), CI 46125418439 (publicar: success)
+- [x] 3. Ajuda: "Convidar vários alunos de uma vez" — commit/run: `e60bab1a` (push de 28/11 na `main`), CI 46125418439 (publicar: success)
+- [x] 4. e2e `convites-em-lote.spec.ts` (390 e 1280) rodado e verde (8 de 8; o nome acessível do "Baixar CSV" só leva o aviso quando há convite gerado) — commit/run: `e60bab1a` (push de 28/11 na `main`), CI 46125418439 (publicar: success)
+- [x] 5. `mvn verify` (3857 testes, 0 falhas) e e2e completa da leva 2 (3940 passaram; as falhas que sobraram eram specs defasados pelo lote de 27/11 ou corridas nos testes, corrigidos; `ficha-folha-de-lesao` ainda oscila com 2 workers e passa isolada 68 de 68, intermitência por carga) — commit/run: `e60bab1a` (push de 28/11 na `main`), CI 46125418439 (publicar: success)
 
 ## Fora do escopo
 - E-mail de convite ao aluno: depois do Resend (fila pós-01/12, [fila-pos-01-12.md](fila-pos-01-12.md)).
@@ -31,4 +31,4 @@ O treinador gera, de uma vez, o link de acesso ao app de todos os alunos que ain
 - Exceção ao "um modo só de filtrar" (`docs/design-e-front.md` registra os atalhos dentro do painel de filtros): o atalho "Sem acesso ao app" fica fora do painel por pedido do Gustavo.
 
 ## O que ficou para trás
-- Linha em `docs/design-e-front.md` registrando a exceção do atalho (o arquivo tem edições de outras frentes na leva 3; entra no merge).
+- ~~Linha em `docs/design-e-front.md` registrando a exceção do atalho~~ feito na leva 3 (4.6, exceção ao "um modo só de filtrar"; sem commit).

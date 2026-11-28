@@ -102,6 +102,9 @@ for (const largura of [1280, 390]) {
     // O ✕ do chip tira o pré-filtro: a biblioteca inteira volta.
     await folha.getByRole('button', { name: 'Tirar filtro: Grupo muscular: Peito' }).click();
     await expect(opcoes(page)).toHaveCount(LISTA.length);
+    // O mouse que anda aponta a linha (o parado embaixo da folha que abriu, não: o "Atual" acima continuou marcado).
+    await opcoes(page).nth(3).hover();
+    await expect(opcoes(page).nth(3)).toHaveAttribute('aria-selected', 'true');
     await busca.fill('remada');
     // Com resultado na lista, não há a linha do manual (só quando a busca não acha nada).
     await expect(opcoes(page)).toHaveCount(1);

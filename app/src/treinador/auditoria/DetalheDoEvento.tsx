@@ -9,6 +9,7 @@ import { quandoCompleto } from '../../dominio/resumoDeAuditoria';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { CampoLeitura } from '../../ui/CampoLeitura';
+import { FOLGA_DO_BOTAO } from '../../ui/folgaDoBotao';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinkTexto } from '../../ui/LinkTexto';
@@ -63,8 +64,10 @@ function ConteudoDoEvento({ evento }: { evento: EventoAuditoria }) {
  * painel acompanha a rolagem da página com a altura da área visível (`height`, não `maxHeight`: sem evento o texto fica no
  * meio e não sobra vazio embaixo dele); o corpo rola sozinho quando o detalhe não cabe.
  */
+// A altura desconta a folga do botão de voltar ao topo (`FOLGA_DO_BOTAO`, embaixo da rolagem): no fim da página o `sticky`
+// não passa do fim da linha, e um painel da altura da janela subia 36 px e cortava o título e o "Fechar".
 const grudado = (alturaDaJanela: number) =>
-  (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), height: alturaDaJanela - espaco(4) } : {}) as unknown as ViewStyle;
+  (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), height: alturaDaJanela - espaco(2) - FOLGA_DO_BOTAO } : {}) as unknown as ViewStyle;
 
 /**
  * O detalhe num painel fixo à direita da tabela (a partir da faixa `larga`, 27/11), no molde do `PainelDaCobranca`: região

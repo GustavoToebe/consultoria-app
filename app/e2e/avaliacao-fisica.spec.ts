@@ -67,6 +67,10 @@ async function fichaDoTreinador(page: Page, lista: AvaliacaoFisica[] | Resposta,
 }
 
 const botaoComparar = (page: Page) => page.getByRole('button', { name: 'Comparar', exact: true });
+/** O selo do histórico de avaliações, lista no celular e tabela no PC (o cartão Peso, com `PESOS`, tem o seu "Mais recente" na lista dele). */
+const seloMaisRecente = (page: Page) => page.getByLabel('Histórico de avaliações', { exact: true }).getByText('Mais recente', { exact: true });
+/** O "Fechar" do rodapé do Comparar (o X do cabeçalho tem o mesmo nome, sem texto à vista). */
+const fecharComparar = (page: Page) => page.getByRole('dialog', { name: 'Comparar avaliações' }).getByRole('button', { name: 'Fechar', exact: true }).filter({ hasText: 'Fechar' });
 const diferencas = (page: Page) => page.getByLabel('Diferença entre as datas');
 const medida = (page: Page, nome: string) => page.getByRole('textbox', { name: nome, exact: true });
 
@@ -202,7 +206,7 @@ for (const largura of LARGURAS) {
         await route.fulfill({ status: 204 });
       },
     });
-    await expect(page.getByText('Mais recente', { exact: true })).toHaveCount(1);
+    await expect(seloMaisRecente(page)).toHaveCount(1);
     // A observação é o balão ao lado da data (sem linha própria): o texto abre no toque.
     await expect(page.getByText('Medida depois do treino, à tarde, com a fita nova da academia.')).toBeHidden();
     await page.getByRole('button', { name: 'Observação de 01/09/2026' }).click();
@@ -271,7 +275,7 @@ for (const largura of LARGURAS) {
     await expect(page.getByRole('option', { name: /^01\/07\/2026/ })).toHaveCount(0);
     await expect(page.getByRole('option', { name: /^01\/09\/2026/ })).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Fechar', exact: true }).click();
+    await fecharComparar(page).click();
     await expect(page.getByText('Comparar avaliações', { exact: true })).toHaveCount(0);
     expect(errosDaPagina).toEqual([]);
   });
@@ -521,7 +525,7 @@ test('histórico ordenado por data desc e "Mais recente" na data mais nova, mesm
   const { errosDaPagina } = await fichaDoTreinador(page, [...TRES].reverse());
   const rotulos = await page.getByRole('button', { name: /^Editar avaliação de / }).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
   expect(rotulos).toEqual(['Editar avaliação de 01/11/2026', 'Editar avaliação de 01/09/2026', 'Editar avaliação de 01/07/2026']);
-  await expect(page.getByText('Mais recente', { exact: true })).toHaveCount(1);
+  await expect(seloMaisRecente(page)).toHaveCount(1);
   const linhaDaMaisNova = page.locator('div').filter({ has: page.getByRole('button', { name: 'Editar avaliação de 01/11/2026' }) }).filter({ hasText: 'Mais recente' });
   await expect(linhaDaMaisNova.last()).toBeVisible();
   expect(errosDaPagina).toEqual([]);
@@ -713,7 +717,7 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
       await abrirComparar(page);
       await expect(diferencas(page).getByText('▼ 0,8 cm')).toBeVisible();
       await page.screenshot({ path: nome('comparar') });
-      await page.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await fecharComparar(page).click();
       await expect(page.getByText('Comparar avaliações', { exact: true })).toHaveCount(0);
 
       // Nova: duas medidas preenchidas contra as de 01/11.

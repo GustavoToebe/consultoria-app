@@ -36,7 +36,14 @@ export function normalizar(texto: string): string {
 /** Chave estável dos filtros (os conjuntos em ordem): o "Mostrar mais" e a linha ativa recomeçam quando ela muda. */
 const chaveDosFiltros = (f: FiltrosDeExercicios) => JSON.stringify([[...f.grupos].sort(), [...f.modalidades].sort(), f.video, f.imagem, [...f.tiposDeCardio].sort()]);
 
-type Linha = { tipo: 'exercicio'; exercicio: Exercicio } | { tipo: 'manual'; nome: string; texto: string; rotulo: string };
+/**
+ * O mouse só aponta uma linha quando anda de verdade: a folha que abre embaixo do ponteiro parado recebe um "move" sem
+ * deslocamento do navegador, e aí a linha embaixo dele roubaria o destaque do "Atual" (e o Enter da busca a escolheria).
+ */
+// O tipo do RN não traz o `movementX` do `PointerEvent` da web (no aparelho ele não vem: o toque não aponta).
+const ponteiroAndou = (e: object) => ('movementX' in e && !!e.movementX) || ('movementY' in e && !!e.movementY);
+
+type Linha ={ tipo: 'exercicio'; exercicio: Exercicio } | { tipo: 'manual'; nome: string; texto: string; rotulo: string };
 
 /**
  * Escolher o exercício da biblioteca da consultoria (`docs/design-e-front.md`; a mesma linha, legenda e painel de filtros da
@@ -256,7 +263,7 @@ export function FolhaBiblioteca({
               return (
                 <Pressable key={l.tipo === 'manual' ? 'manual' : l.exercicio.id} nativeID={idDaOpcao(i)} role="option" focusable={false}
                   aria-selected={multiplo ? marcado : ehAtiva} accessibilityLabel={rotulo}
-                  onHoverIn={() => apontar(i)} onPress={() => acionar(i)}>
+                  onPointerMove={(ev) => { if (i !== ativa && ponteiroAndou(ev.nativeEvent)) apontar(i); }} onPress={() => acionar(i)}>
                   {l.tipo === 'manual' ? (
                     <LinhaDaLista titulo={l.texto} marcado={ehAtiva}
                       inicio={(

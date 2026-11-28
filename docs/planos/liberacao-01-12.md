@@ -91,14 +91,14 @@ Por isso o P5 grava `=true` explícito em cada chave ligada.
 MFA não tem chave: sem `TREINOS_MFA_CHAVES` e `TREINOS_MFA_CHAVE_ATIVA` o login funciona e ativar o MFA responde 503.
 
 ### (c) Chaves da Central (`CENTRAL_*`)
-Não relidas nesta atualização. Lugar em produção: `/opt/ecossistema/central.env` (CENTRAL_*) e `/opt/ecossistema/consultoria.env` (TREINOS_*), conforme
+Linhas do Asaas e do provedor relidas em 28/11 na `main` da Central (`718194f`, squash do PR #43); as outras, não relidas. Lugar em produção: `/opt/ecossistema/central.env` (CENTRAL_*) e `/opt/ecossistema/consultoria.env` (TREINOS_*), conforme
 `central-api-back/deploy/README.md` (repo `C:\Users\gusta\Documents\central-unificada`, leitura). Valores de segredo não constam aqui.
 
 | Nome | Padrão no yml | Observação |
 | --- | --- | --- |
-| `CENTRAL_PAGAMENTO_PROVEDOR` | ASAAS (yml) | o `.env.example` traz MERCADOPAGO: divergência a decidir |
+| `CENTRAL_PAGAMENTO_PROVEDOR` | ASAAS (yml) | `.env.example` e `deploy/README.md` também ASAAS (divergência resolvida no PR #43) |
 | `CENTRAL_INFINITEPAY_HABILITADO`, `_HANDLE`, `_API_KEY`, `_WEBHOOK_TOKEN`, `_URL_PUBLICA` | false e vazios | no `.env.example`; o README pede gravar por `gravar-segredo.sh` |
-| `CENTRAL_ASAAS_HABILITADO` | false | bloco Asaas, NÃO está em `.env.example` nem em `deploy/` |
+| `CENTRAL_ASAAS_HABILITADO` | false | segue `false` no código (ligado e incompleto, a Central não sobe); liga-se na VPS, no `central.env`, por último. Bloco Asaas no `.env.example` e no `deploy/README.md` |
 | `CENTRAL_ASAAS_URL_BASE` | `https://api-sandbox.asaas.com/v3` | sandbox como padrão |
 | `CENTRAL_ASAAS_API_KEY`, `CENTRAL_ASAAS_WEBHOOK_TOKEN`, `CENTRAL_ASAAS_URL_PUBLICA` | vazios | produção ainda não configurada |
 | `CENTRAL_ASAAS_SOCIO_WALLET_ID` | vazio | falta |
@@ -114,7 +114,9 @@ Falta, do lado da Central:
 3. Webhook token e URL pública, e a configuração do webhook no painel do Asaas.
 4. Homologação com cobrança de R$ 5,00, com o resultado registrado.
 5. Decidir o fluxo de cartão e a política de split (`ABATER_MENSALIDADE` responde 409 na Central).
-6. Divergência do default de `CENTRAL_PAGAMENTO_PROVEDOR` (ASAAS no yml × MERCADOPAGO no `.env.example`/README) a resolver.
+6. ~~Divergência do default de `CENTRAL_PAGAMENTO_PROVEDOR`~~ resolvida (ASAAS no yml, no `.env.example` e no README, PR #43).
+
+Checklist do dono para ligar na VPS: `central-api-back/docs/ligar-asaas-na-vps.md` (PR #43, squash `718194f`): a ordem das variáveis, todas gravadas pelo `gravar-segredo.sh` entre aspas simples (preserva o `$` da chave), com `CENTRAL_ASAAS_HABILITADO=true` por último.
 
 Falta, do lado da consultoria (Overtraining Pay): `TREINOS_PAGAMENTOS_ASAAS_API_KEY_MATRIZ`, `TREINOS_PAGAMENTOS_ASAAS_WALLET_MATRIZ`, `TREINOS_PAGAMENTOS_ASAAS_WALLET_SOCIO`, `TREINOS_PAGAMENTOS_ASAAS_URL_BASE` (sandbox primeiro) e a URL pública https. Sem valor de segredo no repositório.
 

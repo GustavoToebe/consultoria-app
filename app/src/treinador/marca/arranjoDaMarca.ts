@@ -1,4 +1,5 @@
 import { espaco } from '../../tema/tokens';
+import { FOLGA_DO_BOTAO } from '../../ui/folgaDoBotao';
 
 /** Vão entre o formulário e a prévia ao lado. */
 export const VAO_DA_PREVIA = espaco(3);
@@ -40,8 +41,12 @@ export function escalaParaCaber(base: { largura: number; altura: number }, caixa
   return Math.min(1, pelaLargura, pelaAltura);
 }
 
-/** Altura do cartão da prévia fixa: a da coluna do formulário, sem passar da janela (menos o recuo de cima e de baixo). */
+/**
+ * Altura do cartão da prévia fixa: a da coluna do formulário, sem passar da janela menos o recuo de cima e a folga do botão
+ * de voltar ao topo (`FOLGA_DO_BOTAO`, no fim da rolagem): no fim da página o `sticky` não passa do fim da linha e, mais
+ * alto que isso, o cartão subia para fora da janela.
+ */
 export function alturaDaPreviaFixa(alturaDoFormulario: number | null, alturaDaJanela: number): number | undefined {
   if (!alturaDoFormulario || !(alturaDoFormulario > 0)) return undefined;
-  return Math.max(0, Math.min(alturaDoFormulario, alturaDaJanela - 2 * espaco(2)));
+  return Math.max(0, Math.min(alturaDoFormulario, alturaDaJanela - espaco(2) - FOLGA_DO_BOTAO));
 }

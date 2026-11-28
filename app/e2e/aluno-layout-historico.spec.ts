@@ -159,9 +159,13 @@ for (const { largura, menuRecolhido, lado, registros, corpo, atualizacoes } of M
     };
     await expect.poll(arranjo).toBe(lado ? 'lado' : 'embaixo');
     // Contêiner do treinador: o conteúdo começa no x do título e vai até a borda direita (sem teto, sem faixa vazia).
-    const h1 = await caixa(page.getByRole('heading', { level: 1, name: 'Histórico' }));
-    const abas = await caixa(page.getByRole('tablist').first());
-    expect(Math.abs(abas.x - h1.x)).toBeLessThan(16);
+    // A faixa da `Tela` chega depois da primeira medida: espera as abas assentarem no x do título.
+    const tituloDaPagina = page.getByRole('heading', { level: 1, name: 'Histórico' });
+    await expect.poll(async () => {
+      const abas = await caixa(page.getByRole('tablist').first());
+      return Math.abs(abas.x - (await caixa(tituloDaPagina)).x) < 16;
+    }).toBe(true);
+    const h1 = await caixa(tituloDaPagina);
     if (lado) {
       const apoio = await caixa(page.getByRole('complementary', { name: 'Progresso por exercício' }));
       expect(apoio.x + apoio.width).toBeGreaterThan(largura - 80);
