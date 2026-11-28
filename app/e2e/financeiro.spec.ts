@@ -1716,44 +1716,6 @@ test('estorno informado pela InfinitePay: o texto manda conferir e ajustar à m�
   expect(errosDaPagina).toEqual([]);
 });
 
-// Lembretes e recebimento (19/11): os dias são passos (− número +) que param em 0 e no máximo; status sob o título e barra de salvar.
-test('lembretes de cobrança: liga, muda os dias e salva com a versão; o passo não passa do máximo', async ({ page }) => {
-  await fixarHoje(page);
-  const estado = estadoFinanceiro();
-  const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
-  await page.goto('/treinador/financeiro?aba=lembretes');
-
-  await expect(page.getByRole('tab', { name: 'Lembretes', selected: true })).toBeVisible();
-  await expect(page.getByText(/^Desligados: nenhum lembrete é enviado/)).toBeVisible();
-  await expect(page.getByText(/Só por e-mail e só com o e-mail do app ligado/)).toBeVisible();
-  await expect(page.getByText('E-mail do app desligado')).toHaveCount(0);
-  await expect(page.getByText('Tudo salvo', { exact: true })).toBeVisible();
-
-  await page.getByRole('switch', { name: 'Mandar lembretes por e-mail' }).click();
-  await expect(page.getByText('Ligados: saem pelo e-mail do app.', { exact: true })).toBeVisible();
-  const antes = page.getByRole('spinbutton', { name: 'Dias antes do vencimento' });
-  await antes.focus();
-  await page.keyboard.press('End');
-  await expect(antes).toHaveAttribute('aria-valuenow', '15');
-  await expect(page.getByRole('button', { name: 'Aumentar dias antes do vencimento' })).toBeDisabled();
-  await page.keyboard.press('ArrowUp');
-  await expect(antes).toHaveAttribute('aria-valuenow', '15');
-  await page.keyboard.press('Home');
-  await expect(antes).toHaveAttribute('aria-valuetext', 'não manda');
-  for (let i = 0; i < 5; i += 1) await page.getByRole('button', { name: 'Aumentar dias antes do vencimento' }).click();
-  await expect(antes).toHaveAttribute('aria-valuetext', '5 dias');
-  expect(pedidos.filter((x) => x.metodo === 'PUT')).toEqual([]);
-
-  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
-  await expect(page.getByText('Lembretes salvos.')).toBeVisible();
-  const put = pedidos.find((x) => x.metodo === 'PUT' && x.caminho === '/financeiro/lembretes');
-  expect(put?.corpo).toEqual({ ligado: true, diasAntes: 5, noDia: true, diasDepois: 3, versao: null });
-  await expect(page.getByText('Ligados: saem pelo e-mail do app.', { exact: true })).toBeVisible();
-  await expect(page.getByText('Tudo salvo', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
-  expect(errosDaPagina).toEqual([]);
-});
-
 test('lembretes com o e-mail do app desligado: o cartão avisa que nenhum lembrete sai', async ({ page }) => {
   await fixarHoje(page);
   const estado = estadoFinanceiro({ lembretes: { ...LEMBRETES_PADRAO, emailDisponivel: false } });

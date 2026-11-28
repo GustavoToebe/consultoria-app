@@ -137,6 +137,8 @@ for (const { largura, altura, temas } of CASOS) {
     test(`folha Editar exercício ${largura}px ${nomeDoTema(tema)}: sem faixa embaixo do rodapé, ordem das ações e motivo junto do Salvar`, async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page, largura, altura, tema, '/treinador/biblioteca', ['BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'], {
         'GET /exercicios/pagina': paginaDeExerciciosFalsa([EXERCICIO]),
+      // A folha do exercício busca a lista inteira para os grupos e equipamentos que já existem.
+      'GET /exercicios': { corpo: [EXERCICIO] },
       });
       await page.getByRole('button', { name: `Editar ${EXERCICIO.nome}` }).click();
       const dialogo = page.getByRole('dialog', { name: 'Editar exercício' });
@@ -198,6 +200,8 @@ for (const { largura, altura, temas } of CASOS) {
     // "Tirar da biblioteca?" sai do Editar exercício.
     const { naoTratadas, errosDaPagina } = await abrir(page, largura, altura, { tema: 'CLARO' }, '/treinador/biblioteca', ['BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'], {
       'GET /exercicios/pagina': paginaDeExerciciosFalsa([EXERCICIO]),
+      // A folha do exercício busca a lista inteira para os grupos e equipamentos que já existem.
+      'GET /exercicios': { corpo: [EXERCICIO] },
     });
     await page.getByRole('button', { name: `Editar ${EXERCICIO.nome}` }).click();
     await page.getByRole('dialog', { name: 'Editar exercício' }).getByRole('button', { name: 'Tirar da biblioteca' }).click();
@@ -241,14 +245,16 @@ for (const largura of [390, 1280]) {
     // Altura baixa para o corpo rolar também no PC.
     const { naoTratadas, errosDaPagina } = await abrir(page, largura, 640, { tema: 'CLARO' }, '/treinador/biblioteca', ['BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'], {
       'GET /exercicios/pagina': paginaDeExerciciosFalsa([EXERCICIO]),
+      // A folha do exercício busca a lista inteira para os grupos e equipamentos que já existem.
+      'GET /exercicios': { corpo: [EXERCICIO] },
     });
     await page.getByRole('button', { name: `Editar ${EXERCICIO.nome}` }).click();
     const dialogo = page.getByRole('dialog', { name: 'Editar exercício' });
     for (const secao of ['Identificação', 'Instruções', 'Vídeo e imagem']) {
       await expect(dialogo.getByRole('heading', { name: secao, level: 3 })).toBeVisible();
     }
-    const grupo = await caixa(dialogo.getByRole('textbox', { name: 'Grupo muscular (opcional)' }));
-    const equipamento = await caixa(dialogo.getByRole('textbox', { name: 'Equipamento (opcional)' }));
+    const grupo = await caixa(dialogo.getByRole('button', { name: /^Grupo muscular · opcional: / }));
+    const equipamento = await caixa(dialogo.getByRole('button', { name: /^Equipamento · opcional: / }));
     if (celular(largura)) expect(equipamento.y).toBeGreaterThan(grupo.y + grupo.height);
     else {
       expect(Math.abs(equipamento.y - grupo.y)).toBeLessThanOrEqual(1);

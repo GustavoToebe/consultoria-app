@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import type { TextInput } from 'react-native';
 
-import { CampoData } from './Campos';
+import { CampoData, CampoNumerico } from './Campos';
 
 jest.mock('../tema/TemaProvider', () => ({
   useTema: () => ({ cores: require('../tema/tokens').ESCURO, fatorTexto: 1 }),
@@ -39,5 +39,30 @@ describe('CampoData', () => {
       raiz = Renderer.create(<CampoData rotulo="Data" valor="31/02/2026" aoMudar={() => undefined} />);
     });
     expect(raiz.root.findAllByType(RN.Text).some((t) => [t.props.children].flat().join('') === 'Data inválida.')).toBe(true);
+  });
+});
+
+describe('CampoNumerico: altura, mono e centralizado', () => {
+  const { fontes } = require('../tema/tokens') as typeof import('../tema/tokens');
+  function estilo(props: { altura?: number; mono?: boolean; centralizado?: boolean }) {
+    let raiz!: import('react-test-renderer').ReactTestRenderer;
+    Renderer.act(() => {
+      raiz = Renderer.create(<CampoNumerico rotulo="Reps" valor={8} aoMudar={() => undefined} inteiro {...props} />);
+    });
+    return RN.StyleSheet.flatten(raiz.root.findByType(RN.TextInput).props.style) as { height?: number; fontFamily?: string; textAlign?: string };
+  }
+
+  it('sem as props fica como antes', () => {
+    const e = estilo({});
+    expect(e.height).toBeUndefined();
+    expect(e.fontFamily).toBe(fontes.normal);
+    expect(e.textAlign).toBeUndefined();
+  });
+
+  it('repassa a altura, a fonte mono e o texto centralizado ao campo', () => {
+    const e = estilo({ altura: 46, mono: true, centralizado: true });
+    expect(e.height).toBe(46);
+    expect(e.fontFamily).toBe(fontes.monoSemi);
+    expect(e.textAlign).toBe('center');
   });
 });

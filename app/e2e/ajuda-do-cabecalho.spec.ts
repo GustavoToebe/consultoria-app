@@ -107,7 +107,7 @@ for (const largura of [1280, 390]) {
       await expect(link).toBeFocused();
       await expect(balao(page)).toBeVisible();
       await page.keyboard.press('Enter');
-      await expect(page).toHaveURL(/\/treinador\/ajuda\?secao=consultoria$/);
+      await expect(page).toHaveURL(/\/treinador\/ajuda\?secao=consultoria(&topico=[a-z-]+)?$/);
       await expect(page.getByRole('heading', { level: 1, name: 'Ajuda' })).toBeVisible();
       // A seção pedida nasce aberta: o item Auditoria dela está à vista.
       await expect(page.getByText(/^Lista ações importantes, guardadas por um ano/)).toBeVisible();
@@ -143,7 +143,7 @@ test('1280 px: com a Ajuda já aberta antes, o "Saiba mais" abre a seção pedid
   await expect(page.getByRole('heading', { level: 1, name: 'Equipe' })).toBeVisible();
   await icone(page).click();
   await balao(page).getByRole('link', { name: 'Saiba mais' }).click();
-  await expect(page).toHaveURL(/\/treinador\/ajuda\?secao=consultoria$/);
+  await expect(page).toHaveURL(/\/treinador\/ajuda\?secao=consultoria(&topico=[a-z-]+)?$/);
   await expect(page.getByText(/^Lista ações importantes, guardadas por um ano/)).toBeVisible();
 });
 
@@ -203,10 +203,10 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/financeiro', titulo: 'Financeiro', secao: 'financeiro' },
   { caminho: '/treinador/vitrine', titulo: 'Vitrine', secao: 'vitrine' },
   { caminho: '/treinador/numeros', titulo: 'Números', secao: null },
-  { caminho: '/treinador/equipe', titulo: 'Equipe', secao: 'consultoria' },
+  { caminho: '/treinador/equipe', titulo: 'Equipe', secao: 'consultoria&topico=equipe' },
   { caminho: '/treinador/importacao', titulo: 'Importação', secao: 'importacao' },
-  { caminho: '/treinador/importacao/assistida', titulo: 'Importação assistida', secao: 'importacao' },
-  { caminho: '/treinador/auditoria', titulo: 'Auditoria', secao: 'consultoria' },
+  { caminho: '/treinador/importacao/assistida', titulo: 'Importação assistida', secao: 'importacao&topico=importacao-assistida' },
+  { caminho: '/treinador/auditoria', titulo: 'Auditoria', secao: 'consultoria&topico=auditoria' },
   // Itens abertos dentro de Configurações (26/11): o mesmo ⓘ e o mesmo "Saiba mais" da tela inteira (no celular, vão a ela).
   { caminho: '/treinador/configuracoes/marca', titulo: 'Marca', secao: 'consultoria' },
   // Telas só de Configurações (27/11): herdam o "Saiba mais" da Marca.
@@ -214,6 +214,7 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/configuracoes/padroes-do-acompanhamento', titulo: 'Padrões do acompanhamento', secao: 'consultoria' },
   { caminho: '/treinador/configuracoes/seguranca', titulo: 'Segurança', secao: null },
   { caminho: '/treinador/configuracoes/termos', titulo: 'Termos e privacidade', secao: 'privacidade' },
+  { caminho: '/treinador/configuracoes/regras-de-atencao', titulo: 'Regras de atenção', secao: 'regras-de-atencao' },
   { caminho: '/treinador/marca', titulo: 'Marca', secao: 'consultoria' },
   { caminho: '/treinador/whatsapp', titulo: 'WhatsApp oficial', secao: null },
   { caminho: '/treinador/documentos', titulo: 'Documentos (PDF)', secao: null },
@@ -228,8 +229,8 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/ajustes', titulo: 'Aparência e preferências', secao: null },
   { caminho: '/treinador/ajuda', titulo: 'Ajuda', secao: null },
   { caminho: '/treinador/importacao/nova', titulo: 'Nova importação', secao: 'importacao' },
-  { caminho: '/treinador/importacao/planilha-completa', titulo: 'Planilha completa', secao: 'importacao' },
-  { caminho: '/treinador/alunos/tags', titulo: 'Tags dos alunos', secao: 'alunos' },
+  { caminho: '/treinador/importacao/planilha-completa', titulo: 'Planilha completa', secao: 'importacao&topico=planilha-completa' },
+  { caminho: '/treinador/alunos/tags', titulo: 'Tags dos alunos', secao: 'alunos&topico=tags-dos-alunos' },
   { caminho: '/treinador/alunos/novo', titulo: 'Novo aluno', secao: 'alunos' },
   { caminho: `/treinador/alunos/${ALUNO_DA_FICHA}`, titulo: 'Aluna Fictícia', secao: 'alunos' },
 ];

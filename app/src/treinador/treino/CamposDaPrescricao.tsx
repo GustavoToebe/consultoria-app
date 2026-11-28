@@ -9,7 +9,8 @@ import { ErroDoCampo } from './CamposBasicos';
 
 /**
  * Os campos de prescrição que a série e a metodologia dividem. As peças moram em arquivos próprios (básicas, técnica,
- * carga e RIR) e saem todas por aqui, para quem edita a série importar de um lugar só; aqui fica só o cardio.
+ * carga e RIR) e saem todas por aqui, para quem edita a série importar de um lugar só; aqui fica só o cardio. A prévia do
+ * aluno (`PreviaDaSerie`) fica fora: puxa as peças do app do aluno, e a metodologia não precisa delas.
  */
 export * from './CamposBasicos';
 export { CamposDaTecnica } from './CamposDaTecnica';

@@ -21,7 +21,7 @@ import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 const VAO = espaco(3);
 
 /**
- * Atualizações enviadas pelo aluno (só o Histórico usa). Nas faixas larga e ultralarga as linhas se dividem em 2 e 3
+ * Atualizações enviadas pelo aluno (só o Histórico usa). Da faixa normal em diante as linhas se dividem em até 2 (3 na ultralarga)
  * colunas lidas de cima para baixo (`dominio/colunasDoHistorico` + `dividirEmColunas`, o comportamento da
  * `treinador/ListaEmColunas`): a largura da coluna sai das colunas que cabem, então com poucas atualizações a vaga fica
  * vazia à direita e a linha não estica.

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
-import type { CampoDaInscricao } from '../../api/inscricoesTipos';
 import { configuracaoInscricao } from '../../api/rotas';
 import {
   INTERESSES, MODALIDADES_DESEJADAS, opcoesOpcionais, ORIGENS_INFORMADAS, PREVISOES,
 } from '../../dominio/inscricoes';
+import { camposFixosDaPrevia, type CampoFixoDaPrevia } from '../../dominio/resumoDoQuestionario';
 import { OPCOES_DE_SEXO } from '../../dominio/sexo';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { Campo } from '../../ui/Campo';
@@ -13,28 +13,41 @@ import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { useCarregar } from '../../ui/useCarregar';
 
+/** O que a prévia e o índice da Inscrição precisam saber dos campos fixos: quais a prévia mostra e a nota, se houver. */
+export interface CamposFixos { campos: readonly CampoFixoDaPrevia[]; nota: string | null; carregando: boolean }
+
+/**
+ * A escolha dos escondidos vem da configuração do link (a mesma leitura de `CamposFixosDaInscricao`), lida uma vez no
+ * editor e repartida entre a prévia e a contagem do índice; sem `INSCRICAO_LER`, todos, com a nota de que pode haver
+ * campos escondidos. `ativo` falso (não é Inscrição, ou ainda carregando o rascunho): nada é buscado.
+ */
+export function useCamposFixos(ativo: boolean): CamposFixos {
+  const { pode } = useSessao();
+  const ler = ativo && pode('INSCRICAO_LER');
+  const config = useCarregar(ler ? 'inscricao-configuracao' : null, () => configuracaoInscricao());
+  if (!ler) return { campos: camposFixosDaPrevia([]), nota: 'Alguns destes campos podem estar escondidos no link de inscrição.', carregando: false };
+  // Sem formulário padrão (404) ou falha: a prévia não trava; mostra todos, com o aviso.
+  return {
+    campos: camposFixosDaPrevia(config.dados?.camposOcultos ?? []),
+    nota: config.dados || config.carregando ? null : 'Não foi possível ler quais campos estão escondidos; a prévia mostra todos.',
+    carregando: !config.dados && config.carregando,
+  };
+}
+
 /**
  * Prévia ao vivo da Inscrição (tela larga): os campos fixos da página "Quero ser aluno" antes das perguntas, na ordem
- * e com os rótulos da página pública (`app/inscricao/[codigo].tsx`), sem os escondidos. O que se digita fica só aqui.
- * A escolha dos escondidos vem da configuração do link (a mesma leitura de `CamposFixosDaInscricao`); sem
- * `INSCRICAO_LER`, a prévia mostra todos e diz que pode haver campos escondidos.
+ * e com os rótulos da página pública (`app/inscricao/[codigo].tsx`), sem os escondidos (`camposFixosDaPrevia`, a mesma
+ * lista que o índice conta). O que se digita fica só aqui.
  */
-export function CamposFixosNaPrevia() {
-  const { pode } = useSessao();
-  return pode('INSCRICAO_LER') ? <ComConfiguracao /> : <Campos ocultos={[]} nota="Alguns destes campos podem estar escondidos no link de inscrição." />;
+export function CamposFixosNaPrevia({ fixos }: { fixos: CamposFixos }) {
+  if (fixos.carregando) return <Cartao><Esqueleto /></Cartao>;
+  return <Campos campos={fixos.campos} nota={fixos.nota} />;
 }
 
-function ComConfiguracao() {
-  const config = useCarregar('inscricao-configuracao', () => configuracaoInscricao());
-  if (!config.dados && config.carregando) return <Cartao><Esqueleto /></Cartao>;
-  // Sem formulário padrão (404) ou falha: a prévia não trava; mostra todos, com o aviso.
-  return <Campos ocultos={config.dados?.camposOcultos ?? []} nota={config.dados ? null : 'Não foi possível ler quais campos estão escondidos; a prévia mostra todos.'} />;
-}
-
-function Campos({ ocultos, nota }: { ocultos: readonly CampoDaInscricao[]; nota: string | null }) {
+function Campos({ campos, nota }: { campos: readonly CampoFixoDaPrevia[]; nota: string | null }) {
   const [v, setV] = useState<Record<string, string>>({});
   const mudar = (campo: string) => (valor: string) => setV((x) => ({ ...x, [campo]: valor }));
-  const mostra = (c: CampoDaInscricao) => !ocultos.includes(c);
+  const mostra = (c: CampoFixoDaPrevia) => campos.includes(c);
   return <>
     <Cartao titulo="Seu contato" descricao={nota ?? undefined}>
       <Campo rotulo="Nome" valor={v.nome ?? ''} aoMudar={mudar('nome')} autoComplete="off" />

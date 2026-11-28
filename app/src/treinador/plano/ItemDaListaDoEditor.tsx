@@ -26,6 +26,8 @@ interface Props {
   aoEscolher: () => void;
   /** Alça de arrastar (`ui/ArrasteDaLista`), à esquerda e fora do botão: tocar nela não escolhe o item. */
   alca?: ReactNode;
+  /** Ícone antes do título (o cardio na lista do treino), decorativo: o resumo já diz o tipo. */
+  Icone?: LucideIcon;
 }
 
 /**
@@ -34,7 +36,7 @@ interface Props {
  * barra na cor de ação com halo, número cheio e o selo "Editando", com `aria-current` e `selected`. Os outros ficam sem
  * fundo nem contorno (só o hover), como as linhas do canvas.
  */
-export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escolhido, comProblema, aoEscolher, alca }: Props) {
+export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escolhido, comProblema, aoEscolher, alca, Icone }: Props) {
   const { cores, bordas } = useTema();
   const edicao = coresDaEdicao(cores);
   const borda = escolhido ? edicao.borda : comProblema ? cores.perigo : 'transparent';
@@ -60,7 +62,12 @@ export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escol
       ]}>
       <NumeroInvertido numero={numero} invertido={escolhido} emEdicao={escolhido} />
       <View style={estilos.meio}>
-        <Texto style={estilos.nome} numberOfLines={2}>{titulo}</Texto>
+        {Icone ? (
+          <View style={estilos.titulo}>
+            <View aria-hidden style={estilos.iconeDoTitulo}><Icone size={16} color={cores.textoSuave} strokeWidth={2} /></View>
+            <Texto style={[estilos.nome, estilos.nomeAoLado]} numberOfLines={2}>{titulo}</Texto>
+          </View>
+        ) : <Texto style={estilos.nome} numberOfLines={2}>{titulo}</Texto>}
         {escolhido ? <SeloEditando /> : null}
         {selo ? <View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /></View> : null}
         <Texto variante="pequeno" numerico numberOfLines={2}>{linha}</Texto>
@@ -78,6 +85,10 @@ const estilos = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE, borderRadius: 12, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25) },
   meio: { flex: 1, gap: 4 },
   nome: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
+  // O ícone alinha com a primeira linha do título (20 px de altura de linha, ícone de 16).
+  titulo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(0.75) },
+  nomeAoLado: { flex: 1, minWidth: 0 },
+  iconeDoTitulo: { marginTop: 2 },
   selo: { flexDirection: 'row' },
   comAlca: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(0.25) },
   aoLado: { flex: 1, minWidth: 0 },

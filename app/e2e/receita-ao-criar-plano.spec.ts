@@ -48,8 +48,8 @@ for (const largura of [390, 1280]) {
 
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Novo treino', exact: true }).click();
-    const novo = page.getByRole('dialog', { name: /^Novo treino em/ });
+    await page.getByRole('dialog', { name: 'Pasta de 16/10 a 30/10' }).getByRole('button', { name: 'Novo treino', exact: true }).first().click();
+    const novo = page.getByRole('dialog', { name: /^Novo treino na pasta/ });
     await novo.getByRole('radio', { name: 'De um modelo', exact: true }).click();
 
     // Um botão só ("Receita: Escolher"); as receitas não aparecem como chips na folha do plano.
@@ -95,15 +95,16 @@ for (const largura of [390, 1280]) {
 
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
-    const pasta = page.getByRole('dialog', { name: 'Plano 17' });
+    const pasta = page.getByRole('dialog', { name: 'Pasta de 16/10 a 30/10' });
 
     // Cada tipo é uma aba da pasta: o "Nova …" mora na aba do tipo.
     for (const [aba, botaoNovo, titulo, nome] of [
-      [/^Dieta/, 'Nova dieta', /^Nova dieta em/, 'Dieta de teste'],
-      [/^Mobilidade/, 'Nova mobilidade', /^Nova mobilidade em/, 'Mobilidade de teste'],
+      [/^Dieta/, 'Nova dieta', /^Nova dieta na pasta/, 'Dieta de teste'],
+      [/^Mobilidade/, 'Nova mobilidade', /^Nova mobilidade na pasta/, 'Mobilidade de teste'],
     ] as const) {
       await pasta.getByRole('tab', { name: aba }).click();
-      await pasta.getByRole('button', { name: botaoNovo, exact: true }).click();
+      // Aba vazia: o mesmo "Novo" na linha das abas e no vazio; o da linha das abas vem primeiro.
+      await pasta.getByRole('button', { name: botaoNovo, exact: true }).first().click();
       const novo = page.getByRole('dialog', { name: titulo });
       await novo.getByRole('radio', { name: 'De um modelo', exact: true }).click();
       await novo.getByRole('button', { name: 'Receita: Escolher. Escolher.' }).click();

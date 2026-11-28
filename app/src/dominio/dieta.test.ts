@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
-import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, ehRotuloPadrao, letraDaPosicao, moverOpcao, nomeDaOpcao, novaOpcao, opcaoNaFrase, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, opcaoDoTotalDoDia, descricaoDoTotalDoDia, totalDaOpcao,totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import { aguaValida, algumItemComFibra, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, ehRotuloPadrao, letraDaPosicao, moverOpcao, nomeDaOpcao, novaOpcao, opcaoNaFrase, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, opcaoDoTotalDoDia, descricaoDoTotalDoDia, totalDaOpcao,totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -133,6 +133,18 @@ describe('fibra (V089)', () => {
   it('normalizarDieta lê fibra ausente como nula e mantém a que veio', () => {
     const { refeicoes } = normalizarDieta({ refeicoes: [{ opcoes: [{ itens: [{ nome: 'a' }, { nome: 'b', fibra: 1.5 }] }] }] });
     expect(refeicoes[0].opcoes[0].itens.map((i) => i.fibra)).toEqual([null, 1.5]);
+  });
+
+  it('algumItemComFibra: olha raiz, variações e todas as opções; 0 conta, nula e ausente não', () => {
+    const refeicao = (...opcoes: ItemDieta[][]) => ({ uid: 'r', opcoes: opcoes.map((itens) => ({ itens })) }) as unknown as Refeicao;
+    const dieta = (refeicoes: Refeicao[], variacoes: Refeicao[][] = []) =>
+      ({ refeicoes, variacoes: variacoes.map((rs, i) => ({ uid: `v${i}`, rotulo: '', dias: [], refeicoes: rs })) }) as unknown as ConteudoDieta;
+    expect(algumItemComFibra(dieta([]))).toBe(false);
+    expect(algumItemComFibra(dieta([refeicao([item(null), item(undefined)])]))).toBe(false);
+    expect(algumItemComFibra(dieta([refeicao([item(0)])]))).toBe(true);
+    expect(algumItemComFibra(dieta([refeicao([item(null)], [item(1.5)])]))).toBe(true); // só na opção B
+    expect(algumItemComFibra(dieta([], [[refeicao([item(null)])], [refeicao([item(2)])]]))).toBe(true); // só numa variação
+    expect(algumItemComFibra(dieta([], [[refeicao([item(null)])]]))).toBe(false);
   });
 
   it('faixa do formulário: 0 a 99.999, até 2 casas; vazio é permitido', () => {

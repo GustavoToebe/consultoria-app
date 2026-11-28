@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { FileText, Pencil } from 'lucide-react-native';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { baixarFotoDePerfilDoAluno, listarExercicios } from '../../api/rotas';
 import type { AlternativaDeExercicio, ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
@@ -37,10 +37,10 @@ import { validarTreino } from '../../dominio/validacaoDoTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
 import { BarraDoModeloDoEditor } from '../../treinador/plano/TopoModelo';
 import { BarraDoPlano, ProblemasDoPlano } from '../../treinador/plano/TopoPlano';
-import { FixoAbaixoDaBarra, mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
+import { FixoAbaixoDaBarra, mostrarAbaixoDaBarra, TelaDoEditor, useCabecalhoUnico } from '../plano/TelaDoEditor';
 import { ComColunas, useDuasColunas } from '../plano/ColunasDoEditor';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
-import { CartaoExercicio } from '../../treinador/treino/CartaoExercicio';
+import { CartaoExercicio, idDoExercicio } from '../../treinador/treino/CartaoExercicio';
 import { EditorDoGrupo, GrupoNaLista } from '../../treinador/treino/CartaoGrupo';
 import { novoUid } from '../../dominio/uid';
 import { CartaoSessao } from '../../treinador/treino/CartaoSessao';
@@ -61,7 +61,8 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { cargaPendente } from './cargaDaSerie';
 import { ConfiguracaoDoTreino } from './ConfiguracaoDoTreino';
-import { ContadoresDoTreino, EstadoDasPendencias, ID_DA_CONFIGURACAO } from './ContadoresDoTreino';
+import { ContadoresDoTreino, ESPERA_DA_SELECAO, EstadoDasPendencias, ID_DA_CONFIGURACAO, idDaSessao } from './ContadoresDoTreino';
+import { AcoesDoModeloDoEditor } from './AcoesDoModelo';
 import { estadoDaSessao, type PrimeiraPendencia } from '../../dominio/editorDeTreino';
 import { NomeDoModeloDeTreino } from './NomeDoModeloDeTreino';
 import { ResumoDaSessao } from './ResumoDaSessao';
@@ -69,6 +70,9 @@ import { SessaoVazia } from './SessaoVazia';
 import { EscolhaDoExercicio } from './EscolhaDoExercicio';
 import { FolhasDoTreino, type FolhaDoTreino } from './FolhasDoTreino';
 import { ID_DO_INSPETOR, InspetorDoExercicio, type PropsDoInspetor } from './InspetorDoExercicio';
+import { pontosDaSessao, type PontoParaRevisar } from '../../dominio/pontosParaRevisar';
+import { LARGURA_DO_RESUMO_DO_TREINO } from '../../dominio/colunasDoEditor';
+import { IconeBotao } from '../../ui/IconeBotao';
 import { ItemDaListaDeExercicios, ListaDeExercicios } from './ListaDeExercicios';
 import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
@@ -80,9 +84,9 @@ import { useCarregar } from '../../ui/useCarregar';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
-import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
+import { SUBTITULO_DO_MODELO, tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
 import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
-import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
+import { FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 
 /** Exercício alvo da folha; `exercicio` nulo = um novo no fim da sessão, criado só quando se escolhe algo. `cardio` = o item é de cardio. */
@@ -159,6 +163,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // "Editar nome" do modelo; e a configuração remonta aberta (por `key`) quando a pendência é um campo dela.
   const [editandoNome, setEditandoNome] = useState(false);
   const [aberturaDaConfiguracao, setAberturaDaConfiguracao] = useState(0);
+  // Modelo na web com o menu lateral (SERIE-ABERTA 0.1): título, estado e ações numa faixa só, grudada; fora disso, a barra à parte.
+  const cabecalhoUnico = useCabecalhoUnico();
 
   const estado = editor.estado;
   if (!estado) {
@@ -240,7 +246,24 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     if (pendencia.sessaoUid === null) setAberturaDaConfiguracao((n) => n + 1);
     else irAoPrimeiro(uids, pendencia.caminho);
   };
-  const estadoDasPendencias = { conteudo: c, erros: errosDoEstado, modelo, aoIrAPendencia: irAPendencia };
+  /**
+   * Ponto para revisar ("Série 5 sem descanso", SERIE-ABERTA 0.6), do selo das Sessões e do resumo: abre sessão, exercício
+   * e o bloco e, na web, foca o descanso do bloco aberto (vazio não tem `aria-invalid`, então o selo não o acharia).
+   * shortcut: no celular nativo só seleciona (o selo rola até o exercício; o resumo não alcança a rolagem); trocar por ref se pedirem.
+   */
+  const irAoPonto = (p: PontoParaRevisar) => {
+    irAoPrimeiro([p.exercicioUid], p.caminho);
+    if (Platform.OS !== 'web') return;
+    setTimeout(() => {
+      const sessao = `[id="${idDaSessao(p.sessaoUid)}"]`;
+      const campo = document.querySelector<HTMLElement>(`${sessao} [data-testid="bloco-aberto"] [aria-label^="Descanso:"]`)
+        ?? document.querySelector<HTMLElement>(`${sessao} [aria-label^="Descanso:"]`);
+      if (!campo) { mostrarAbaixoDaBarra(document.getElementById(ID_DO_INSPETOR) ? ID_DO_INSPETOR : idDoExercicio(p.exercicioUid)); return; }
+      campo.focus({ preventScroll: true });
+      campo.scrollIntoView({ block: 'center' });
+    }, ESPERA_DA_SELECAO);
+  };
+  const estadoDasPendencias = { conteudo: c, erros: errosDoEstado, modelo, aoIrAPendencia: irAPendencia, aoIrAoPonto: irAoPonto };
   // Erro num campo da própria sessão aberta (nome, tipo, vezes por semana): "Editar sessão" fica aberto.
   const prefixoDaSessao = `sessoes[${indiceSelecionado}].`;
   const erroNosDadosDaSessao = errosVivos.some((p) => p.caminho.startsWith(prefixoDaSessao) && !/^(exercicios|grupos)\b/.test(p.caminho.slice(prefixoDaSessao.length)));
@@ -347,18 +370,23 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const botaoDeColar = <Botao rotulo="Colar treino (Docs / PDF)" tipo="secundario" Icone={FileText} aoTocar={() => setColando(true)} />;
 
   const titulo = modelo ? tituloDoModelo(unica ? 'SESSAO_TREINO' : 'PLANO_TREINO') : tituloDoPlanoDoAluno('treino', nomeDoAluno);
-  // No modelo o nome é o título (o tipo desce para o subtítulo); sem nome, o título genérico e o campo aberto.
+  // No modelo o nome é o título (o tipo fica na trilha); sem nome, o título genérico e o campo aberto.
   const nomeDoModelo = modelo ? estado.titulo.trim() : '';
+  // Modelo (SERIE-ABERTA 0.1): o lápis ao lado do título, o aviso do molde no subtítulo (o tipo já está na trilha) e, na faixa
+  // única, o estado e as ações à direita; no celular as ações seguem na barra à parte.
   const cabecalho = modelo
-    ? <Cabecalho titulo={nomeDoModelo || titulo} subtitulo={nomeDoModelo ? titulo : undefined} descricao="O molde que você reaproveita: monte aqui e aplique a um aluno, que recebe uma cópia sem ligação com o modelo." trilha={trilhaDoPlano(true, estado.plano.alunoId, titulo)} voltar="/treinador/planejamento"
-        acoes={nomeDoModelo && !editandoNome ? <Botao rotulo="Editar nome" tipo="secundario" Icone={Pencil} aoTocar={() => setEditandoNome(true)} /> : undefined} />
+    ? <Cabecalho titulo={nomeDoModelo || titulo} subtitulo={SUBTITULO_DO_MODELO} descricao="O molde que você reaproveita: monte aqui e aplique a um aluno, que recebe uma cópia sem ligação com o modelo." trilha={trilhaDoPlano(true, estado.plano.alunoId, titulo)} voltar="/treinador/planejamento"
+        aoLadoDoTitulo={nomeDoModelo && !editandoNome ? <IconeBotao moldura Icone={Pencil} rotulo="Editar nome" aoTocar={() => setEditandoNome(true)} /> : undefined}
+        acoesNaLinha={cabecalhoUnico} acoes={cabecalhoUnico ? <AcoesDoModeloDoEditor editor={comVerificacao} receita={receita} /> : undefined} />
     : <Cabecalho titulo={titulo} descricao="Monte as sessões, os exercícios e as séries em rascunho. O aluno só vê o que você publica, e cada publicação vira uma versão." trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />;
 
   return (
     <TelaDoEditor
       colunas
+      tresDesde="larga"
+      cabecalhoGrudado={modelo}
       cabecalho={cabecalho}
-      barra={modelo ? <BarraDoModeloDoEditor editor={comVerificacao} receita={receita} /> : <BarraDoPlano tipo="treino" editor={comVerificacao} aoProblemas={aoProblemas} inicio={<FotoNaBarra alunoId={estado.plano.alunoId} nome={nomeDoAluno} />} />}>
+      barra={modelo ? (cabecalhoUnico ? null : <BarraDoModeloDoEditor editor={comVerificacao} receita={receita} />) : <BarraDoPlano tipo="treino" editor={comVerificacao} aoProblemas={aoProblemas} inicio={<FotoNaBarra alunoId={estado.plano.alunoId} nome={nomeDoAluno} />} />}>
       {/* Plano de uma pasta: volta à Folha dela e lê a atualização sem perder o rascunho (reunião de 30/10). */}
       {!modelo && estado.plano.pastaId ? (
         <LinhaDeAcoes>
@@ -368,10 +396,13 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       ) : null}
       <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
       {/* Contexto (de quem é o plano, o ciclo da aluna) junto; depois o plano; depois as sessões. */}
-      <View style={estilos.grupo}>
-        {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" alunoId={estado.plano.alunoId} />}
-        {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
-      </View>
+      {/* O aviso do modelo mora no subtítulo do cabeçalho (SERIE-ABERTA 0.1). */}
+      {modelo ? null : (
+        <View style={estilos.grupo}>
+          <FaixaDoPlanoDoAluno tipo="treino" alunoId={estado.plano.alunoId} />
+          <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />
+        </View>
+      )}
       {modelo ? <NomeDoModeloDeTreino editor={editor} aberto={editandoNome} aoConcluir={() => setEditandoNome(false)} /> : null}
       <View nativeID={ID_DA_CONFIGURACAO}>
         <ConfiguracaoDoTreino key={`configuracao-${aberturaDaConfiguracao}`} aberta={aberturaDaConfiguracao > 0} editor={editor} modelo={modelo}
@@ -423,7 +454,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
             }
             if (e.uid === escolhido) noInspetor = propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie);
             return <ItemArrastavel key={e.uid} arraste={arraste} indice={ei}>
-              <ItemDaListaDeExercicios exercicio={e} posicao={ei} total={sessaoAtual.exercicios.length} config={config} alca={alca}
+              <ItemDaListaDeExercicios exercicio={e} posicao={ei} total={sessaoAtual.exercicios.length} config={config} alca={alca} descansoPorSerie={descansoPorSerie}
                 escolhido={e.uid === escolhido} comProblema={comErro.has(e.uid)} aoEscolher={() => { escolherExercicio(e.uid); mostrarAbaixoDaBarra(ID_DO_INSPETOR); }} />
             </ItemArrastavel>;
           });
@@ -473,10 +504,14 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         };
         const vazia = estadoDaSessao(sessaoAtual);
         const resumo = resumoDaSessaoPorContagem(sessaoAtual, config, (e) => (e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null));
+        const pontos = pontosDaSessao(sessaoAtual, indiceSelecionado);
         return (
           <CartaoSessao
             key={sessaoAtual.uid}
-            resumo={tres ? undefined : <ResumoDaSessao resumo={resumo} />}
+            // Totais no cabeçalho da sessão (SERIE-ABERTA 0.4); sessão sem exercício fica só com dia e tipo, sem zeros.
+            totais={resumo.exercicios > 0 ? resumo : undefined}
+            // Abaixo de 1600 px, a faixa compacta (0.5): totais e pontos à vista, o detalhe por tipo e grupo recolhido.
+            resumo={tres ? undefined : <ResumoDaSessao compacto resumo={resumo} pontos={pontos} aoAbrirPonto={irAoPonto} />}
             comErroNosDados={erroNosDadosDaSessao}
             sessao={sessaoAtual}
             posicao={indiceSelecionado}
@@ -497,16 +532,16 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
               // Sem exercício: o convite (ou a frase do descanso) no lugar da lista e do editor vazios.
               <SessaoVazia estado={vazia} aoNovoExercicio={adicionar.aoNovoExercicio} aoNovoCardio={adicionar.aoNovoCardio} aoAbrirModelos={adicionar.aoAbrirModelos} />
             ) : duas ? (
-              // Lista (mestre) com largura fixa à esquerda; o inspetor (detalhe) do escolhido no meio; na faixa ultralarga, o resumo fixo ao lado.
+              // Lista (mestre) com largura fixa à esquerda; o inspetor (detalhe) do escolhido no meio; a partir de 1600 px, o resumo fixo ao lado.
               <View style={estilos.colunas}>
-                <ListaDeExercicios adicionar={adicionar}>
+                <ListaDeExercicios adicionar={adicionar} total={sessaoAtual.exercicios.length}>
                   {itens}
                 </ListaDeExercicios>
                 <InspetorDoExercicio props={noInspetor} grupo={grupoNoInspetor} />
                 {tres ? (
                   <FixoAbaixoDaBarra rola style={estilos.colunaResumo} testID="coluna-resumo-sessao">
                     <Cartao faixa titulo="Resumo da sessão">
-                      <ResumoDaSessao resumo={resumo} />
+                      <ResumoDaSessao resumo={resumo} pontos={pontos} aoAbrirPonto={irAoPonto} />
                     </Cartao>
                   </FixoAbaixoDaBarra>
                 ) : null}
@@ -547,7 +582,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       ) : null}
       <FolhaBiblioteca
         visivel={folha?.tipo === 'biblioteca'}
-        multiplo={folha?.tipo === 'biblioteca' && folha.alvo.exercicio === null}
+        multiplo={folha?.tipo === 'biblioteca' && folha.alvo.exercicio === null && !folha.alvo.cardio}
         cardio={folha?.tipo === 'biblioteca' && !!folha.alvo.cardio}
         atual={folha?.tipo === 'biblioteca' && folha.alvo.exercicio !== null ? c.sessoes[folha.alvo.sessao]?.exercicios[folha.alvo.exercicio] : undefined}
         aoFechar={() => setFolha(null)}
@@ -660,7 +695,7 @@ function FotoNaBarra({ alunoId, nome }: { alunoId: string; nome: string | null }
 
 const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
-  colunaResumo: { width: 380, flexShrink: 0, alignSelf: 'flex-start' },
+  colunaResumo: { width: LARGURA_DO_RESUMO_DO_TREINO, flexShrink: 0, alignSelf: 'flex-start' },
   // Partes que andam juntas ficam mais perto entre si que dos outros blocos da tela (24).
   grupo: { gap: espaco(1.5) },
 });

@@ -4,12 +4,16 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { RespostasAtualizacao } from '../../api/tipos';
+import { colunasComPrevia, LARGURA_DO_INDICE_DO_EDITOR } from '../../dominio/colunasDoEditor';
 import {
-  agruparProblemas, alterarInstrucoes, descricaoDoLocal, type ProblemasAgrupados,
+  agruparProblemas, alterarInstrucoes, descricaoDoLocal, localDoProblema, posicaoDaPergunta, type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
 import { motivoSemPublicar, quandoPublicado, seloDoEditor } from '../../dominio/barraDoEditor';
-import { arranjoDoEditor, CHAVE_DAS_INSTRUCOES, chaveDaSecao, colunasDoEditor, idDoBloco, itensDoIndice, secaoDaChave } from '../../dominio/indiceDoQuestionario';
+import { arranjoDoEditor, CHAVE_DAS_INSTRUCOES, chaveDaSecao, idDoBloco, itensDoIndice, secaoDaChave } from '../../dominio/indiceDoQuestionario';
 import { AVISO_SAUDE_NA_INSCRICAO } from '../../dominio/inscricoes';
+import {
+  camposDoSeuContato, chaveDaPergunta, errosAoVivo, problemasDoIndice, type ProblemaDoIndice, quantosCamposFixos, resumoDoQuestionario, situacaoDoRascunho,
+} from '../../dominio/resumoDoQuestionario';
 import { LIMITES_QUESTIONARIO as L, type ProblemaDoQuestionario } from '../../dominio/questionario';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -32,11 +36,12 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { BarraDoEditor } from '../plano/BarraDoEditor';
+import { LinhaComPrevia } from '../plano/ColunasDoEditor';
 import { AvisoDePerguntaDoInstagram } from './AvisoDePerguntaDoInstagram';
 import { FixoAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
-import { CamposFixosNaPrevia } from './CamposFixosNaPrevia';
+import { CamposFixosNaPrevia, useCamposFixos } from './CamposFixosNaPrevia';
 import { IndiceDoQuestionario, irParaBloco, useItemVisivel } from './IndiceDoQuestionario';
-import { PreviaDoQuestionario } from './PreviaDoQuestionario';
+import { PreviaDoQuestionario, SECAO_DOS_CAMPOS_FIXOS } from './PreviaDoQuestionario';
 import { SecoesDoQuestionario } from './SecoesDoQuestionario';
 import { useQuestionarioEditor } from './useQuestionarioEditor';
 
@@ -77,6 +82,8 @@ export function EditorQuestionario({ id }: { id: string }) {
   // Rola só depois de as perguntas abertas pelo índice entrarem na página: antes, o fim da página prendia a rolagem.
   const [destino, setDestino] = useState<{ chave: string; vez: number } | null>(null);
   useEffect(() => { if (destino) irParaBloco(destino.chave); }, [destino]);
+  // Inscrição: a configuração do link (campos escondidos) é lida uma vez e serve à prévia e à contagem do índice.
+  const fixos = useCamposFixos(editor.estado?.detalhe.finalidade === 'INSCRICAO' && arranjo === 'tres');
 
   const e = editor.estado;
   if (!e) {
@@ -95,7 +102,10 @@ export function EditorQuestionario({ id }: { id: string }) {
   // Nas três colunas a prévia fica sempre à vista e as abas somem: a coluna do meio é sempre a de editar.
   const abaAtiva = !editavel ? 'previa' : arranjo === 'tres' ? 'editar' : aba;
   const agrupados: ProblemasAgrupados = agruparProblemas(e.conteudo, problemas ?? []);
-  const colunas = area !== null ? colunasDoEditor(area, arranjo) : null;
+  // Índice | editor | prévia pela regra da peça (`colunasComPrevia`: vão fixo de 24, a sobra no fim da linha).
+  const colunas = area === null || arranjo === 'simples' ? null : colunasComPrevia(area, LARGURA_DO_INDICE_DO_EDITOR, arranjo === 'tres');
+  // O "Para publicar" do índice conta ao vivo o que travaria a publicação; os selos "Corrigir" seguem só o último 422.
+  const aoVivo = arranjo === 'simples' ? [] : errosAoVivo(e.conteudo, d.finalidade);
   const editarSecao = (secao: number) => setFoco((f) => (f?.secao === secao ? f : { secao, vez: (f?.vez ?? 0) + 1 }));
   /** Índice: abre as perguntas da seção (o acordeão que existe), rola até ela, põe o foco no título e leva a prévia junto. */
   const irParaItem = (i: number) => {
@@ -109,6 +119,22 @@ export function EditorQuestionario({ id }: { id: string }) {
       setFoco((f) => ({ secao, vez: (f?.vez ?? 0) + 1 }));
     }
     setDestino((d) => ({ chave, vez: (d?.vez ?? 0) + 1 }));
+  };
+
+  /** Link de problema do índice: abre a pergunta (o acordeão) e rola até ela; sem pergunta, vai à seção ou às Instruções. */
+  const irParaProblema = (p: ProblemaDoIndice) => {
+    const local = (p.perguntaId ? posicaoDaPergunta(e.conteudo, p.perguntaId) : null) ?? localDoProblema(p.caminho);
+    const alvo = local.secao !== undefined && local.pergunta !== undefined ? e.conteudo.secoes[local.secao]?.perguntas[local.pergunta] : undefined;
+    if (local.secao === undefined || !alvo) {
+      irParaItem(local.secao !== undefined ? local.secao + 1 : p.caminho.startsWith('instrucoes') ? 0 : chaves.length - 1);
+      return;
+    }
+    const secao = local.secao;
+    visivel.marcar(secao + 1);
+    setAba('editar');
+    perguntas.abrir([alvo.id]);
+    setFoco((f) => ({ secao, vez: (f?.vez ?? 0) + 1 }));
+    setDestino((x) => ({ chave: chaveDaPergunta(alvo.id), vez: (x?.vez ?? 0) + 1 }));
   };
 
   const alternarTodas = () => (perguntas.todasAbertas ? perguntas.fecharTodas() : perguntas.abrirTodas());
@@ -160,7 +186,7 @@ export function EditorQuestionario({ id }: { id: string }) {
   const previa = (naColuna: boolean) => <PreviaDoQuestionario conteudo={e.conteudo} anamnese={anamnese} respostas={respostas} erros={errosPrevia}
     aoMudar={(pid, valor) => { setRespostas((r) => ({ ...r, [pid]: valor })); setErrosPrevia(null); }}
     aoMudarErros={setErrosPrevia} aoLimpar={() => { setRespostas({}); setErrosPrevia(null); }}
-    secaoEmFoco={naColuna ? foco : null} antes={naColuna && inscricao ? <CamposFixosNaPrevia /> : undefined} />;
+    secaoEmFoco={naColuna ? foco : null} antes={naColuna && inscricao ? <CamposFixosNaPrevia fixos={fixos} /> : undefined} />;
 
   return <TelaDoEditor largura={LARGURA_MAXIMA}
     cabecalho={<Cabecalho titulo={titulo}
@@ -175,9 +201,16 @@ export function EditorQuestionario({ id }: { id: string }) {
         <Botao rotulo={rotuloPublicar} tipo={nadaNovo ? 'secundario' : 'primario'} Icone={Send} carregando={publicando} aoTocar={() => setConfirmando(true)} />
       </> : null}
     </BarraDoEditor>}>
-    <View ref={ancora} onLayout={(ev) => setArea(ev.nativeEvent.layout.width)} style={arranjo === 'simples' ? estilos.pilha : [estilos.colunas, colunas ? { gap: colunas.vao } : null]}>
-      {arranjo !== 'simples' && colunas ? <IndiceDoQuestionario itens={itensDoIndice(e.conteudo, agrupados)} atual={visivel.atual} largura={colunas.indice} aoEscolher={irParaItem} /> : null}
-      <View style={[estilos.pilha, arranjo !== 'simples' && colunas ? { width: colunas.editor } : null]}>
+    {/* A mesma linha nos três arranjos (no `simples` vira pilha): trocar de elemento ao cruzar o limiar remontaria o editor. */}
+    <LinhaComPrevia ref={ancora} onLayout={(ev) => setArea(ev.nativeEvent.layout.width)} style={arranjo === 'simples' ? estilos.pilha : null}>
+      {colunas ? <IndiceDoQuestionario itens={itensDoIndice(e.conteudo, agrupados)} atual={visivel.atual} largura={colunas.indice} aoEscolher={irParaItem}
+        camposFixos={inscricao && arranjo === 'tres' ? {
+          resumo: fixos.carregando ? 'Carregando…' : quantosCamposFixos(camposDoSeuContato(fixos.campos).length),
+          aoEscolher: () => setFoco((f) => ({ secao: SECAO_DOS_CAMPOS_FIXOS, vez: (f?.vez ?? 0) + 1 })),
+        } : null}
+        resumo={resumoDoQuestionario(e.conteudo)} situacao={situacaoDoRascunho(d.versaoPublicada, d.alteradoDesdePublicacao || (d.versaoPublicada > 0 && editor.pendente))}
+        problemas={problemasDoIndice(e.conteudo, d.finalidade, aoVivo)} aoIrAoProblema={irParaProblema} /> : null}
+      <View style={[estilos.pilha, colunas ? { width: colunas.editor } : null]}>
         <Cartao>
           {editavel ? <>
             <Campo rotulo="Nome do questionário" valor={e.nome} maxLength={120} aoMudar={(nome) => editor.alterar(() => ({ nome }))} />
@@ -228,7 +261,7 @@ export function EditorQuestionario({ id }: { id: string }) {
           <RolagemComTopo contentContainerStyle={estilos.rolagemDaPrevia}>{previa(true)}</RolagemComTopo>
         </View>
       </FixoAbaixoDaBarra> : null}
-    </View>
+    </LinhaComPrevia>
 
     <PainelConfirmacao visivel={confirmando && avisos === null} titulo={inscricao ? 'Publicar estas perguntas?' : anamnese ? 'Publicar esta anamnese?' : 'Publicar este questionário?'}
       mensagem={inscricao ? 'Se este for o padrão, a página de inscrição passa a mostrar a versão nova. Quem já se inscreveu continua com a versão que respondeu.'
@@ -256,10 +289,8 @@ function ItemProblema({ onde, mensagem, tipo }: { onde: string; mensagem: string
 }
 
 const estilos = StyleSheet.create({
-  pilha: { width: '100%', gap: espaco(3) },
-  // `flex-start`: sem ele as colunas esticam até a altura do editor e o `sticky` não tem para onde andar. O vão vem de
-  // `colunasDoEditor` (a sobra das três colunas vira vão igual dos dois lados).
-  colunas: { width: '100%', flexDirection: 'row', alignItems: 'flex-start' },
+  // Também a linha no arranjo `simples` (a `LinhaComPrevia` é linha): coluna, com o vão dos blocos.
+  pilha: { width: '100%', flexDirection: 'column', alignItems: 'stretch', gap: espaco(3) },
   lateral: { alignSelf: 'flex-start', flexShrink: 0 },
   moldura: { flexShrink: 1, minHeight: 0, borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   rolagemDaPrevia: { padding: espaco(2) },

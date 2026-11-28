@@ -1,13 +1,13 @@
-import { Repeat } from 'lucide-react-native';
-import { useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
-import type { Carga, Configuracao, ModoDeCarga, Serie } from '../../api/tipos';
+import { useState, type ReactNode } from 'react';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import type { Carga, Configuracao, ModoDeCarga, Serie, Tecnica } from '../../api/tipos';
 import { modoDoGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { alterarGrupo, alterarRirDaSerie } from '../../dominio/editorTreino';
 import { mascaraDeNumero } from '../../dominio/formatos';
-import { cargaERirIguais, percentuaisEmTodas, rirEmTodas, rpeEmTodas } from '../../dominio/camposDaSerie';
+import { AJUDA_SEM_CARGA, cargaERirIguais, dicaDaCarga, esforcoDoGrupo, percentuaisEmTodas, podeEscolherRpe, rirEmTodas, rpeEmTodas } from '../../dominio/camposDaSerie';
 import { nomeDaSerieDeTrabalho, papelDe } from '../../dominio/metodologia';
 import { escalar } from '../../dominio/preferencias';
+import { wsDeReferenciaKg } from '../../dominio/previaDaSerie';
 import { CASAS_EM_LIBRA, kgParaTela, nomeDaUnidade, telaParaKg, type UnidadeDeCarga } from '../../dominio/unidadeDeCarga';
 import { mensagemDaCargaFixa, type Problemas } from '../../dominio/validacaoDeSerie';
 import { useTema } from '../../tema/TemaProvider';
@@ -15,12 +15,15 @@ import { espaco } from '../../tema/tokens';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
+import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
-import { BotaoDeTexto } from './BotaoDeAbrir';
-import { AvisoDoCampo, CampoSozinho, ErroDoCampo, useCamposLadoALado } from './CamposBasicos';
+import { BotaoDeInfo, Explicacao } from './BotaoDeAbrir';
+import { AvisoDoCampo, CampoSozinho, ErroDoCampo } from './CamposBasicos';
+import { CamposDasCargasDosBlocos } from './CamposDaTecnica';
 import { cargaPendente, escolhaDeCargaDoPapel, FALTA_A_CARGA, modoAoEscolher, OPCOES_DO_RIR, percentuaisNoGrupo } from './cargaDaSerie';
-import { ajudaDaCarga, problemasDoGrupoDeSeries, rotulosDaFaixa, type ProblemasDaSerie } from './opcoesDoEditor';
+import { ALTURA_DO_CONTROLE, CampoDaSerie, LinhaDoFormulario } from './LinhaDoFormulario';
+import { ajudaDaCarga, problemasDoGrupoDeSeries, rotulosDaFaixa, subProblemas, type ProblemasDaSerie } from './opcoesDoEditor';
 
 /**
  * A carga fixa na unidade de quem edita (kg ou lb, `useUnidadeDeCarga`): decimal com vírgula, até 2 casas em kg e 1 em libra
@@ -32,19 +35,22 @@ export function CampoDaCargaFixa({ valor, aoMudar, erro, rotulo = 'Peso da carga
   valor: number | null | undefined; aoMudar: (kg: number | null) => void; erro?: string | null; rotulo?: string;
   /** A metodologia fica sempre em kg, qualquer que seja a unidade de quem vê. */
   emKg?: boolean;
-  /** Na linha da série (27/11): sem o rótulo em cima, a unidade dentro da caixa. */
+  /** Sem o rótulo em cima, a unidade dentro da caixa. */
   rotuloOculto?: boolean;
 }) {
   const preferida = useUnidadeDeCarga();
   const unidade = emKg ? 'kg' : preferida;
   const emLibra = unidade === 'lb';
-  // A mensagem da regra (compartilhada com a API) fala do teto em kg; aqui ela sai no número que a pessoa lê.
-  const mensagem = emLibra && erro === mensagemDaCargaFixa() ? mensagemDaCargaFixa(unidade) : erro;
   return <CampoSozinho>
     <CampoNumerico rotulo={rotulo} rotuloAcessivel={emLibra ? `${rotulo}, em ${nomeDaUnidade(unidade)}` : undefined} sufixo={unidade} rotuloOculto={rotuloOculto} sufixoNaCaixa={rotuloOculto}
       valor={kgParaTela(valor, unidade)} mascara={(t) => mascaraDeNumero(t, emLibra ? CASAS_EM_LIBRA : 2)}
-      aoMudar={(v) => aoMudar(telaParaKg(v, unidade))} erro={mensagem} />
+      aoMudar={(v) => aoMudar(telaParaKg(v, unidade))} erro={mensagemNaUnidade(erro, unidade)} />
   </CampoSozinho>;
+}
+
+/** A mensagem da regra (compartilhada com a API) fala do teto em kg; em libra ela sai no número que a pessoa lê. */
+function mensagemNaUnidade(erro: string | null | undefined, unidade: UnidadeDeCarga): string | null | undefined {
+  return unidade === 'lb' && erro === mensagemDaCargaFixa() ? mensagemDaCargaFixa(unidade) : erro;
 }
 
 /** O percentual (mínimo e máximo opcional) do padrão do tipo na metodologia; nada nas formas sem percentual. */
@@ -64,23 +70,20 @@ export function FaixaDeCarga({ carga, config, aoMudar, erros }: {
   </View>;
 }
 
-/** O RIR numa lista suspensa: "—" (não prescrito), "0" (até a falha) e 1 a 10 (onze chips por série não caberiam em 390 px). */
-export function EscolhaDoRir({ rotulo, valor, aoMudar, style }: {
-  rotulo: string; valor: number | null; aoMudar: (rir: number | null) => void; style?: StyleProp<ViewStyle>;
+/**
+ * O RIR numa lista suspensa: "—" (não prescrito), "0" (até a falha) e 1 a 10 (onze chips por série não caberiam em 390 px).
+ * Na linha da série o rótulo visível é só "RIR" (a linha já diz qual é a série) e o nome inteiro vai em `rotuloAcessivel`.
+ */
+export function EscolhaDoRir({ rotulo, valor, aoMudar, style, rotuloAcessivel }: {
+  rotulo: string; valor: number | null; aoMudar: (rir: number | null) => void; style?: StyleProp<ViewStyle>; rotuloAcessivel?: string;
 }) {
-  return <EscolhaSuspensa<number | null> rotulo={rotulo} opcoes={OPCOES_DO_RIR} valor={valor} aoMudar={aoMudar} style={[estilos.rir, style]} />;
+  return <EscolhaSuspensa<number | null> rotulo={rotulo} rotuloAcessivel={rotuloAcessivel} opcoes={OPCOES_DO_RIR} valor={valor} aoMudar={aoMudar} style={[estilos.rir, style]} />;
 }
-
-/** A partir desta largura da faixa, "Série i" e o RIR ficam na mesma linha dos campos; abaixo, o nome em cima e o RIR embaixo. */
-const LARGURA_EM_LINHA = 440;
-const LARGURA_DO_PERCENTUAL = 72;
-const LARGURA_DA_SERIE = 64;
-const LARGURA_DO_RIR = 150;
 
 /** Cluster em carga de trabalho: a ajuda da carga numa linha só (a base do dia, não a série anterior). */
 const AJUDA_DA_CARGA_DO_CLUSTER = 'A sugestão e os percentuais saem da carga que o aluno informa para o dia, não da série anterior.';
 
-/** O texto do ⓘ do título "Carga e RIR" (27/11; era a linha de ajuda embaixo das séries). Nulo sem nada a explicar. */
+/** O texto do ⓘ da linha da carga. Nulo sem nada a explicar. */
 export function ajudaDaCargaDoGrupo(g: GrupoDeSeries, config: Configuracao, semCarga: boolean, unidade: UnidadeDeCarga): string | null {
   if (semCarga) return null;
   const s = g.series[0];
@@ -92,137 +95,193 @@ export function ajudaDaCargaDoGrupo(g: GrupoDeSeries, config: Configuracao, semC
   return modo === 'CARGA_FIXA' ? ajudaDaCarga(modo, config, unidade) : null;
 }
 
+/** Larguras da linha (SERIE-ABERTA.md, seções 1 a 3): o nome "Série N", o RIR e a carga em kg (cabe "102,5"). */
+const LARGURA_DO_NOME_DA_SERIE = 64;
+const LARGURA_DO_RIR = 96;
+const LARGURA_DO_KG = 88;
+/** A coluna da carga nas linhas por série: o RIR fica alinhado de uma série para a outra. */
+const LARGURA_DA_CARGA = 260;
+
+type Esforco = 'RIR' | 'RPE';
+const OPCOES_DO_ESFORCO: { valor: Esforco; rotulo: string }[] = [{ valor: 'RIR', rotulo: 'RIR' }, { valor: 'RPE', rotulo: 'RPE' }];
+
 /**
- * Faixa 3 do grupo de séries (27/11): a forma de carga pelo papel ("% da WS · Carga fixa (kg)") e, embaixo, uma linha por
- * série: "Série 1" | [mín] a [máx] % da WS (ou a carga) | RIR. Com mais de uma série, "Mesmo valor para todas" (ligado
- * quando todas estão iguais) mostra uma linha só, que vale para o grupo inteiro. O RIR é de cada série
- * (`alterarRirDaSerie`) e não separa o grupo. Na série de trabalho, uma alternância discreta troca o RIR pelo RPE.
+ * A linha "Carga e RIR" da série aberta (SERIE-ABERTA.md, seções 1 a 3), já como `LinhaDoFormulario` (com o ⓘ e a dica):
+ * a forma de carga pelo papel ("% da WS · Carga fixa (kg)"), o segmento RIR · RPE (na série de trabalho, ou onde já há
+ * RPE; trocar apaga o esforço do grupo, com confirmação quando há valor gravado) e, com mais de uma série, "Mesmo valor
+ * para todas" (nasce ligado quando todas estão iguais e só vale enquanto estiverem: o grupo que cresce com outro RIR
+ * volta às linhas por série). Ligado (ou uma série só), os campos ficam na própria linha: `[50] a [60] % da WS` (ou `[kg]`) e o RIR.
+ * Desligado, uma linha por série: `Série 1 | [50] a [50] % da WS | RIR 3`. O RIR é de cada série (`alterarRirDaSerie`) e
+ * não separa o grupo; os kg são do grupo (kg diferentes separam as séries em grupos) e ficam na linha de cima. No Cluster,
+ * embaixo, "Carga diferente por bloco". A dica é a estimativa sobre a WS de referência (`dicaDaCarga`, `wsDeReferenciaKg`).
  */
 export function CargaERirDaSerie({ grupo: g, series, config, porSerie, semCarga, aoMudar }: {
   grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; porSerie: readonly ProblemasDaSerie[]; semCarga: boolean; aoMudar: (novas: Serie[]) => void;
 }) {
   const { cores, fatorTexto } = useTema();
   const unidade = useUnidadeDeCarga();
-  const janelaLarga = useCamposLadoALado();
-  const [largura, setLargura] = useState<number | null>(null);
-  const emLinha = largura === null ? janelaLarga : largura >= escalar(LARGURA_EM_LINHA, fatorTexto);
   const s = g.series[0];
   const papel = papelDe(config, s.tipo);
   const modo = modoDoGrupo(g);
   const escolha = escolhaDeCargaDoPapel(config, papel, modo, unidade, 'serie');
   const percentual = !semCarga && escolha.marcado === 'PERCENTUAL_WS';
+  const fixa = !semCarga && modo === 'CARGA_FIXA';
   const { erros, avisos } = problemasDoGrupoDeSeries(porSerie, g.inicio, g.series.length);
-  // RPE (C10, C11): só na série de trabalho, ou onde já está gravado (continua visível e editável).
-  const temRpe = g.series.some((x) => x.esforco?.rpe != null);
+  const temRpe = esforcoDoGrupo(g) === 'RPE';
+  const temRir = g.series.some((x) => x.esforco?.rir != null);
   const [usarRpe, setUsarRpe] = useState(temRpe);
-  const podeRpe = papel === 'TRABALHO' || temRpe;
-  const rpe = usarRpe && podeRpe;
+  const podeRpe = podeEscolherRpe(papel, temRpe);
+  // O gravado vence a escolha guardada: o editor não remonta quando o grupo cresce, e a série que entra com RPE (ou com
+  // RIR) não pode ficar escondida atrás do segmento. Sem esforço gravado, vale o segmento.
+  const rpe = podeRpe && (temRpe || (!temRir && usarRpe));
   const varias = g.series.length > 1;
-  const [mesmo, setMesmo] = useState(() => varias && cargaERirIguais(g));
-  const todas = varias && mesmo;
-  const trocarEsforco = () => { setUsarRpe(!rpe); aoMudar(alterarGrupo(series, g, { esforco: null }, config)); };
-  // Ligar com valores diferentes copia a Série 1 para as outras (o aviso embaixo do interruptor diz isso antes).
+  const iguais = cargaERirIguais(g);
+  const [mesmo, setMesmo] = useState(iguais);
+  // Pelo mesmo motivo, "Mesmo valor para todas" só vale com as séries iguais agora: senão "Todas as séries" mostraria o
+  // valor da 1ª e gravaria por cima das outras sem aviso.
+  const mesmoVale = mesmo && iguais;
+  const umaLinha = !varias || mesmoVale;
+  const [confirmarTroca, setConfirmarTroca] = useState(false);
+  const comEsforco = g.series.filter((x) => x.esforco?.rir != null || x.esforco?.rpe != null).length;
+  const [infoAberta, setInfoAberta] = useState(false);
+  const ajuda = ajudaDaCargaDoGrupo(g, config, semCarga, unidade);
+  const cluster = s.tecnica?.tipo === 'CLUSTER';
+  const ws = nomeDaSerieDeTrabalho(config);
+  const largura = (px: number) => ({ width: escalar(px, fatorTexto) });
+
+  const aplicarTroca = (v: Esforco) => {
+    setUsarRpe(v === 'RPE');
+    if (comEsforco) aoMudar(alterarGrupo(series, g, { esforco: null }, config));
+  };
+  // Trocar apaga o esforço do grupo: sem nada gravado troca direto; com valor, pergunta antes (painel na tela).
+  const trocarEsforco = (v: Esforco) => {
+    if ((v === 'RPE') === rpe) return;
+    if (comEsforco) setConfirmarTroca(true);
+    else aplicarTroca(v);
+  };
+  // Ligar com valores diferentes copia a Série 1 para as outras (a dica embaixo do interruptor diz isso antes).
   const ligarMesmo = (ligado: boolean) => {
     setMesmo(ligado);
-    if (!ligado || cargaERirIguais(g)) return;
-    const x = g.series[0];
-    let novas = percentual ? percentuaisEmTodas(series, g, x.carga?.percentualMin ?? null, x.carga?.percentualMax ?? null, papel) : series;
-    novas = x.esforco?.rpe != null ? rpeEmTodas(novas, g, x.esforco.rpe) : rirEmTodas(novas, g, x.esforco?.rir ?? null);
+    if (!ligado || iguais) return;
+    let novas = percentual ? percentuaisEmTodas(series, g, s.carga?.percentualMin ?? null, s.carga?.percentualMax ?? null, papel) : series;
+    novas = s.esforco?.rpe != null ? rpeEmTodas(novas, g, s.esforco.rpe) : rirEmTodas(novas, g, s.esforco?.rir ?? null);
     aoMudar(novas);
   };
   const mudarPercentuais = (j: number, min: number | null, max: number | null) =>
-    aoMudar(todas ? percentuaisEmTodas(series, g, min, max, papel) : percentuaisNoGrupo(series, g, j, min, max, config));
-  const mudarRir = (i: number, rir: number | null) => aoMudar(todas ? rirEmTodas(series, g, rir) : alterarRirDaSerie(series, i, rir));
-  const mudarRpe = (i: number, valor: number | null) => aoMudar(todas ? rpeEmTodas(series, g, valor)
+    aoMudar(umaLinha ? percentuaisEmTodas(series, g, min, max, papel) : percentuaisNoGrupo(series, g, j, min, max, config));
+  const mudarRir = (i: number, rir: number | null) => aoMudar(umaLinha ? rirEmTodas(series, g, rir) : alterarRirDaSerie(series, i, rir));
+  const mudarRpe = (i: number, valor: number | null) => aoMudar(umaLinha ? rpeEmTodas(series, g, valor)
     : series.map((x, k) => (k === i ? { ...x, esforco: valor == null ? null : { rir: null, rpe: valor } } : x)));
+  const mudarTecnica = (parte: Partial<Tecnica>) => { if (s.tecnica) aoMudar(alterarGrupo(series, g, { tecnica: { ...s.tecnica, ...parte } }, config)); };
+
+  // Carga obrigatória ainda vazia: aviso âmbar "Falta a carga." (guia premium págs. 4 e 9), não o erro vermelho do valor inválido.
+  const kgPendente = !!erros['carga.valorKg'] && cargaPendente(s, 'carga.valorKg');
+  const minPendente = (x: Serie, e: Problemas) => !!e['carga.percentualMin'] && cargaPendente(x, 'carga.percentualMin');
+  /** As frases de uma série (erro vermelho e "Falta a carga" âmbar): a caixa só fica marcada, a frase vem embaixo. */
+  const mensagensDaSerie = (x: Serie, i: number): ReactNode[] => {
+    const e = porSerie[i]?.erros ?? {};
+    const pendente = minPendente(x, e);
+    const frases = [...new Set([pendente ? null : e['carga.percentualMin'], e['carga.percentualMax'], rpe ? e['esforco.rpe'] : e['esforco.rir']].filter((m): m is string => !!m))];
+    return [
+      ...frases.map((m) => <ErroDoCampo key={m} mensagem={m} />),
+      pendente ? <AvisoDoCampo key="falta" mensagem={`${FALTA_A_CARGA}.`} /> : null,
+      porSerie[i]?.avisos['esforco.rir'] ? <AvisoDoCampo key="aviso-rir" mensagem={porSerie[i]?.avisos['esforco.rir']} /> : null,
+    ].filter(Boolean);
+  };
+
+  const camposDoPercentual = (x: Serie, j: number, nome: string) => {
+    const e = porSerie[g.inicio + j]?.erros ?? {};
+    return <>
+      <CampoDaSerie rotulo={`${nome} · Mínimo (%)`} unidade="a" valor={x.carga?.percentualMin ?? null} erro={minPendente(x, e) ? null : e['carga.percentualMin']}
+        aoMudar={(min) => mudarPercentuais(j, min, x.carga?.percentualMax ?? null)} />
+      <CampoDaSerie rotulo={`${nome} · Máximo (%)`} unidade={`% da ${ws}`} valor={x.carga?.percentualMax ?? null} erro={e['carga.percentualMax']}
+        aoMudar={(max) => mudarPercentuais(j, x.carga?.percentualMin ?? null, max)} />
+    </>;
+  };
+  const campoDoKg = <CampoDaSerie rotulo={unidade === 'lb' ? `Carga, em ${nomeDaUnidade(unidade)}` : 'Carga (kg)'} unidade={unidade} larguraDoCampo={LARGURA_DO_KG}
+    valor={kgParaTela(s.carga?.valorKg, unidade)} mascara={(t) => mascaraDeNumero(t, unidade === 'lb' ? CASAS_EM_LIBRA : 2)}
+    erro={kgPendente ? null : mensagemNaUnidade(erros['carga.valorKg'], unidade)}
+    aoMudar={(v) => aoMudar(alterarGrupo(series, g, { carga: { modo: 'CARGA_FIXA', valorKg: telaParaKg(v, unidade) } }, config))} />;
+  const campoDoEsforco = (x: Serie, i: number, nome: string) => rpe
+    ? <CampoDaSerie rotulo={`${nome} · RPE`} unidade="RPE" valor={x.esforco?.rpe ?? null} erro={porSerie[i]?.erros['esforco.rpe']} aoMudar={(v) => mudarRpe(i, v)} />
+    : <EscolhaDoRir rotulo="RIR" rotuloAcessivel={`${nome} · RIR`} valor={x.esforco?.rir ?? null} aoMudar={(rir) => mudarRir(i, rir)} style={largura(LARGURA_DO_RIR)} />;
+
   const textoDaCarga = (x: Serie): string => {
     if (modo === 'CARGA_FIXA') return x.carga?.valorKg != null ? `${kgParaTela(x.carga.valorKg, unidade)?.toLocaleString('pt-BR')} ${unidade}` : '—';
     return escolha.opcoes.find((o) => o.valor === modo)?.rotulo ?? '—';
   };
-  const ws = `% da ${nomeDaSerieDeTrabalho(config)}`;
-  const numero = { width: escalar(LARGURA_DO_PERCENTUAL, fatorTexto) };
-  const celula = {
-    serie: { width: escalar(LARGURA_DA_SERIE, fatorTexto) },
-    carga: emLinha ? { width: 2 * escalar(LARGURA_DO_PERCENTUAL, fatorTexto) + escalar(120, fatorTexto) } : estilos.flexivelDuplo,
-    esforco: emLinha ? { width: escalar(LARGURA_DO_RIR, fatorTexto) } : estilos.esforcoEmpilhado,
-  } satisfies Record<string, StyleProp<ViewStyle>>;
-  const nomeDoEsforco = rpe ? 'RPE' : 'RIR';
-  // Carga obrigatória ainda vazia: aviso âmbar "Falta a carga." (guia premium págs. 4 e 9), não o erro vermelho do valor inválido.
-  const kgPendente = !!erros['carga.valorKg'] && cargaPendente(s, 'carga.valorKg');
-  const medir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
-  const linhas = todas ? [0] : g.series.map((_, j) => j);
-  return <View style={estilos.bloco} onLayout={medir}>
+
+  // A dica única da linha: as frases dos campos (que só marcam a caixa) e, sem nenhuma, a estimativa sobre a WS.
+  const erroDoModo = erros['carga.modo'] ?? erros.carga;
+  const frases: ReactNode[] = [
+    ...(umaLinha ? mensagensDaSerie(s, g.inicio) : []),
+    fixa && kgPendente ? <AvisoDoCampo key="falta-kg" mensagem={`${FALTA_A_CARGA}.`} /> : null,
+    // O campo curto só marca a caixa: a frase do kg (na unidade de quem lê) vem aqui.
+    fixa && !kgPendente && erros['carga.valorKg'] ? <ErroDoCampo key="kg" mensagem={mensagemNaUnidade(erros['carga.valorKg'], unidade)} /> : null,
+    erroDoModo ? <ErroDoCampo key="modo" mensagem={erroDoModo} /> : null,
+    avisos['carga.modo'] ? <AvisoDoCampo key="aviso-modo" mensagem={avisos['carga.modo']} /> : null,
+  ].filter(Boolean);
+  const estimativa = umaLinha && !semCarga ? dicaDaCarga(s, { config, unidade, wsKg: wsDeReferenciaKg(series, config) }) : null;
+  const dicas = [
+    rpe ? 'RPE de 1 a 10, de meio em meio (ex.: 8 ou 8,5).' : null,
+    estimativa,
+    varias && !iguais ? 'Ligar "Mesmo valor para todas" copia a Série 1 para as outras.' : null,
+  ].filter((d): d is string => !!d);
+  const dica = frases.length || dicas.length
+    ? <View style={estilos.frases}>{frases}{dicas.map((d) => <Texto key={d} variante="pequeno">{d}</Texto>)}</View>
+    : undefined;
+
+  const nome = semCarga ? (podeRpe ? 'Esforço' : 'RIR') : podeRpe ? 'Carga e esforço' : 'Carga e RIR';
+  // No aquecimento em % da WS a dica já diz "em branco, o aluno não recebe sugestão": o ⓘ repetiria a mesma frase.
+  const info = ajuda && !estimativa?.includes(AJUDA_SEM_CARGA) ? ajuda : null;
+  const atual: Esforco = rpe ? 'RPE' : 'RIR';
+  // Só há duas opções: o alvo da troca é sempre a outra (o texto não fica vazio enquanto o painel fecha).
+  const outro: Esforco = rpe ? 'RIR' : 'RPE';
+  return <><LinhaDoFormulario nome={nome} dica={dica}>
     {semCarga ? null : <Escolha<ModoDeCarga> descricao="Forma de carga" compacta opcoes={escolha.opcoes} valor={escolha.marcado}
       aoMudar={(m) => { if (m !== escolha.marcado) aoMudar(alterarGrupo(series, g, { modo: modoAoEscolher(papel, m) }, config)); }} />}
-    <ErroDoCampo mensagem={erros['carga.modo'] ?? erros.carga} />
-    {varias ? <Interruptor rotulo="Mesmo valor para todas" valor={todas} aoMudar={ligarMesmo}
-      ajuda={!todas && !cargaERirIguais(g) ? 'Ligar copia a Série 1 para as outras.' : undefined} /> : null}
-    {/* Cabeçalho das colunas, uma vez; cada campo tem o nome inteiro para o leitor de tela ("Série 2 · Mínimo (%)"). */}
-    {emLinha ? <View style={estilos.linha} aria-hidden>
-      <Texto variante="rotulo" style={celula.serie}>Série</Texto>
-      {semCarga ? null : <Texto variante="rotulo" style={celula.carga}>{percentual ? 'Carga (mín. a máx.)' : 'Carga'}</Texto>}
-      <Texto variante="rotulo" style={celula.esforco}>{nomeDoEsforco}</Texto>
-    </View> : null}
-    {linhas.map((j) => {
-      const x = g.series[j];
+    {umaLinha && percentual ? camposDoPercentual(s, 0, varias ? 'Todas as séries' : 'Série 1') : null}
+    {fixa ? campoDoKg : null}
+    {podeRpe ? <Escolha<Esforco> descricao="Esforço por RIR ou RPE" compacta opcoes={OPCOES_DO_ESFORCO} valor={rpe ? 'RPE' : 'RIR'} aoMudar={trocarEsforco} /> : null}
+    {umaLinha ? campoDoEsforco(s, g.inicio, varias ? 'Todas as séries' : 'Série 1') : null}
+    {varias ? <View><Interruptor rotulo="Mesmo valor para todas" valor={mesmoVale} aoMudar={ligarMesmo} /></View> : null}
+    {info ? <BotaoDeInfo rotulo={`Sobre ${nome.toLowerCase()}`} aberto={infoAberta} aoAlternar={() => setInfoAberta(!infoAberta)} /> : null}
+    {info && infoAberta ? <View style={estilos.inteira}><Explicacao texto={info} /></View> : null}
+    {umaLinha ? null : g.series.map((x, j) => {
       const i = g.inicio + j;
-      const n = j + 1;
-      const nome = todas ? 'Todas as séries' : `Série ${n}`;
-      const curto = todas ? 'Todas' : `Série ${n}`;
-      const e = porSerie[i]?.erros ?? {};
-      const esforco = <View style={celula.esforco}>
-        {rpe ? <CampoNumerico rotulo={`${nome} · RPE`} rotuloOculto={emLinha} erroSemTexto valor={x.esforco?.rpe ?? null} erro={e['esforco.rpe']} aoMudar={(v) => mudarRpe(i, v)} />
-          : <EscolhaDoRir rotulo={`${nome} · RIR`} valor={x.esforco?.rir ?? null} aoMudar={(rir) => mudarRir(i, rir)} />}
-      </View>;
-      const minPendente = !!e['carga.percentualMin'] && cargaPendente(x, 'carga.percentualMin');
-      const mensagens = [...new Set([minPendente ? null : e['carga.percentualMin'], e['carga.percentualMax'], rpe ? e['esforco.rpe'] : e['esforco.rir']].filter(Boolean))];
-      const carga = semCarga ? null : percentual ? <View style={[estilos.linha, celula.carga]}>
-        <View style={numero}><CampoNumerico rotulo={`${nome} · Mínimo`} rotuloAcessivel={`${nome} · Mínimo (%)`} rotuloOculto erroSemTexto
-          valor={x.carga?.percentualMin ?? null} erro={minPendente ? null : e['carga.percentualMin']} aoMudar={(min) => mudarPercentuais(j, min, x.carga?.percentualMax ?? null)} /></View>
-        <Texto variante="suave" aria-hidden>a</Texto>
-        <View style={numero}><CampoNumerico rotulo={`${nome} · Máximo`} rotuloAcessivel={`${nome} · Máximo (%)`} rotuloOculto erroSemTexto
-          valor={x.carga?.percentualMax ?? null} erro={e['carga.percentualMax']} aoMudar={(max) => mudarPercentuais(j, x.carga?.percentualMin ?? null, max)} /></View>
-        <Texto variante="suave" aria-hidden numberOfLines={1} style={estilos.unidade}>{ws}</Texto>
-      </View>
-        // Os kg são do grupo (kg diferentes separam as séries em grupos, `agrupamento`): o campo fica na primeira linha.
-        : modo === 'CARGA_FIXA' && j === 0 ? <View style={celula.carga}>
-          <CampoDaCargaFixa rotulo={`Carga (${unidade})`} rotuloOculto valor={s.carga?.valorKg} erro={kgPendente ? null : erros['carga.valorKg']}
-            aoMudar={(valorKg) => aoMudar(alterarGrupo(series, g, { carga: { modo: 'CARGA_FIXA', valorKg } }, config))} />
+      const nomeDaSerie = `Série ${j + 1}`;
+      const mensagens = mensagensDaSerie(x, i);
+      return <View key={x.uid} style={[estilos.inteira, estilos.serie]} role="group" aria-label={nomeDaSerie}>
+        <View style={estilos.linhaDaSerie}>
+          <Texto variante="rotulo" cor={cores.texto} style={largura(LARGURA_DO_NOME_DA_SERIE)}>{nomeDaSerie}</Texto>
+          {semCarga ? null : <View style={[estilos.linhaDaSerie, { minWidth: escalar(LARGURA_DA_CARGA, fatorTexto) }]}>
+            {percentual ? camposDoPercentual(x, j, nomeDaSerie) : <Texto numerico cor={cores.texto}>{textoDaCarga(x)}</Texto>}
+          </View>}
+          {campoDoEsforco(x, i, nomeDaSerie)}
         </View>
-          : <Texto numerico cor={cores.texto} style={[celula.carga, estilos.textoDaCarga]}>{textoDaCarga(x)}</Texto>;
-      return <View key={x.uid} style={[estilos.serie, emLinha ? null : [estilos.serieEmpilhada, { borderTopColor: cores.divisor }]]}>
-        {emLinha ? null : <Texto variante="rotulo" cor={cores.texto}>{nome}</Texto>}
-        <View style={estilos.linha}>
-          {emLinha ? <Texto variante="rotulo" cor={cores.texto} style={celula.serie}>{curto}</Texto> : null}
-          {carga}
-          {emLinha ? esforco : null}
-        </View>
-        {emLinha ? null : esforco}
-        {mensagens.map((m) => <ErroDoCampo key={m} mensagem={m} />)}
-        {minPendente ? <AvisoDoCampo mensagem={`${FALTA_A_CARGA}.`} /> : null}
-        {j === 0 && modo === 'CARGA_FIXA' && kgPendente ? <AvisoDoCampo mensagem={`${FALTA_A_CARGA}.`} /> : null}
-        <AvisoDoCampo mensagem={porSerie[i]?.avisos['esforco.rir']} />
+        {mensagens}
       </View>;
     })}
-    {rpe ? <Texto variante="pequeno">RPE de 1 a 10, de meio em meio (ex.: 8 ou 8,5).</Texto> : null}
-    {podeRpe ? <BotaoDeTexto Icone={Repeat} texto={rpe ? 'Prescrever por RIR' : 'Prescrever por RPE'}
-      rotuloAcessivel={rpe ? 'Prescrever por RIR (apaga o RPE destas séries)' : 'Prescrever por RPE (apaga o RIR destas séries)'} aoTocar={trocarEsforco} /> : null}
-    <AvisoDoCampo mensagem={avisos['carga.modo']} />
-  </View>;
+    {cluster && !semCarga && s.tecnica ? <View style={estilos.inteira}>
+      <CamposDasCargasDosBlocos t={s.tecnica} mudar={mudarTecnica} e={subProblemas(erros, 'tecnica')} ws={ws} />
+    </View> : null}
+  </LinhaDoFormulario>
+  <PainelConfirmacao visivel={confirmarTroca} titulo={`Trocar o esforço para ${outro}?`} perigo
+    mensagem={`Trocar para ${outro} apaga o ${atual} de ${comEsforco === 1 ? '1 série' : `${comEsforco} séries`}.`}
+    rotuloConfirmar={`Trocar para ${outro}`} rotuloCancelar={`Manter ${atual}`}
+    aoConfirmar={() => { setConfirmarTroca(false); aplicarTroca(outro); }} aoCancelar={() => setConfirmarTroca(false)} />
+  </>;
 }
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   faixa: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   campoDaFaixa: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
+  frases: { gap: 2 },
+  // Ocupa a fileira inteira dos controles da linha (as linhas por série, a explicação, a carga por bloco).
+  inteira: { flexBasis: '100%' },
   serie: { gap: espaco(0.5) },
-  // No celular a série ganha o nome em cima e um fio fino separa uma da outra.
-  serieEmpilhada: { borderTopWidth: 1, paddingTop: espaco(1) },
-  flexivelDuplo: { flex: 2, minWidth: 0 },
-  esforcoEmpilhado: { alignSelf: 'stretch' },
-  textoDaCarga: { paddingVertical: espaco(1) },
-  unidade: { flexShrink: 1 },
-  // Na linha da série a lista do RIR tem a altura das caixas de número.
-  rir: { minHeight: 44 },
+  linhaDaSerie: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+  // A lista do RIR tem a altura das caixas de número.
+  rir: { minHeight: ALTURA_DO_CONTROLE },
 });

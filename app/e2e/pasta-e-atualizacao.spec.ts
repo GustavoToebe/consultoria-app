@@ -105,7 +105,7 @@ for (const largura of [390, 1280]) {
     });
     await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
 
-    const pasta = page.getByRole('dialog', { name: 'Plano 17' });
+    const pasta = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
     // A ordem sugerida mora no ⓘ da Folha (bloco F): fechado, nada dela aparece; aberto, os passos e as notas; o Esc fecha
     // só o balão (a Folha continua) e devolve o foco ao ⓘ.
     await expect(pasta.getByText(/Finalizar não publica nada\./)).toBeHidden();
@@ -152,7 +152,7 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrir(page, ['ATUALIZACAO_LER']);
     await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     const data = folha.getByRole('textbox', { name: 'Data do peso' });
     const finalizar = folha.getByRole('button', { name: 'Finalizar pasta' });
@@ -179,7 +179,7 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const { errosDaPagina, pedidos } = await abrir(page, []);
     await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     await expect(folha.getByRole('textbox', { name: 'Peso (opcional)' })).toHaveValue('');
     await expect(folha.getByText(LINHA_DO_PESO)).toHaveCount(0);
@@ -196,7 +196,7 @@ for (const largura of [390, 1280]) {
     const voltar = page.getByRole('link', { name: 'Voltar à pasta' });
     await expect(voltar).toHaveAttribute('href', `/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
     await voltar.click();
-    await expect(page.getByRole('dialog', { name: 'Plano 17' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' })).toBeVisible();
     // C22: aberta a Folha, o `?pastaId=` sai do endereço (recarregar não a reabre).
     await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=planos$`));
     expect(errosDaPagina).toEqual([]);
@@ -212,7 +212,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Sair sem salvar?')).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(`/treinador/dietas/${PLANO_ID}`);
     await page.getByRole('button', { name: 'Sair sem salvar' }).click();
-    const pasta = page.getByRole('dialog', { name: 'Plano 17' });
+    const pasta = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
     await expect(pasta).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=planos$`));
 
@@ -273,16 +273,23 @@ for (const largura of [390, 1280]) {
   test(`publicar tudo: erro na dieta não publica nada e lista o problema por plano (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { erros: [{ field: 'dieta.refeicoes', message: 'Inclua ao menos uma refeição.' }] });
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
     await folha.getByRole('tab', { name: 'Dieta (1)' }).click();
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
-    await expect(folha.getByText('Vai publicar 1 plano: “Dieta do Plano 17”.', { exact: false })).toBeVisible();
+    // O rodapé fixo diz quantas alterações vão sair; a lista mostra o nome que o aluno vai ver.
+    await folha.getByRole('button', { name: '1 alteração para publicar: ver a lista' }).click();
+    const lista = page.getByRole('dialog', { name: '1 alteração para publicar' });
+    await expect(lista.getByText('Dieta do Plano 17', { exact: true })).toBeVisible();
+    await lista.getByRole('button', { name: 'Fechar', exact: true }).click();
 
-    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 17' }).click();
+    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 06/10 a 20/10' }).click();
     await expect(folha.getByText('Nada foi publicado', { exact: true })).toBeVisible();
     await expect(folha.getByText('Dieta: Dieta do Plano 17')).toBeVisible();
     await expect(folha.getByText('Inclua ao menos uma refeição.')).toBeVisible();
     await expect(folha.getByRole('button', { name: 'Abrir Dieta: Dieta do Plano 17' })).toBeVisible();
+    // Com o erro, o botão fica desabilitado com o motivo até a lista mudar.
+    await expect(folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 06/10 a 20/10' })).toBeDisabled();
+    await expect(folha.getByText('Corrija 1 problema na dieta')).toBeVisible();
     // Nada mudou: a dieta segue em rascunho e só a rota da pasta foi chamada (nenhuma publicação plano a plano).
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
     expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/publicar')).map((p) => [p.caminho, p.corpo]))
@@ -296,39 +303,38 @@ for (const largura of [390, 1280]) {
     const { errosDaPagina } = await abrirComPasta(page, {}, PERMISSOES_DA_PASTA, {
       [`GET /alunos/${ALUNO_ID}/pastas/vigente`]: { corpo: { pasta: PASTAS.find((p) => p.id === PASTA_ID) } },
     });
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
-    await expect(folha.getByText('Vigente', { exact: true })).toBeVisible();
-    // O Plano 17 terminou em 20/10 e não tem a do ciclo seguinte: o prazo vencido vem escrito junto do "Vigente".
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
+    // O Plano 17 terminou em 20/10 e não foi finalizado: um selo só, "Vencida", nunca junto do "Vigente".
     await expect(folha.getByText(/^Vencida (há \d+ dias?|desde \d\d\/\d\d\/\d{4})$/)).toBeVisible();
-    // O período aparece uma vez só (no topo), não em cada plano.
-    await expect(folha.getByText(/^Período:/)).toHaveCount(1);
-    // Selo único: o treino em uso só diz "Em uso pelo aluno", com a versão na segunda linha.
-    await expect(folha.getByText('Em uso pelo aluno', { exact: true })).toHaveCount(1);
-    await expect(folha.getByText(/^Publicado v2( em .+)?$/)).toBeVisible();
+    await expect(folha.getByText('Vigente', { exact: true })).toHaveCount(0);
+    // O período aparece uma vez só (no topo), com a duração, não em cada plano.
+    await expect(folha.getByText('06/10 a 20/10 · 15 dias', { exact: true })).toHaveCount(1);
+    // Selo único logo depois do nome: o treino em uso diz "Publicado", com a versão em texto pequeno.
+    await expect(folha.getByText('Publicado', { exact: true })).toHaveCount(1);
+    await expect(folha.getByText(/^Em uso pelo aluno · v2( em .+)?$/)).toBeVisible();
     await folha.getByRole('tab', { name: 'Dieta (1)' }).click();
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
-    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 17' }).click();
-    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
+    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 06/10 a 20/10' }).click();
+    await expect(page.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
     // A Folha continua aberta e recarrega os planos: a dieta passa a v1 (publicada, fora de uso).
     await expect(folha.getByText(/^Publicado v1( em .+)? · não está em uso$/)).toBeVisible();
     await expect(folha.getByText('Rascunho', { exact: true })).toHaveCount(0);
 
-    // Sem nada alterado o botão trava com o motivo e não chama a API.
-    const nada = folha.getByRole('button', { name: 'Publicar alterações (0) da pasta Plano 17' });
-    await expect(nada).toBeDisabled();
-    await expect(folha.getByText('Nada para publicar: os planos desta pasta já estão publicados.')).toBeVisible();
+    // Sem nada alterado o rodapé de publicação some.
+    await expect(folha.getByRole('button', { name: /^Publicar alterações/ })).toHaveCount(0);
+    await expect(folha.getByRole('button', { name: /alteraç(ão|ões) para publicar/ })).toHaveCount(0);
     expect(errosDaPagina).toEqual([]);
   });
 
   test(`publicar tudo: avisos pedem "Publicar mesmo assim" (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { avisos: [{ field: 'dieta.aguaLitros', message: 'Sem água por dia.' }] });
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
-    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 17' }).click();
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
+    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 06/10 a 20/10' }).click();
     await expect(folha.getByText('Nada foi publicado ainda', { exact: true })).toBeVisible();
     await expect(folha.getByText('Sem água por dia.')).toBeVisible();
     await folha.getByRole('button', { name: 'Publicar mesmo assim' }).click();
-    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
+    await expect(page.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
     expect(pedidos.filter((p) => p.caminho === `/pastas/${PASTA_ID}/publicar`).map((p) => p.corpo))
       .toEqual([
         { confirmarAvisos: false, versoes: { [PLANO_ID]: DIETA.plano.versao } },
@@ -341,9 +347,9 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const permissoes = PERMISSOES_DA_PASTA.filter((p) => p !== 'DIETA_PUBLICAR');
     const { pedidos, errosDaPagina } = await abrirComPasta(page, {}, permissoes);
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
     await expect(folha.getByText('Falta permissão para publicar a dieta.')).toBeVisible();
-    await expect(folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 17' })).toBeDisabled();
+    await expect(folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 06/10 a 20/10' })).toBeDisabled();
     expect(pedidos.some((p) => p.caminho.endsWith('/publicar'))).toBe(false);
     expect(errosDaPagina).toEqual([]);
   });
@@ -357,9 +363,9 @@ for (const largura of [390, 1280]) {
       { tipo: 'dieta', plano: { ...DIETA.plano } },
     ];
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { planos }, permissoes);
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
     // O treino é desconhecido: o rótulo não promete "Publicar dieta".
-    const botao = folha.getByRole('button', { name: 'Publicar alterações da pasta Plano 17' });
+    const botao = folha.getByRole('button', { name: 'Publicar alterações da pasta de 06/10 a 20/10' });
     await expect(botao).toBeEnabled();
     await botao.click();
     await expect(folha.getByText('Você não tem permissão para publicar todos os planos com alteração desta pasta. Nada foi publicado.')).toBeVisible();
@@ -371,11 +377,11 @@ for (const largura of [390, 1280]) {
   test(`publicar tudo: lista que falhou ao carregar desabilita o botão com o motivo e "Tentar de novo" libera (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { listaFalhaNaPrimeiraVez: ['dieta'] });
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
     // Sem a lista da dieta o alcance é desconhecido: rótulo sem número; depois de carregar, "Publicar alterações (1)".
-    const botao = folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 17' });
+    const botao = folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 06/10 a 20/10' });
     await expect(folha.getByText('Não foi possível carregar a dieta. Tente de novo.')).toBeVisible();
-    await expect(folha.getByRole('button', { name: 'Publicar alterações da pasta Plano 17' })).toBeDisabled();
+    await expect(folha.getByRole('button', { name: 'Publicar alterações da pasta de 06/10 a 20/10' })).toBeDisabled();
     const tentar = folha.getByRole('button', { name: 'Tentar carregar os planos de novo' });
     await expect(tentar).toBeVisible();
     expect(pedidos.some((p) => p.caminho.endsWith('/publicar'))).toBe(false);
@@ -387,7 +393,7 @@ for (const largura of [390, 1280]) {
 
     // Liberado, publica com a versão que a lista recarregada trouxe, sem aviso de que os planos mudaram.
     await botao.click();
-    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
+    await expect(page.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
     await expect(folha.getByText(/Os planos mudaram/)).toHaveCount(0);
     expect(pedidos.filter((p) => p.caminho === `/pastas/${PASTA_ID}/publicar`).map((p) => p.corpo))
       .toEqual([{ confirmarAvisos: false, versoes: { [PLANO_ID]: DIETA.plano.versao } }]);
@@ -397,22 +403,22 @@ for (const largura of [390, 1280]) {
   test(`publicar tudo: versão velha (outra pessoa salvou) dá 409, recarrega com aviso e o segundo pedido leva a versão nova (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { outraPessoaSalvou: [PLANO_ID] });
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
     await folha.getByRole('tab', { name: 'Dieta (1)' }).click();
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
     const listasDeDieta = () => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ALUNO_ID}/planos-dieta`).length;
     const antes = listasDeDieta();
 
     const recarga = page.waitForResponse((r) => r.request().method() === 'GET' && r.url().endsWith(`/alunos/${ALUNO_ID}/planos-dieta`));
-    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 17' }).click();
+    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 06/10 a 20/10' }).click();
     await expect(folha.getByText('Os planos mudaram enquanto você olhava. Nada foi publicado; confira e publique de novo.')).toBeVisible();
     await recarga;
     expect(listasDeDieta()).toBeGreaterThan(antes);
     // Nada foi publicado: a dieta segue em rascunho.
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
 
-    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 17' }).click();
-    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
+    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 06/10 a 20/10' }).click();
+    await expect(page.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
     expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === `/pastas/${PASTA_ID}/publicar`).map((p) => p.corpo)).toEqual([
       { confirmarAvisos: false, versoes: { [PLANO_ID]: DIETA.plano.versao } },
       { confirmarAvisos: false, versoes: { [PLANO_ID]: DIETA.plano.versao + 1 } },
@@ -429,8 +435,8 @@ for (const largura of [390, 1280]) {
       { tipo: 'dieta', plano: outraDieta },
     ];
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { planos });
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
-    await expect(folha.getByRole('button', { name: 'Publicar alterações (2) da pasta Plano 17' })).toBeDisabled();
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
+    await expect(folha.getByRole('button', { name: 'Publicar alterações (2) da pasta de 06/10 a 20/10' })).toBeDisabled();
     await expect(folha.getByText('Há mais de uma dieta pendente nesta pasta (“Dieta do Plano 17” e “Dieta B do Plano 17”). Arquive o que não deve ir ao aluno (⋯ › Excluir plano) e publique de novo.')).toBeVisible();
     await folha.getByRole('tab', { name: 'Dieta (2)' }).click();
     await expect(folha.getByText('Rascunho', { exact: true })).toHaveCount(2);
@@ -445,7 +451,7 @@ for (const largura of [390, 1280]) {
       [`GET /alunos/${DESTINO.id}`]: { corpo: { ...FICHA, id: DESTINO.id, nome: DESTINO.nome } },
       [`GET /alunos/${DESTINO.id}/pastas`]: { corpo: [] },
     });
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Mais ações da pasta Plano 17' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Mais ações da pasta de 06/10 a 20/10' }).click();
     await page.getByRole('button', { name: /Copiar pasta para outro aluno/ }).click();
     const folha = page.getByRole('dialog', { name: 'Copiar pasta para outro aluno' });
     await folha.getByRole('button', { name: 'Aluno: Escolher. Escolher.' }).click();
@@ -463,7 +469,7 @@ for (const largura of [390, 1280]) {
       [`GET /alunos/${DESTINO.id}`]: { corpo: { ...FICHA, id: DESTINO.id, nome: DESTINO.nome } },
       [`GET /alunos/${DESTINO.id}/pastas`]: { corpo: [] },
     });
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Mais ações da pasta Plano 17' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Mais ações da pasta de 06/10 a 20/10' }).click();
     await page.getByRole('button', { name: /Copiar pasta para outro aluno/ }).click();
 
     const folha = page.getByRole('dialog', { name: 'Copiar pasta para outro aluno' });
@@ -497,7 +503,7 @@ for (const largura of [390, 1280]) {
     const { errosDaPagina } = await abrirComPasta(page, { copia: { status: 409, codigo: 'ALUNO_ANONIMIZADO', mensagem: 'Aluno anonimizado.' } }, PERMISSOES_DA_PASTA, {
       'GET /alunos': { corpo: { itens: [DESTINO], total: 1 } },
     });
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Mais ações da pasta Plano 17' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Mais ações da pasta de 06/10 a 20/10' }).click();
     await page.getByRole('button', { name: /Copiar pasta para outro aluno/ }).click();
     const folha = page.getByRole('dialog', { name: 'Copiar pasta para outro aluno' });
     await folha.getByRole('button', { name: 'Aluno: Escolher. Escolher.' }).click();
@@ -510,7 +516,7 @@ for (const largura of [390, 1280]) {
   test(`finalizar: peso e data nascem com os da atualização e, sem edição, não gravam peso de novo (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: { pesoKg: 82.4, data: '2026-10-20' } });
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     await expect(folha.getByRole('textbox', { name: 'Peso (opcional)' })).toHaveValue('82,4');
     await expect(folha.getByRole('textbox', { name: 'Data do peso' })).toHaveValue('20/10/2026');
@@ -534,7 +540,7 @@ for (const largura of [390, 1280]) {
   test(`finalizar: só a observação conta como edição e grava na data da atualização, substituindo (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: { pesoKg: 82.4, data: '2026-10-20' } });
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     await expect(folha.getByText(NOTA_JA_REGISTRADO)).toBeVisible();
 
@@ -554,7 +560,7 @@ for (const largura of [390, 1280]) {
   test(`finalizar: valor e data editados gravam o peso novo (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: { pesoKg: 82.4, data: '2026-10-20' } });
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     const peso = folha.getByRole('textbox', { name: 'Peso (opcional)' });
     await expect(peso).toHaveValue('82,4');
@@ -584,7 +590,7 @@ for (const largura of [390, 1280]) {
   test(`finalizar: falha no peso sugerido deixa o campo vazio, sem erro na tela (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: 'erro' });
-    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    await page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' }).getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     await expect.poll(() => pedidos.some((p) => p.caminho === `/pastas/${PASTA_ID}/peso-sugerido`)).toBe(true);
     await expect(folha.getByRole('textbox', { name: 'Peso (opcional)' })).toHaveValue('');
@@ -598,7 +604,7 @@ for (const largura of [390, 1280]) {
   test(`C22: o ?pastaId= sai do endereço, recarregar não reabre e "Voltar à pasta" volta à mesma ficha (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { errosDaPagina } = await abrirComPasta(page);
-    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
     await expect(folha).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=planos$`));
     await page.reload();

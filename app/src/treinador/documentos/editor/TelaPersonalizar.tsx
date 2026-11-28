@@ -1,20 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Lock, Monitor, RotateCcw, Save } from 'lucide-react-native';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ErroApi } from '../../../api/cliente';
 import { alterarDocumentosPdf, consultoria } from '../../../api/rotas';
 import { coresDoDestaque, eDoModelo, resolver, restaurar, trocarModelo, type ConfigPdf, type ModeloPdf } from '../../../dominio/configuracaoPdf';
 import { arranjoDoEditor, configDaMarca, estadoDaBarra, mensagemDoErroDeCampo, mesmaConfig, modeloDoEndereco, nomeDoModelo, rascunhoDepoisDeSalvar, VAO_DO_EDITOR, type GrupoDoEditor, type ZoomDaFolha } from '../../../dominio/editorDoPdf';
-import { larguraMaximaDoConteudo, respiroLateralDaTela } from '../../../dominio/larguraDoConteudo';
 import { MOTIVO_FORA_DO_PLANO } from '../../../dominio/funcionalidadesDoPlano';
+import { escolherNaPrevia, ESCOLHIDOS_PADRAO, previasDaLargura, type DocumentoDaPrevia } from '../../../dominio/previasDaLargura';
 import { documentoDeExemploDeDieta, documentoDeExemploDeMobilidade, documentoDeExemploDeTreino } from '../../../pdf/exemplos';
 import { logoComoDataUri } from '../../../pdf/logo';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { useTema } from '../../../tema/TemaProvider';
-import { espaco, faixaDeLargura, LARGURA_FORMULARIO, LARGURA_MAXIMA } from '../../../tema/tokens';
-import { Abas } from '../../../ui/Abas';
+import { espaco, LARGURA_FORMULARIO, LARGURA_MAXIMA } from '../../../tema/tokens';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
@@ -31,16 +30,16 @@ import { useFaixaDeLargura } from '../../../ui/useFaixaDeLargura';
 import { BarraDoEditor } from '../../plano/BarraDoEditor';
 import { FixoAbaixoDaBarra, TelaDoEditor } from '../../plano/TelaDoEditor';
 import { PainelDeOpcoes } from './PainelDeOpcoes';
-import { PreviaNaMesa, type DocumentoDeExemplo } from './PreviaNaMesa';
+import { PreviaNaMesa, RESPIRO_DA_FOLHA } from './PreviaNaMesa';
 
 const TITULO = 'Personalizar documentos';
 const DESCRICAO = 'Ajuste cores, texto, cabeçalho e tabelas do modelo e confira na prévia com dados de exemplo. Nada muda nos PDFs até você salvar.';
-const GERADORES = { treino: documentoDeExemploDeTreino, dieta: documentoDeExemploDeDieta, mobilidade: documentoDeExemploDeMobilidade } satisfies Record<DocumentoDeExemplo, unknown>;
+const GERADORES = { treino: documentoDeExemploDeTreino, dieta: documentoDeExemploDeDieta, mobilidade: documentoDeExemploDeMobilidade } satisfies Record<DocumentoDaPrevia, unknown>;
 const GALERIA = '/treinador/documentos';
 const TRILHA = [{ rotulo: 'Documentos (PDF)', href: GALERIA }, { rotulo: 'Personalizar' }] as const;
-const NOMES: Record<DocumentoDeExemplo, string> = { treino: 'Treino', dieta: 'Dieta', mobilidade: 'Mobilidade' };
-const ABAS = (['treino', 'dieta', 'mobilidade'] as const).map((valor) => ({ valor, rotulo: NOMES[valor] }));
-const SEGUNDAS = (['dieta', 'mobilidade'] as const).map((valor) => ({ valor, rotulo: NOMES[valor] }));
+const NOMES: Record<DocumentoDaPrevia, string> = { treino: 'Treino', dieta: 'Dieta', mobilidade: 'Mobilidade' };
+const DO_DOCUMENTO: Record<DocumentoDaPrevia, string> = { treino: 'do treino', dieta: 'da dieta', mobilidade: 'da mobilidade' };
+const SEGMENTO = (['treino', 'dieta', 'mobilidade'] as const).map((valor) => ({ valor, rotulo: NOMES[valor] }));
 
 /**
  * Editor dos PDFs (`/treinador/documentos/personalizar`; D-F1 a D-F8 de `docs/planos/documentos-pdf-motor.md`). A guarda
@@ -72,7 +71,6 @@ function voltarAosModelos() {
  */
 function Personalizar() {
   const { atualizarMarca } = useSessao();
-  const { preferencias } = useTema();
   const { avisar } = useAviso();
   const { dados, erro, carregando, recarregar, definir: definirDados } = useCarregar('consultoria', () => consultoria());
   const { largura: area, aoMedir } = useFaixaDeLargura();
@@ -86,18 +84,21 @@ function Personalizar() {
   const [salvando, setSalvando] = useState(false);
   const [erroAoSalvar, setErroAoSalvar] = useState<string | null>(null);
   const [conflito, setConflito] = useState(false);
-  const [aberto, setAberto] = useState<GrupoDoEditor | null>(null);
-  const [aba, setAba] = useState<DocumentoDeExemplo>('treino');
+  // "Modelo" chega aberto, com a grade das miniaturas; os outros grupos, recolhidos com o resumo (28/11).
+  const [aberto, setAberto] = useState<GrupoDoEditor | null>('modelo');
+  // O documento de cada coluna (esquerda, direita); com as três à vista não vale.
+  const [escolhidos, setEscolhidos] = useState(ESCOLHIDOS_PADRAO);
+  // A largura da área de prévia decide quantas prévias (`previasDaLargura`), não a janela nem a área de conteúdo.
+  const { largura: areaDasPrevias, aoMedir: aoMedirAsPrevias } = useFaixaDeLargura();
   const [zoom, setZoom] = useState<ZoomDaFolha>('AJUSTAR');
   const [logo, setLogo] = useState<string | null>(null);
   // Uma data por visita: a prévia não muda sozinha a cada opção.
   const [emitidoEm] = useState(() => new Date());
 
   const marca = dados?.marca;
-  // O conteúdo de dentro da `TelaDoEditor`: a área menos o recuo lateral, com o teto da preferência "Largura do conteúdo".
-  const conteudo = Math.min(area - 2 * (respiroLateralDaTela(faixaDeLargura(area)) ?? espaco(2)), larguraMaximaDoConteudo(LARGURA_MAXIMA, preferencias.larguraConteudo) ?? Infinity);
   const janela = useWindowDimensions().width;
-  const arranjo = area > 0 ? arranjoDoEditor(area, conteudo, janela) : null;
+  // Só o tipo do arranjo importa aqui (compacto, empilhado ou colunas); quantas prévias vem da área delas, medida abaixo.
+  const arranjo = area > 0 ? arranjoDoEditor(area, janela) : null;
   const editor = !!arranjo && arranjo.tipo !== 'compacto';
   const salvo = marca ? configDaMarca(marca) : null;
   // Modelo pedido igual ao gravado abre o gravado (com as personalizações): reabrir não apaga nada.
@@ -197,26 +198,28 @@ function Personalizar() {
     const nome = nomeDoModelo(atual.modelo);
     const barra = estadoDaBarra(atual, salvo, { salvando, erro: !!erroAoSalvar });
     const config = { ...marca, temaPdf: atual.modelo, opcoesPdf: atual.sobrescritas };
-    const previa = (doc: DocumentoDeExemplo, cabeca: ReactNode, regiao: string) => (
-      <PreviaNaMesa documento={GERADORES[doc](config, emitidoEm, logo)} rotulo={`Prévia do PDF de ${doc} no modelo ${nome}, com dados de exemplo`}
-        regiao={regiao} chave={`editor-do-pdf-${doc}`} cabeca={cabeca} zoom={zoom} aoMudarZoom={setZoom} />
-    );
-    const segunda = aba === 'mobilidade' ? 'mobilidade' : 'dieta';
+    const { documentos, escolha } = previasDaLargura(areaDasPrevias, escolhidos);
     const previas = (
-      <View style={estilos.previas}>
-        <Texto variante="pequeno">Dados de exemplo, nenhum é real. A folha é contínua: as quebras de página só aparecem no PDF.</Texto>
-        {arranjo.tipo === 'colunas' && arranjo.previas === 2 ? (
-          // Duas prévias (2400 de conteúdo): Treino fixo e a segunda coluna troca entre Dieta e Mobilidade; as abas somem.
-          <View style={estilos.duas}>
-            {previa('treino', <Texto variante="bloco" nivel={2}>Treino</Texto>, 'Prévia do treino')}
-            {previa(segunda, (
-              <View style={estilos.cabecaDaSegunda}>
-                <Texto variante="bloco" nivel={2}>{NOMES[segunda]}</Texto>
-                <Escolha descricao="Documento da segunda prévia" opcoes={SEGUNDAS} valor={segunda} aoMudar={setAba} />
-              </View>
-            ), `Prévia da ${NOMES[segunda].toLowerCase()}`)}
+      <View style={estilos.previas} onLayout={aoMedirAsPrevias}>
+        <Texto variante="pequeno" style={estilos.frase}>Dados de exemplo, nenhum é real. A folha é contínua: as quebras de página só aparecem no PDF.</Texto>
+        {/* Nada antes da primeira medida: o PC não pisca uma prévia só antes de abrir as três. */}
+        {areaDasPrevias > 0 ? (
+          <View style={estilos.linhaDasPrevias}>
+            {documentos.map((doc, i) => {
+              const lado = i === 0 ? 0 : 1;
+              const ondeFica = documentos.length === 1 ? '' : lado === 0 ? ' da esquerda' : ' da direita';
+              const cabeca = escolha ? (
+                <Escolha descricao={`Documento da prévia${ondeFica}`} opcoes={SEGMENTO} valor={doc} aoMudar={(d) => setEscolhidos((atuais) => escolherNaPrevia(atuais, lado, d))} />
+              ) : (
+                <Texto variante="bloco" nivel={2}>{NOMES[doc]}</Texto>
+              );
+              return (
+                <PreviaNaMesa key={escolha ? `lado-${i}` : doc} documento={GERADORES[doc](config, emitidoEm, logo)} rotulo={`Prévia do PDF de ${doc} no modelo ${nome}, com dados de exemplo`}
+                  regiao={`Prévia ${DO_DOCUMENTO[doc]}`} chave={`editor-do-pdf-${doc}`} cabeca={cabeca} zoom={zoom} aoMudarZoom={setZoom} />
+              );
+            })}
           </View>
-        ) : previa(aba, <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />, 'Prévia com dados de exemplo')}
+        ) : null}
       </View>
     );
     const painel = (
@@ -275,8 +278,9 @@ const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO_DO_EDITOR },
   painel: { flexShrink: 0 },
   previas: { flex: 1, minWidth: 0, gap: espaco(1.5) },
-  // `stretch`: as duas mesas terminam na mesma altura, mesmo com documentos de tamanhos diferentes.
-  duas: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(3) },
-  cabecaDaSegunda: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(2) },
+  // A frase uma vez só, alinhada à borda das folhas (que têm o respiro de cada coluna).
+  frase: { paddingHorizontal: RESPIRO_DA_FOLHA },
+  // Sem vão entre as colunas: o respiro de cada uma já separa as folhas (32 px). `flex-start`: as folhas começam pelo topo.
+  linhaDasPrevias: { flexDirection: 'row', alignItems: 'flex-start' },
   empilhado: { gap: espaco(4) },
 });

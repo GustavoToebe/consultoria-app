@@ -12,7 +12,8 @@ import java.util.List;
 
 /**
  * Termo de uso e aviso de privacidade sem login, para as páginas públicas que as lojas pedem ({@code /privacidade} e
- * {@code /termos-de-uso} no app). Mesmos textos do {@code GET /termos}, sem nada do usuário (nem o aceite).
+ * {@code /termos-de-uso} no app). Mesmos textos do {@code GET /termos}, sem nada do usuário (nem o aceite) e sem o contato
+ * da consultoria.
  */
 @RestController
 @RequestMapping("/publico/termos")
@@ -24,6 +25,7 @@ public class TermosPublicoController {
     @GetMapping
     public ResponseEntity<TermosPublicos> consultar() {
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic())
-                .body(new TermosPublicos(Termos.VERSAO, Termos.RASCUNHO, Termos.documentos()));
+                // Sem consultoria (e cache público): o contato é só "fale com o seu treinador pelo app", nunca WhatsApp nem e-mail.
+                .body(new TermosPublicos(Termos.VERSAO, Termos.RASCUNHO, Termos.documentos(ContatoDosTermos.montar(null, null, null))));
     }
 }

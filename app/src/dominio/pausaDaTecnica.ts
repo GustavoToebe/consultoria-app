@@ -1,4 +1,5 @@
 import type { Tecnica } from '../api/tipos';
+import { textoPausa } from './agrupamento';
 
 /**
  * Pausa interna da técnica (rest pause, cluster, myo-reps) num controle só: o número e a unidade. O contrato continua
@@ -37,4 +38,27 @@ export function aoTrocarUnidade(t: Pausa, atual: UnidadeDaPausa, nova: UnidadeDa
 /** A outra unidade, para o "Informar também em …". */
 export function outraUnidade(u: UnidadeDaPausa): UnidadeDaPausa {
   return u === 'SEGUNDOS' ? 'RESPIRACOES' : 'SEGUNDOS';
+}
+
+/**
+ * Série aberta: dois campos fixos (`[15] s · [3] respirações`). Cada campo grava só o seu valor: a chave ausente fica
+ * como está, `null` (campo vazio) limpa só ela. Sem conversão entre as unidades; os limites ficam com
+ * `problemasDaTecnica`.
+ */
+export function aplicarPausa(t: Pausa, m: { segundos?: number | null; respiracoes?: number | null }): Pausa {
+  return {
+    pausaSegundos: m.segundos !== undefined ? m.segundos : (t.pausaSegundos ?? null),
+    pausaRespiracoes: m.respiracoes !== undefined ? m.respiracoes : (t.pausaRespiracoes ?? null),
+  };
+}
+
+const positivo = (n: number | null | undefined) => n != null && n > 0;
+
+/** Dica abaixo dos dois campos: o texto que o aluno vê (o do cartão), com o exemplo do documento quando vazio. */
+export function dicaDaPausaEntreBlocos(t: Pausa): string {
+  const s = positivo(t.pausaSegundos);
+  const r = positivo(t.pausaRespiracoes);
+  if (s !== r) return `O aluno vê "${textoPausa(t)}".`;
+  const exemplo = s ? t : { pausaSegundos: 15, pausaRespiracoes: 3 };
+  return `O aluno vê "${textoPausa(exemplo)}". Deixe as respirações em branco para usar só o tempo.`;
 }

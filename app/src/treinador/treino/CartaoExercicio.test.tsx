@@ -18,7 +18,7 @@ jest.mock('../../tema/TemaProvider', () => ({
 jest.mock('../../ui/unidadeDeCargaEmUso', () => ({ useUnidadeDeCarga: () => 'kg' }));
 jest.mock('../../ui/Botao', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  Botao: ({ rotuloAcessivel, rotulo, aoTocar }: { rotuloAcessivel?: string; rotulo: string; aoTocar: () => void }) => require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotuloAcessivel ?? rotulo, onPress: aoTocar }),
+  Botao: ({ rotuloAcessivel, rotulo, tipo, aoTocar }: { rotuloAcessivel?: string; rotulo: string; tipo?: string; aoTocar: () => void }) => require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotuloAcessivel ?? rotulo, onPress: aoTocar, testID: `botao-${tipo ?? 'primario'}` }),
 }));
 const campoFalso = ({ rotulo }: { rotulo: string }) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -39,17 +39,22 @@ jest.mock('../FolhaDeAcoes', () => {
 jest.mock('./EditorSeries', () => ({ EditorSeries: () => null, BotaoDeMover: () => null }));
 jest.mock('./EditorDoCardio', () => ({ EditorDoCardio: () => null }));
 
+// PC: o "Trocar exercício" é botão com texto (abaixo de 768 px vira só o ícone).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+jest.spyOn(require('react-native'), 'useWindowDimensions').mockImplementation(() => ({ width: 1280, height: 900, scale: 1, fontScale: 1 }));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
 type Arvore = import('react-test-renderer').ReactTestRenderer;
 
 const EXTRAS = 'Nome de exibição e instruções';
 
-function montar(e: ExercicioPlano): Arvore {
+function montar(e: ExercicioPlano, extra: { total?: number; grupoMuscular?: string; aoAbrir?: () => void } = {}): Arvore {
   let arvore: Arvore | undefined;
   Renderer.act(() => {
     arvore = Renderer.create(
-      <CartaoExercicio exercicio={e} posicao={0} total={1} aberto comProblema={false} config={null}
+      <CartaoExercicio exercicio={e} posicao={0} total={extra.total ?? 1} aberto comProblema={false} config={null}
+        grupoMuscular={extra.grupoMuscular} aoAbrir={extra.aoAbrir}
         aoMudar={() => undefined} aoMover={() => undefined} aoRemover={() => undefined}
         aoEscolherDaBiblioteca={() => undefined} aoUsarReceita={() => undefined} aoSalvarReceita={() => undefined} />,
     );
@@ -74,6 +79,34 @@ describe('CartaoExercicio: botão Trocar exercício (19/11)', () => {
   });
 });
 
+describe('CartaoExercicio: cabeçalho do editor do exercício (27/11)', () => {
+  const textosSoltos = (a: Arvore) => a.root.findAll((n) => typeof n.props.children === 'string').map((n) => n.props.children as string);
+  const tipoDoTrocar = (a: Arvore) => a.root.findAll((n) => String(n.props.accessibilityLabel ?? '').startsWith('Trocar exercício:') && typeof n.props.testID === 'string')[0]?.props.testID;
+
+  it('posição, grupo e a modalidade por extenso em cima; o nome embaixo', () => {
+    const a = montar({ ...base, nome: 'Agachamento livre' }, { total: 7, grupoMuscular: 'Quadríceps' });
+    const t = textosSoltos(a);
+    expect(t).toContain('Exercício 1 de 7 · Quadríceps · Peso livre');
+    expect(t).toContain('Agachamento livre');
+    // Sem grupo nem modalidade conhecida, só a posição.
+    expect(textosSoltos(montar({ ...base, modalidade: null }))).toContain('Exercício 1 de 1');
+    // Cardio da biblioteca com o grupo "Cardio": a palavra uma vez só.
+    expect(textosSoltos(montar({ ...base, modalidade: 'CARDIO' }, { grupoMuscular: 'Cardio' }))).toContain('Exercício 1 de 1 · Cardio');
+  });
+
+  it('"Trocar exercício" é acao no painel (uma vez na área) e secundario no cartão empilhado (um por cartão)', () => {
+    expect(tipoDoTrocar(montar(base))).toBe('botao-acao');
+    expect(tipoDoTrocar(montar(base, { aoAbrir: () => undefined }))).toBe('botao-secundario');
+  });
+
+  it('⋯ (com mais de um exercício) e "Excluir exercício" em perigo ao lado', () => {
+    const a = montar(base, { total: 2 });
+    expect(a.root.findAll((n) => n.props.accessibilityLabel === `Mais ações de ${base.nome}` && typeof n.props.onPress === 'function').length).toBeGreaterThan(0);
+    const excluir = a.root.findAll((n) => n.props.accessibilityLabel === `Excluir exercício: ${base.nome}` && typeof n.props.testID === 'string');
+    expect(excluir[0]?.props.testID).toBe('botao-perigo');
+  });
+});
+
 describe('CartaoExercicio: nome de exibição e instruções', () => {
   it('só com o nome começa fechado, sem marcador; sem nome abre no campo', () => {
     const a = montar(base);
@@ -92,6 +125,11 @@ describe('CartaoExercicio: nome de exibição e instruções', () => {
     expect(botaoDosExtras(a).props.accessibilityLabel).toBe(EXTRAS);
     const textos = a.root.findAll((n) => typeof n.props.children === 'string').map((n) => n.props.children as string);
     expect(textos).toContain(`${base.nome} · sem vídeo · cadência 3-1-1-0 · com observação`);
+  });
+
+  it('fechado e sem nada, o resumo diz o que falta ("sem vídeo · sem cadência")', () => {
+    const textos = montar(base).root.findAll((n) => typeof n.props.children === 'string').map((n) => n.props.children as string);
+    expect(textos).toContain(`${base.nome} · sem vídeo · sem cadência`);
   });
 
   it('com observação, vídeo, cadência ou isometria também começa fechado (18/11)', () => {
@@ -114,7 +152,7 @@ describe('CartaoExercicio: nome de exibição e instruções', () => {
     expect(aberto(comErro)).toBe(true);
   });
 
-  it('não mostra modalidade, carga do exercício nem progressão de carga', () => {
+  it('não tem campo de modalidade, carga do exercício nem progressão de carga', () => {
     const t = textos(montar(base));
     expect(t).not.toMatch(/Modalidade/);
     expect(t).not.toMatch(/Carga do exercício/);

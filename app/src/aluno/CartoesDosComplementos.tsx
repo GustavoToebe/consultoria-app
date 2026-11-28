@@ -1,6 +1,6 @@
 import { Clock, Pill } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { ItemErgogenico, Suplemento } from '../api/tipos';
 import { agruparPorHorario, espacarUnidades, partesDaDose } from '../dominio/complementosDoAluno';
@@ -24,11 +24,16 @@ const MINIMO_DO_CARTAO = 360;
  * empilhados abaixo disso; lista vazia não mostra o cartão. Nada é calculado: dose e horário são texto do treinador, só
  * com o espaço entre número e unidade (`espacarUnidades`).
  */
-export function CartoesDosComplementos({ ergogenicos, suplementacao }: { ergogenicos: ItemErgogenico[]; suplementacao: Suplemento[] }) {
+export function CartoesDosComplementos({ ergogenicos, suplementacao, esticar = false }: {
+  ergogenicos: ItemErgogenico[]; suplementacao: Suplemento[];
+  /** Dieta no PC (28/11): sem a grade própria, cada cartão cresce até a altura da linha da grade de quem chama. */
+  esticar?: boolean;
+}) {
   const cartoes: ReactNode[] = [];
+  const estilo = esticar ? estilos.esticado : undefined;
   if (ergogenicos.length) {
     cartoes.push(
-      <CartaoDoComplemento key="ergogenicos" titulo="Medicação e ergogênicos" itens={ergogenicos} detalhe={(e) => (
+      <CartaoDoComplemento key="ergogenicos" titulo="Medicação e ergogênicos" itens={ergogenicos} style={estilo} detalhe={(e) => (
         <>
           {e.principioAtivo ? <Texto numerico variante="suave">{e.principioAtivo}</Texto> : null}
           {e.observacao?.trim() ? <Texto numerico variante="suave">{espacarUnidades(e.observacao.trim())}</Texto> : null}
@@ -39,7 +44,7 @@ export function CartoesDosComplementos({ ergogenicos, suplementacao }: { ergogen
   }
   if (suplementacao.length) {
     cartoes.push(
-      <CartaoDoComplemento key="suplementacao" titulo="Suplementação" itens={suplementacao}
+      <CartaoDoComplemento key="suplementacao" titulo="Suplementação" itens={suplementacao} style={estilo}
         detalhe={(s) => (s.observacao?.trim() ? <Texto numerico variante="suave">{espacarUnidades(s.observacao.trim())}</Texto> : null)}
         acoes={(s) => (
           <>
@@ -50,6 +55,7 @@ export function CartoesDosComplementos({ ergogenicos, suplementacao }: { ergogen
     );
   }
   if (!cartoes.length) return null;
+  if (esticar) return <>{cartoes}</>;
   const duas = duasColunasCom(MINIMO_DO_CARTAO, espaco(3));
   return (
     <Grade gap={espaco(3)} alinhar="inicio" colunas={(l) => Math.min(cartoes.length, duas(l))}>
@@ -58,12 +64,12 @@ export function CartoesDosComplementos({ ergogenicos, suplementacao }: { ergogen
   );
 }
 
-function CartaoDoComplemento<T extends { uid: string; nome: string; dose: string; horario: string }>({ titulo, itens, detalhe, acoes }: {
-  titulo: string; itens: T[]; detalhe: (item: T) => ReactNode; acoes?: (item: T) => ReactNode;
+function CartaoDoComplemento<T extends { uid: string; nome: string; dose: string; horario: string }>({ titulo, itens, detalhe, acoes, style }: {
+  titulo: string; itens: T[]; detalhe: (item: T) => ReactNode; acoes?: (item: T) => ReactNode; style?: StyleProp<ViewStyle>;
 }) {
   const { cores } = useTema();
   return (
-    <Cartao titulo={titulo} marcador={<Pill size={20} color={cores.textoSuave} aria-hidden />}>
+    <Cartao titulo={titulo} marcador={<Pill size={20} color={cores.textoSuave} aria-hidden />} style={style}>
       <View style={estilos.grupos}>
         {agruparPorHorario(itens).map((g) => (
           <View key={g.horario ?? ''} style={estilos.grupo}>
@@ -106,4 +112,5 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
   nome: { flex: 1, minWidth: 0, gap: 2 },
   forte: { fontFamily: fontes.semi },
+  esticado: { flexGrow: 1 },
 });

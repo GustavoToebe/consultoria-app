@@ -81,7 +81,9 @@ for (const largura of [390, 1280]) {
       });
       await expect(titulo(page)).toBeVisible();
       await expect(page.getByText('1 de 6 ligada')).toBeVisible();
-      await expect(page.getByText('Tudo salvo')).toBeVisible();
+      // No PC abre dentro de Configurações (28/11): o endereço antigo devolve para o item; sem alteração, sem rodapé de salvar.
+      if (largura >= 1024) await expect(page).toHaveURL(/\/treinador\/configuracoes\/regras-de-atencao$/);
+      await expect(salvar(page)).toHaveCount(0);
       // ⓘ do cabeçalho com a explicação da tela (sem "Saiba mais": não há seção da Ajuda para ela ainda).
       await expect(page.getByRole('button', { name: 'Sobre esta tela' })).toBeVisible();
 
@@ -122,7 +124,7 @@ for (const largura of [390, 1280]) {
 
       await salvar(page).click();
       await expect(page.getByText('Regras de atenção salvas.')).toBeVisible();
-      await expect(page.getByText('Tudo salvo')).toBeVisible();
+      await expect(page.getByText('Alterações não salvas')).toHaveCount(0);
       expect(doLote(api.pedidos)).toEqual([{
         versao: 3,
         regras: [
@@ -150,7 +152,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Nenhuma regra ligada')).toBeVisible();
       await salvar(page).click();
       await expect(page.getByText('As regras de atenção foram alteradas por outra pessoa. Carregamos a versão atual; confira e salve de novo.')).toBeVisible();
-      await expect(page.getByText('Tudo salvo')).toBeVisible();
+      await expect(salvar(page)).toHaveCount(0);
       await expect(page.getByText('1 de 6 ligada')).toBeVisible();
       expect(leituras).toBe(2);
       expect(doLote(api.pedidos)[0].regras[0]).toEqual({ id: REGRA_CAIU.id, tipo: 'NOTA_CAIU', perguntaId: null, limite: 2, ativa: false });
@@ -189,7 +191,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Pergunta fora dos questionários', { exact: true }).first()).toBeVisible();
       await expect(page.getByText('A regra fica gravada, mas não vale até a pergunta voltar. Escolha outra pergunta se quiser.')).toBeVisible();
       await expect(page.getByRole('switch', { name: 'Item marcado' })).toBeDisabled();
-      await expect(page.getByText('Nenhum questionário de atualização publicado tem pergunta de itens do plano.')).toBeVisible();
+      await expect(page.getByText('Precisa de uma pergunta de itens do plano', { exact: true })).toBeVisible();
       await capturar(page, `regras-teto-${largura}`);
     });
 
@@ -223,8 +225,8 @@ for (const largura of [390, 1280]) {
       await abrir(page, { largura });
       await page.getByRole('switch', { name: 'Poucos dias com treino' }).click();
       await page.getByLabel('Dias com treino igual ou menor que').fill('3');
-      // No PC a trilha; no celular a seta de voltar (a mesma guarda).
-      if (largura >= 768) await page.getByRole('link', { name: 'Configurações' }).first().click();
+      // No PC (dentro de Configurações) outro item da coluna; no celular a seta de voltar (a mesma guarda).
+      if (largura >= 1024) await page.getByRole('navigation', { name: 'Configurações' }).getByRole('link', { name: 'Meus dados' }).click();
       else await page.getByRole('button', { name: 'Voltar' }).click();
       await expect(page.getByRole('alertdialog', { name: 'Sair sem salvar?' })).toBeVisible();
     });

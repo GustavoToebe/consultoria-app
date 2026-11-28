@@ -16,6 +16,7 @@ import { ajustarQuantidade, gravarAvulso, itensDoAluno, MARCACOES_VAZIAS } from 
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoAvaliacaoFisica } from './pdfAvaliacaoFisica';
 import { documentoContrato } from './pdfContrato';
+import { documentoTermos } from './pdfTermos';
 import { documentoMobilidade } from './pdfMobilidade';
 import { documentoTreino } from './pdfTreino';
 import { montarCorpo } from './imprimir.web';
@@ -338,6 +339,20 @@ describe('PDF do contrato não deixa texto virar HTML', () => {
   conferir('contrato (equipe)', documentoContrato as never, { ...dadosDoContrato, ip: '203.0.113.7', agente: 'Mozilla/5.0', geradoPorNome: 'Treinador' });
   conferir('contrato (aluno)', documentoContrato as never, dadosDoContrato);
   conferir('contrato em PDF (sem texto)', documentoContrato as never, { ...dadosDoContrato, texto: null, ip: '203.0.113.7', agente: 'Mozilla/5.0', geradoPorNome: 'Treinador' });
+});
+
+/** Termos: o texto vem da API, mas o contato dentro dele (nome, WhatsApp, e-mail) é escrito pela equipe. */
+describe('PDF dos termos não deixa texto virar HTML', () => {
+  conferir('termos', documentoTermos as never, {
+    ...base,
+    termos: {
+      versao: '2026-10-26', aceitoEm: '2026-11-28T14:00:00Z',
+      documentos: [
+        { id: 'TERMO_USO', titulo: 'Termo de uso', texto: '## 1. O que é\nTexto.\n\n## 8. Contato\n- **Consultoria:** Equipe\n- **WhatsApp:** (45) 99999-8888' },
+        { id: 'AVISO_PRIVACIDADE', titulo: 'Aviso de privacidade', texto: '## 1. Quem cuida\nA consultoria.' },
+      ],
+    },
+  });
 });
 
 describe('o gráfico só passa como <img> com SVG em base64 (barreira da web)', () => {

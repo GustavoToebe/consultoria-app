@@ -13,8 +13,8 @@ const TERMOS = {
   versao: '2026-10-20',
   rascunho: true,
   documentos: [
-    { id: 'TERMO_USO', titulo: 'Termo de uso', texto: '# Termo de uso\n\nTexto fictício do termo.\n\n## Uso\n\n- Item fictício do termo.' },
-    { id: 'AVISO_PRIVACIDADE', titulo: 'Aviso de privacidade', texto: '# Aviso de privacidade\n\nTexto fictício do aviso.' },
+    { id: 'TERMO_USO', titulo: 'Termo de uso', texto: 'Texto fictício do termo.\n\n## 1. Uso\n\n- Item fictício do termo.' },
+    { id: 'AVISO_PRIVACIDADE', titulo: 'Aviso de privacidade', texto: 'Texto fictício do aviso.' },
   ],
 };
 
@@ -44,7 +44,8 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('heading', { level: 1, name: 'Privacidade' })).toBeVisible();
       await expect(page.getByText('Texto fictício do aviso.')).toBeVisible();
       await expect(page.getByText('Versão de 20/10/2026.')).toBeVisible();
-      await expect(page.getByText('Rascunho em revisão')).toBeVisible();
+      // O selo de rascunho é só da equipe (na tela dela): a página pública nunca o mostra.
+      await expect(page.getByText('Rascunho em revisão')).toHaveCount(0);
       // Só o documento da página: o termo de uso não aparece aqui.
       await expect(page.getByText('Texto fictício do termo.')).toBeHidden();
       await expect(page.getByRole('link', { name: 'Privacidade', exact: true })).toHaveCount(0);

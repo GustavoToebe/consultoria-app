@@ -1,8 +1,8 @@
 import type { AvaliacaoFisica, CampoDaMedida, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
 import { MEDIDAS, medidasVazias } from './avaliacaoFisica';
 import {
-  agruparMedidas, compararAvaliacoes, formatadorDeDatas, GRUPOS_DE_MEDIDAS, idsDasDuasUltimas, limparSelecao,
-  linhaDoPeso, maisRecentesPrimeiro, PARES_DIREITA_ESQUERDA, resumoDaMedida, seriesDoPar, textoDaSelecao, type ComparacaoDeAvaliacoes, type LinhaComparada,
+  agruparMedidas, compararAvaliacoes, diferencaEntre, GRUPOS_DO_HISTORICO, linhaDoHistorico, formatadorDeDatas, GRUPOS_DE_MEDIDAS, idsDasDuasUltimas,
+  linhaDoPeso, maisRecentesPrimeiro, PARES_DIREITA_ESQUERDA, resumoDaMedida, seriesDoPar, type ComparacaoDeAvaliacoes, type LinhaComparada,
 } from './comparacaoDeAvaliacoes';
 
 function av(id: string, data: string, parcial: Partial<MedidasCorporais>): AvaliacaoFisica {
@@ -237,23 +237,15 @@ describe('seleção', () => {
     expect(idsDasDuasUltimas(lista.slice(0, 2))).toEqual(['b', 'd']);
   });
 
-  it('"Mais recente" é o primeiro da ordem do histórico; limpar seleção', () => {
+  it('"Mais recente" é o primeiro da ordem do histórico', () => {
     expect(maisRecentesPrimeiro(lista)[0].id).toBe('d');
     expect(maisRecentesPrimeiro([])[0]).toBeUndefined();
-    expect(limparSelecao()).toEqual([]);
   });
 
   it('ordem do histórico: data desc, qualquer que seja a ordem da API, sem mexer na lista original', () => {
     const embaralhada = [av('a', '2026-11-01', {}), av('d', '2026-11-13', {}), av('x', '2025-12-31', {}), av('b', '2026-11-05', {})];
     expect(maisRecentesPrimeiro(embaralhada).map((x) => x.id)).toEqual(['d', 'b', 'a', 'x']);
     expect(embaralhada.map((x) => x.id)).toEqual(['a', 'd', 'x', 'b']);
-  });
-
-  it('"N de 4 selecionadas"', () => {
-    expect(textoDaSelecao(0)).toBe('0 de 4 selecionadas');
-    expect(textoDaSelecao(1)).toBe('1 de 4 selecionada');
-    expect(textoDaSelecao(2)).toBe('2 de 4 selecionadas');
-    expect(textoDaSelecao(4)).toBe('4 de 4 selecionadas');
   });
 });
 
@@ -286,5 +278,46 @@ describe('pares direita × esquerda', () => {
     expect(coxa?.suficiente).toBe(false);
     expect(seriesDoPar(lista, 'panturrilha')).toMatchObject({ suficiente: false, direita: { pontos: [] }, esquerda: { pontos: [] } });
     expect(seriesDoPar([], 'braco')?.suficiente).toBe(false);
+  });
+});
+
+describe('histórico em tabela', () => {
+  it('as colunas cobrem o peso e as 10 medidas uma vez, na ordem do pedido', () => {
+    const chaves = GRUPOS_DO_HISTORICO.flatMap((g) => g.colunas.map((c) => c.chave));
+    expect(chaves).toEqual(['peso', ...MEDIDAS.map((m) => m.campo)]);
+    expect(GRUPOS_DO_HISTORICO.map((g) => g.titulo)).toEqual(['Peso', 'Braço (cm)', 'Tronco (cm)', 'Coxa (cm)', 'Panturrilha (cm)']);
+  });
+
+  it('cada célula traz o valor e a variação desde a anterior que mediu; sem anterior "Primeira", ausente "—", igual "0,0"', () => {
+    const t1 = { ...av('t1', '2026-07-01', { cintura: 90, bracoDireito: 34 }), pesoKg: 82 };
+    const t2 = av('t2', '2026-09-01', { bracoDireito: 35.2 });
+    const t3 = { ...av('t3', '2026-11-01', { cintura: 87, bracoDireito: 34.4 }), pesoKg: 80 };
+    const lista = [t3, t2, t1];
+    const ultima = linhaDoHistorico(lista, t3, 'REDUZIR');
+    expect(ultima.cintura).toEqual({ texto: '87,0', variacao: { tipo: 'mudou', texto: '▼ 3,0', tom: 'positivo', falado: 'desceu 3,0 cm, a favor da meta' } });
+    expect(ultima.bracoDireito.variacao).toMatchObject({ texto: '▼ 0,8', tom: 'neutro' });
+    expect(ultima.peso).toMatchObject({ texto: '80,0', variacao: { texto: '▼ 2,0', tom: 'positivo' } });
+    expect(ultima.quadril).toEqual({ texto: '—', variacao: { tipo: 'semValor', texto: '—', tom: 'neutro', falado: '' } });
+    expect(linhaDoHistorico(lista, t2, 'REDUZIR').cintura.texto).toBe('—');
+    expect(linhaDoHistorico(lista, t1, 'REDUZIR').cintura.variacao).toEqual({ tipo: 'primeira', texto: 'Primeira', tom: 'neutro', falado: 'primeira medida' });
+    const igual = av('t4', '2026-12-01', { cintura: 87 });
+    expect(linhaDoHistorico([...lista, igual], igual, 'REDUZIR').cintura.variacao).toEqual({ tipo: 'igual', texto: '0,0', tom: 'neutro', falado: 'sem variação' });
+  });
+
+  it('comparar duas datas: mais nova − mais antiga em qualquer ordem, com a unidade, sem as colunas vazias nas duas', () => {
+    const a = { ...av('a', '2026-07-01', { cintura: 90, bracoDireito: 34 }), pesoKg: 82 };
+    const b = av('b', '2026-09-01', { cintura: 88.5, peitoral: 100 });
+    const linhas = diferencaEntre([b, a], 'b', 'a', 'AUMENTAR');
+    expect(linhas.map((l) => l.chave)).toEqual(['peso', 'bracoDireito', 'peitoral', 'cintura']);
+    expect(linhas.find((l) => l.chave === 'cintura')).toEqual({
+      chave: 'cintura', nome: 'Cintura', valores: '90,0 → 88,5', variacao: { tipo: 'mudou', texto: '▼ 1,5 cm', tom: 'problema', falado: 'desceu 1,5 cm, contra a meta' },
+    });
+    expect(linhas.find((l) => l.chave === 'peso')).toMatchObject({ valores: '82,0 → —', variacao: { texto: '—' } });
+    // A data mais antiga sem a medida: "—" (não "Primeira", que seria falso entre duas datas escolhidas).
+    expect(linhas.find((l) => l.chave === 'peitoral')).toMatchObject({ valores: '— → 100,0', variacao: { tipo: 'semValor', texto: '—' } });
+    const c = av('c', '2026-10-01', { cintura: 88.5 });
+    expect(diferencaEntre([b, c], 'b', 'c', null).find((l) => l.chave === 'cintura')?.variacao).toMatchObject({ tipo: 'igual', texto: '0,0 cm' });
+    expect(diferencaEntre([a, b], 'a', 'a', null)).toEqual([]);
+    expect(diferencaEntre([a], 'a', 'x', null)).toEqual([]);
   });
 });

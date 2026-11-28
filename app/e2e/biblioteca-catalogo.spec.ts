@@ -49,7 +49,7 @@ test('catálogo: no painel, marcar vários grupos filtra por "ou" no Aplicar, Ma
     return filtros;
   };
   const aplicar = async (filtros: Locator) => {
-    await filtros.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await filtros.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
     await expect(filtros).toHaveCount(0);
   };
   let filtros = await abrirPainel();

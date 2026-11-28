@@ -112,9 +112,10 @@ export function ValoresDaDieta({ totais: t, forte = false, inicio = false }: {
 
 /**
  * Legenda das siglas com as marcas, uma vez por lista (nunca por linha), na Biblioteca, na folha de alimentos da dieta e no
- * total do dia do aluno. "■ Fibra" vem depois do "G = gordura" (a marca dela, o nome neutro).
+ * total do dia do aluno. "■ Fibra" vem depois do "G = gordura" (a marca dela, o nome neutro); `fibra={false}` a tira (dieta do
+ * aluno sem nenhum item com fibra).
  */
-export function LegendaDosMacros() {
+export function LegendaDosMacros({ fibra = true }: { fibra?: boolean } = {}) {
   return (
     <View style={[estilos.macros, estilos.inicio]}>
       {MACROS.map((m) => (
@@ -123,10 +124,12 @@ export function LegendaDosMacros() {
           <Texto variante="pequeno">{`${m.curto} = ${m.nome.toLowerCase()}`}</Texto>
         </View>
       ))}
-      <View style={estilos.macro}>
-        <MarcaDoMacro cor={FIBRA.cor} />
-        <Texto variante="pequeno">Fibra</Texto>
-      </View>
+      {fibra ? (
+        <View style={estilos.macro}>
+          <MarcaDoMacro cor={FIBRA.cor} />
+          <Texto variante="pequeno">Fibra</Texto>
+        </View>
+      ) : null}
     </View>
   );
 }

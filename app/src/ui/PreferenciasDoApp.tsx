@@ -7,7 +7,7 @@ import { fatorDoTexto } from '../dominio/preferencias';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { CLARO, CODIGOS_DA_COR_DE_ACAO, CODIGOS_PALETAS_VISIVEIS, coresDaAcao, ESCURO, espaco, fontes, misturar, NOMES_DA_COR_DE_ACAO, PALETAS, paletaDe, RAIO, RAIO_CONTROLE, type Cores, type FaixaDeLargura } from '../tema/tokens';
-import { Alvenaria } from './Alvenaria';
+import { Alvenaria, type PecaDaAlvenaria } from './Alvenaria';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
 import { Switch } from '../components/ui/switch';
@@ -41,7 +41,8 @@ interface Secao {
   /**
    * Altura estimada além das linhas, em linhas de ~80 px (grades, prévias, descrições de duas linhas), para a alvenaria
    * escolher a coluna antes de medir. Medido em 1280: Tema e cores ~1150 px, Leitura ~730, Treino e dados ~410, Layout
-   * ~240, Navegador ~140; fica Tema e cores com Navegador de um lado e o resto do outro.
+   * ~240, Navegador ~140; fica Tema e cores com Navegador de um lado e o resto do outro. Os `cartoes` do treinador (Avisos no
+   * celular, peso 2) caem embaixo de Navegador em 2 colunas e de Leitura em 3, qualquer que seja o peso deles.
    */
   extra: number;
   linhas: ReactNode[];
@@ -53,9 +54,17 @@ interface Secao {
  * plataforma some, e a seção vazia também. `duasColunas` (Ajustes do treinador): as seções em colunas empilhadas
  * (`ui/Alvenaria`), 1, 2 ou 3 pela faixa da `Tela`; sem ela (a folha do aluno), uma coluna. "Restaurar padrão" é a
  * `RestaurarPreferencias`, que cada tela põe no próprio cabeçalho. `comTitulo` mostra o título "Preferências".
- * `extras`: cartões de quem usa a tela (os lembretes do aluno), depois das seções, para o `ui/` não importar a área do aluno.
+ * `cartoes` (Ajustes do treinador, 28/11): cartões de quem usa a tela que entram nas colunas depois das seções, cada um na
+ * mais baixa pelo peso (nenhum cartão na largura toda); só entra o que vai aparecer, porque uma peça vazia deixa um vão.
+ * `extras` (a folha do aluno): cartões depois das colunas, que podem sumir sozinhos (os do aparelho somem na web).
+ * Cada peça leva o testID `preferencias-<chave>` (o e2e mede o fim das colunas, `e2e/alturasDeColunas`).
  */
-export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = false }: { comTitulo?: boolean; extras?: ReactNode; duasColunas?: boolean }) {
+export function PreferenciasDoApp({ comTitulo = true, extras, cartoes = [], duasColunas = false }: {
+  comTitulo?: boolean;
+  extras?: ReactNode;
+  cartoes?: readonly PecaDaAlvenaria[];
+  duasColunas?: boolean;
+}) {
   const sessao = useSessao();
   const { preferencias, escolherPreferencia, fatorTexto, marca, cores, variante } = useTema();
   const faixa = useFaixaDaTela();
@@ -205,6 +214,10 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
     },
   ];
   const visiveis = secoes.map((s) => ({ ...s, linhas: s.linhas.filter(Boolean) })).filter((s) => s.linhas.length > 0);
+  const pecas = [
+    ...visiveis.map((s) => ({ chave: s.chave, peso: s.linhas.length + s.extra, conteudo: <SecaoDeConfiguracao titulo={s.titulo} linhas={s.linhas} /> })),
+    ...cartoes,
+  ].map((p) => ({ ...p, conteudo: <View testID={`preferencias-${p.chave}`}>{p.conteudo}</View> }));
 
   return (
     <View style={estilos.coluna}>
@@ -216,10 +229,10 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
       ) : null}
       <Alvenaria
         vao={VAO}
-        colunas={(largura) => (duasColunas ? Math.min(TETO_DE_COLUNAS[faixa], visiveis.length, colunasPorCelula(largura, CELULA_MINIMA, VAO)) : 1)}
-        pecas={visiveis.map((s) => ({ chave: s.chave, peso: s.linhas.length + s.extra, conteudo: <SecaoDeConfiguracao titulo={s.titulo} linhas={s.linhas} /> }))}
+        colunas={(largura) => (duasColunas ? Math.min(TETO_DE_COLUNAS[faixa], pecas.length, colunasPorCelula(largura, CELULA_MINIMA, VAO)) : 1)}
+        pecas={pecas}
       />
-      {/* Fora da alvenaria: o do treinador some na web, e uma peça vazia deixaria um vão. */}
+      {/* Fora da alvenaria: os do aparelho somem na web, e uma peça vazia deixaria um vão. */}
       {extras}
     </View>
   );

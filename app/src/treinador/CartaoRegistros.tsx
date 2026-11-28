@@ -129,7 +129,8 @@ export function CartaoRegistros({ aluno, pasta, filtros, aoMudarFiltros: setFilt
       <View ref={registrarAlvo} collapsable={false} style={etapa.aberta ? estilos.escondido : undefined}>
       <Cartao
         titulo="Registros e cargas"
-        periodo={`${daPasta ? 'Pasta' : `Últimos ${dias} dias`}: ${dataParaTela(de).slice(0, 5)} a ${dataParaTela(ate).slice(0, 5)}`}
+        // Na pasta com período o recorte é o dela (o topo da folha já o diz): o chip só existe com o filtro de dias.
+        periodo={daPasta ? undefined : `Últimos ${dias} dias: ${dataParaTela(de).slice(0, 5)} a ${dataParaTela(ate).slice(0, 5)}`}
         recolhivel
         acoes={
           divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF das cargas" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null

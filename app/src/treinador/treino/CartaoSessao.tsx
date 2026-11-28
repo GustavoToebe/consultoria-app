@@ -1,11 +1,13 @@
-import { ArrowLeft, ArrowRight, Ellipsis, HeartPulse, Link2, NotebookTabs, Plus, Save, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Ellipsis, HeartPulse, Link2, NotebookTabs, Pencil, Plus, Save, Trash2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Sessao } from '../../api/tipos';
-import { DIAS_CURTOS, DIAS_SEMANA, TIPOS_SESSAO } from '../../dominio/editorTreino';
+import { diaETipoDaSessao, linhaDaSessao } from '../../dominio/abasDasSessoes';
+import { DIAS_CURTOS, TIPOS_SESSAO } from '../../dominio/editorTreino';
+import type { ResumoDaSessaoPorContagem } from '../../dominio/inspetorDoTreino';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
@@ -16,7 +18,8 @@ import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { BlocoAdicionar, BotaoDoBloco } from '../plano/BlocoAdicionar';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
-import { BotaoDeAbrir } from './BotaoDeAbrir';
+import { sobre } from '../../ui/sobre';
+import { Texto } from '../../ui/Texto';
 import { idDaSessao } from './ContadoresDoTreino';
 
 const DIAS = [
@@ -45,7 +48,12 @@ interface Props {
   motivoSemGrupo?: string | null;
   /** `false` quando o bloco "Adicionar próximo exercício" vai no fim da lista da coluna da esquerda (duas colunas). */
   adicionarNoFim?: boolean;
-  /** Totais e a distribuição da sessão, logo abaixo da faixa. */
+  /**
+   * Totais da sessão no cabeçalho (proposta de 27/11): "Segunda · Treino · 7 exercícios · 23 séries · 16 de trabalho".
+   * Sem eles, só o dia e o tipo. O editor passa o `resumoDaSessaoPorContagem` que já calcula.
+   */
+  totais?: Pick<ResumoDaSessaoPorContagem, 'exercicios' | 'series' | 'seriesDeTrabalho'>;
+  /** Conteúdo logo abaixo da faixa (a faixa compacta do resumo abaixo de 1600 px); os totais já estão no cabeçalho. */
   resumo?: ReactNode;
   /** Há erro num campo da própria sessão (nome, tipo...): "Editar sessão" fica aberto para o campo estar à vista. */
   comErroNosDados?: boolean;
@@ -54,11 +62,11 @@ interface Props {
 }
 
 /**
- * A sessão selecionada do plano (um dia): faixa com nome, dia · tipo e ordem (← →, só com mais de uma sessão) e o ⋯
- * ("Salvar como dia de treino") com "Excluir sessão" ao lado; embaixo, os totais e a distribuição recolhida, "Editar sessão"
- * (nome, dia, tipo e observação, recolhido quando a sessão já tem nome; o botão diz se há observação), os exercícios e,
- * no fim, adicionar exercício, cardio, modelos e criar grupo. Reorganização de 10/11: menos faixas e títulos repetidos.
- * A sessão não tem moldura em largura nenhuma, só a faixa do título.
+ * A sessão selecionada do plano (um dia). Cabeçalho (proposta de 27/11): o nome e, embaixo, "Segunda · Treino · 7
+ * exercícios · 23 séries · 16 de trabalho"; as ações juntas à direita: "Editar sessão" (secundário; abre nome, dia, tipo
+ * e observação logo abaixo da faixa, recolhido quando a sessão já tem nome; o nome acessível diz se há observação),
+ * ← → (só com mais de uma sessão), ⋯ ("Salvar como dia de treino") e "Excluir sessão" (perigo). Embaixo, os
+ * exercícios e, no fim, adicionar exercício, cardio, modelos e criar grupo. A sessão não tem moldura, só a faixa do título.
  */
 export function CartaoSessao(p: Props) {
   const { cores, marca, bordas } = useTema();
@@ -80,12 +88,13 @@ export function CartaoSessao(p: Props) {
   const cabecalho = (
         <CabecalhoDeGrupo
           titulo={titulo}
-          resumo={diaETipo(s)}
+          resumo={p.totais ? linhaDaSessao(s, p.totais) : diaETipoDaSessao(s)}
           selo={p.comProblema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
-          // Com o botão de texto, no celular as ações descem para a linha de baixo em vez de apertar o título.
-          acoesJuntas={largo || !excluivel}
-          acoes={p.total > 1 || acoesDoMenu.length || excluivel ? (
+          // Com os botões de texto, no celular as ações descem para a linha de baixo em vez de apertar o título.
+          acoesJuntas={largo}
+          acoes={
             <>
+              <BotaoEditarSessao sessao={s} aberto={dadosAbertos} aoAlternar={() => setEscolhaDosDados(!dadosAbertos)} />
               {p.total > 1 ? (
                 <>
                   <IconeBotao moldura Icone={ArrowLeft} rotulo="Mover sessão para antes" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
@@ -95,15 +104,13 @@ export function CartaoSessao(p: Props) {
               {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações da sessão ${s.nome || p.posicao + 1}`} aoTocar={() => setMenu(true)} /> : null}
               {excluivel ? <Botao tipo="perigo" rotulo="Excluir sessão" rotuloAcessivel={`Excluir sessão: ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : null}
             </>
-          ) : undefined}
+          }
         />
   );
   const corpo = <>
       {p.resumo}
-      <View style={estilos.dados}>
-        <BotaoDeAbrir texto={textoDosDados(s)} aberto={dadosAbertos} aoAlternar={() => setEscolhaDosDados(!dadosAbertos)} />
-        {dadosAbertos ? (
-          <View style={[estilos.areaDosDados, { borderColor: cores.borda }]}>
+      {dadosAbertos ? (
+          <View style={[estilos.areaDosDados, { borderColor: cores.borda }]} nativeID={idDosDados(s.uid)}>
             <View style={[estilos.linhaSessao, largo ? null : estilos.coluna]}>
               <View style={largo ? estilos.nome : null}>
                 <Campo rotulo="Nome da sessão" valor={s.nome} aoMudar={(nome) => mudar({ nome })} maxLength={80} placeholder="Ex.: Segunda - Costas" />
@@ -135,8 +142,7 @@ export function CartaoSessao(p: Props) {
               maxLength={1000}
             />
           </View>
-        ) : null}
-      </View>
+      ) : null}
       <View style={estilos.exercicios}>{p.children}</View>
       {p.adicionarNoFim !== false && s.exercicios.length > 0 ? (
         <AdicionarProximoExercicio aoNovoExercicio={p.aoNovoExercicio} aoNovoCardio={p.aoNovoCardio} aoAbrirModelos={p.aoAbrirModelos} aoCriarGrupo={p.aoCriarGrupo} motivoSemGrupo={p.motivoSemGrupo} />
@@ -171,11 +177,8 @@ export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'ao
   );
 }
 
-/** "Segunda · Treino": o dia e o tipo, na faixa (os totais ficam na linha de baixo). */
-function diaETipo(s: Sessao): string {
-  const dia = s.diaSemana ? DIAS_SEMANA[s.diaSemana - 1] : 'Sem dia fixo';
-  return `${dia} · ${TIPOS_SESSAO.find((t) => t.valor === s.tipo)?.rotulo ?? s.tipo}`;
-}
+/** Id (web) da área "Editar sessão", para o `aria-controls` do botão. */
+const idDosDados = (uid: string) => `dados-da-sessao-${uid}`;
 
 /** "Editar sessão", com o que já tem além do nome entre parênteses: o recolhido não esconde conteúdo sem avisar. */
 function textoDosDados(s: Sessao): string {
@@ -183,11 +186,32 @@ function textoDosDados(s: Sessao): string {
   return `Editar sessão${tem.length ? ` (com ${tem.join(' e ')})` : ''}`;
 }
 
+/**
+ * "Editar sessão" no cabeçalho: o desenho do `Botao` secundário (superfície 2, borda, `bordaCampo` ao passar), mas com
+ * `aria-expanded`, porque abre e fecha a área logo abaixo da faixa (o `Botao` não passa o estado de aberto).
+ * Na tela, só "Editar sessão"; "(com observação)" vai no nome acessível.
+ */
+function BotaoEditarSessao({ sessao, aberto, aoAlternar }: { sessao: Sessao; aberto: boolean; aoAlternar: () => void }) {
+  const { cores } = useTema();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={textoDosDados(sessao)} accessibilityState={{ expanded: aberto }}
+      aria-expanded={aberto} aria-controls={aberto ? idDosDados(sessao.uid) : undefined} onPress={aoAlternar}
+      style={(estado) => [estilos.editar, { backgroundColor: cores.superficie2, borderColor: sobre(estado) || aberto ? cores.bordaCampo : cores.borda }]}>
+      <Pencil size={18} color={cores.texto} strokeWidth={2} />
+      <Texto style={[estilos.rotuloEditar, { color: cores.texto }]}>Editar sessão</Texto>
+    </Pressable>
+  );
+}
+
 /** Largura da barra na cor da marca à esquerda do cartão da sessão. */
 const BARRA_DA_SESSAO = 4;
 
 const estilos = StyleSheet.create({
-  dados: { gap: espaco(1) },
+  editar: {
+    flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, maxWidth: '100%',
+    paddingHorizontal: espaco(2), paddingVertical: espaco(0.75), borderRadius: RAIO_CONTROLE, borderWidth: 1,
+  },
+  rotuloEditar: { fontFamily: fontes.semi, fontSize: 15 },
   // Os campos ocupam a largura da sessão (11/11), com o fio à esquerda do acordeão (como as instruções do exercício).
   areaDosDados: { gap: espaco(2), paddingLeft: espaco(1.5), borderLeftWidth: 2 },
   linhaSessao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5) },

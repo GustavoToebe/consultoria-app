@@ -22,7 +22,7 @@ export interface PecaMedida extends RegraDaPeca {
  * `colunasMinimas` (o Início): com as peças medidas, usa menos colunas quando as de `colunas` não fecham em `limite` px
  * (`numeroDeColunasMedidas`; poucos blocos). A escolha vale para a largura e o conjunto de peças com altura: medir de novo
  * na largura nova não a desfaz (sem pingue-pongue entre três e duas).
- * Variante da `ui/Alvenaria` e da `ColunasEquilibradas` da Conta (sugestão para o design system: juntar as três numa peça).
+ * Variante da `ui/Alvenaria` (sugestão para o design system: juntar as duas numa peça); a Conta do aluno também usa esta.
  */
 export function ColunasMedidas({ colunas: regra, colunasMinimas, limite = 80, vao, vaoEntreColunas = vao, congelar = false, idDasPecas, pecas }: {
   colunas: (largura: number) => number;

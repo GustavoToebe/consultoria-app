@@ -1,59 +1,80 @@
 import { Dumbbell, House, Salad, UserRound, type LucideIcon } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { Marca, Tema } from '../../api/tipos';
-import { useTema } from '../../tema/TemaProvider';
+import { modoDoTema, temaDaPrevia, type ModoDaPrevia } from '../../dominio/previaDaMarca';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { ALVO_TOQUE, espaco, fontes, marcaParaPeca, marcaParaTexto, paletaDe, RAIO, RAIO_CONTROLE, textoSobre, type Cores } from '../../tema/tokens';
+import { Escolha } from '../../ui/Escolha';
+import { Grade } from '../../ui/Grade';
+import { LinkTexto } from '../../ui/LinkTexto';
 import { MarcaTitulo } from '../../ui/MarcaTitulo';
 import { Texto } from '../../ui/Texto';
-import { LARGURA_DO_CELULAR } from './arranjoDaMarca';
+import { LARGURA_DO_CELULAR, type ArranjoDaMarca } from './arranjoDaMarca';
+import { ALTURA_DO_CELULAR_COM_LEGENDA, Celular } from './Celular';
+import { Escala, Inerte } from './Escala';
+import { MiniaturaDoEmail, MiniaturaDoPdf } from './MiniaturasDaMarca';
 
-const ALTURA_DO_CELULAR = 560;
+const VAO_DOS_CELULARES = espaco(2);
+/** Os dois celulares lado a lado, no tamanho do desenho; a `Escala` os reduz juntos. */
+const PAR_DE_CELULARES = { largura: 2 * LARGURA_DO_CELULAR + VAO_DOS_CELULARES, altura: ALTURA_DO_CELULAR_COM_LEGENDA };
+const MODOS: { valor: ModoDaPrevia; rotulo: string }[] = [{ valor: 'ESCURO', rotulo: 'Escuro' }, { valor: 'CLARO', rotulo: 'Claro' }];
 
 interface Props {
   marca: Marca;
+  /** O tema padrão escolhido no formulário: a prévia começa no modo dele. */
   tema: Tema;
-  /** `dupla`: o Início e a tela de entrar lado a lado (tela larga); `unica`: só o Início. */
-  modo: 'dupla' | 'unica';
+  /** Quem aparece como remetente do e-mail (`remetenteDosEmails`). */
+  remetente: string;
+  arranjo: ArranjoDaMarca;
 }
 
 /**
- * Prévia ao vivo do que o aluno vê, com as cores FIXAS da paleta escolhida (não as do tema de quem edita): o celular com
- * o Início (topo com a marca, o treino do dia com "Começar", uma refeição e a barra de baixo) e, na tela larga, a tela de
- * entrar (marca e o botão na cor da marca). Dados fictícios, nada é tocável: é desenho, lido como uma imagem só.
+ * Prévia ao vivo da Marca (28/11): "Ver em: Escuro · Claro" no topo; os dois celulares lado a lado (Início do aluno e
+ * Tela de entrar), num desenho fixo de 380 × 640 cada, reduzido para caber (`Escala`: na tela larga cabe na altura do
+ * cartão fixo; embaixo do formulário, na largura); embaixo, o cabeçalho do PDF no modelo de Documentos e o e-mail de
+ * convite. Tudo com dados fictícios e nada tocável: é desenho.
  */
-export function PreviaDaMarca({ marca, tema, modo }: Props) {
-  const { nome, cores } = paletaDe(tema);
+export function PreviaDaMarca({ marca, tema, remetente, arranjo }: Props) {
+  const { temFuncionalidade } = useSessao();
+  // O modo escolhido vale para o tema em que foi escolhido: trocar o tema padrão volta a prévia ao modo dele.
+  const [vista, setVista] = useState<{ de: Tema; modo: ModoDaPrevia } | null>(null);
+  const modo = vista && vista.de === tema ? vista.modo : modoDoTema(tema);
+  const mostrado = temaDaPrevia(tema, modo);
+  const { nome, cores } = paletaDe(mostrado);
+  const larga = arranjo === 'larga';
   return (
-    <View style={estilos.previa}>
-      <Texto variante="suave">{`Paleta ${nome}`}</Texto>
-      <View style={estilos.celulares}>
-        <Celular legenda="Início do aluno" cores={cores}>
-          <InicioDoAluno marca={marca} cores={cores} />
-        </Celular>
-        {modo === 'dupla' ? (
-          <Celular legenda="Tela de entrar" cores={cores}>
-            <TelaDeEntrar marca={marca} cores={cores} />
-          </Celular>
-        ) : null}
+    <View style={[estilos.previa, larga ? estilos.esticada : null]}>
+      <View style={estilos.topo}>
+        <View style={estilos.titulos}>
+          <Texto variante="bloco" nivel={2}>Prévia</Texto>
+          {/* O desenho dos celulares é inerte e fora do leitor de tela: este texto diz o que ele mostra. */}
+          <Texto variante="suave">{`O Início do aluno e a tela de entrar, o cabeçalho do PDF e o e-mail de convite. Muda junto com o que você escolhe ${larga ? 'ao lado' : 'acima'}; dados de exemplo, nada é enviado.`}</Texto>
+        </View>
+        <View style={estilos.verEm}>
+          <Texto variante="rotulo" aria-hidden>Ver em</Texto>
+          <Escolha opcoes={MODOS} valor={modo} aoMudar={(m) => setVista({ de: tema, modo: m })} descricao="Ver a prévia em" />
+          <Texto variante="suave">{`Paleta ${nome}`}</Texto>
+        </View>
       </View>
-    </View>
-  );
-}
-
-function Celular({ legenda, cores, children }: { legenda: string; cores: Cores; children: ReactNode }) {
-  const { cores: atuais } = useTema();
-  return (
-    <View style={estilos.coluna}>
-      <View
-        role="img"
-        aria-label={`Prévia: ${legenda}`}
-        testID={legenda === 'Início do aluno' ? 'previa-da-paleta' : 'previa-de-entrar'}
-        style={[estilos.celular, { backgroundColor: cores.fundo, borderColor: atuais.bordaCampo }]}>
-        {children}
-      </View>
-      <Texto variante="pequeno" aria-hidden style={estilos.legenda}>{legenda}</Texto>
+      <Inerte style={larga ? estilos.esticada : null}>
+        <Escala base={PAR_DE_CELULARES} modo={larga ? 'caixa' : 'largura'}>
+          <View style={estilos.celulares}>
+            <Celular legenda="Início do aluno" descricao={`Prévia do Início do aluno na paleta ${nome}`} testID="previa-da-paleta" cores={cores}>
+              <InicioDoAluno marca={marca} cores={cores} />
+            </Celular>
+            <Celular legenda="Tela de entrar" descricao={`Prévia da tela de entrar na paleta ${nome}`} testID="previa-de-entrar" cores={cores}>
+              <TelaDeEntrar marca={marca} cores={cores} />
+            </Celular>
+          </View>
+        </Escala>
+      </Inerte>
+      <Grade gap={espaco(2)} colunas={(l) => (l >= 520 ? 2 : 1)}>
+        <MiniaturaDoPdf marca={marca}
+          depois={temFuncionalidade('PDF') ? <LinkTexto texto="Personalizar documentos" href="/treinador/documentos/personalizar" /> : null} />
+        <MiniaturaDoEmail variante="convite" marca={marca} remetente={remetente} />
+      </Grade>
     </View>
   );
 }
@@ -71,7 +92,7 @@ function InicioDoAluno({ marca, cores }: { marca: Marca; cores: Cores }) {
   return (
     <>
       <View style={estilos.corpo}>
-        <View style={estilos.topo}>
+        <View style={estilos.topoDoInicio}>
           <View style={estilos.marca}><MarcaTitulo marca={marca} tamanho="pequeno" fundo={cores.fundo} /></View>
           <View style={[estilos.foto, { backgroundColor: cores.superficie3 }]}>
             <Texto style={[estilos.iniciais, { color: cores.texto }]}>AF</Texto>
@@ -112,15 +133,24 @@ function InicioDoAluno({ marca, cores }: { marca: Marca; cores: Cores }) {
   );
 }
 
+/**
+ * A tela de entrar como as telas públicas com a marca da consultoria (`ui/TelaPublica`: convite e inscrição): no topo a
+ * logo centrada (ou o nome na fonte escolhida), o título e o subtítulo, o cartão com os campos e o botão na cor da marca
+ * (o `BotaoPublico` com `cor`). O topo estica os filhos como o da `TelaPublica`: com `alignItems: center` a caixa da logo
+ * encolhia a 0 e a logo sumia (defeito de 28/11).
+ */
 function TelaDeEntrar({ marca, cores }: { marca: Marca; cores: Cores }) {
-  const campo = { backgroundColor: cores.superficie2, borderColor: cores.bordaCampo };
+  const campo = { backgroundColor: cores.campo, borderColor: cores.bordaCampo };
   return (
     <View style={estilos.entrar}>
       <View style={estilos.cabecaDeEntrar}>
         <MarcaTitulo marca={marca} tamanho="grande" fundo={cores.fundo} />
-        <Texto style={[estilos.miudo, estilos.centro, { color: cores.textoSuave }]}>Entre para ver seu treino e sua dieta.</Texto>
+        <View style={estilos.titulosDeEntrar}>
+          <Texto style={[estilos.tituloDeEntrar, { color: cores.texto }]}>Entre na sua área de aluno</Texto>
+          <Texto style={[estilos.miudo, { color: cores.textoSuave }]}>Acesse seus treinos, alimentação e acompanhamento.</Texto>
+        </View>
       </View>
-      <View style={estilos.campos}>
+      <View style={[estilos.cartao, estilos.campos, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
         {['E-mail', 'Senha'].map((r) => (
           <View key={r} style={estilos.campo}>
             <Texto style={[estilos.rotuloDoCampo, { color: cores.texto }]}>{r}</Texto>
@@ -130,20 +160,21 @@ function TelaDeEntrar({ marca, cores }: { marca: Marca; cores: Cores }) {
         <View style={[estilos.botao, estilos.botaoCheio, { backgroundColor: marca.corPrimaria }]}>
           <Texto style={[estilos.textoDoBotao, { color: textoSobre(marca.corPrimaria) }]}>Entrar</Texto>
         </View>
-        <Texto style={[estilos.miudo, estilos.centro, { color: cores.textoSuave }]}>Esqueci a senha</Texto>
       </View>
+      <Texto style={[estilos.miudo, estilos.centro, { color: cores.textoSuave }]}>Esqueci minha senha</Texto>
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  previa: { gap: espaco(1) },
-  celulares: { flexDirection: 'row', justifyContent: 'center', gap: espaco(2) },
-  coluna: { flex: 1, minWidth: 0, maxWidth: LARGURA_DO_CELULAR, gap: espaco(1) },
-  celular: { minHeight: ALTURA_DO_CELULAR, flexGrow: 1, borderWidth: 1, borderRadius: 28, overflow: 'hidden', justifyContent: 'space-between' },
-  legenda: { textAlign: 'center' },
+  previa: { gap: espaco(2) },
+  esticada: { flex: 1, minHeight: 0 },
+  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
+  titulos: { flexGrow: 1, flexShrink: 1, flexBasis: 240, gap: 2 },
+  verEm: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+  celulares: { flexDirection: 'row', gap: VAO_DOS_CELULARES },
   corpo: { padding: espaco(2), gap: espaco(1.5) },
-  topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  topoDoInicio: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   marca: { flexShrink: 1, minWidth: 0 },
   foto: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   iniciais: { fontFamily: fontes.semi, fontSize: 12, lineHeight: 16 },
@@ -161,8 +192,11 @@ const estilos = StyleSheet.create({
   aba: { flex: 1, alignItems: 'center', gap: 2 },
   pilula: { paddingHorizontal: espaco(1.5), paddingVertical: 4, borderRadius: 999 },
   rotuloDaAba: { fontSize: 11, lineHeight: 14 },
-  entrar: { flex: 1, padding: espaco(2.5), justifyContent: 'center', gap: espaco(3) },
-  cabecaDeEntrar: { alignItems: 'center', gap: espaco(1) },
+  entrar: { flex: 1, padding: espaco(2.5), justifyContent: 'center', gap: espaco(2) },
+  // Estica (não centra) como o topo da `TelaPublica`: a logo grande tem `width: 100%` e precisa de uma caixa com largura.
+  cabecaDeEntrar: { gap: espaco(2) },
+  titulosDeEntrar: { gap: 4 },
+  tituloDeEntrar: { fontFamily: fontes.negrito, fontSize: 20, lineHeight: 26 },
   centro: { textAlign: 'center' },
   campos: { gap: espaco(1.5) },
   campo: { gap: 4 },

@@ -119,7 +119,9 @@ class PreparoDoLembrete {
         var dados = new TextoDoLembrete.Dados(aluno.get().getNome(), consultoria == null ? null : consultoria.getNome(),
                 cobranca.getValorCentavos(), cobranca.getVencimento(), appUrl, emAberto(cobrancas, cobranca),
                 cobranca.getTipo() == CobrancaAluno.Tipo.MENSALIDADE);
-        return new Preparo(para, TextoDoLembrete.email(lembrete.tipo(), dados),
+        var marca = consultoria == null ? null : new TextoDoLembrete.Marca(consultoria.getCorPrimaria(),
+                TextoDoLembrete.logoUrl(appUrl, consultoria.getId(), consultoria.getLogoTipo(), consultoria.getLogoVersao()));
+        return new Preparo(para, TextoDoLembrete.email(lembrete.tipo(), dados, marca),
                 consultoria == null ? null : RemetenteDaConsultoria.de(consultoria), null);
     }
 

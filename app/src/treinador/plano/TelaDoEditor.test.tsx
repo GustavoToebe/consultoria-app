@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { LARGURA_MAXIMA } from '../../tema/tokens';
 import { distanciaDoRodapeRegistrado, limparRegistroDoRodape, registrarPeDaCamada } from '../../ui/rodapeFixoDaPagina';
 import { ComColunas, useDuasColunas, useTresColunas } from './ColunasDoEditor';
-import { TelaDoEditor } from './TelaDoEditor';
+import { cabecalhoUnico, TelaDoEditor } from './TelaDoEditor';
 
 let mockLarguraConteudo: 'AUTOMATICA' | 'LIMITADA' = 'AUTOMATICA';
 let mockLarguraJanela = 1280;
@@ -49,11 +49,11 @@ function Sonda() {
   );
 }
 
-function montar(colunas = true, larguraMedida?: number): Arvore {
+function montar(colunas = true, larguraMedida?: number, tresDesde?: 'larga' | 'ultralarga'): Arvore {
   let arvore: Arvore | undefined;
   Renderer.act(() => {
     arvore = Renderer.create(
-      <TelaDoEditor colunas={colunas} cabecalho={<View />} barra={<View />}>
+      <TelaDoEditor colunas={colunas} cabecalho={<View />} barra={<View />} tresDesde={tresDesde}>
         <Sonda />
       </TelaDoEditor>,
     );
@@ -125,5 +125,54 @@ describe('TelaDoEditor: duas e três colunas (ultralarga)', () => {
     mockLarguraJanela = 2800;
     const a = montar(false, 2500);
     expect(a.root.findByProps({ testID: 'sonda' }).props.children).toBe('false:false|false:false');
+  });
+});
+
+describe('TelaDoEditor: três colunas a partir da larga (treino)', () => {
+  beforeEach(() => {
+    mockLarguraConteudo = 'AUTOMATICA';
+    mockLarguraJanela = 1920;
+  });
+
+  it('o padrão (dieta, mobilidade e questionário) segue com duas colunas na faixa larga', () => {
+    const a = montar(true, 1680, 'ultralarga');
+    expect(a.root.findByProps({ testID: 'sonda' }).props.children).toBe('true:false|true:false');
+  });
+
+  it("'larga' liga a terceira coluna a partir de 1600 px de conteúdo", () => {
+    const a = montar(true, 1680, 'larga');
+    expect(a.root.findByProps({ testID: 'sonda' }).props.children).toBe('true:true|true:true');
+  });
+
+  it("'larga' ignora a preferência LIMITADA (decisão de 27/11)", () => {
+    mockLarguraConteudo = 'LIMITADA';
+    const a = montar(true, 1680, 'larga');
+    expect(a.root.findByProps({ testID: 'sonda' }).props.children).toBe('true:true|true:true');
+  });
+
+  it("'larga' abaixo de 1600 px fica em duas colunas", () => {
+    mockLarguraJanela = 1440;
+    const a = montar(true, 1200, 'larga');
+    expect(a.root.findByProps({ testID: 'sonda' }).props.children).toBe('true:false|true:false');
+  });
+});
+
+describe('cabecalhoUnico', () => {
+  it('só na web e a partir de 768 px', () => {
+    expect(cabecalhoUnico(768, true)).toBe(true);
+    expect(cabecalhoUnico(1920, true)).toBe(true);
+    expect(cabecalhoUnico(767, true)).toBe(false);
+    expect(cabecalhoUnico(390, true)).toBe(false);
+    expect(cabecalhoUnico(1920, false)).toBe(false);
+  });
+
+  it('no nativo, cabecalhoGrudado não muda nada: o cabeçalho rola e a barra fica fora da rolagem', () => {
+    let arvore: Arvore | undefined;
+    Renderer.act(() => {
+      arvore = Renderer.create(<TelaDoEditor cabecalhoGrudado cabecalho={<Text testID="cabecalho" />} barra={<Text testID="barra" />}><View /></TelaDoEditor>);
+    });
+    const a = arvore as Arvore;
+    expect(a.root.findAllByProps({ testID: 'cabecalho' }).filter((n) => typeof n.type !== 'string')).toHaveLength(1);
+    expect(a.root.findAllByProps({ testID: 'barra' }).filter((n) => typeof n.type !== 'string')).toHaveLength(1);
   });
 });

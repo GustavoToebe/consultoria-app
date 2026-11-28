@@ -1,30 +1,47 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, View, type TextInput } from 'react-native';
 
+import { atalhosQueCabem, periodoDoAtalho } from '../dominio/atalhosDePeriodo';
 import { type RegraDeData, dataDaTelaNaFaixa } from '../dominio/datasValidas';
+import { hojeEmBrasilia } from '../dominio/financeiro';
 import { periodoDigitado, type Periodo } from '../dominio/filtrosComuns';
 import { dataDaTela, dataParaTela } from '../dominio/formatos';
 import { errosDoPeriodoDigitado } from '../dominio/painelDeFiltros';
 import { espaco } from '../tema/tokens';
 import { useProblemaNoPainel } from '../ui/BarraDeFiltros';
+import { Botao } from '../ui/Botao';
 import { CampoData } from '../ui/Campos';
+import { ChipsDeUmaOpcao, type OpcaoDoChip } from '../ui/ChipsDeFiltro';
 import { ParDeDatas } from '../ui/CamposEmLinha';
 import { Escolha } from '../ui/Escolha';
 import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../ui/EscolhaEmFolha';
 import { Texto } from '../ui/Texto';
 
 /**
- * Peças dos painéis de filtros das listas (`ui/BarraDeFiltros`, `docs/planos/filtros-laterais.md`): a escolha de uma
- * opção (chips até oito, folha com busca acima disso) e o período De/Até.
+ * Peças dos painéis de filtros das listas (`ui/BarraDeFiltros`, `docs/planos/filtros-laterais.md`; regra única dos
+ * filtros de 28/11 em `docs/design-e-front.md` P2): a escolha de uma opção e o período De/Até com atalhos.
  */
 
-/** Escolha de uma opção num filtro: `Escolha` até oito opções, `EscolhaEmFolha` (com busca) acima disso. */
-export function UmaOpcao<T extends string>({ rotulo, valor, opcoes, aoMudar }: {
-  rotulo: string; valor: T; opcoes: readonly { valor: T; rotulo: string }[]; aoMudar: (v: T) => void;
+/** Rótulo curto o bastante para o segmento (que nunca quebra linha). */
+const ROTULO_CURTO = 16;
+
+/**
+ * Escolha de uma opção num filtro, pela regra única: 2 ou 3 opções curtas = segmento na largura toda (nunca quebra a
+ * linha); mais opções ou rótulos longos = chips de uma escolha sem o chip "Todos" (`todos`, por padrão a primeira opção,
+ * é o valor de nada escolhido, e tocar no escolhido volta a ele); acima de oito, a folha com busca (`EscolhaEmFolha`).
+ */
+export function UmaOpcao<T extends string>({ rotulo, valor, opcoes, aoMudar, todos }: {
+  rotulo: string; valor: T; opcoes: readonly OpcaoDoChip<T>[]; aoMudar: (v: T) => void;
+  /** O valor de "nada filtrado" (a opção "Todos", "Todas", "Qualquer"); sem ele, a primeira opção. */
+  todos?: T;
 }) {
-  return opcoes.length > OPCOES_PARA_BUSCAR
-    ? <EscolhaEmFolha rotulo={rotulo} valor={valor} opcoes={opcoes} aoMudar={aoMudar} />
-    : <Escolha rotulo={rotulo} opcoes={[...opcoes]} valor={valor} aoMudar={aoMudar} />;
+  if (opcoes.length > OPCOES_PARA_BUSCAR) return <EscolhaEmFolha rotulo={rotulo} valor={valor} opcoes={opcoes} aoMudar={aoMudar} />;
+  const vazio = todos ?? opcoes[0]?.valor ?? ('' as T);
+  // O segmento precisa da opção "Todos" à vista; os chips a tiram (nada escolhido = todos).
+  if (opcoes.some((o) => o.valor === vazio) && opcoes.length <= 3 && opcoes.every((o) => o.rotulo.length <= ROTULO_CURTO && !o.tom && !o.cor)) {
+    return <Escolha rotulo={rotulo} opcoes={[...opcoes]} valor={valor} aoMudar={aoMudar} segmentosIguais />;
+  }
+  return <ChipsDeUmaOpcao rotulo={rotulo} opcoes={opcoes.filter((o) => o.valor !== vazio)} valor={valor} todos={vazio} aoMudar={aoMudar} />;
 }
 
 interface RegrasDoCampo {
@@ -77,28 +94,42 @@ export function usePeriodoDoFiltro({ rotulo, valor, aoMudar, osDois = false, max
 }
 
 /**
- * Período de um filtro (P2 de `docs/design-e-front.md` 4.6): um rótulo de grupo à vista ("Entrada") e as duas datas no
- * `ParDeDatas` de filtro, cada uma com o rótulo "De" ou "Até" à vista (WCAG 3.3.2). `nomeUnico`: vários períodos no
- * mesmo painel ganham nomes para o leitor de tela "De (Entrada)" e "Até (Entrada)", que seguem começando pelo texto
- * visível. Texto, sincronização e erros são os de `usePeriodoDoFiltro`; aqui só o desenho.
+ * Período de um filtro (P2 de `docs/design-e-front.md` 4.6): o rótulo do filtro à vista ("Entrada"), as duas datas no
+ * `ParDeDatas` de filtro, cada uma com o rótulo "De" ou "Até" à vista (WCAG 3.3.2), e embaixo os atalhos Hoje · 7 dias ·
+ * 30 dias · Este mês · Mês passado (`dominio/atalhosDePeriodo`, hoje de Brasília). Regra 17 do Gustavo (28/11): atalho que
+ * preenche campo é **botão comum** (`Botao secundario pequeno`, alvo de 44, sem `aria-pressed`, sem ✓ e sem estado de
+ * escolhido): o valor mora nos campos; tocar preenche De e Até e leva o foco ao De. Com `maximoDias`, o atalho mais longo
+ * que o limite não aparece. `nomeUnico`: vários períodos no mesmo painel ganham nomes para o leitor de tela "De
+ * (Entrada)" e "Até (Entrada)", que seguem começando pelo texto visível. Texto, sincronização e erros são os de
+ * `usePeriodoDoFiltro`; aqui só o desenho.
  */
 export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois, maximoDias, regra, nomeUnico }: RegrasDoCampo & {
   rotulo?: string; valor: Periodo; aoMudar: (p: Periodo) => void; nomeUnico?: boolean;
 }) {
   const p = usePeriodoDoFiltro({ rotulo, valor, aoMudar, osDois, maximoDias, regra });
+  const campoDe = useRef<TextInput>(null);
+  const hoje = hojeEmBrasilia();
   return (
     <View style={estilos.periodo} role="group" aria-label={rotulo}>
       <Texto variante="rotulo">{rotulo}</Texto>
       <ParDeDatas variante="filtro">
-        <CampoData rotulo="De" rotuloDiscreto rotuloAcessivel={nomeUnico ? `De (${rotulo})` : undefined} nome={`${rotulo}, data inicial`} regra={regra} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
+        <CampoData ref={campoDe} rotulo="De" rotuloDiscreto rotuloAcessivel={nomeUnico ? `De (${rotulo})` : undefined} nome={`${rotulo}, data inicial`} regra={regra} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
         {/* Data impossível ou fora da faixa o próprio campo avisa ("Entrada, data final: use uma data entre…"). */}
         <CampoData rotulo="Até" rotuloDiscreto rotuloAcessivel={nomeUnico ? `Até (${rotulo})` : undefined} nome={`${rotulo}, data final`} regra={regra} valor={p.texto.ate} aoMudar={(t) => p.mudar('ate', t)} erro={p.erroAte} />
       </ParDeDatas>
       {p.aviso ? <Texto variante="pequeno">{p.aviso}</Texto> : null}
+      {/* O nome acessível começa pelo texto à vista (WCAG 2.5.3) e diz de qual período é ("7 dias (Entrada)"). */}
+      <View style={estilos.atalhos} role="group" aria-label={`Atalhos de ${rotulo}`}>
+        {atalhosQueCabem(maximoDias, hoje).map((a) => (
+          <Botao key={a.valor} rotulo={a.rotulo} rotuloAcessivel={`${a.rotulo} (${rotulo})`} tipo="secundario" tamanho="pequeno"
+            aoTocar={() => { aoMudar(periodoDoAtalho(a.valor, hoje)); campoDe.current?.focus(); }} />
+        ))}
+      </View>
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
   periodo: { gap: espaco(1) },
+  atalhos: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(0.75) },
 });

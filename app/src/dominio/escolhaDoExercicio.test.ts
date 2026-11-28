@@ -30,17 +30,18 @@ describe('pré-filtro da troca', () => {
 });
 
 describe('linha do exercício manual', () => {
-  const ctx = { alternativa: false, cardio: false, nomesDaLista: ['Supino reto'] };
-  it('com texto vira a última linha, com o texto digitado', () => {
+  const ctx = { alternativa: false, cardio: false, resultados: 0 };
+  it('busca sem nenhum resultado vira a linha, com o texto digitado', () => {
     expect(linhaDoManual('  Flexão diamante ', ctx)).toEqual({
       nome: 'Flexão diamante', texto: 'Usar “Flexão diamante” como exercício manual', rotulo: 'Usar só o nome Flexão diamante, fora da biblioteca',
     });
     expect(linhaDoManual('Esteira', { ...ctx, cardio: true })?.texto).toBe('Usar “Esteira” como cardio manual');
   });
-  it('não existe sem texto, na alternativa nem quando o texto já é o nome de um da lista', () => {
+  it('não existe sem texto, na alternativa nem quando a busca acha algum resultado (mesmo sem o nome exato)', () => {
     expect(linhaDoManual('  ', ctx)).toBeNull();
     expect(linhaDoManual('Flexão', { ...ctx, alternativa: true })).toBeNull();
-    expect(linhaDoManual('supino RETO', ctx)).toBeNull();
+    expect(linhaDoManual('supino RETO', { ...ctx, resultados: 1 })).toBeNull();
+    expect(linhaDoManual('Supino', { ...ctx, resultados: 3 })).toBeNull();
   });
 });
 

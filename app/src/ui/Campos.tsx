@@ -117,10 +117,17 @@ export function CampoNumerico({
   erroSemTexto,
   aoDigitar,
   ajudaForaDoCampo,
+  altura,
+  mono,
+  centralizado,
 }: {
   rotulo: string;
   valor: number | null;
   aoMudar: (valor: number | null) => void;
+  /** Altura fixa da caixa, `mono` e `centralizado`: os mesmos do `Campo`. */
+  altura?: number;
+  mono?: boolean;
+  centralizado?: boolean;
   /** Ajuda escrita fora do campo (id do texto dela): o mesmo `ajudaForaDoCampo` do `Campo`. */
   ajudaForaDoCampo?: { id: string; texto: string };
   /** Avisa a cada digitação, mesmo que o texto ainda não seja número (",", "-"): `aoMudar` só vem com número válido. */
@@ -161,6 +168,9 @@ export function CampoNumerico({
       ajudaForaDoCampo={ajudaForaDoCampo}
       erro={erro ?? (lido === undefined ? (inteiro ? 'Use só números inteiros.' : 'Número inválido.') : null)}
       autoFocus={autoFocus}
+      altura={altura}
+      mono={mono}
+      centralizado={centralizado}
     />
   );
 }

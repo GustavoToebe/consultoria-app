@@ -259,7 +259,7 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
       const lista = page.getByRole('dialog', { name: 'Responsável' });
       await lista.getByRole('checkbox', { name: 'Meus' }).click();
       await page.keyboard.press('Escape');
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(page.getByText('Nenhuma inscrição atribuída a você nesta lista.')).toBeVisible();
       await expect(page).toHaveURL(/meus=true/);
       await expect(page.getByRole('button', { name: 'Tirar filtro: Responsável: Meus' })).toBeVisible();

@@ -1,4 +1,6 @@
-import { colunasDaConta, colunasEquilibradas } from './colunasDaConta';
+import { colunasDaAlvenaria } from './alvenaria';
+import { colunasDaConta } from './colunasDaConta';
+import { colunasMedidas, diferencaDasColunas } from './colunasMedidas';
 
 describe('colunasDaConta', () => {
   it('uma coluna na compacta, por mais largo que seja', () => {
@@ -21,29 +23,21 @@ describe('colunasDaConta', () => {
   });
 });
 
-const alturasDasColunas = (alturas: number[], coluna: number[], colunas: number, vao: number) =>
-  Array.from({ length: colunas }, (_, c) => alturas.filter((_, i) => coluna[i] === c).reduce((s, a, i) => s + a + (i ? vao : 0), 0));
+// A Conta medida em 1920 (perfil, comunidade, dados, convite, privacidade, segurança, app e excluir), com o perfil preso
+// no topo da primeira coluna, como a tela passa às `ColunasMedidas`.
+const CONTA = [172, 98, 92, 190, 244, 152, 290, 90];
+const REGRAS = CONTA.map((_, i) => (i === 0 ? { coluna: 0 } : undefined));
 
-describe('colunasEquilibradas', () => {
-  // A Conta medida em 1920 (perfil, comunidade, dados, convite, privacidade, segurança, app e excluir): a alvenaria comum
-  // deixava 277 px de buraco porque "App" (a mais alta) chegava no fim.
-  const conta = [172, 98, 92, 190, 244, 152, 290, 90];
+describe('Conta nas colunas medidas', () => {
+  it('a alvenaria comum, mesmo com a altura medida como peso, deixa buraco (por isso a Conta não usa a `ui/Alvenaria`)', () => {
+    const coluna = colunasDaAlvenaria(CONTA.map((a) => a + 24), 3);
+    expect(diferencaDasColunas(coluna, CONTA, 3, 24)).toBeGreaterThan(200);
+  });
 
-  it('o perfil no topo da primeira coluna e as colunas terminando perto da mesma altura', () => {
-    const coluna = colunasEquilibradas(conta, 3, 24);
+  it.each([2, 3])('em %i colunas: o perfil no topo da primeira e os fins a menos de 80 px (o limite do e2e)', (colunas) => {
+    const coluna = colunasMedidas(CONTA, colunas, 24, REGRAS);
     expect(coluna[0]).toBe(0);
-    const fins = alturasDasColunas(conta, coluna, 3, 24);
-    expect(Math.max(...fins) - Math.min(...fins)).toBeLessThan(100);
-    expect(new Set(coluna).size).toBe(3);
-  });
-
-  it('em duas colunas também', () => {
-    const fins = alturasDasColunas(conta, colunasEquilibradas(conta, 2, 24), 2, 24);
-    expect(Math.max(...fins) - Math.min(...fins)).toBeLessThan(100);
-  });
-
-  it('uma coluna ou nenhuma peça: tudo na primeira', () => {
-    expect(colunasEquilibradas(conta, 1, 24)).toEqual(conta.map(() => 0));
-    expect(colunasEquilibradas([], 3, 24)).toEqual([]);
+    expect(new Set(coluna).size).toBe(colunas);
+    expect(diferencaDasColunas(coluna, CONTA, colunas, 24)).toBeLessThan(80);
   });
 });

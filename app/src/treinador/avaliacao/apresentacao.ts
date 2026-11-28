@@ -3,6 +3,8 @@ import { cmParaTela, diferenca, diferencaParaTela, MEDIDAS, serieDaMedida } from
 import { formatadorDeDatas, PARES_DIREITA_ESQUERDA, seriesDoPar, type SeriesDoPar } from '../../dominio/comparacaoDeAvaliacoes';
 import { dataParaTela } from '../../dominio/formatos';
 import type { GraficoDoPdf } from '../../pdf/pdfAvaliacaoFisica';
+import { corDoTom, type TomDoPeso } from '../../dominio/corDaVariacaoDoPeso';
+import type { Cores } from '../../tema/tokens';
 
 type Pontos = { data: string; valor: number }[];
 
@@ -74,4 +76,12 @@ export function linhasDaDica(
   const primeiro = pontos[0];
   const referencia = indice === 0 ? 'Primeiro registro' : `${diferencaParaTela(diferenca(primeiro.valor, ponto.valor))} desde ${formatar(primeiro.data)}`;
   return [...(serie ? [serie] : []), `${dataParaTela(ponto.data)} · ${cmParaTela(ponto.valor)} cm`, referencia];
+}
+
+/**
+ * Cor da variação pequena (histórico, Comparar e folha): verde a favor da meta e vermelho contra (`corDoTom`, a do Peso);
+ * a neutra é `textoSuave`, abaixo do valor, para o número mandar. A seta e o sinal ficam sempre (a cor nunca fala sozinha).
+ */
+export function corDaVariacao(tom: TomDoPeso, cores: Pick<Cores, 'sucesso' | 'perigo' | 'texto' | 'textoSuave'>): string {
+  return tom === 'neutro' ? cores.textoSuave : corDoTom(tom, cores);
 }

@@ -20,7 +20,7 @@ import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
-import { Escolha } from '../../ui/Escolha';
+import { UmaOpcao } from '../SeletoresDeFiltro';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
@@ -119,10 +119,16 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       <BarraDeFiltros busca={{ valor: busca, aoMudar: setBusca, rotulo: textos.buscar, placeholder: 'Nome ou descrição' }}
         valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave) => setFiltros(semOFiltro(filtros, chave as ChaveDoFiltro))}
         painelLateral={{ titulo: 'Filtros de questionários' }}
+        resultado={{ itens: { um: 'questionário', varios: 'questionários' }, buscar: (r) => {
+          // Mesma situação da lista na tela: conta nela; outra (arquivados), busca a lista dessa situação.
+          const daApi = arquivadosDaApi(r.situacao);
+          return daApi === arquivados && lista.dados ? Promise.resolve(filtrarQuestionarios(lista.dados, r, busca).length)
+            : listarQuestionarios(daApi, finalidade).then((l) => filtrarQuestionarios(l, r, busca).length);
+        } }}
         seletores={(atuais, mudar) => (
           <GrupoDoPainel titulo="Situação" primeiro>
-            <Escolha rotulo="Situação" opcoes={[...SITUACOES_DO_QUESTIONARIO]} valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })} />
-            <Escolha rotulo="Publicação" opcoes={[...PUBLICACOES]} valor={atuais.publicacao} aoMudar={(publicacao) => mudar({ ...atuais, publicacao })} />
+            <UmaOpcao rotulo="Situação" opcoes={SITUACOES_DO_QUESTIONARIO} todos="TODOS" valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })} />
+            <UmaOpcao rotulo="Publicação" opcoes={PUBLICACOES} valor={atuais.publicacao} aoMudar={(publicacao) => mudar({ ...atuais, publicacao })} />
           </GrupoDoPainel>
         )} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}

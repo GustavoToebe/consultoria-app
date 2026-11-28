@@ -250,5 +250,5 @@ for (const largura of [390, 1280]) for (const tema of ['CLARO', 'ESCURO'] as con
 
 test('Exceções por aluno: nenhuma', async ({ page }) => {
   await abrirRegras(page, 1280, 'CLARO', false);
-  await expect(page.getByText('Nenhum aluno com exceção.')).toBeVisible();
+  await expect(page.getByText('Nenhum aluno com exceção · ajuste na ficha do aluno, em Configuração do acompanhamento.')).toBeVisible();
 });

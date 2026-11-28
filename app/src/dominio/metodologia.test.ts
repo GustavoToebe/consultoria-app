@@ -116,7 +116,7 @@ test('texto da carga e do esforço: faixas, até a falha em qualquer forma e pau
   expect(textoCarga(carga('CARGA_TRABALHO'), 'WS')).toBe('');
   expect(textoEsforco({ rir: null, rpe: 8.5 })).toBe('RPE 8,5');
   const t = { ...tecnicaVazia('CLUSTER'), blocos: [4, 2], pausaRespiracoes: 5, pausaSegundos: 10 };
-  expect(textoTecnicaPorExtenso(t)).toContain('5 respirações ou 10 s');
+  expect(textoTecnicaPorExtenso(t)).toContain('10 s ou 5 respirações');
 });
 
 test('trocar a forma de carga preserva o esforço, inclusive o RIR zero; cópias não compartilham os blocos', () => {

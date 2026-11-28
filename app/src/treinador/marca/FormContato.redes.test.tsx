@@ -23,6 +23,9 @@ const h = (...a: unknown[]) => (require('react').createElement as (...x: unknown
 jest.mock('../../ui/Cartao', () => ({ Cartao: ({ children }: { children?: ReactNode }) => children }));
 jest.mock('../../ui/Texto', () => ({ Texto: ({ children }: { children?: ReactNode }) => h(require('react-native').Text, null, children) }));
 jest.mock('../../ui/Estados', () => ({ MensagemErro: () => null }));
+// A prévia só aparece depois de medir a largura (nunca neste teste) e o ⓘ do WhatsApp é peça à parte.
+jest.mock('./PreviaDoContato', () => ({ PreviaDoContato: () => null }));
+jest.mock('../../ui/DicaDeTexto', () => ({ DicaDeTexto: () => null }));
 jest.mock('../../ui/Campo', () => ({
   MensagemDeErro: () => null,
   Campo: ({ rotulo, valor, aoMudar }: { rotulo: string; valor: string; aoMudar: (t: string) => void }) =>
@@ -110,4 +113,16 @@ it('o 422 de uma rede (redesSociais.<rede>) cai na linha dela e nas outras não'
   await act(async () => { (toque(raiz, 'Salvar contato')[0]!.props.onPress as () => void)(); });
   expect(textos(raiz)).toContain('erro site: Use o link do site.');
   expect(textos(raiz).filter((t) => t.startsWith('erro instagram'))).toHaveLength(0);
+});
+
+it('Cancelar volta ao que está salvo: o contato e as redes, e o rodapé some', () => {
+  const raiz = montar();
+  act(() => { (raiz.root.findByProps({ accessibilityLabel: 'Nome que aparece nos e-mails' }).props.onChangeText as (t: string) => void)('Equipe Nova'); });
+  act(() => { (toque(raiz, 'Remover site')[0]!.props.onPress as () => void)(); });
+  expect(toque(raiz, 'Cancelar')).toHaveLength(1);
+  act(() => { (toque(raiz, 'Cancelar')[0]!.props.onPress as () => void)(); });
+  expect(raiz.root.findByProps({ accessibilityLabel: 'Nome que aparece nos e-mails' }).props.value).toBe('');
+  expect(toque(raiz, 'Remover site')).toHaveLength(1);
+  expect(toque(raiz, 'Salvar contato')).toHaveLength(0);
+  expect(salvarApi).not.toHaveBeenCalled();
 });

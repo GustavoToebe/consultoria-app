@@ -41,7 +41,7 @@ export function AvisoDePerguntaDoInstagram({ conteudo, aoMudar }: {
       <Alerta key={p.id} tom="atencao" texto={AVISO_PERGUNTA_DO_INSTAGRAM}>
         <Texto variante="suave">{`Pergunta “${p.rotulo.trim()}”, na seção ${p.secao + 1}.`}</Texto>
         <View style={estilos.acoes}>
-          <Botao rotulo="Remover pergunta" rotuloAcessivel={`Remover a pergunta “${p.rotulo.trim()}”`} tipo="secundario" Icone={Trash2}
+          <Botao rotulo="Remover pergunta" rotuloAcessivel={`Remover a pergunta “${p.rotulo.trim()}”`} tipo="perigo" Icone={Trash2}
             aoTocar={() => setRemovendo(p.id)} />
         </View>
       </Alerta>

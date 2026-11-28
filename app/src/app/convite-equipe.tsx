@@ -106,7 +106,7 @@ export default function ConviteEquipe() {
           </Alerta>
         ) : null}
         {verCodigo ? (
-          <Campo ref={refCodigo} rotulo="Código do convite de equipe" valor={codigo} aoMudar={setCodigo} erro={campos.codigo} autoCapitalize="none" autoCorrect={false} maxLength={43} />
+          <Campo ref={refCodigo} rotulo="Código do convite de equipe" valor={codigo} aoMudar={setCodigo} erro={campos.codigo} autoCapitalize="none" autoCorrect={false} autoComplete="off" maxLength={43} />
         ) : (
           <View style={estilos.codigoDoLink}>
             <Texto variante="suave">Código do convite recebido pelo link.</Texto>

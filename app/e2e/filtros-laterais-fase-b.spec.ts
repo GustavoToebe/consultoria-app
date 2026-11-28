@@ -44,7 +44,13 @@ interface Caso {
   largas?: boolean;
 }
 
+/** Regra única dos filtros (28/11): opções fixas em chips no painel; pessoa e responsável seguem na lista com busca. */
+const EM_CHIPS = ['Acesso ao app', 'Origem', 'Situação'];
 async function marcar(page: Page, painel: Locator, rotulo: string, todos: string, opcoes: string[]) {
+  if (EM_CHIPS.includes(rotulo)) {
+    for (const o of opcoes) await painel.getByRole('group', { name: rotulo }).getByRole('button', { name: o, exact: true }).click();
+    return;
+  }
   await painel.getByRole('button', { name: `${rotulo}: ${todos}. Escolher.` }).click();
   const lista = page.getByRole('dialog', { name: rotulo });
   for (const o of opcoes) await lista.getByRole('checkbox', { name: o, exact: true }).click();
@@ -260,7 +266,7 @@ for (const caso of CASOS) {
         await expect(painel).toBeVisible();
         const campo = await caso.periodo(painel);
         const antes = daLista().length;
-        await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
         await expect(painel).toBeVisible();
         await expect(campo).toHaveAttribute('aria-invalid', 'true');
         await expect(campo).toBeFocused();
@@ -275,7 +281,7 @@ for (const caso of CASOS) {
       await botao.click();
       await expect(painel).toBeVisible();
       await caso.ligar(page, painel);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(page.getByRole('button', { name: caso.chip })).toBeVisible();
@@ -292,7 +298,7 @@ for (const caso of CASOS) {
       const enderecoAplicado = page.url();
       await botao.click();
       await expect(painel).toBeVisible();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       // Espera curta para um pedido indevido ter tempo de sair (não há evento a esperar quando nada acontece).
       await page.waitForTimeout(500);
@@ -309,7 +315,7 @@ for (const caso of CASOS) {
       await botao.click();
       await expect(painel).toBeVisible();
       await caso.comResultado.ligar(page, painel);
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel).toHaveCount(0);
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(page.getByRole('button', { name: caso.comResultado.chip })).toBeVisible();

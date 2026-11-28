@@ -2,6 +2,7 @@ import { SlidersHorizontal, X } from 'lucide-react-native';
 import { type ComponentProps, createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, type TextInputProps } from 'react-native';
 
+import { rotuloDeMostrar } from '../dominio/atalhosDePeriodo';
 import { resultadoDoAplicar } from '../dominio/painelDeFiltros';
 
 import { useTema } from '../tema/TemaProvider';
@@ -42,8 +43,11 @@ interface Props<T> {
   aoTirar: (chave: string) => void;
   /** Os seletores do painel, numa coluna agrupada por `GrupoDoPainel` (`SelecaoMultiplaSuspensa` para várias, `Escolha` para uma). */
   seletores: (filtros: T, aoMudar: (filtros: T) => void) => ReactNode;
-  /** O painel lateral: título "Filtros de <assunto>" (nome do diálogo). */
-  painelLateral: { titulo: string };
+  /**
+   * O painel lateral: título "Filtros de <assunto>" (nome do diálogo). Com `largura`, abre no centro com essa largura em vez
+   * da lateral de 460 (os filtros de exercícios em duas colunas, na folha média de 800); no celular é a mesma folha de baixo.
+   */
+  painelLateral: { titulo: string; largura?: number };
   /**
    * A barra mora dentro de uma folha (escolher exercícios): os filtros são uma etapa dessa folha (`ui/EtapaDeFiltros`), sem
    * painel empilhado por cima. O botão só chama `abrir`; o rascunho e o rodapé são da etapa.
@@ -55,8 +59,23 @@ interface Props<T> {
    */
   antes?: ReactNode;
   depois?: ReactNode;
-  /** Texto do botão principal do painel a partir do rascunho ("Mostrar 18 exercícios"); sem ele, "Aplicar filtros". */
+  /**
+   * `linhaUnica` (Auditoria, 28/11): tudo numa linha à esquerda, que só quebra quando não cabe: o `antes` no tamanho dele
+   * (sem crescer), o botão "Filtros · N" (o número no texto, sem a bolinha), o `depois`, as etiquetas "Filtrando" com o
+   * "Limpar filtros" e o `fim` por último. Sem ele, a barra de sempre (etiquetas embaixo da linha).
+   */
+  arranjo?: 'linhaUnica';
+  /** Só na `linhaUnica`: o último item da linha, depois do "Limpar filtros" (a contagem da lista). */
+  fim?: ReactNode;
+  /** Texto do botão principal do painel a partir do rascunho ("Mostrar 18 exercícios"); vale mais que `resultado`. */
   rotuloDoAplicar?: (rascunho: T) => string;
+  /**
+   * O botão principal do painel diz quantos itens o rascunho mostra ("Mostrar 12 importações"; regra única dos filtros,
+   * 28/11): `contar` na hora (lista filtrada no aparelho) ou `buscar` (lista do servidor: o mesmo pedido da lista, página 0,
+   * lendo o `total`; `useContagemDoRascunho`). Enquanto a busca não chega, ou se falha, o botão diz "Mostrar importações". O Aplicar nunca
+   * espera a contagem. Sem `resultado` nem `rotuloDoAplicar`, "Aplicar filtros".
+   */
+  resultado?: ResultadoDoRascunho<T>;
   /** O painel lateral abriu (a Biblioteca só busca a lista inteira, para as contagens, quando alguém abre os filtros). */
   aoAbrirPainel?: () => void;
 }
@@ -78,15 +97,56 @@ export function useProblemaNoPainel(quantos: number): { noPainel: boolean; mostr
   return { noPainel: !!ctx, mostrar: !!ctx?.mostrar };
 }
 
-/** Grupo do painel lateral (Identificação, Situação, Datas…): título de seção e um divisor entre grupos, sem cartão. */
-export function GrupoDoPainel({ titulo, children, primeiro }: { titulo: string; children: ReactNode; primeiro?: boolean }) {
+/**
+ * Grupo do painel lateral (Identificação, Situação, Datas…): um divisor de 1 px entre grupos, sem cartão. Regra única dos
+ * filtros (28/11): cada filtro tem um rótulo só, então o grupo não mostra título (o "IDENTIFICAÇÃO" em caixa alta
+ * repetia o rótulo do filtro) nem vira grupo para o leitor de tela (seria "grupo Situação, grupo Situação"); o `titulo`
+ * só diz no código que grupo é (a ordem Identificação, Situação, Datas, Outros continua).
+ */
+export function GrupoDoPainel({ children, primeiro }: { titulo: string; children: ReactNode; primeiro?: boolean }) {
   const { cores } = useTema();
   return (
-    <View role="group" aria-label={titulo} style={[estilos.grupo, !primeiro && [estilos.grupoSeguinte, { borderTopColor: cores.divisor }]]}>
-      <Texto variante="secao" nivel={3}>{titulo}</Texto>
+    <View style={[estilos.grupo, !primeiro && [estilos.grupoSeguinte, { borderTopColor: cores.divisor }]]}>
       {children}
     </View>
   );
+}
+
+/** Como o painel conta o rascunho: `contar` na hora (lista no aparelho) ou `buscar` no servidor (o `total` da página 0). */
+export interface ResultadoDoRascunho<T> {
+  itens: { um: string; varios: string };
+  contar?: (rascunho: T) => number | null;
+  buscar?: (rascunho: T) => Promise<number>;
+  /** O total da lista em vigor: com o rascunho igual ao aplicado (o painel acabou de abrir), vale ele, sem pedido. */
+  total?: number | null;
+}
+
+/**
+ * Quantos itens o rascunho mostra, para o "Mostrar N" (`resultado` da `BarraDeFiltros` e da `ui/EtapaDeFiltros`). `contar`
+ * vale na hora; `buscar` só sai depois de 300 ms sem mudança no rascunho e a resposta só vale se o rascunho ainda é o
+ * mesmo quando chega (a de um rascunho velho é descartada). Enquanto não chega, ou se falha, `null`.
+ */
+export function useContagemDoRascunho<T>(rascunho: T | null, resultado: ResultadoDoRascunho<T> | undefined, aplicado: T): number | null {
+  const [contado, setContado] = useState<{ de: T; quantos: number } | null>(null);
+  // A função de quem usa muda a cada render; o pedido usa a mais nova sem refazer a espera.
+  const buscar = useRef(resultado?.buscar);
+  useEffect(() => { buscar.current = resultado?.buscar; });
+  const temBusca = !!resultado?.buscar;
+  const total = resultado?.total;
+  // Rascunho igual ao aplicado com o total da tela à mão: não há o que pedir.
+  const doAplicado = rascunho !== null && typeof total === 'number' && JSON.stringify(rascunho) === JSON.stringify(aplicado);
+  useEffect(() => {
+    if (!temBusca || rascunho === null || doAplicado) return;
+    let valendo = true;
+    const espera = setTimeout(() => {
+      buscar.current?.(rascunho).then((quantos) => { if (valendo) setContado({ de: rascunho, quantos }); }, () => undefined);
+    }, 300);
+    return () => { valendo = false; clearTimeout(espera); };
+  }, [temBusca, rascunho, doAplicado]);
+  if (rascunho === null || !resultado) return null;
+  if (resultado.contar) return resultado.contar(rascunho);
+  if (doAplicado) return total;
+  return contado && contado.de === rascunho ? contado.quantos : null;
 }
 
 /** Texto do botão de filtros para o leitor de tela: o rótulo visível e quantos estão ligados. */
@@ -106,7 +166,7 @@ export function rotuloDoBotaoDeFiltros(quantos: number, rotulo = 'Filtros'): str
  * (B3): o rascunho copiaria o valor antigo e a gravação atrasada cairia na entrada da folha nova. Se a tela sai antes de a
  * gravação correr (saída confirmada de um editor com a guarda ativa), ela é descartada: o `setParams` cairia na rota nova.
  */
-export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral, naFolha, antes, depois, rotuloDoAplicar, aoAbrirPainel }: Props<T>) {
+export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral, naFolha, antes, depois, arranjo, fim, rotuloDoAplicar, resultado, aoAbrirPainel }: Props<T>) {
   const { cores } = useTema();
   // O que foi escolhido e ainda não foi aplicado; `null` = painel fechado.
   const [rascunho, setRascunho] = useState<{ filtros: T } | null>(null);
@@ -119,6 +179,7 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
   }, []);
   const aberto = rascunho !== null;
   const quantos = chips.length;
+  const unica = arranjo === 'linhaUnica';
   const abrir = () => {
     // Aplicação ainda a caminho (dura o voltar do histórico, uns milissegundos): o toque não abre com o valor velho.
     if (aplicando.current) return;
@@ -134,10 +195,31 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
     });
   };
 
+  const etiquetas = quantos > 0 ? (
+    <View style={estilos.filtrado}>
+      <Texto variante="suave">Filtrando:</Texto>
+      <View style={[estilos.filtrado, estilos.chipsAtivos]} role="group" aria-label="Filtros aplicados">
+        {chips.map((c) => (
+          <Pressable
+            key={c.chave}
+            accessibilityRole="button"
+            accessibilityLabel={`Tirar filtro: ${c.texto}`}
+            onPress={() => aoTirar(c.chave)}
+            style={(e) => [estilos.chip, { borderColor: cores.bordaCampo, backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie2 }]}>
+            <Texto variante="pequeno" cor={cores.texto} style={estilos.textoDoChip}>{c.texto}</Texto>
+            <X size={14} color={cores.texto} strokeWidth={2.5} />
+          </Pressable>
+        ))}
+      </View>
+      {/* Nome próprio (com o texto visível no começo): a lista vazia também oferece um "Limpar filtros". */}
+      <Botao rotulo="Limpar filtros" rotuloAcessivel="Limpar filtros aplicados" tipo="fantasma" aoTocar={() => aoAplicar(limpo)} />
+    </View>
+  ) : null;
+
   return (
     <View style={estilos.raiz}>
-      <View style={[estilos.linha, antes ? estilos.linhaComAntes : null]}>
-        {antes ? <View style={estilos.antes}>{antes}</View> : null}
+      <View style={[estilos.linha, antes || unica ? estilos.linhaComAntes : null]}>
+        {antes ? <View style={unica ? estilos.antesNoTamanho : estilos.antes}>{antes}</View> : null}
         {busca ? (
           <View style={estilos.busca}>
             <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder} inputMode={busca.inputMode}
@@ -153,42 +235,25 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
           onPress={abrir}
           style={(e) => [estilos.filtros, { borderColor: cores.bordaCampo, backgroundColor: aberto ? cores.superficie3 : sobre(e) ? cores.superficie2 : 'transparent' }]}>
           <SlidersHorizontal size={18} color={cores.texto} strokeWidth={2} />
-          <Texto style={estilos.rotuloFiltros} cor={cores.texto}>Filtros</Texto>
+          <Texto style={estilos.rotuloFiltros} cor={cores.texto}>{unica && quantos > 0 ? `Filtros · ${quantos}` : 'Filtros'}</Texto>
           {/* Contagem neutra: `superficie3` com o botão fechado; aberto (o botão já é `superficie3`), o cartão. */}
-          {quantos > 0 ? (
+          {quantos > 0 && !unica ? (
             <View style={[estilos.contagem, { backgroundColor: aberto ? cores.superficie : cores.superficie3 }]}>
               <Texto variante="pequeno" numerico cor={cores.texto} style={estilos.numero}>{String(quantos)}</Texto>
             </View>
           ) : null}
         </Pressable>
         {depois}
+        {unica ? etiquetas : null}
+        {unica ? fim : null}
       </View>
       {/* Montado só aberto: cada abertura começa sem erro à vista. */}
       {rascunho ? (
-        <PainelLateral titulo={painelLateral.titulo} rascunho={rascunho.filtros} limpo={limpo}
-          aoMudar={(filtros) => setRascunho({ filtros })} seletores={seletores} rotuloDoAplicar={rotuloDoAplicar}
+        <PainelLateral titulo={painelLateral.titulo} largura={painelLateral.largura} rascunho={rascunho.filtros} limpo={limpo}
+          aoMudar={(filtros) => setRascunho({ filtros })} seletores={seletores} rotuloDoAplicar={rotuloDoAplicar} contagem={resultado} aplicado={valor}
           aoDescartar={() => setRascunho(null)} aoAplicar={aplicar} />
       ) : null}
-      {quantos > 0 ? (
-        <View style={estilos.filtrado}>
-          <Texto variante="suave">Filtrando:</Texto>
-          <View style={[estilos.filtrado, estilos.chipsAtivos]} role="group" aria-label="Filtros aplicados">
-            {chips.map((c) => (
-              <Pressable
-                key={c.chave}
-                accessibilityRole="button"
-                accessibilityLabel={`Tirar filtro: ${c.texto}`}
-                onPress={() => aoTirar(c.chave)}
-                style={(e) => [estilos.chip, { borderColor: cores.bordaCampo, backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie2 }]}>
-                <Texto variante="pequeno" cor={cores.texto} style={estilos.textoDoChip}>{c.texto}</Texto>
-                <X size={14} color={cores.texto} strokeWidth={2.5} />
-              </Pressable>
-            ))}
-          </View>
-          {/* Nome próprio (com o texto visível no começo): a lista vazia também oferece um "Limpar filtros". */}
-          <Botao rotulo="Limpar filtros" rotuloAcessivel="Limpar filtros aplicados" tipo="fantasma" aoTocar={() => aoAplicar(limpo)} />
-        </View>
-      ) : null}
+      {unica ? null : etiquetas}
     </View>
   );
 }
@@ -198,8 +263,9 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
  * voltar do navegador descartam (`aoFechar` da Folha); "Limpar filtros" só volta o rascunho ao limpo; "Aplicar filtros"
  * confere os campos e, sem problema, aplica tudo de uma vez.
  */
-function PainelLateral<T>({ titulo, rascunho, limpo, aoMudar, seletores, aoDescartar, aoAplicar, rotuloDoAplicar }: {
-  titulo: string; rascunho: T; limpo: T; aoMudar: (filtros: T) => void; rotuloDoAplicar?: (rascunho: T) => string;
+function PainelLateral<T>({ titulo, largura, rascunho, limpo, aoMudar, seletores, aoDescartar, aoAplicar, rotuloDoAplicar, contagem, aplicado }: {
+  titulo: string; largura?: number; rascunho: T; limpo: T; aoMudar: (filtros: T) => void; rotuloDoAplicar?: (rascunho: T) => string;
+  contagem?: ResultadoDoRascunho<T>; aplicado: T;
   seletores: (filtros: T, aoMudar: (filtros: T) => void) => ReactNode; aoDescartar: () => void; aoAplicar: (filtros: T) => void;
 }) {
   // Trocar a chave remonta os seletores: o "Limpar filtros" também apaga a data digitada pela metade e o modo escolhido.
@@ -232,13 +298,16 @@ function PainelLateral<T>({ titulo, rascunho, limpo, aoMudar, seletores, aoDesca
     else setTentativa((n) => n + 1);
   };
   const limpar = () => { aoMudar(limpo); setVersao((v) => v + 1); setTentativa(0); };
+  const quantos = useContagemDoRascunho(rascunho, contagem, aplicado);
+  const rotulo = rotuloDoAplicar?.(rascunho) ?? (contagem ? rotuloDeMostrar(quantos, contagem.itens) : 'Aplicar filtros');
   return (
-    <Folha visivel lateral titulo={titulo} aoFechar={aoDescartar}
+    <Folha visivel lateral={largura === undefined} largura={largura} titulo={titulo} aoFechar={aoDescartar}
       statusDoRodape={mensagem ? <MensagemErro texto={mensagem} /> : undefined}
       rodape={<>
-        <Botao rotulo="Limpar filtros" tipo="fantasma" Icone={X} aoTocar={limpar} />
+        {/* Regra única do rodapé: "Limpar filtros" em texto, Cancelar e "Mostrar N <itens>" (o único primário). */}
+        <Botao rotulo="Limpar filtros" tipo="fantasma" aoTocar={limpar} />
         <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoDescartar} />
-        <Botao rotulo={rotuloDoAplicar?.(rascunho) ?? 'Aplicar filtros'} aoTocar={aplicar} />
+        <Botao rotulo={rotulo} aoTocar={aplicar} />
       </>}>
       <ProblemasDoPainel.Provider value={contexto}>
         <View key={versao} style={estilos.coluna}>{seletores(rascunho, aoMudar)}</View>
@@ -253,6 +322,7 @@ const estilos = StyleSheet.create({
   busca: { flexGrow: 1, flexShrink: 1, flexBasis: 240, maxWidth: 480 },
   linhaComAntes: { alignItems: 'center' },
   antes: { flexGrow: 1, flexShrink: 1, flexBasis: 280, minWidth: 0 },
+  antesNoTamanho: { flexShrink: 1, minWidth: 0, maxWidth: '100%' },
   filtros: {
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5),
     borderWidth: 1, borderRadius: RAIO_CONTROLE,

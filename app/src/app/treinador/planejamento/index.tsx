@@ -6,11 +6,12 @@ import { useEffect, useState } from 'react';
 import { Copy, Ellipsis, Library, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { alterarReceita, criarReceita, duplicarReceita, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
-import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
+import type { Receita, TipoReceita } from '../../../api/tipos';
 import { agruparPorColecao, filtrarModelos, resumoDeModelos } from '../../../dominio/colecoes';
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
 import { FolhaColecoes } from '../../../treinador/planejamento/FolhaColecoes';
+import { FolhaNovoModelo } from '../../../treinador/planejamento/FolhaNovoModelo';
 import { ListaDeQuestionarios } from '../../../treinador/questionarios/ListaDeQuestionarios';
 import { ABA_ANAMNESE, ABA_ATUALIZACAO, ABA_INSCRICAO, ABAS_DE_QUESTIONARIO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, metadadosDoModelo, rotuloNovoModelo, slugDaAba, tipoDoPlanejamento, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { Abas } from '../../../ui/Abas';
@@ -30,7 +31,7 @@ import { IconeBotao } from '../../../ui/IconeBotao';
 import { LinhaDaLista } from '../../../ui/LinhaDaLista';
 import { ListaEmColunas, MINIMO_DA_COLUNA_COM_ACOES } from '../../../treinador/ListaEmColunas';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
-import { descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO, podeAplicarModelo } from '../../../dominio/modelos';
+import { descricaoDoModelo, podeAplicarModelo } from '../../../dominio/modelos';
 import { Tela } from '../../../ui/Tela';
 import { useCarregar } from '../../../ui/useCarregar';
 import { useSecoesAbertas } from '../../../ui/useSecoesAbertas';
@@ -63,15 +64,15 @@ export default function Planejamento() {
   const emInscricao = aba === ABA_INSCRICAO;
   // As três abas de questionário (atualização, anamnese e inscrição) têm o próprio "novo" e nenhuma lista de modelos.
   const emAtualizacao = aba === ABA_ATUALIZACAO || emAnamnese || emInscricao;
-  const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
-  const formulario = formularioAberto;
+  // Modelo novo (`{ pastaId }`: a coleção já marcada, quando abre pela "+" de uma coleção) ou um modelo existente.
+  const [formulario, setFormulario] = useState<Receita | { pastaId: string | null } | null>(null);
   const fecharFormulario = () => { setFormulario(null); setColarAoCriar(false); };
   useEffect(() => {
     if (pedirNovo !== '1' || emAtualizacao) return;
     let vivo = true;
     void Promise.resolve().then(() => {
       if (!vivo) return;
-      setFormulario('novo');
+      setFormulario({ pastaId: null });
       setColarAoCriar(pedirColar === '1');
       router.setParams({ novo: undefined, colar: undefined });
     });
@@ -139,7 +140,7 @@ export default function Planejamento() {
         <Permitido codigo="MODELO_ALTERAR">
           <View style={estilos.acoesDaBusca}>
             <Botao rotulo="Organizar coleções" tipo="secundario" Icone={Library} aoTocar={() => setOrganizar({ editarId: null })} />
-            <Botao rotulo={rotuloNovoModelo(tipo)} Icone={Plus} aoTocar={() => setFormulario('novo')} />
+            <Botao rotulo={rotuloNovoModelo(tipo)} Icone={Plus} aoTocar={() => setFormulario({ pastaId: null })} />
           </View>
         </Permitido>
       </View>
@@ -153,7 +154,10 @@ export default function Planejamento() {
       const aberto = secoes.estaAberta(chave);
       const colecao = g.pastaId ? colecoes.dados?.find((c) => c.id === g.pastaId) : undefined;
       return <Cartao key={g.pastaId ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDeModelos(g.itens.length)} aberto={aberto} aoAlternar={() => secoes.alternar(chave)} acoesJuntas
-        acoes={colecao && pode('MODELO_ALTERAR') ? <IconeBotao Icone={Pencil} rotulo={`Renomear coleção ${g.rotulo}`} aoTocar={() => setOrganizar({ editarId: colecao.id })} /> : undefined} />}>
+        acoes={colecao && pode('MODELO_ALTERAR') ? <>
+          <IconeBotao Icone={Plus} rotulo={`${rotuloNovoModelo(tipo)} em ${g.rotulo}`} aoTocar={() => setFormulario({ pastaId: colecao.id })} />
+          <IconeBotao Icone={Pencil} rotulo={`Renomear coleção ${g.rotulo}`} aoTocar={() => setOrganizar({ editarId: colecao.id })} />
+        </> : undefined} />}>
         {aberto ? <ListaEmColunas minimo={MINIMO_DA_COLUNA_COM_ACOES}>{g.itens.map((r) => <LinhaDeModelo key={r.id} modelo={r} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)}
           ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
           aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</ListaEmColunas> : null}
@@ -165,8 +169,10 @@ export default function Planejamento() {
       <Botao rotulo="Duplicar" tipo="acao" Icone={Copy} cheio desabilitado={ocupado !== null} aoTocar={() => duplicar(menu)} />
       <Botao rotulo="Excluir modelo" tipo="perigoTexto" Icone={Trash2} cheio aoTocar={() => { setExcluir(menu); setMenu(null); }} />
     </Folha> : null}
-    {formulario ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} colecoes={colecoes.dados ?? []} aoFechar={fecharFormulario} aoSalvar={async (nome, descricao, pastaId) => {
-      if (formulario === 'novo') {
+    {formulario ? <FolhaNovoModelo key={'id' in formulario ? formulario.id : 'novo'} receita={'id' in formulario ? formulario : null}
+      pastaInicial={'id' in formulario ? null : formulario.pastaId} tipo={tipo} colecoes={colecoes.dados ?? []} aoCriarColecao={colecoes.recarregar}
+      aoFechar={fecharFormulario} aoSalvar={async (nome, descricao, pastaId) => {
+      if (!('id' in formulario)) {
         const novo = await criarReceita({ tipo, nome, descricao, pastaId, conteudo: conteudoInicial(tipo, CONFIGURACAO_PADRAO) });
         const colar = colarAoCriar && (tipo === 'PLANO_TREINO' || tipo === 'SESSAO_TREINO');
         secoes.abrir(chaveDaColecao(tipo, pastaId));
@@ -199,20 +205,6 @@ function LinhaDeModelo({ modelo: r, aplicavel, ocupado, aoAplicar, aoEditar, aoM
     <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoEditar} /></Permitido>
     {aoMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações de ${r.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
   </>} />;
-}
-
-function Formulario({ receita, tipo, colecoes, aoFechar, aoSalvar }: { receita: Receita | null; tipo: TipoReceita; colecoes: PastaModelo[]; aoFechar: () => void; aoSalvar: (nome: string, descricao: string | null, pastaId: string | null) => Promise<void> }) {
-  const [nome, setNome] = useState(receita?.nome ?? ''); const [descricao, setDescricao] = useState(receita?.descricao ?? '');
-  const [colecao, setColecao] = useState(receita?.pastaId ?? '');
-  const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState<unknown>(null);
-  return <Folha visivel titulo={receita ? 'Renomear ou mudar de coleção' : rotuloNovoModelo(tipo)} aoFechar={aoFechar} rodape={<Botao rotulo={receita ? 'Salvar' : 'Criar e editar'} desabilitado={!nome.trim()} motivo="Informe o nome do modelo." carregando={salvando} aoTocar={() => {
-    setSalvando(true); setErro(null); aoSalvar(nome.trim(), descricao.trim() || null, colecao || null).catch((e: unknown) => { setErro(e); setSalvando(false); });
-  }} />}>
-    <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
-    <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={LIMITE_DESCRICAO_DO_MODELO} />
-    <Escolha rotulo="Coleção" valor={colecao} aoMudar={setColecao} opcoes={[{ valor: '', rotulo: 'Sem coleção' }, ...colecoes.map((c) => ({ valor: c.id, rotulo: c.nome }))]} />
-    {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-  </Folha>;
 }
 
 const estilos = StyleSheet.create({

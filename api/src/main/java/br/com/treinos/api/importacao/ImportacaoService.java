@@ -211,38 +211,50 @@ public class ImportacaoService {
     /** Tipo do arquivo no filtro do histórico: só a extensão fica gravada (o nome do arquivo não é guardado, LGPD). */
     public enum TipoDeArquivo { XLSX, CSV }
 
+    /** Situação gravada na importação (coluna texto com o nome da constante). */
+    public enum SituacaoDaImportacao {
+        CONCLUIDA, CONCLUIDA_COM_ERROS, FALHOU;
+
+        /** Todas, para a consulta sem filtro de situação. */
+        public static List<String> todas() {
+            return java.util.Arrays.stream(values()).map(Enum::name).toList();
+        }
+    }
+
     /**
-     * Histórico paginado, mais novas primeiro, só dos destinos que o perfil vê. Filtros opcionais e combinados com E:
-     * {@code destino}, {@code situacao}, {@code arquivo} ({@code xlsx} ou {@code csv}, a extensão gravada) e período
-     * {@code de}/{@code ate} pela data da importação (dias de Brasília, cada ponta opcional). Arquivo desconhecido = 400
-     * {@code FILTRO_INVALIDO}; período invertido = 400 {@code PERIODO_INVALIDO}.
+     * Histórico paginado, mais novas primeiro, só dos destinos que o perfil vê. Filtros opcionais, "ou" dentro do mesmo
+     * parâmetro e "e" entre eles: {@code destino} e {@code situacao} repetíveis ({@code ?a=1&a=2} ou {@code ?a=1,2}, até
+     * {@value br.com.treinos.api.web.FiltrosDeLista#MAXIMO_VALORES}), {@code arquivo} ({@code xlsx} ou {@code csv}, a
+     * extensão gravada) e período {@code de}/{@code ate} pela data da importação (dias de Brasília, cada ponta opcional).
+     * Valor desconhecido ou acima do teto = 400 {@code FILTRO_INVALIDO}; destino que o perfil não vê = 403; período
+     * invertido = 400 {@code PERIODO_INVALIDO}. O {@code total} conta o filtro inteiro.
      */
     @Transactional(readOnly = true)
-    public Pagina listar(String destino, String situacao, String arquivo, java.time.LocalDate de, java.time.LocalDate ate,
-                         int pagina) {
+    public Pagina listar(List<String> destino, List<String> situacao, String arquivo, java.time.LocalDate de,
+                         java.time.LocalDate ate, int pagina) {
+        List<String> destinos = br.com.treinos.api.web.FiltrosDeLista.valores(destino, "destino");
+        for (String d : destinos) {
+            if (!PERMISSAO.containsKey(d) && !SO_NO_HISTORICO.containsKey(d)) {
+                throw br.com.treinos.api.web.FiltrosDeLista.invalido("destino");
+            }
+        }
+        Set<SituacaoDaImportacao> situacoes = br.com.treinos.api.web.FiltrosDeLista.enums(SituacaoDaImportacao.class,
+                situacao, "situacao");
         TipoDeArquivo tipo = br.com.treinos.api.web.FiltrosDeLista.umEnum(TipoDeArquivo.class, arquivo, "arquivo");
         br.com.treinos.api.web.FiltrosDeLista.exigirPeriodoNaFaixa(de, ate, 0, "PERIODO_INVALIDO");
         List<String> visiveis = visiveis();
-        if (destino != null && !destino.isBlank()) {
-            if (!PERMISSAO.containsKey(destino) && !SO_NO_HISTORICO.containsKey(destino)) {
-                throw new NaoEncontradoException("Importação não encontrada.");
-            }
-            if (!visiveis.contains(destino)) {
-                throw new AccessDeniedException("Seu perfil não permite esta ação.");
-            }
+        if (!visiveis.containsAll(destinos)) {
+            throw new AccessDeniedException("Seu perfil não permite esta ação.");
         }
         if (visiveis.isEmpty()) {
             return new Pagina(List.of(), 0, 0);
         }
-        String situacaoFiltro = situacao == null || situacao.isBlank() ? null : situacao;
-        if (situacaoFiltro != null && !Set.of("CONCLUIDA", "CONCLUIDA_COM_ERROS", "FALHOU").contains(situacaoFiltro)) {
-            throw new ValidacaoException("Situação inválida.", "ARQUIVO_INVALIDO", List.of());
-        }
         java.time.Instant inicio = de == null ? java.time.Instant.EPOCH : de.atStartOfDay(Fuso.BRASILIA).toInstant();
         java.time.Instant fim = ate == null ? java.time.Instant.parse("9999-12-31T00:00:00Z")
                 : ate.plusDays(1).atStartOfDay(Fuso.BRASILIA).toInstant();
-        var paginaDados = importacoes.buscar(visiveis, destino == null || destino.isBlank() ? null : destino,
-                situacaoFiltro, tipo == null ? "" : "." + tipo.name().toLowerCase(java.util.Locale.ROOT), inicio, fim,
+        var paginaDados = importacoes.buscar(destinos.isEmpty() ? visiveis : destinos,
+                situacoes.isEmpty() ? SituacaoDaImportacao.todas() : situacoes.stream().map(Enum::name).toList(),
+                tipo == null ? "" : "." + tipo.name().toLowerCase(java.util.Locale.ROOT), inicio, fim,
                 PageRequest.of(Math.max(0, pagina), PAGINA));
         List<Item> itens = paginaDados.getContent().stream().map(i -> new Item(i.getId(), i.getNomeArquivo(),
                 i.getDestino(), nomeDe(i.getUsuarioId()), i.getCriadoEm(), i.getLinhas(), i.getSituacao())).toList();

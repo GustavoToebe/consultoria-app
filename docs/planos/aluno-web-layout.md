@@ -1,6 +1,6 @@
 # App do aluno na web: reorganizar o layout (pedido do Gustavo de 26/11/2026)
 
-Situação: Integrado na branch `leva-1` (27/11), aguardando verificação final e push; sobram os itens do registro abaixo · Onde: `leva-1` · Atualizado: 27/11/2026
+Situação: Integrado na branch `leva-1` (27/11); Conta refeita na `leva-3` (27/11, sem commit), aguardando o e2e da Conta e a conferência final; sobram os itens do registro abaixo · Onde: `leva-1`, `leva-3` · Atualizado: 27/11/2026
 
 Briefing para outra IA executar. As capturas estão em [`aluno-web-layout/`](aluno-web-layout/), tiradas em 1920 px com o
 menu aberto e o tema escuro. Remédios, fotos de corpo, peso, objetivo e o valor da cobrança foram borrados (dado sensível
@@ -154,11 +154,23 @@ quase vazios e a da direita empilha Fotos, Atualizações, Peso e Avaliação f�
 A aba fica no endereço (`?aba=`, regra de "Voltar" do `AGENTS.md`). Alternativa, se o Gustavo preferir sem abas: duas
 colunas equilibradas por altura (`ui/Alvenaria`) com Peso e Avaliação na coluna larga.
 
-## 8. Conta (`app/src/app/aluno/conta.tsx`)
+## 8. Conta (`app/src/app/aluno/conta.tsx`, `aluno/conta/TelaDaConta.tsx`)
 
-Não veio captura. Já segue a regra de formulário (320 + 640, decisão D6 de
-[tela-larga-revisao-app-do-aluno.md](tela-larga-revisao-app-do-aluno.md)): só conferir que combina com o novo padrão
-(centralizado, mesma largura máxima das outras telas).
+Feito na leva 3 (27/11): as peças (perfil, Meu plano, Contratos, Perfil na Comunidade, Meus dados + Ciclo, Convidar um
+amigo, Privacidade, Segurança, App e Excluir minha conta) vão em colunas empilhadas pela altura medida
+(`aluno/inicio/ColunasMedidas`, a mesma do Início e da Dieta), 1 coluna no celular e na compacta, 2 na normal, 3 na larga e
+na ultralarga (`dominio/colunasDaConta`), o perfil preso no topo da primeira coluna; contêiner do treinador (sem teto
+próprio). Sem coluna de apoio (nada para grudar) e sem indicadores (a Conta não tem número de resumo: a `GradeDeIndicadores`
+não se aplica). Saiu a variante local `ColunasEquilibradas`.
+
+**Desvio da auditoria (pedia a `ui/Alvenaria`):** a `Alvenaria` escolhe a coluna na ordem, pela mais baixa na hora; com as
+alturas medidas da Conta em 1920 (`colunasDaConta.test.ts`) ela deixa ~250 px de buraco em 3 colunas, porque "App" (a mais
+alta) chega no fim. As `ColunasMedidas` buscam a distribuição de fins mais próximos e fecham abaixo de 80 px. Juntar as duas
+numa peça só de `ui/` fica como sugestão para o design system.
+
+E2e: `e2e/aluno-layout-conta.spec.ts` (390, 1024, 1280, 1920, 2560 e 3440, claro e escuro; mede as colunas com
+`e2e/alturasDeColunas`, testID `conta-coluna-<chave>`, limite de 80 px; capturas com `E2E_CAPTURAS`, com as de Aparência e
+preferências do treinador ao lado). Ainda não rodado.
 
 ---
 
@@ -200,10 +212,10 @@ Não veio captura. Já segue a regra de formulário (320 + 640, decisão D6 de
 - [x] 2. Início — integrado na leva 1: três colunas medidas na `larga` e na `ultralarga` (`dominio/arranjoDoInicioLargo`, `aluno/inicio/ColunasMedidas`), sem apoio fixo e sem o marco `complementary`; mapa e vitrine lado a lado em 2560 e 3440 — commit: leva 1 (hash no relatório da leva)
 - [x] 3. Dieta — integrado na leva 1: duas colunas pela altura medida, Medicação, plano, Orientações e Observações como peças separadas (`aluno/OrientacoesEObservacoesDaDieta` com a formatação do treinador) — commit: leva 1 (hash no relatório da leva)
 - [x] 4. Exercício — integrado na leva 1 — commit: leva 1 (hash no relatório da leva)
-- [x] 5. Treino e Treino do dia — integrado na leva 1; fica: Treino do dia sem "próximo" e histórico, Mobilidade fora do apoio (em 3440 ocupa ~40%) — commit: leva 1 (hash no relatório da leva)
-- [x] 6. Histórico — parcial na leva 1 (abas e colunas; fica o lado a lado com o treinador) — commit: leva 1 (hash no relatório da leva)
+- [x] 5. Treino e Treino do dia — integrado na leva 1; fica: Treino do dia sem "próximo" e histórico, Mobilidade fora do apoio (em 3440 ocupa ~40%) — commit: leva 1 (hash no relatório da leva) · leva 3 (27/11, sem commit): Treino do dia no PC (a partir de larga a lista para em 880 px e uma 3ª coluna grudada mostra o próximo exercício e o histórico dele, em duas colunas a partir de 752 px; sem histórico, 440 px só com o cartão; sem nada a fazer a coluna não abre; Mobilidade segue fora do apoio, decisão do Gustavo); spec `aluno-layout-treino-do-dia.spec.ts` escrito, não rodado
+- [x] 6. Histórico — parcial na leva 1 (abas e colunas; fica o lado a lado com o treinador) — commit: leva 1 (hash no relatório da leva) · leva 3 (27/11, sem commit): colunas pela largura medida (mínimo 440; teto 2 em normal e larga, 3 na ultralarga; Corpo para em 2); Corpo e Atualizações em 2 colunas já a partir de 1280 (a Ficha › Evolução do treinador segue 1 coluna até 2560: divergência aceita); spec `aluno-layout-historico.spec.ts` com checagem de buracos, não rodado
 - [x] 7. Comunidade — integrado na leva 1 — commit: leva 1 (hash no relatório da leva)
-- [ ] 8. Conferência final (Conta, capturas, e2e inteira) — Conta ainda com `ColunasEquilibradas` local e sem Grade de indicadores; capturas e e2e completa pendentes
+- [ ] 8. Conferência final (Conta, capturas, e2e inteira) — Conta feita na leva 3 (colunas medidas, spec `aluno-layout-conta` com medida de altura; desvio da `ui/Alvenaria` explicado no item 8); faltam rodar o spec e olhar as capturas da Conta, a e2e inteira e as specs de altura do Histórico e do Treino (outro dono) — commit: —
 
 ## Registro de execução (27/11)
 - Contêiner novo do aluno na web: `useAreaDaTela` (medição da área de conteúdo); apoio de 380, 420 e 440 px; o teto de 1312 px foi removido.

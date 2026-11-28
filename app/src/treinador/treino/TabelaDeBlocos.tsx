@@ -1,8 +1,9 @@
-import { ChevronDown, ChevronRight, CircleAlert, Ellipsis, Plus, TriangleAlert } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, CircleAlert, Ellipsis, Plus, TriangleAlert } from 'lucide-react-native';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { textoAcessivelDoBloco, textoDaVariacao, type ResumoDoBloco } from '../../dominio/editorDeTreino';
+import { TEXTO_FALTA_DESCANSO } from '../../dominio/pontosParaRevisar';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes } from '../../tema/tokens';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
@@ -10,11 +11,10 @@ import { Selo } from '../../ui/Selo';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { CamadaDaSerie, fundoDaSerie } from '../../ui/CamadaDaSerie';
 import { LARGURA_DA_FAIXA_DA_SERIE, pinturaDaSerie } from '../../ui/pinturaDaSerie';
-import { coresDaEdicao } from '../../ui/selecao';
 import { sobre as comMouse } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { acoesDeMover } from '../acoesDeMover';
-import { LARGURA_MAXIMA_DAS_COLUNAS as MAXIMA } from './colunasDasSeries';
+import { colunasDasSeries, LARGURA_DA_COLUNA_SERIE, LARGURA_MAXIMA_DAS_COLUNAS as MAXIMA } from './colunasDasSeries';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
 
 export interface LinhaDoBloco {
@@ -54,7 +54,7 @@ const ALTURA_DA_LINHA = 21 + 18 + 2 + 2 * espaco(1.25);
 
 /** Abaixo desta largura da coluna das séries as colunas viram linha empilhada com o editor embaixo (390). */
 export const LARGURA_DAS_COLUNAS = 540;
-/** Coluna do chevron (→ fechada, ↓ aberta), no fim da linha e do cabeçalho. */
+/** Coluna do chevron (⌄ fechada, ⌃ aberta, como no quadro de 27/11), no fim da linha e do cabeçalho. */
 const CHEVRON = 20;
 /** Vão entre a alça e a linha. */
 const ESPACO_DA_ALCA = espaco(0.25);
@@ -69,14 +69,16 @@ const ESPACO_DO_MENU = espaco(0.5);
  * texto corrido.
  * Séries no padrão da dieta (19/11): um nível de destaque por vez. A faixa de ação fica no painel do exercício; aqui cada
  * linha fechada é um cartão pintado na cor da série com a faixa reta à esquerda (25/11, `ui/CamadaDaSerie`, a mesma peça da
- * tela do exercício do aluno; hover `superficie2`, chevron →) e a aberta forma um bloco só com o editor embaixo, no fundo
- * tingido de ação (`coresDaEdicao().fundoDoBloco`) com a faixa da série, sem contorno, halo nem selo "Editando" (chevron ↓
- * na cor de ação). Só uma aberta por vez; tocar na aberta fecha. Sinais que não se confundem: o foco é o anel do
- * `:focus-visible`; a aberta é o fundo tingido de ação; a categoria é a faixa e o selo com o nome do tipo (a cor é a do tipo
+ * tela do exercício do aluno; hover `superficie2`, chevron ⌄) e a aberta forma um bloco só com o editor embaixo, no mesmo
+ * fundo pintado na cor do tipo e com a borda de ação (28/11: na série do treino, o destaque de edição é a borda), sem halo
+ * nem selo "Editando" (chevron ⌃ na cor de ação). Só uma aberta por vez; tocar na aberta fecha. Sinais que não se confundem: o foco é o anel do
+ * `:focus-visible`; a aberta é a borda de ação; a categoria é a faixa e o selo com o nome do tipo (a cor é a do tipo
  * ou, pela preferência "Cor das séries", a de ação); o problema é o ícone na cor da gravidade (a carga ainda vazia é âmbar,
- * "Falta a carga").
+ * "Falta a carga"; a série sem descanso também, "● Falta o descanso" na coluna Descanso, SERIE-ABERTA 0.6).
+ * 27/11: "6 séries · cluster" embaixo do número (a técnica sai do nome por extenso do Tipo), "5 × 5 (25)" na Reps (vem
+ * pronto de `resumoDoBloco`) e as colunas pelo modo do exercício (`colunasDasSeries`: sem carga, sem a coluna Carga).
  */
-export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado = false, detalhe, aoSoltar, aoMover }: {
+export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado = false, semCarga = false, detalhe, aoSoltar, aoMover }: {
   linhas: LinhaDoBloco[];
   /** O bloco aberto; nulo = todos fechados. */
   ativa: string | null;
@@ -91,6 +93,8 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
   nova?: { rotulo: string; aoTocar: () => void };
   /** Coluna estreita: a linha vira texto corrido em vez de colunas. */
   empilhado?: boolean;
+  /** Exercício sem carga (unidade "nenhuma"): sem a coluna Carga (`colunasDasSeries`). */
+  semCarga?: boolean;
   /** O editor do bloco aberto, logo abaixo da linha dele, no PC e no celular. */
   detalhe?: ReactNode;
   /** Arrastar pela alça (arrastar, 18/11): soltar o bloco `de` na posição `para`. Sem ele, sem alça. */
@@ -99,6 +103,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
   aoMover?: (indice: number, delta: -1 | 1) => void;
 }) {
   const { cores, variante, bordas } = useTema();
+  const comCarga = colunasDasSeries({ semCarga }).includes('carga');
   // Com alguma série colorida, todas as linhas e o cabeçalho ganham o recuo da faixa (as colunas continuam alinhadas).
   const recuo = linhas.some((l) => l.cor) ? LARGURA_DA_FAIXA_DA_SERIE : 0;
   // Só a linha anda (o editor aberto embaixo dela fica); as setas ficam no ⋯ da linha, fora do botão dela.
@@ -121,7 +126,6 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
     linhasRef.current[(alvo + linhas.length) % linhas.length]?.focus();
   };
   const teclado = (i: number) => (Platform.OS === 'web' ? ({ onKeyDown: aoTecla(i) } as object) : {});
-  const fundoDoBloco = coresDaEdicao(cores).fundoDoBloco;
   // "Fechar edição" (web) some com o bloco e o foco cairia no corpo da página: ele volta à linha, que continua montada
   // (WCAG 2.4.3). Só quando o foco se perdeu: fechar pela própria linha já deixa o foco nela.
   const aberta = useRef(ativa);
@@ -137,9 +141,11 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
   const conteudo = (l: LinhaDoBloco, sel: boolean) => {
     const Icone = l.problema === 'perigo' ? CircleAlert : TriangleAlert;
     const variacao = textoDaVariacao(l.resumo.variacao);
-    const series = `${l.resumo.quantidade} ${l.resumo.quantidade === 1 ? 'série' : 'séries'}`;
+    // "6 séries · cluster": a técnica fica com a quantidade (SERIE-ABERTA 3, linha fechada).
+    const series = [`${l.resumo.quantidade} ${l.resumo.quantidade === 1 ? 'série' : 'séries'}`, l.resumo.tecnica].filter(Boolean).join(' · ');
     const corDaCarga = l.cargaFalta ? { color: cores.atencao } : null;
-    const Seta = sel ? ChevronDown : ChevronRight;
+    const ambar = { color: cores.atencao };
+    const Seta = sel ? ChevronUp : ChevronDown;
     const chevron = <View style={estilos.chevron} aria-hidden><Seta size={18} color={sel ? cores.acao : cores.textoSuave} strokeWidth={2} /></View>;
     const numero = (
       <View style={estilos.titulo}>
@@ -154,8 +160,9 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
     );
     const detalhes = (
       <>
-        {/* O nome por extenso só quando diz mais que o selo ("Preparação · FS", "WS + Rest pause"); "Aquecimento" não se repete. */}
-        {l.resumo.nome && !mesmoTexto(l.resumo.nome, l.tipo) ? <Texto variante="pequeno" cor="suave">{l.resumo.nome}</Texto> : null}
+        {/* O nome por extenso só quando diz mais que o selo ("Preparação · FS"); "Aquecimento" não se repete, e com técnica
+            ele só repetiria o "· cluster" que já está embaixo do número. */}
+        {l.resumo.nome && !l.resumo.tecnica && !mesmoTexto(l.resumo.nome, l.tipo) ? <Texto variante="pequeno" cor="suave">{l.resumo.nome}</Texto> : null}
         {variacao ? <Texto variante="pequeno" cor="suave">{variacao}</Texto> : null}
       </>
     );
@@ -167,9 +174,11 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
             <Texto variante="pequeno" numerico cor="suave">{series}</Texto>
           </View>
           <View style={[estilos.tipo, estilos.celula]}>{tipo}{detalhes}</View>
-          <Texto numerico style={[estilos.carga, corDaCarga]}>{l.carga}</Texto>
+          {comCarga ? <Texto numerico style={[estilos.carga, corDaCarga]}>{l.carga}</Texto> : null}
           <Texto numerico style={estilos.reps}>{l.resumo.repeticoes}</Texto>
-          <Texto numerico style={estilos.descanso}>{l.resumo.descanso}</Texto>
+          {l.resumo.semDescanso
+            ? <Texto style={[estilos.descanso, estilos.semi, ambar]}>{`● ${TEXTO_FALTA_DESCANSO}`}</Texto>
+            : <Texto numerico style={estilos.descanso}>{l.resumo.descanso}</Texto>}
           {chevron}
         </View>
       );
@@ -180,9 +189,10 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
           <View style={estilos.titulo}>{numero}{tipo}</View>
           {detalhes}
           <Texto variante="pequeno" numerico>
-            {[series, !l.cargaFalta && l.carga !== '—' ? l.carga : null, l.resumo.repeticoes, `descanso ${l.resumo.descanso}`].filter(Boolean).join(' · ')}
+            {[series, comCarga && !l.cargaFalta && l.carga !== '—' ? l.carga : null, l.resumo.repeticoes, l.resumo.semDescanso ? null : `descanso ${l.resumo.descanso}`].filter(Boolean).join(' · ')}
           </Texto>
-          {l.cargaFalta ? <Texto variante="pequeno" style={[estilos.semi, corDaCarga]}>{l.carga}</Texto> : null}
+          {comCarga && l.cargaFalta ? <Texto variante="pequeno" style={[estilos.semi, corDaCarga]}>{l.carga}</Texto> : null}
+          {l.resumo.semDescanso ? <Texto variante="pequeno" style={[estilos.semi, ambar]}>{`● ${TEXTO_FALTA_DESCANSO}`}</Texto> : null}
         </View>
         {chevron}
       </View>
@@ -190,19 +200,19 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
   };
   const rotuloDe = (l: LinhaDoBloco) => [
     textoAcessivelDoBloco(l.rotulo, l.resumo),
-    l.cargaFalta ? 'falta a carga' : l.carga !== '—' ? `carga ${l.carga}` : null,
+    !comCarga ? null : l.cargaFalta ? 'falta a carga' : l.carga !== '—' ? `carga ${l.carga}` : null,
     l.problema ? TEXTO_DO_PROBLEMA[l.problema] : null,
   ].filter(Boolean).join(', ');
 
   const linha = (l: LinhaDoBloco, i: number) => {
     const sel = l.valor === ativa;
     // Séries pintadas (25/11, a mesma peça da tela do exercício): a fechada é um cartão na cor da série, com borda e faixa
-    // reta; a aberta mantém o fundo de edição e ganha só a faixa. A camada recorta a faixa; o item não tem `overflow:
-    // hidden`, que cortaria o anel de foco da linha.
-    const p = pinturaDaSerie(l.cor ?? null, 'CHEIA', cores, variante, bordas.item);
+    // reta; a aberta (Gustavo, 28/11) fica com o mesmo fundo na cor do tipo e a borda de ação (`ATIVA`, a da série da vez
+    // no aluno). A camada recorta a faixa; o item não tem `overflow: hidden`, que cortaria o anel de foco da linha.
+    const p = pinturaDaSerie(l.cor ?? null, sel ? 'ATIVA' : 'CHEIA', cores, variante, bordas.item);
     return (
       <View key={l.valor} testID={sel ? 'bloco-aberto' : undefined}
-        style={[estilos.item, { paddingLeft: recuo }, sel ? [estilos.bloco, { backgroundColor: fundoDoBloco }] : fundoDaSerie(p, cores.superficie)]}>
+        style={[estilos.item, { paddingLeft: recuo }, sel ? estilos.bloco : null, fundoDaSerie(p, cores.superficie)]}>
         <ItemArrastavel arraste={arraste} indice={i} style={comAlca || comMenu ? estilos.comAlca : null}>
           {comAlca ? <AlcaDeArraste arraste={arraste} indice={i} /> : null}
           <Pressable ref={(n) => { linhasRef.current[i] = n; }} {...teclado(i)} accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
@@ -214,7 +224,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
           {comMenu ? <View style={estilos.menu}><IconeBotao Icone={Ellipsis} rotulo={`Mais ações da série ${i + 1}`} aoTocar={() => setMenuDe(i)} /></View> : null}
         </ItemArrastavel>
         {sel && detalhe ? <View nativeID={idDoDetalhe} role="region" aria-label={l.edicao}>{detalhe}</View> : null}
-        <CamadaDaSerie pintura={p} ativa={false} raio={sel ? RAIO_DO_BLOCO : RAIO_DA_LINHA} semBorda={sel} testID={`bloco-${i + 1}`} />
+        <CamadaDaSerie pintura={p} ativa={sel} raio={sel ? RAIO_DO_BLOCO : RAIO_DA_LINHA} testID={`bloco-${i + 1}`} />
       </View>
     );
   };
@@ -243,7 +253,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, nova, empilhado
       <View testID="cabecalho-das-series" style={[estilos.linha, estilos.cabecalho, comAlca ? estilos.cabecalhoComAlca : null, comMenu ? estilos.cabecalhoComMenu : null, { marginLeft: recuo }]} aria-hidden importantForAccessibility="no-hide-descendants">
         <Texto variante="rotulo" style={estilos.serie} testID="cabecalho-serie">Série</Texto>
         <Texto variante="rotulo" style={estilos.tipo} testID="cabecalho-tipo">Tipo</Texto>
-        <Texto variante="rotulo" style={estilos.carga} testID="cabecalho-carga">Carga</Texto>
+        {comCarga ? <Texto variante="rotulo" style={estilos.carga} testID="cabecalho-carga">Carga</Texto> : null}
         <Texto variante="rotulo" style={estilos.reps} testID="cabecalho-reps">Reps</Texto>
         <Texto variante="rotulo" style={estilos.descanso} testID="cabecalho-descanso">Descanso</Texto>
         <View style={estilos.chevron} testID="cabecalho-chevron" />
@@ -276,7 +286,7 @@ const estilos = StyleSheet.create({
   comAlca: { flexDirection: 'row', alignItems: 'stretch', gap: ESPACO_DA_ALCA },
   aoLado: { flex: 1, width: 'auto', minWidth: 0 },
   celula: { gap: espaco(0.25), minWidth: 0 },
-  serie: { width: 72, flexShrink: 0 },
+  serie: { width: LARGURA_DA_COLUNA_SERIE, flexShrink: 0 },
   // A sobra da linha é repartida (11/11): antes ia toda para o Tipo e Carga, Reps e Descanso ficavam colados à direita.
   // O Tipo tem base própria (16/11): com base 0 ficava com ~60 px em 1280 e o selo e a variação quebravam em várias
   // linhas, com o Descanso sobrando. Tipo e Carga (os textos longos) cedem quando falta espaço.

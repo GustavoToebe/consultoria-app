@@ -5,7 +5,6 @@ import {
   coincideComABusca,
   contagemDosGrupos,
   contagemDosTipos,
-  gruposDaBusca,
   passaNosFiltros,
   rotuloDoMostrar,
   chipsDosExercicios,
@@ -179,12 +178,6 @@ describe('grupos do painel', () => {
       { valor: 'Ombros', rotulo: 'Ombros', contagem: 1 },
       { valor: 'Peito', rotulo: 'Peito', contagem: 2 },
     ]);
-  });
-  it('a busca de grupo acha sem acento e mantém os marcados à vista', () => {
-    const opcoes = contagemDosGrupos([ex({ grupoMuscular: 'Abdômen' }), ex({ grupoMuscular: 'Abdutores' }), ex({ grupoMuscular: 'Peito' })]);
-    expect(gruposDaBusca(opcoes, 'abdo', new Set()).map((o) => o.valor)).toEqual(['Abdômen']);
-    expect(gruposDaBusca(opcoes, 'abdo', new Set(['Peito'])).map((o) => o.valor)).toEqual(['Abdômen', 'Peito']);
-    expect(gruposDaBusca(opcoes, '', new Set()).length).toBe(3);
   });
   it('"Mostrar N exercícios" no singular, no plural, com milhar e sem número enquanto não conta', () => {
     expect(rotuloDoMostrar(1)).toBe('Mostrar 1 exercício');

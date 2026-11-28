@@ -24,7 +24,7 @@ describe('categorias da auditoria', () => {
     const casos: [string, CategoriaDeAuditoria][] = [
       ['INSCRICAO_PAGAMENTO_CONFIRMADO', 'FINANCEIRO'], ['INSCRICAO_ACEITA', 'ALUNOS'], ['INSCRICAO_LINK_RENOVADO', 'CONFIGURACOES'],
       ['ALUNO_ACESSO_PAUSADO', 'FINANCEIRO'], ['ALUNO_QUESTIONARIO_ALTERADO', 'ALUNOS'], ['PASTA_QUESTIONARIO_ALTERADO', 'PLANOS'],
-      ['MFA_ATIVADO', 'ACESSO'], ['TAG_ALUNO_CRIADA', 'CONFIGURACOES'], ['ALUNO_TAGS_ALTERADAS', 'ALUNOS'], ['PERFIL_CRIADO', 'EQUIPE'],
+      ['MFA_ATIVADO', 'ACESSO'], ['TAG_ALUNO_CRIADA', 'CONFIGURACOES'], ['ALUNO_TAGS_ALTERADAS', 'ALUNOS'], ['PERFIL_CRIADO', 'EQUIPE'], ['GRUPOS_MUSCULARES_UNIDOS', 'PLANOS'],
     ];
     for (const [codigo, categoria] of casos) expect([codigo, categoriaDaAcao(codigo)]).toEqual([codigo, categoria]);
     expect(categoriaDaAcao('CODIGO_NOVO_DA_API')).toBeNull();
@@ -33,7 +33,7 @@ describe('categorias da auditoria', () => {
   // A `acao` de `GET /auditoria` aceita até 100 valores; "Sem logins" vai por `acaoExceto` (até 50) e não entra aqui.
   it('as categorias cabem no teto da acao (100)', () => {
     const tamanhos = Object.fromEntries((['ALUNOS', 'PLANOS', 'FINANCEIRO', 'EQUIPE'] as const).map((a) => [a, acoesDoAtalho(a, ACOES_AUDITORIA)!.length]));
-    expect(tamanhos).toEqual({ ALUNOS: 64, PLANOS: 24, FINANCEIRO: 55, EQUIPE: 11 });
+    expect(tamanhos).toEqual({ ALUNOS: 64, PLANOS: 25, FINANCEIRO: 55, EQUIPE: 11 });
     for (const n of Object.values(tamanhos)) expect(n).toBeLessThanOrEqual(100);
     expect(ACOES_DE_LOGIN.length).toBeLessThanOrEqual(50);
   });

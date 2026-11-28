@@ -47,6 +47,33 @@ it('tocar no título alterna', () => {
   expect(corpo(r)).toBe(0);
 });
 
+describe('aoLadoDoTitulo', () => {
+  const peca = (r: ReactTestRenderer) => r.root.findAll((n) => String(n.type) === 'View' && n.props.testID === 'peca');
+  const linha = (r: ReactTestRenderer) => r.root.findAll((n) => String(n.type) === 'View' && n.props.testID === 'linha-do-titulo');
+  const com = (recolhivel?: boolean) => {
+    let r!: ReactTestRenderer;
+    act(() => { r = create(<Cartao titulo="Seus dados" recolhivel={recolhivel} aoLadoDoTitulo={<View testID="peca" />}><View testID="corpo" /></Cartao>); });
+    return r;
+  };
+
+  it('aparece na linha do título', () => {
+    const r = com();
+    expect(linha(r)).toHaveLength(1);
+    expect(peca(r)).toHaveLength(1);
+  });
+
+  it('no recolhível fica fora do botão que recolhe', () => {
+    const r = com(true);
+    expect(peca(r)).toHaveLength(1);
+    expect(botao(r).findAll((n) => n.props.testID === 'peca')).toHaveLength(0);
+  });
+
+  it('sem a prop, nada muda: não há a linha do título', () => {
+    expect(linha(montar({}))).toHaveLength(0);
+    expect(linha(montar({ recolhivel: true }))).toHaveLength(0);
+  });
+});
+
 it('sem recolhivel não há botão e o corpo aparece', () => {
   const r = montar({});
   expect(botao(r)).toBeUndefined();

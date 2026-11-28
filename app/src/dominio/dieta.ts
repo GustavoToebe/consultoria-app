@@ -118,6 +118,16 @@ export function totalDoDia(fonte: Refeicao[] | ConteudoDieta): TotaisComFibra {
   return somar(refeicoes.flatMap((r) => r.opcoes[0]?.itens ?? []));
 }
 
+/**
+ * Algum item da dieta inteira (raiz e todas as variações, todas as opções) tem fibra (0 conta; nula ou ausente, não). Sem
+ * nenhum, a dieta do aluno não fala de fibra (nem "Fibra —", nem na legenda; Gustavo, 28/11); com algum, "Fibra —" nos que
+ * não têm. Olha a dieta inteira para trocar de variação não fazer a fibra aparecer e sumir.
+ */
+export function algumItemComFibra(c: Pick<ConteudoDieta, 'refeicoes' | 'variacoes'>): boolean {
+  return [c.refeicoes, ...c.variacoes.map((v) => v.refeicoes)]
+    .some((rs) => rs.some((r) => r.opcoes.some((o) => o.itens.some((i) => i.fibra !== null && i.fibra !== undefined))));
+}
+
 /** Uma linha do "Por refeição" do Total do dia: a kcal da opção A e a fração do dia (0 a 1); `null` = sem valor ou sem base. */
 export interface KcalDaRefeicao { uid: string; kcal: number | null; fracao: number | null }
 

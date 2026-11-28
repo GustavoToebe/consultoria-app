@@ -3,7 +3,7 @@ import { podeAplicarModelo, podeSalvarPastaComoModelo, temAcaoNoMenuDaPasta } fr
 import { Permitido } from '../ui/Permitido';
 import { useSessao } from '../sessao/SessaoProvider';
 import { rotuloAgendado } from '../dominio/liberacaoDePlano';
-import { BookmarkPlus, CalendarClock, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, RotateCcw, Trash2, Users } from 'lucide-react-native';
+import { BookmarkPlus, CalendarClock, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, Plus, RotateCcw, Trash2, Users } from 'lucide-react-native';
 import { sobre } from '../ui/sobre';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -21,7 +21,8 @@ import { pastaSoComRascunho } from '../dominio/pastaEmRascunho';
 import { rotuloAbrirFicha } from '../dominio/planoDoAluno';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
 import { dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
-import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
+import { periodoCurto } from '../dominio/datasRelativas';
+import { periodoDaFolhaDaPasta, rotuloDoNovoPlano, situacaoDaPasta, tituloDaFolhaDaPasta } from '../dominio/folhaDaPasta';
 import { prazoDaPasta, precisaRenovar, type PrazoDaPasta } from '../dominio/resumoDoAluno';
 import { dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo } from '../dominio/periodo';
 import { FILTROS_PASTAS, filtrarPastas, pastasParaCopiarNaNova, type FiltroPastas } from '../dominio/pastas';
@@ -41,7 +42,7 @@ import { ParDeDatas } from '../ui/CamposEmLinha';
 import { CampoLeitura } from '../ui/CampoLeitura';
 import { CartaoCicloNoPeriodo } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
-import { Escolha } from '../ui/Escolha';
+import { UmaOpcao } from './SeletoresDeFiltro';
 import { EscolhaEmFolha } from '../ui/EscolhaEmFolha';
 import { Esqueleto } from '../ui/Esqueleto';
 import { Alerta, MensagemErro, Vazio } from '../ui/Estados';
@@ -59,11 +60,11 @@ import { useCarregar } from '../ui/useCarregar';
 import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
 import { AtualizacaoDaPasta } from './AtualizacaoDaPasta';
 import { CartaoRegistros } from './CartaoRegistros';
-import { CartaoPlanos } from './CartaoPlanos';
+import { CartaoPlanos, podeCriarPlano } from './CartaoPlanos';
 import { FolhaDeAcoes } from './FolhaDeAcoes';
 import { ICONE_DO_SELO } from './iconesDosSelos';
 import { CopiarPastaParaAluno } from './CopiarPastaParaAluno';
-import { PublicarTudoDaPasta } from './PublicarTudoDaPasta';
+import { usePublicarDaPasta } from './PublicarTudoDaPasta';
 import { usePlanosDaPasta } from './usePlanosDaPasta';
 
 const TIPOS_DOS_PLANOS: readonly TipoPlano[] = ['treino', 'dieta', 'mobilidade'];
@@ -156,10 +157,13 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [filtrosDosRegistros, setFiltrosDosRegistros] = useState<FiltrosDeRegistros>(REGISTROS_SEM_FILTRO);
   const etapa = useEtapaDeFiltros({ valor: filtrosDosRegistros, limpo: REGISTROS_SEM_FILTRO, aoAplicar: setFiltrosDosRegistros });
   const [abertaAntes, setAbertaAntes] = useState(abertaId);
+  // "Novo …" da aba aberta: o botão mora na linha das abas e a folha do plano novo, no `CartaoPlanos` do tipo.
+  const [novoTipo, setNovoTipo] = useState<TipoPlano | null>(null);
   if (abertaId !== abertaAntes) {
     setAbertaAntes(abertaId);
     setFiltrosDosRegistros(REGISTROS_SEM_FILTRO);
     etapa.reiniciar();
+    setNovoTipo(null);
   }
   const [escolher, setEscolher] = useState(false);
   const [modelo, setModelo] = useState<Receita | null>(null);
@@ -178,8 +182,8 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const { cargas } = planosEmFoco;
   const listasDePlanos = { treino: conhecida(cargas.treino), dieta: conhecida(cargas.dieta), mobilidade: conhecida(cargas.mobilidade) };
   const emRascunho = (id: string) => pastaSoComRascunho(planosDaPasta(id, listasDePlanos, temFuncionalidade('MOBILIDADE')));
-  // "Vigente" no cabeçalho da Folha (guia premium, pág. 8) vem da regra da API (`PastaVigente`), nunca de um palpite
-  // da tela; falhou ou nenhuma = sem selo. Também decide o prazo da lista: a vigente vencida fica vermelha mesmo renovada.
+  // "Vigente" no cabeçalho da Folha (guia premium, pág. 8) vem só da regra da API (`PastaVigente`), nunca da data; falhou
+  // ou nenhuma = sem "Vigente". Também decide o prazo (lista e Folha): a vigente vencida fica vermelha mesmo renovada.
   const { dados: vigentePropria } = useCarregar(buscarAqui ? `pasta-vigente:${alunoId}:${geracao}:${geracaoExterna}` : null, () => pastaVigenteDoAluno(alunoId));
   const idDaVigente = (buscarAqui ? vigentePropria?.pasta : acompanhamento.dados?.pasta)?.id ?? null;
   // A atualização fecha o período da pasta: vem junto na lista e na folha (dado sensível, só com ATUALIZACAO_LER).
@@ -207,7 +211,9 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   };
   const podePublicarAlgo = pode(PERMISSOES_DO_PLANO.treino.publicar) || pode(PERMISSOES_DO_PLANO.dieta.publicar);
   const hoje = hojeIso();
-  const prazoDaAberta = aberta ? prazoDaPasta(aberta, dados ?? [], hoje, aberta.id === idDaVigente) : null;
+  // Cabeçalho da Folha (27/11): o título é a pasta pelo período, nunca o nome técnico; um selo só na linha de situação.
+  const tituloDaAberta = aberta ? tituloDaFolhaDaPasta(aberta, hoje) : '';
+  const situacaoDaAberta = aberta ? situacaoDaPasta(aberta, dados ?? [], aberta.id === idDaVigente, hoje) : null;
   // Abas dos planos da Folha: só os tipos que a pessoa lê. A aba escolhida é estado local (visão dentro da folha, não passo
   // do histórico); tipo que sumiu cai no primeiro. A contagem só aparece com a lista do tipo carregada e sem erro
   // (desconhecida nunca vira 0).
@@ -236,6 +242,13 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
     const c = planosEmFoco.cargas[t];
     return aberta && !c.erro && c.dados ? c.dados.filter((p) => p.pastaId === aberta.id).length : undefined;
   };
+  const publicacao = usePublicarDaPasta({
+    pasta: aberta, tituloDaPasta: tituloDaAberta, alunoNome, planos: planosEmFoco.planos, versoes: planosEmFoco.versoes,
+    carregando: planosEmFoco.carregando, atualizando: planosEmFoco.atualizando, falhou: planosEmFoco.falhou,
+    aoTentarDeNovo: planosEmFoco.recarregarFalhas, aoPublicar, aoRecarregar: aoPublicar, aoNavegar: () => setAbertaId(null),
+    principal: !revisarNaFolha, podePublicarAlgo,
+  });
+  const comRodape = !etapa.aberta && publicacao.visivel;
   const seletorDoQuestionario = (rotulo: string) => aberta ? (
     <SeletorDeQuestionario rotulo={rotulo} valor={aberta.questionarioId} rotuloDoNulo="O mesmo do aluno" podeAlterar={pode('PASTA_ALTERAR')}
       aoEscolher={async (questionarioId) => { await escolherQuestionarioDaPasta(aberta.id, questionarioId); recarregar(); recarregarAtualizacoes(); }} />
@@ -261,6 +274,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         {dados && dados.length > 0 ? (
           <BarraDeFiltros valor={filtro} limpo={PASTAS_SEM_FILTRO} aoAplicar={setFiltro} chips={chipsDasPastas(filtro)} aoTirar={() => setFiltro(PASTAS_SEM_FILTRO)}
             painelLateral={{ titulo: 'Filtros de pastas' }}
+            resultado={{ itens: { um: 'pasta', varios: 'pastas' }, contar: (f) => filtrarPastas(dados, f).length }}
             seletores={(f, mudar) => <SeletoresDasPastas filtro={f} aoMudar={mudar} alunoNome={alunoNome} />} />
         ) : null}
         {dados && dados.length > 0 && visiveis.length === 0 ? (
@@ -280,20 +294,20 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
       {aberta ? (
         // Com a etapa dos Registros aberta, a mesma folha (mesma largura e rolagem) mostra só ela; o resto fica escondido,
         // montado, para voltar como estava.
-        <Folha visivel titulo={etapa.aberta ? 'Filtros de registros' : aberta.titulo} largura={LARGURA_EDITOR}
-          aoFechar={etapa.aberta ? etapa.fechar : () => setAbertaId(null)} rodape={etapa.aberta ? etapa.rodape : undefined}
-          acaoNoTopo={!etapa.aberta && temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : undefined}>
+        <Folha visivel titulo={etapa.aberta ? 'Filtros de registros' : tituloDaAberta} largura={LARGURA_EDITOR}
+          aoFechar={etapa.aberta ? etapa.fechar : () => setAbertaId(null)}
+          rodape={etapa.aberta ? etapa.rodape : comRodape ? publicacao.botao : undefined}
+          statusDoRodape={comRodape ? publicacao.status : undefined}>
           <View style={etapa.aberta ? estilos.escondido : estilos.corpoDaPasta}>
-          {/* Topo da pasta (bloco F): situação e período (uma vez só) à esquerda; à direita "Finalizar" ou "Reabrir"
-              (secundário: o primário da folha é o "Publicar", ou o "Revisar" com a atualização para revisar) e o ⓘ com a
-              ordem sugerida para renovar o ciclo. No celular o par desce, à direita. O balão sobe por cima do que vem
-              embaixo enquanto está aberto. Editar e copiar para outro período ficam no ⋯ da pasta. */}
+          {/* Linha de situação (27/11): um selo só (Vigente, Vencida há N dias, Período encerrado ou Concluída) e o período com a duração, em
+              texto secundário, à esquerda; à direita "Finalizar" ou "Reabrir" (secundário: o primário da folha é o
+              "Publicar alterações" do rodapé, ou o "Revisar" com a atualização para revisar), o ⓘ com a ordem sugerida para
+              renovar e o ⋯ (editar, copiar, renovar, pacote, excluir). No celular o grupo da direita desce, ainda à direita.
+              O balão sobe por cima do que vem embaixo enquanto está aberto. */}
           <View style={[estilos.topoDaPasta, ajudaAberta && estilos.porCima]}>
             <View style={estilos.selosDaFolha}>
-              {idDaVigente === aberta.id ? <Selo texto="Vigente" tipo="sucesso" /> : null}
-              {prazoDaAberta ? <Selo texto={prazoDaAberta.texto} tipo={prazoDaAberta.tipo} Icone={ICONE_DO_SELO[prazoDaAberta.tipo]} /> : null}
-              {aberta.concluidaEm ? <Selo texto={`Concluída em ${dataSemAnoCorrente(hojeIso(new Date(aberta.concluidaEm)), hoje)}`} tipo="neutro" /> : null}
-              <Texto numerico variante="suave">Período: {!aberta.inicio && !aberta.fim ? 'Não definido' : periodoCurto(aberta.inicio, aberta.fim, hoje)}</Texto>
+              {situacaoDaAberta ? <Selo texto={situacaoDaAberta.texto} tipo={situacaoDaAberta.tipo} ponto /> : null}
+              <Texto numerico variante="suave">{periodoDaFolhaDaPasta(aberta, hoje)}</Texto>
             </View>
             <View style={estilos.acoesDoTopo}>
               {aberta.concluidaEm ? (
@@ -304,36 +318,40 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
                 <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" Icone={CheckCircle2} tipo="secundario" aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} /></Permitido>
               )}
               <AjudaDoCabecalho texto={TEXTO_DA_ORDEM_DA_RENOVACAO} artigo={null} aoMudar={setAjudaAberta} />
+              {temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações da ${tituloDaAberta.replace(/^Pasta/, 'pasta')}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : null}
             </View>
           </View>
           <CartaoCicloNoPeriodo alunoId={alunoId} inicio={aberta.inicio} fim={aberta.fim} />
           {/* A atualização fecha o período e é o motivo de abrir a pasta: logo abaixo do topo. O questionário do período
-              (só vale para esta pasta; a atualização ainda aberta passa a usar o escolhido na hora) mora no cartão dela. */}
+              (só vale para esta pasta; a atualização ainda aberta passa a usar o escolhido na hora) fica na linha do
+              "Abrir atualização". */}
           {verAtualizacoes ? (
             <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes} destaque={revisarNaFolha}
               aoAbrir={(a) => confirmar(() => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); })}>
               {seletorDoQuestionario('Questionário deste período')}
             </AtualizacaoDaPasta>
           ) : seletorDoQuestionario('Questionário')}
-          {/* Planos numa área só (bloco F): abas Treino | Dieta | Mobilidade com a contagem e o "Publicar" logo abaixo da
-              lista, perto do que ele publica. Sem permissão de publicar nenhum tipo, o botão não existe para a pessoa; com a
-              de um tipo só, ele aparece e fica desabilitado com o motivo quando o outro tipo tem alteração. */}
+          {/* Planos numa área só (bloco F): abas Treino | Dieta | Mobilidade com a contagem e, na mesma linha, o "+ Novo …"
+              da aba. A publicação mora no rodapé fixo da Folha, que só existe com alteração para publicar; aqui fica só o
+              resultado de uma tentativa que não publicou (erros por plano, avisos, conflito). */}
           {tiposVisiveis.length ? (
             <Cartao titulo="Planos desta pasta" descricao="O aluno só vê o que está publicado.">
               <Abas key={aberta.id} abas={tiposVisiveis.map((t) => ({ valor: t, rotulo: ROTULO_DO_TIPO[t], contagem: contagemDoTipo(t) }))}
-                ativa={tipoAberto} aoMudar={setTipoDoPlano}>
-                <CartaoPlanos key={tipoAberto} tipo={tipoAberto} alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas[tipoAberto]} aoNavegar={() => setAbertaId(null)} aoMudarLiberacao={recarregar} />
+                ativa={tipoAberto} aoMudar={setTipoDoPlano}
+                depois={podeCriarPlano(tipoAberto, pode, temFuncionalidade)
+                  ? <Botao rotulo={rotuloDoNovoPlano(tipoAberto)} tipo="acao" Icone={Plus} aoTocar={() => setNovoTipo(tipoAberto)} /> : undefined}>
+                <CartaoPlanos key={tipoAberto} tipo={tipoAberto} alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas[tipoAberto]} aoNavegar={() => setAbertaId(null)} aoMudarLiberacao={recarregar}
+                  novo={{ aberto: novoTipo === tipoAberto, aoMudar: (v) => setNovoTipo(v ? tipoAberto : null) }} />
               </Abas>
-              {podePublicarAlgo ? <PublicarTudoDaPasta key={aberta.id} pasta={aberta} planos={planosEmFoco.planos} versoes={planosEmFoco.versoes} carregando={planosEmFoco.carregando}
-                atualizando={planosEmFoco.atualizando} falhou={planosEmFoco.falhou} aoTentarDeNovo={planosEmFoco.recarregarFalhas} aoPublicar={aoPublicar} aoRecarregar={aoPublicar} aoNavegar={() => setAbertaId(null)}
-                principal={!revisarNaFolha} /> : null}
+              {publicacao.resultado}
             </Cartao>
           ) : null}
+          {publicacao.lista}
           </View>
           <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={{ id: alunoId, nome: alunoNome }} pasta={aberta} filtros={filtrosDosRegistros} aoMudarFiltros={setFiltrosDosRegistros} etapa={etapa} /></Permitido>
         </Folha>
       ) : null}
-      {menuPasta ? <FolhaDeAcoes titulo={menuPasta.titulo} aoFechar={() => setMenuPasta(null)} acoes={[
+      {menuPasta ? <FolhaDeAcoes titulo={tituloDaFolhaDaPasta(menuPasta, hoje)} aoFechar={() => setMenuPasta(null)} acoes={[
         pode('PASTA_ALTERAR') ? { rotulo: 'Editar pasta', detalhe: 'Título e período.', Icone: Pencil, aoTocar: () => setModo({ tipo: 'editar', pasta: menuPasta }) } : null,
         pode('PASTA_ALTERAR') ? { rotulo: 'Copiar para outro período', detalhe: 'Você escolhe as datas; os planos vêm como rascunho.', Icone: Copy, aoTocar: () => setModo({ tipo: 'replicar', pasta: menuPasta }) } : null,
         pode('PASTA_ALTERAR') ? { rotulo: 'Renovar para o próximo ciclo', detalhe: 'Pasta nova com os planos em rascunho.', Icone: Copy, aoTocar: () => renovacao.pedir(menuPasta) } : null,
@@ -374,7 +392,7 @@ function SeletoresDasPastas({ filtro, aoMudar, alunoNome }: { filtro: FiltroPast
     <>
       {alunoNome ? <GrupoDoPainel titulo="Identificação" primeiro><CampoLeitura rotulo="Aluno" valor={alunoNome} /></GrupoDoPainel> : null}
       <GrupoDoPainel titulo="Situação" primeiro={!alunoNome}>
-        <Escolha rotulo="Situação da pasta" opcoes={FILTROS_PASTAS} valor={filtro} aoMudar={aoMudar} />
+        <UmaOpcao rotulo="Situação da pasta" opcoes={FILTROS_PASTAS} valor={filtro} aoMudar={aoMudar} />
       </GrupoDoPainel>
     </>
   );
@@ -413,7 +431,7 @@ function LinhaPasta({ pasta, atualizacao, rascunho, prazo, hoje, aoAbrir, aoRevi
         {/* Título, selos e período numa linha de leitura só (guia de 11/11, pág. 33); quebra no celular. */}
         <View style={estilos.linhaTextos}>
           <Texto numerico style={estilos.linhaTitulo}>{pasta.titulo}</Texto>
-          {rascunho ? <Selo texto="Rascunho" tipo="neutro" /> : null}
+          {rascunho ? <Selo texto="Rascunho" tipo="atencao" /> : null}
           {concluida ? <Selo texto="Concluída" tipo="neutro" /> : null}
           {prazo ? <Selo texto={prazo.texto} tipo={prazo.tipo} Icone={ICONE_DO_SELO[prazo.tipo]} /> : null}
           {situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} Icone={ICONE_DO_SELO[situacao.tipo]} /> : null}

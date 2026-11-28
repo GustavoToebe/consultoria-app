@@ -6,6 +6,7 @@ import { salvarPlanoComoReceita } from '../../api/rotas';
 import type { ResultadoValidacao } from '../../api/tipos';
 import { aplicarModeloDeMobilidade, type ConteudoMobilidade, normalizarMobilidade } from '../../dominio/mobilidade';
 import { tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
+import { situacaoDoRascunho } from '../../dominio/resumoDoQuestionario';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { LARGURA_EDITOR } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -100,6 +101,7 @@ export default function EditorDeMobilidade() {
         />
       ) : null}
       <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} irPara={irPara}
+        situacao={situacaoDoRascunho(estado.plano.versaoPublicada, estado.plano.rascunhoAlteradoDepoisDePublicar || (estado.plano.versaoPublicada > 0 && editor.pendente))}
         acoes={escritaLiberada ? <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} /> : null} />
 
       {modelos ? (

@@ -294,10 +294,8 @@ test('totais do filtro: total, pago, em aberto e vencido do servidor; mudam com 
   // Só as pagas: o em aberto e o vencido vão a zero (nunca some o número).
   await page.getByRole('button', { name: /^Filtros/ }).click();
   const painel = page.getByRole('dialog', { name: 'Filtros de cobranças' });
-  await painel.getByRole('button', { name: 'Situação: Todas. Escolher.' }).click();
-  await page.getByRole('dialog', { name: 'Situação' }).getByRole('checkbox', { name: 'Pagas', exact: true }).click();
-  await page.keyboard.press('Escape');
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('group', { name: 'Situação' }).getByRole('button', { name: 'Pagas', exact: true }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(totais('Total', '150,00')).toBeVisible();
   await expect(totais('Em aberto', '0,00')).toBeVisible();
   await expect(totais('Vencido', '0,00')).toBeVisible();

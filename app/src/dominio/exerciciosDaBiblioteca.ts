@@ -4,7 +4,6 @@ import { TIPOS_DE_CARDIO } from './cardio';
 import { chipDeUmaOpcao, chipDeVarias } from './filtrosDaBiblioteca';
 import { inteiroComMilhar } from './formatos';
 import { MODALIDADES } from './modalidades';
-import { filtrarOpcoes } from './selecaoMultiplaSuspensa';
 import { semAcento } from './telas';
 import { coincideComBuscaExercicio } from './termosExerciciosIngles';
 
@@ -163,15 +162,6 @@ export function contagemDosGrupos(lista: readonly Pick<Exercicio, 'grupoMuscular
 export function contagemDosTipos(lista: readonly Partial<Pick<Exercicio, 'tipoDeCardio'>>[]): OpcaoDeGrupo[] {
   return TIPOS_DE_CARDIO.map((t) => ({ valor: t.codigo as string, rotulo: t.rotulo, contagem: lista.filter((e) => e.tipoDeCardio === t.codigo).length }))
     .filter((o) => o.contagem > 0);
-}
-
-/** Acima de tantos grupos o painel ganha a busca "Buscar grupo" no topo dos chips. */
-export const GRUPOS_SEM_BUSCA = 12;
-
-/** Os chips de grupo à vista com a busca: os que casam com o texto e, sempre, os marcados (dá para desmarcar sem apagar a busca). */
-export function gruposDaBusca(opcoes: readonly OpcaoDeGrupo[], busca: string, marcados: ReadonlySet<string>): OpcaoDeGrupo[] {
-  const casam = new Set(filtrarOpcoes(opcoes, busca).map((o) => o.valor));
-  return opcoes.filter((o) => casam.has(o.valor) || marcados.has(o.valor));
 }
 
 /**

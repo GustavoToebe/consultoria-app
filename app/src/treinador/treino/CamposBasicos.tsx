@@ -8,6 +8,7 @@ import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { Texto } from '../../ui/Texto';
+import { CampoDaSerie } from './LinhaDoFormulario';
 import { FORMAS_DAS_REPETICOES, formaVisivel, repeticoesNaForma, type FormaDasRepeticoes, type Repeticoes } from './opcoesDoEditor';
 
 /**
@@ -53,10 +54,11 @@ const FORMAS_CURTAS: { valor: FormaDasRepeticoes; rotulo: string }[] = [
   { valor: 'AMRAP', rotulo: 'AMRAP' },
 ];
 
-/** Caixa do número das repetições compactas: três dígitos ("100") e o padding; cresce com o texto da pessoa. */
-const LARGURA_DO_NUMERO_COMPACTO = 64;
-/** Área das repetições na Estrutura: a da escolha Faixa | Exata | AMRAP, igual nas três formas (o Descanso não pula). */
-export const LARGURA_DAS_REPETICOES = 200;
+/**
+ * Área das repetições compactas: a escolha Faixa | Exata | AMRAP (~200) e "[64] a [64] reps", igual nas três formas (o que
+ * vem depois não pula). Encolhe até a largura do pai.
+ */
+export const LARGURA_DAS_REPETICOES = 420;
 
 /**
  * Quantidade exata, faixa ou AMRAP. A escolha fica com a tela enquanto o valor não a distingue (faixa 8 a 8, ou vazio).
@@ -97,26 +99,23 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
     {vazio && forma !== 'AMRAP' && semRepeticoes ? <Texto variante="pequeno">{semRepeticoes}</Texto> : null}
   </>;
   if (compacta) {
-    // 27/11: a escolha em cima e os números embaixo, numa área de largura fixa (o Descanso ao lado não pula ao trocar a
-    // forma). Sem a unidade dentro da caixa: "8 a 12 reps" se lê pelo texto entre os campos.
-    const caixa = { width: escalar(LARGURA_DO_NUMERO_COMPACTO, fatorTexto) };
+    // SERIE-ABERTA 1: a escolha e os números na mesma fileira ("Faixa · Exata · AMRAP [10] a [15] reps"), numa área de
+    // largura fixa (o que vem depois não pula ao trocar a forma; estreita, os números descem). Números da série: 46 de
+    // altura, mono e centralizados (`CampoDaSerie`), a unidade em texto ao lado.
     const { erro, dica } = rodapeDasRepeticoes(forma, valor, erros, !!semRepeticoes);
     return <View style={[estilos.juntos, estilos.limitada, { width: escalar(LARGURA_DAS_REPETICOES, fatorTexto) }]}>
       {rotuloVisivel ? <Texto variante="rotulo">{rotulo}</Texto> : null}
-      <Escolha descricao={rotulo} compacta opcoes={FORMAS_CURTAS} valor={forma} aoMudar={mudarForma} />
-      {forma === 'EXATA' ? <View style={estilos.linhaDosNumeros}>
-        <View style={caixa}><CampoNumerico rotulo={nome('Repetições')} rotuloOculto erroSemTexto inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
-          aoMudar={exata} erro={erros.repsMin ?? erros.repsMax} /></View>
-        <Texto variante="suave" aria-hidden>reps</Texto>
-      </View> : null}
-      {forma === 'FAIXA' ? <View style={estilos.linhaDosNumeros}>
-        <View style={caixa}><CampoNumerico rotulo={nome('Reps mín.')} rotuloOculto erroSemTexto inteiro valor={valor.repsMin ?? null}
-          aoMudar={minimo} erro={erros.repsMin} /></View>
-        <Texto variante="suave" aria-hidden>a</Texto>
-        <View style={caixa}><CampoNumerico rotulo={nome('Reps máx.')} rotuloOculto erroSemTexto inteiro valor={valor.repsMax ?? null}
-          aoMudar={maximo} erro={erros.repsMax} /></View>
-        <Texto variante="suave" aria-hidden>reps</Texto>
-      </View> : null}
+      <View style={estilos.fileira}>
+        <Escolha descricao={rotulo} compacta opcoes={FORMAS_CURTAS} valor={forma} aoMudar={mudarForma} />
+        {forma === 'EXATA' ? <View style={estilos.linhaDosNumeros}>
+          <CampoDaSerie rotulo={nome('Repetições')} inteiro valor={valor.repsMin ?? valor.repsMax ?? null} aoMudar={exata}
+            erro={erros.repsMin ?? erros.repsMax} unidade="reps" />
+        </View> : null}
+        {forma === 'FAIXA' ? <View style={estilos.linhaDosNumeros}>
+          <CampoDaSerie rotulo={nome('Reps mín.')} inteiro valor={valor.repsMin ?? null} aoMudar={minimo} erro={erros.repsMin} unidade="a" />
+          <CampoDaSerie rotulo={nome('Reps máx.')} inteiro valor={valor.repsMax ?? null} aoMudar={maximo} erro={erros.repsMax} unidade="reps" />
+        </View> : null}
+      </View>
       {/* Uma linha só: o erro (a frase do campo estreito) ou a dica do estado; fora daqui quando quem usa guarda a forma. */}
       {formaDeFora ? null : <RodapeDasRepeticoes erro={erro} dica={dica} />}
     </View>;
@@ -150,6 +149,7 @@ const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   juntos: { gap: espaco(0.5) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
+  fileira: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(1) },
   linhaDosNumeros: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   limitada: { maxWidth: '100%', flexShrink: 1 },
   campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },

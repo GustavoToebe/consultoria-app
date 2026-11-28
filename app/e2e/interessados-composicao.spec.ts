@@ -76,7 +76,7 @@ for (const { largura, temas } of CASOS) {
         await expect(page.getByRole('textbox', { name: 'De', exact: true })).toHaveCount(0);
         // Tudo medido de uma vez: as contagens dos chips chegam depois e podem quebrar a linha da Situação entre duas medidas.
         const [responsavel, origem, ...datas] = await Promise.all([
-          caixa(page.getByRole('button', { name: /^Responsável:/ })), caixa(page.getByRole('button', { name: /^Origem:/ })),
+          caixa(page.getByRole('button', { name: /^Responsável:/ })), caixa(page.getByRole('group', { name: 'Origem' })),
           ...DATAS.map((n) => caixa(page.getByRole('textbox', { name: n, exact: true }))),
         ]);
         const [entradaDe, entradaAte, atividadeDe, atividadeAte] = datas;
@@ -89,7 +89,7 @@ for (const { largura, temas } of CASOS) {
         }
         // Painel lateral numa coluna (`docs/planos/filtros-laterais.md`, D2): seletores um sob o outro, períodos embaixo, na
         // mesma borda esquerda.
-        expect(perto(responsavel.height, origem.height)).toBe(true);
+        // Regra única dos filtros (28/11): a Origem é um grupo de chips, sem a altura da caixa do Responsável.
         expect(perto(responsavel.x, entradaDe.x) && perto(origem.x, atividadeDe.x)).toBe(true);
         if (perto(responsavel.y, origem.y)) expect(perto(entradaDe.y, atividadeDe.y)).toBe(true);
         expect(entradaDe.y).toBeGreaterThan(Math.max(responsavel.y + responsavel.height, origem.y + origem.height));
@@ -101,7 +101,6 @@ for (const { largura, temas } of CASOS) {
         }
         // Tela larga: os seletores não se esticam pela janela inteira (o painel tem 460 px).
         expect(responsavel.width).toBeLessThanOrEqual(481);
-        expect(perto(responsavel.width, origem.width)).toBe(true);
 
         // Data inteira sem cortar o texto.
         for (const nome of DATAS) {
@@ -136,7 +135,7 @@ for (const { largura, temas } of CASOS) {
           // O grupo de opções não tem borda própria: mede ele mesmo, não o painel em volta.
           // Medidos juntos: preencher as datas rolou o corpo do painel no celular.
           const [origemAgora, situacao, entradaAgora] = await Promise.all([
-            caixa(page.getByRole('button', { name: /^Origem:/ })), page.getByRole('radiogroup', { name: 'Situação' }).boundingBox(),
+            caixa(page.getByRole('group', { name: 'Origem' })), page.getByRole('radiogroup', { name: 'Situação' }).boundingBox(),
             caixa(page.getByRole('textbox', { name: DATAS[0], exact: true })),
           ]);
           expect(situacao!.y).toBeGreaterThanOrEqual(origemAgora.y + origemAgora.height - 1);

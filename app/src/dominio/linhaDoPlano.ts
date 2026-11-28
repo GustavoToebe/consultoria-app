@@ -6,7 +6,7 @@ import { rotuloAgendado } from './liberacaoDePlano';
 /** O selo único da linha do plano na Folha da pasta; `agendado` leva o ícone do calendário. */
 export interface SeloDaLinhaDoPlano {
   texto: string;
-  tipo: 'sucesso' | 'neutro';
+  tipo: 'sucesso' | 'atencao' | 'neutro';
   agendado: boolean;
 }
 
@@ -19,14 +19,16 @@ export interface LinhaDoPlano {
 }
 
 /**
- * Selo e segunda linha do plano na Folha da pasta. Um selo só, pela precedência Agendado > Alterações não publicadas >
- * Rascunho > Em uso: o que pede atenção do treinador vence o fato assentado. "Em uso" é o único verde (situação boa); o
- * resto é neutro (o rascunho não é problema). Publicado, fora de uso e sem alteração não tem selo; a meta diz por quê.
+ * Selo e meta do plano na Folha da pasta, logo depois do nome. Um selo só, pela precedência Agendado > Alterações não
+ * publicadas > Rascunho > Publicado: o que pede atenção do treinador vence o fato assentado. O que ainda vai ao aluno
+ * (rascunho ou alteração) é âmbar; "Publicado" (em uso) é verde; o agendado é neutro com o calendário (o `Selo` não tem
+ * azul). Publicado, fora de uso e sem alteração não tem selo; a meta diz por quê.
  */
 export function linhaDoPlano(p: PlanoResumo, hoje: string = hojeIso()): LinhaDoPlano {
   const versao = `Publicado v${p.versaoPublicada}`;
   // `publicadoEm` é instante: o dia é o do aparelho, como no resto das listas.
-  const publicado = p.publicadoEm ? `${versao} em ${dataSemAnoCorrente(hojeIso(new Date(p.publicadoEm)), hoje)}` : versao;
+  const quando = p.publicadoEm ? ` em ${dataSemAnoCorrente(hojeIso(new Date(p.publicadoEm)), hoje)}` : '';
+  const publicado = `${versao}${quando}`;
   const linha = (selo: SeloDaLinhaDoPlano | null, meta: string | null): LinhaDoPlano => ({ selo, meta, discreto: false });
 
   if (p.liberarEm) {
@@ -37,9 +39,9 @@ export function linhaDoPlano(p: PlanoResumo, hoje: string = hojeIso()): LinhaDoP
     );
   }
   if (p.versaoPublicada > 0 && p.rascunhoAlteradoDepoisDePublicar) {
-    return linha({ texto: 'Alterações não publicadas', tipo: 'neutro', agendado: false }, p.ativo ? `Em uso pelo aluno · ${publicado}` : publicado);
+    return linha({ texto: 'Alterações não publicadas', tipo: 'atencao', agendado: false }, p.ativo ? `Em uso pelo aluno · ${publicado}` : publicado);
   }
-  if (p.versaoPublicada === 0) return { selo: { texto: 'Rascunho', tipo: 'neutro', agendado: false }, meta: null, discreto: true };
-  if (p.ativo) return linha({ texto: 'Em uso pelo aluno', tipo: 'sucesso', agendado: false }, publicado);
+  if (p.versaoPublicada === 0) return { selo: { texto: 'Rascunho', tipo: 'atencao', agendado: false }, meta: null, discreto: true };
+  if (p.ativo) return linha({ texto: 'Publicado', tipo: 'sucesso', agendado: false }, `Em uso pelo aluno · v${p.versaoPublicada}${quando}`);
   return linha(null, `${publicado} · não está em uso`);
 }

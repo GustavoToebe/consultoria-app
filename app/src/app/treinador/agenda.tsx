@@ -42,7 +42,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { depoisDeFecharAsFolhas, portalDaFolhaDoTopo } from '../../ui/historicoDasFolhas';
 import { LinkTexto } from '../../ui/LinkTexto';
-import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
+import { ChipsMultiplos } from '../../ui/ChipsDeFiltro';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -332,8 +332,8 @@ function SeletoresDaAgenda({ filtros, aoMudar, opcoesDeResponsavel, comSituacao 
     </GrupoDoPainel>
     {comSituacao ? (
       <GrupoDoPainel titulo="Situação">
-        <SelecaoMultiplaSuspensa rotulo="Compromissos" opcoes={OPCOES_SITUACAO} marcados={new Set(situacoes)} rotuloDeTodos="Todos"
-          aoMudar={(m) => aoMudar({ ...filtros, situacoes: OPCOES_SITUACAO.map((o) => o.valor).filter((v) => m.has(v)) })} style={estilos.cheio} />
+        <ChipsMultiplos rotulo="Compromissos" opcoes={OPCOES_SITUACAO.map((o) => ({ ...o, tom: o.valor === 'REALIZADO' ? 'sucesso' as const : o.valor === 'FALTOU' ? 'perigo' as const : undefined }))}
+          marcados={situacoes} aoMudar={(marcados) => aoMudar({ ...filtros, situacoes: marcados })} />
         {situacoes.length && situacoes.length < OPCOES_SITUACAO.length
           ? <Texto variante="pequeno">Com vários alunos, aparecem os compromissos em que algum aluno está em alguma dessas situações.</Texto> : null}
       </GrupoDoPainel>

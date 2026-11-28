@@ -158,8 +158,8 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       const total = page.getByRole('group', { name: 'Total da opção A' });
       expect(await transbordos(linha)).toEqual([]);
       expect(await transbordos(total)).toEqual([]);
-      // Sem fibra nos itens, "fibra sem dado" também para o leitor (25/11: o aluno vê "Fibra —").
-      await expect(total.getByText('Total da opção A: 200 kcal, proteína 10,0 g, carboidrato 20,0 g, gordura 4,0 g, fibra sem dado', { exact: true })).toHaveCount(1);
+      // Nenhum item da dieta com fibra: o leitor também não ouve a fibra (28/11; com algum, "fibra sem dado" nos que não têm).
+      await expect(total.getByText('Total da opção A: 200 kcal, proteína 10,0 g, carboidrato 20,0 g, gordura 4,0 g', { exact: true })).toHaveCount(1);
       expect(await semRolagemDeLado(page)).toBe(true);
       await cartao.screenshot({ path: testInfo.outputPath(`dieta-nome-longo-${nomeDoTema}-${largura}.png`) });
       expect(naoTratadas).toEqual([]);
@@ -226,7 +226,7 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
         await page.getByRole('button', { name: /^Filtros, / }).click();
         const painel = page.getByRole('dialog', { name: 'Filtros de registros' });
         await painel.getByRole('radio', { name: rotulo, exact: true }).click();
-        await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
         await expect(painel).toHaveCount(0);
       };
       // Pasta anterior: as datas dela vão para a mesma rota, e o período da faixa muda.

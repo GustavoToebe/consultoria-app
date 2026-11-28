@@ -33,14 +33,13 @@ import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Cartao } from '../../ui/Cartao';
 import { CartaoDeIndicador, type TomDoIndicador } from '../../ui/CartaoDeIndicador';
-import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { GradeDeIndicadores } from '../../ui/GradeDeIndicadores';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { CaixaDaLinha } from '../../ui/LinhaDaLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
-import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
+import { ChipsMultiplos, type TomDoChip } from '../../ui/ChipsDeFiltro';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { NUMERICO } from '../../ui/tipografia';
@@ -215,6 +214,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           valor={filtros} aoAplicar={aplicar} limpo={limpoDasCobrancas(filtros)} chips={chips}
           aoTirar={(chave) => aplicar(semOFiltroDeCobrancas(filtros, chave as ChaveDoFiltroDeCobrancas))}
           painelLateral={{ titulo: 'Filtros de cobranças' }}
+          resultado={{ itens: { um: 'cobrança', varios: 'cobranças' }, total: lista.dadosDeOutraChave ? undefined : lista.dados?.total, buscar: (r) => listarCobrancas({ ...cobrancasParaApi(r, hoje), busca: busca || undefined, pagina: 0 }).then((p) => p.total) }}
           depois={podeAlterar ? <AcaoDaBusca rotulo="Nova cobrança avulsa" Icone={Plus} aoTocar={() => setNovaAvulsa(true)} /> : undefined}
           seletores={(atuais, mudar) => (
             <SeletoresDeCobrancas filtros={atuais} aoMudar={mudar} opcoesDePlano={opcoesDePlano} aluno={atuais.alunoId ? textoDoAluno : null} hoje={hoje} />
@@ -389,6 +389,9 @@ const MODOS_DO_VENCIMENTO: { valor: ModoDoVencimento; rotulo: string }[] = [
 ];
 
 const TODOS = 'TODOS';
+/** A bolinha de cada situação no chip do filtro: a mesma cor do selo da lista (aberta âmbar, vencida vermelha, paga verde). */
+const TOM_DA_SITUACAO: Partial<Record<SituacaoDoFiltro, TomDoChip>> = { ABERTA: 'atencao', VENCIDA: 'perigo', PAGA: 'sucesso', CONTESTADA: 'atencao' };
+const SITUACOES_COM_TOM = SITUACOES_DO_FILTRO.map((o) => ({ ...o, tom: TOM_DA_SITUACAO[o.valor] }));
 const FORMAS: { valor: FormaDoFiltro | typeof TODOS; rotulo: string }[] = [{ valor: TODOS, rotulo: 'Qualquer' }, ...FORMAS_DO_FILTRO];
 
 /**
@@ -429,15 +432,14 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano, aluno: nomeDoAl
             <Texto variante="pequeno">Vem da ficha e continua com “Limpar filtros”. Para ver todos, use “Ver cobranças de todos os alunos” na página.</Texto>
           </View>
         ) : null}
-        <Escolha rotulo="Responsável" opcoes={OPCOES_RESPONSABILIDADE} valor={filtros.meus ? 'meus' : 'todos'} aoMudar={(v) => aoMudar({ ...filtros, meus: v === 'meus' })} />
+        <UmaOpcao rotulo="Responsável" opcoes={OPCOES_RESPONSABILIDADE} valor={filtros.meus ? 'meus' : 'todos'} aoMudar={(v) => aoMudar({ ...filtros, meus: v === 'meus' })} />
         <UmaOpcao rotulo="Plano" valor={filtros.planoId ?? TODOS} opcoes={opcoesDePlano}
           aoMudar={(v) => aoMudar({ ...filtros, planoId: v === TODOS ? null : v })} />
       </GrupoDoPainel>
       <GrupoDoPainel titulo="Situação">
-        <SelecaoMultiplaSuspensa rotulo="Situação" opcoes={SITUACOES_DO_FILTRO} marcados={new Set(filtros.situacoes)} rotuloDeTodos="Todas"
-          aoMudar={(m) => aoMudar({ ...filtros, situacoes: SITUACOES_DO_FILTRO.map((o) => o.valor).filter((v) => m.has(v)) as SituacaoDoFiltro[] })}
-          style={estilos.cheio} />
-        <Escolha rotulo="Forma da baixa" opcoes={FORMAS} valor={filtros.forma ?? TODOS}
+        <ChipsMultiplos<SituacaoDoFiltro> rotulo="Situação" opcoes={SITUACOES_COM_TOM} marcados={filtros.situacoes}
+          aoMudar={(situacoes) => aoMudar({ ...filtros, situacoes })} />
+        <UmaOpcao rotulo="Forma da baixa" opcoes={FORMAS} valor={filtros.forma ?? TODOS}
           aoMudar={(v) => aoMudar({ ...filtros, forma: v === TODOS ? null : (v as FormaDoFiltro) })} />
       </GrupoDoPainel>
       <GrupoDoPainel titulo="Datas">
@@ -447,7 +449,7 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano, aluno: nomeDoAl
           <Texto variante="pequeno">Pelo mês do vencimento. Avulsas e acordos também entram pelo mês em que vencem.</Texto>
         </View>
         <View style={estilos.coluna}>
-          <Escolha rotulo="Vencimento" opcoes={MODOS_DO_VENCIMENTO} valor={modo} aoMudar={mudarModo} />
+          <UmaOpcao rotulo="Vencimento" opcoes={MODOS_DO_VENCIMENTO} valor={modo} aoMudar={mudarModo} />
           {modo === 'PERIODO' ? (
             <CamposDePeriodo nomeUnico rotulo="Vencimento entre" valor={filtros.periodo} aoMudar={(periodo) => aoMudar({ ...filtros, proximos7Dias: false, periodo })} />
           ) : null}

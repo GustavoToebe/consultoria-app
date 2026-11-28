@@ -11,7 +11,28 @@ const conteudo = (...sessoes: ReturnType<typeof sessao>[]): ConteudoTreino => ({
 describe('resumoDoBloco', () => {
   it('bloco uniforme: nome, quantidade, repetições e descanso reais, sem variação', () => {
     const r = resumoDoBloco(bloco(serie('a', { repsMin: 3, repsMax: 6, descansoSegundos: 90 }), serie('b', { repsMin: 3, repsMax: 6, descansoSegundos: 90 })), null);
-    expect(r).toEqual({ nome: 'Trabalho · WS', quantidade: 2, repeticoes: '3 a 6 reps', descanso: '1 min 30 s', variacao: [] });
+    expect(r).toEqual({ nome: 'Trabalho · WS', quantidade: 2, repeticoes: '3 a 6 reps', descanso: '1 min 30 s', variacao: [], semDescanso: false, tecnica: null });
+  });
+
+  it('cluster com blocos válidos mostra os blocos; inválidos, as repetições da série', () => {
+    const cluster = (blocos: number[]) => serie('a', { repsMin: 25, repsMax: 25, tecnica: tecnica('CLUSTER', { blocos, pausaSegundos: 15 }) });
+    expect(resumoDoBloco(bloco(cluster([5, 5, 5, 5, 5])), null).repeticoes).toBe('5 × 5 (25)');
+    expect(resumoDoBloco(bloco(cluster([4, 4, 2])), null).repeticoes).toBe('4+4+2 (10)');
+    expect(resumoDoBloco(bloco(cluster([5])), null).repeticoes).toBe('25 reps');
+    expect(resumoDoBloco(bloco(cluster([0, 5])), null).repeticoes).toBe('25 reps');
+  });
+
+  it('semDescanso: série sem descanso conta, 0 s é descanso informado, ignorarDescanso zera', () => {
+    expect(resumoDoBloco(bloco(serie('a')), null).semDescanso).toBe(true);
+    expect(resumoDoBloco(bloco(serie('a', { descansoSegundos: 60 }), serie('b')), null).semDescanso).toBe(true);
+    expect(resumoDoBloco(bloco(serie('a', { descansoSegundos: 0 })), null).semDescanso).toBe(false);
+    expect(resumoDoBloco(bloco(serie('a')), null, { ignorarDescanso: true }).semDescanso).toBe(false);
+  });
+
+  it('tecnica: nome em minúsculas; null sem técnica', () => {
+    expect(resumoDoBloco(bloco(serie('a', { tecnica: tecnica('CLUSTER', { blocos: [5, 5] }) })), null).tecnica).toBe('cluster');
+    expect(resumoDoBloco(bloco(serie('a', { tecnica: tecnica('REST_PAUSE', { pausas: 1, pausaSegundos: 20 }) })), null).tecnica).toBe('rest pause');
+    expect(resumoDoBloco(bloco(serie('a')), null).tecnica).toBeNull();
   });
 
   it('repetições exatas, AMRAP e por tempo', () => {
@@ -129,8 +150,9 @@ describe('linha da tabela de blocos', () => {
     expect(textoDaVariacao(['descanso', 'esforco', 'carga'])).toBe('Varia entre as séries: RIR e carga');
   });
   it('o nome acessível começa por "Série N · tipo" e diz os quatro valores', () => {
-    const r = { nome: 'Trabalho · WS', quantidade: 3, repeticoes: '8 a 12 reps', descanso: '2 min', variacao: ['esforco' as const] };
+    const r = { nome: 'Trabalho · WS', quantidade: 3, repeticoes: '8 a 12 reps', descanso: '2 min', variacao: ['esforco' as const], semDescanso: false, tecnica: null };
     expect(textoAcessivelDoBloco('Série 2 · WS', r)).toBe('Série 2 · WS, 3 séries, repetições 8 a 12 reps, descanso 2 min, Varia entre as séries: RIR');
     expect(textoAcessivelDoBloco('Série 1', { ...r, quantidade: 1, variacao: [] })).toBe('Série 1, 1 série, repetições 8 a 12 reps, descanso 2 min');
+    expect(textoAcessivelDoBloco('Série 1', { ...r, descanso: '—', semDescanso: true, variacao: [] })).toBe('Série 1, 3 séries, repetições 8 a 12 reps, falta o descanso');
   });
 });

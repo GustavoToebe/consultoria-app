@@ -12,12 +12,12 @@ import java.util.UUID;
 /** Já filtrado pela consultoria da sessão ({@code @TenantId}). */
 public interface ImportacaoRepository extends JpaRepository<Importacao, UUID> {
 
+    /** {@code destinos} e {@code situacoes} nunca vazios: sem filtro, quem chama passa todos. */
     @Query("select i from Importacao i where i.destino in :destinos "
-            + "and (:destino is null or i.destino = :destino) "
-            + "and (:situacao is null or i.situacao = :situacao) "
+            + "and i.situacao in :situacoes "
             + "and (:arquivo = '' or lower(i.nomeArquivo) = :arquivo) "
             + "and i.criadoEm >= :inicio and i.criadoEm < :fim "
             + "order by i.criadoEm desc")
-    Page<Importacao> buscar(Collection<String> destinos, String destino, String situacao, String arquivo, Instant inicio,
+    Page<Importacao> buscar(Collection<String> destinos, Collection<String> situacoes, String arquivo, Instant inicio,
                             Instant fim, Pageable pagina);
 }

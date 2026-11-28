@@ -1,8 +1,8 @@
 import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
 import {
-  alternarEscolha, cmParaTela, corpoDaAvaliacao, diferenca, diferencaParaTela, graficoDaMedida, MEDIDAS,
+  cmParaTela, corpoDaAvaliacao, diferenca, diferencaParaTela, graficoDaMedida, MEDIDAS,
   medidaEscolhida, medidasPreenchidas, medidasVazias, opcoesDeMedida, pesoParaTela, podeBaixarComparativo,
-  problemasDaAvaliacao, serieDaMedida,
+  problemasDaAvaliacao, serieDaMedida, valorAnterior, valorParaTabela, variacaoCurta,
 } from './avaliacaoFisica';
 
 const HOJE = '2026-10-28';
@@ -76,13 +76,6 @@ describe('formatação', () => {
 });
 
 describe('comparação', () => {
-  it('escolhe de 2 a 4; o quinto não entra', () => {
-    let e: string[] = [];
-    for (const id of ['1', '2', '3', '4', '5']) e = alternarEscolha(e, id);
-    expect(e).toEqual(['1', '2', '3', '4']);
-    expect(alternarEscolha(e, '2')).toEqual(['1', '3', '4']);
-  });
-
   it('"Baixar comparativo": a equipe sempre; o aluno só com internet e com a marca da sessão', () => {
     expect(podeBaixarComparativo({ daEquipe: true, online: false, temMarca: true })).toBe(true);
     expect(podeBaixarComparativo({ daEquipe: false, online: true, temMarca: true })).toBe(true);
@@ -141,5 +134,55 @@ describe('gráfico por medida', () => {
     expect(graficoDaMedida(2, true)).toBe('linha');
     expect(graficoDaMedida(5, true)).toBe('linha');
     expect(graficoDaMedida(3, false)).toBe('desligado');
+  });
+});
+
+describe('variação desde a anterior (histórico e folha)', () => {
+  it('seta, vírgula e 1 casa no cm; zero é "0,0" sem seta, sem anterior é "Primeira" e só sem valor é "—"', () => {
+    expect(variacaoCurta('bracoDireito', 39.5, 40, null)).toEqual({ tipo: 'mudou', texto: '▲ 0,5', tom: 'neutro', falado: 'subiu 0,5 cm' });
+    expect(variacaoCurta('bracoDireito', 41, 40, null).texto).toBe('▼ 1,0');
+    // Zero na cintura com meta: neutro (nada a favor nem contra).
+    expect(variacaoCurta('cintura', 40, 40, 'REDUZIR')).toEqual({ tipo: 'igual', texto: '0,0', tom: 'neutro', falado: 'sem variação' });
+    expect(variacaoCurta('peso', 80, 80, 'REDUZIR')).toMatchObject({ tipo: 'igual', texto: '0,0' });
+    expect(variacaoCurta('cintura', null, 80, 'REDUZIR')).toEqual({ tipo: 'primeira', texto: 'Primeira', tom: 'neutro', falado: 'primeira medida' });
+    expect(variacaoCurta('cintura', 80, null, 'REDUZIR')).toEqual({ tipo: 'semValor', texto: '—', tom: 'neutro', falado: '' });
+    expect(variacaoCurta('cintura', null, null, 'REDUZIR').tipo).toBe('semValor');
+    // 0,1 + 0,2 não vira 0,30000000000000004.
+    expect(variacaoCurta('peitoral', 100.1, 100.4, null).texto).toBe('▲ 0,3');
+  });
+
+  it('só peso, cintura, abdômen e quadril seguem a meta; reduzir: descer é verde, aumentar: o contrário', () => {
+    for (const c of ['cintura', 'abdomen', 'quadril', 'peso'] as const) {
+      expect(variacaoCurta(c, 90, 89, 'REDUZIR').tom).toBe('positivo');
+      expect(variacaoCurta(c, 90, 91, 'REDUZIR').tom).toBe('problema');
+      expect(variacaoCurta(c, 90, 91, 'AUMENTAR').tom).toBe('positivo');
+      expect(variacaoCurta(c, 90, 89, 'AUMENTAR').tom).toBe('problema');
+    }
+    for (const c of ['bracoDireito', 'peitoral', 'coxaEsquerda', 'panturrilhaDireita'] as const) expect(variacaoCurta(c, 90, 89, 'REDUZIR').tom).toBe('neutro');
+    expect(variacaoCurta('cintura', 90, 89, 'SEM_META').tom).toBe('neutro');
+    expect(variacaoCurta('cintura', 90, 89, undefined).tom).toBe('neutro');
+    expect(variacaoCurta('cintura', 90, 89, 'REDUZIR').falado).toBe('desceu 1,0 cm, a favor da meta');
+  });
+
+  it('peso em kg com as casas do Peso', () => {
+    expect(variacaoCurta('peso', 90, 89.25, 'REDUZIR')).toMatchObject({ texto: '▼ 0,75', falado: 'desceu 0,75 kg, a favor da meta' });
+    expect(variacaoCurta('peso', 90, 91, null).texto).toBe('▲ 1,0');
+    expect(valorParaTabela('peso', 90)).toBe('90,0');
+    expect(valorParaTabela('cintura', 80.25)).toBe('80,3');
+    expect(valorParaTabela('cintura', null)).toBe('—');
+  });
+
+  it('anterior = a última avaliação antes da data que mediu (pula a que não mediu e a que está em edição)', () => {
+    const lista = [
+      avaliacao('a3', '2026-10-01', { cintura: 85 }),
+      avaliacao('a2', '2026-09-01', { bracoDireito: 35 }),
+      avaliacao('a1', '2026-08-01', { cintura: 88, bracoDireito: 34 }, 90),
+    ];
+    expect(valorAnterior(lista, 'cintura', '2026-10-01')).toBe(88);
+    expect(valorAnterior(lista, 'bracoDireito', '2026-10-01')).toBe(35);
+    expect(valorAnterior(lista, 'cintura', '2026-08-01')).toBeNull();
+    expect(valorAnterior(lista, 'peso', '2026-12-01')).toBe(90);
+    // Editando a3 com a data nova depois de todas: a própria a3 não conta como anterior.
+    expect(valorAnterior(lista, 'cintura', '2026-12-01', 'a3')).toBe(88);
   });
 });

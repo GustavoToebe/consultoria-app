@@ -9,6 +9,8 @@ export interface OpcaoSuspensa<T> {
   rotulo: string;
   /** Linha pequena abaixo do rótulo (ex.: "Obrigatório", "Hoje na coluna “E-mail”"). */
   detalhe?: string;
+  /** Bolinha colorida antes do rótulo (a cor do tipo da série), na lista e no botão fechado quando é a escolhida. */
+  cor?: string;
 }
 
 /** Opções cujo rótulo ou detalhe contém o filtro, sem acento e sem diferença de maiúsculas; filtro vazio devolve todas. */

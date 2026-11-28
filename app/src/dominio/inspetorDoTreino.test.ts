@@ -1,7 +1,7 @@
 import type { Configuracao } from '../api/tipos';
 import { agrupar } from './agrupamento';
 import { exercicio, serie, sessao, tecnica } from './exemplosDeTreino.apoioTeste';
-import { grupoComSerie, linhaDoExercicio, proximaSelecao, resumoDaSessaoPorContagem, serieDoProblema, uidDaAbaAposMudar } from './inspetorDoTreino';
+import { grupoComSerie, linhaDoExercicio, nomeCurtoDoTipo, nomesCurtosDosTipos, proximaSelecao, resumoDaSessaoPorContagem, serieDoProblema, uidDaAbaAposMudar } from './inspetorDoTreino';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import { novaSerieDeCardio } from './editorTreino';
 
@@ -11,29 +11,47 @@ const aquecimento = (uid: string) => serie(uid, { tipo: 'WARM_UP' });
 const cardio = (uid: string) => ({ ...novaSerieDeCardio({ duracaoMin: 30, distanciaKm: null, ritmo: null, zona: null, intervalos: null }), uid });
 
 describe('linhaDoExercicio', () => {
-  it('conta as séries por grupo, com o nome do tipo, e junta o descanso', () => {
-    const ex = exercicio('e', { series: [trabalho('a', { descansoSegundos: 120 }), backOff('b'), { ...backOff('c'), descansoSegundos: 120 }] });
-    expect(linhaDoExercicio(ex, null)).toBe('3 séries: 1 WS, 2 Back off · Descanso 120 s');
+  it('conta as séries por tipo, com o nome curto, na ordem em que o tipo aparece', () => {
+    const ex = exercicio('e', { series: [aquecimento('a'), aquecimento('b'), serie('c', { tipo: 'FEEDER' }), trabalho('d'), backOff('e')] });
+    expect(linhaDoExercicio(ex, null)).toBe('5 séries · 2 Aquec., 1 FS, 1 WS, 1 Back off');
   });
 
   it('sem descanso nem técnica, só as quantidades; uma série no singular', () => {
-    expect(linhaDoExercicio(exercicio('e', { series: [trabalho('a'), trabalho('b')] }), CONFIGURACAO_PADRAO)).toBe('2 séries: 2 WS');
-    expect(linhaDoExercicio(exercicio('e', { series: [trabalho('a')] }), null)).toBe('1 série: 1 WS');
+    expect(linhaDoExercicio(exercicio('e', { series: [trabalho('a'), trabalho('b')] }), CONFIGURACAO_PADRAO)).toBe('2 séries · 2 WS');
+    expect(linhaDoExercicio(exercicio('e', { series: [trabalho('a')] }), null)).toBe('1 série · 1 WS');
   });
 
-  it('a técnica entra com a série em que está', () => {
-    const ex = exercicio('e', { series: [trabalho('a'), trabalho('b', { tecnica: tecnica('CLUSTER'), descansoSegundos: 90 })] });
-    expect(linhaDoExercicio(ex, null)).toBe('2 séries: 2 WS · Cluster na série 2 · descanso 90 s');
+  it('descanso igual em todas as séries aparece por último, no texto curto ("2 min")', () => {
+    const ex = exercicio('e', { series: [trabalho('a', { descansoSegundos: 120 }), { ...backOff('b'), descansoSegundos: 120 }] });
+    expect(linhaDoExercicio(ex, null)).toBe('2 séries · 1 WS, 1 Back off · 2 min');
   });
 
-  it('descansos diferentes viram faixa', () => {
-    const ex = exercicio('e', { series: [trabalho('a', { descansoSegundos: 60 }), trabalho('b', { descansoSegundos: 120 })] });
-    expect(linhaDoExercicio(ex, null)).toBe('2 séries: 2 WS · Descanso 60 a 120 s');
+  it('descanso que varia, ou que falta em alguma série, some', () => {
+    const varia = exercicio('e', { series: [trabalho('a', { descansoSegundos: 60 }), trabalho('b', { descansoSegundos: 120 })] });
+    expect(linhaDoExercicio(varia, null)).toBe('2 séries · 2 WS');
+    const falta = exercicio('e', { series: [trabalho('a', { descansoSegundos: 120 }), backOff('b'), { ...backOff('c'), descansoSegundos: 120 }] });
+    expect(linhaDoExercicio(falta, null)).toBe('3 séries · 1 WS, 2 Back off');
+  });
+
+  it('a técnica entra depois dos tipos, com a série em que está, e antes do descanso', () => {
+    const ex = exercicio('e', { series: [trabalho('a', { descansoSegundos: 90 }), trabalho('b', { tecnica: tecnica('CLUSTER'), descansoSegundos: 90 })] });
+    expect(linhaDoExercicio(ex, null)).toBe('2 séries · 2 WS · Cluster na série 2 · 90 s');
+    const semDescansoIgual = exercicio('e', { series: [trabalho('a'), trabalho('b', { tecnica: tecnica('CLUSTER'), descansoSegundos: 90 })] });
+    expect(linhaDoExercicio(semDescansoIgual, null)).toBe('2 séries · 2 WS · Cluster na série 2');
   });
 
   it('tipo fora da metodologia aparece pelo código; série sem tipo, "sem tipo"', () => {
-    expect(linhaDoExercicio(exercicio('e', { series: [serie('a', { tipo: 'XYZ' })] }), null)).toBe('1 série: 1 XYZ');
-    expect(linhaDoExercicio(exercicio('e', { series: [serie('a', { tipo: null })] }), null)).toBe('1 série: 1 sem tipo');
+    expect(linhaDoExercicio(exercicio('e', { series: [serie('a', { tipo: 'XYZ' })] }), null)).toBe('1 série · 1 XYZ');
+    expect(linhaDoExercicio(exercicio('e', { series: [serie('a', { tipo: null })] }), null)).toBe('1 série · 1 sem tipo');
+  });
+
+  it('dois tipos com o mesmo começo continuam em contagens separadas e, com o curto igual, saem inteiros', () => {
+    const config: Configuracao = {
+      ...CONFIGURACAO_PADRAO,
+      tipos: CONFIGURACAO_PADRAO.tipos.map((t) => (t.codigo === 'WORKING' ? { ...t, nome: 'Aquecimento B' } : t)),
+    };
+    const ex = exercicio('e', { series: [aquecimento('a'), trabalho('b')] });
+    expect(linhaDoExercicio(ex, config)).toBe('2 séries · 1 Aquecimento, 1 Aquecimento B');
   });
 
   it('sem séries', () => {
@@ -44,6 +62,28 @@ describe('linhaDoExercicio', () => {
   it('cardio com prescrição usa o texto do cardio, um grupo por linha juntas com " · "', () => {
     const ex = exercicio('e', { modalidade: 'CARDIO', series: [cardio('a')] });
     expect(linhaDoExercicio(ex, null)).toBe('1x 30 min');
+  });
+});
+
+describe('nomesCurtosDosTipos', () => {
+  it('abrevia cada um, menos os que dariam o mesmo curto, que saem inteiros', () => {
+    expect(nomesCurtosDosTipos(['Aquecimento geral', 'Aquecimento específico', 'WS', 'Recuperação'])).toEqual(['Aquecimento geral', 'Aquecimento específico', 'WS', 'Recup.']);
+    expect(nomesCurtosDosTipos(['Aquecimento', 'Back off'])).toEqual(['Aquec.', 'Back off']);
+  });
+});
+
+describe('nomeCurtoDoTipo', () => {
+  it('mais de 10 letras vira 5 letras e ponto; até 10 fica inteiro', () => {
+    expect(nomeCurtoDoTipo('Aquecimento')).toBe('Aquec.');
+    expect(nomeCurtoDoTipo('Back off')).toBe('Back off');
+    expect(nomeCurtoDoTipo('WS')).toBe('WS');
+    expect(nomeCurtoDoTipo('Forced reps')).toBe('Forced reps');
+    expect(nomeCurtoDoTipo('  Recuperação ')).toBe('Recup.');
+  });
+
+  it('conta letras, não espaços nem sinais, e não deixa espaço antes do ponto', () => {
+    expect(nomeCurtoDoTipo('Top set dupla')).toBe('Top s.');
+    expect(nomeCurtoDoTipo('Mega setxxxx')).toBe('Mega.');
   });
 });
 

@@ -71,7 +71,7 @@ describe('textos da série', () => {
   it('Cluster no grupo não repete o descanso da série e, sem carga, não pede ajuste', () => {
     const s = serie('a', { tecnica: tecnica('CLUSTER', { blocos: [4, 4], pausaSegundos: 15 }), descansoSegundos: 90, repsMin: 8, repsMax: 8 });
     const noGrupo = textosDaSerie(s, { ...contexto, descansoPorSerie: false }).tecnica;
-    expect(noGrupo).toContain('Pausa entre os blocos: 15 s.');
+    expect(noGrupo).toContain('Pausa entre os blocos: 15 s (o timer conta).');
     expect(noGrupo).not.toContain('Descanso depois da série');
     expect(noGrupo).toContain('Ajuste a carga desta série.');
     const semCarga = textosDaSerie(s, { ...contexto, semCarga: true }).tecnica;

@@ -31,11 +31,13 @@ import { DatasDaMobilidade } from './DatasDaMobilidade';
  * "Ver meu treino" precisa caber na primeira tela do celular) mostra só hoje, sem a explicação nem os outros dias; a aba
  * Dieta tem o cartão inteiro.
  */
-export function CartaoAguaDoDia({ metaLitros, compacto = false, botoesCheios = false }: {
+export function CartaoAguaDoDia({ metaLitros, compacto = false, botoesCheios = false, diasNumaLinha = false }: {
   metaLitros: number;
   compacto?: boolean;
   /** Web larga do Início (27/11): "−1 copo" e "+1 copo" dividem a largura do cartão em vez de ficarem do tamanho do rótulo. */
   botoesCheios?: boolean;
+  /** Apoio da Dieta no PC (28/11): os dias anteriores numa linha rolável e "Hoje" fixo à direita, em vez de várias linhas. */
+  diasNumaLinha?: boolean;
 }) {
   const { identificacao } = useTema();
   const agua = identificacao.AGUA.cor;
@@ -101,6 +103,7 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false, botoesCheios = f
           aoAbrir={setDiaEscolhido}
           assunto="Água"
           textoDoMarcado="com registro"
+          arranjo={diasNumaLinha ? 'linha' : 'quebrar'}
         />
       )}
     </Cartao>

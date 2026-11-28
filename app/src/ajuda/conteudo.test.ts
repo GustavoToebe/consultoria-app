@@ -1,4 +1,5 @@
 import { PROTOCOLOS } from '../dominio/cardio';
+import { blocosDoTexto, idDoTopico, semMarcacao } from './blocos';
 import { GUIAS, SECAO_CARDIO_E_HIIT, secoesDoGuia, textoDoItem } from './conteudo';
 
 describe('seção Cardio e HIIT', () => {
@@ -27,7 +28,8 @@ const textoDoGuia = (publico: 'treinador' | 'aluno') => {
   return [
     g.introducao,
     ...[...g.primeirosPassos, ...g.tutorial, ...g.passeio].flatMap((p) => [p.titulo, p.texto]),
-    ...g.secoes.flatMap((s) => [s.titulo, ...s.itens.flatMap((i) => [i.titulo, i.texto])]),
+    // Sem a marcação (`blocos.ts`): o negrito e os passos não mudam o que o guia diz.
+    ...g.secoes.flatMap((s) => [s.titulo, ...s.itens.flatMap((i) => [i.titulo, semMarcacao(i.texto)])]),
     ...g.perguntas.flatMap((p) => [p.pergunta, p.resposta]),
   ].join('\n');
 };
@@ -108,6 +110,19 @@ describe('textos da ajuda', () => {
   it('nenhum item fica sem título ou sem texto', () => {
     for (const g of Object.values(GUIAS)) {
       for (const s of g.secoes) for (const i of s.itens) expect(i.titulo.trim() && i.texto.trim()).toBeTruthy();
+    }
+  });
+
+  it('todo assunto tem tópico, e o tópico tem âncora única no assunto e ao menos um bloco (artigo da Ajuda)', () => {
+    for (const g of Object.values(GUIAS)) {
+      for (const s of g.secoes) {
+        expect({ secao: s.id, topicos: s.itens.length > 0 }).toEqual({ secao: s.id, topicos: true });
+        const ids = s.itens.map((i) => idDoTopico(i.titulo));
+        expect({ secao: s.id, repetidos: ids.filter((id, n) => ids.indexOf(id) !== n) }).toEqual({ secao: s.id, repetidos: [] });
+        for (const i of s.itens) expect({ topico: `${s.id}#${idDoTopico(i.titulo)}`, vazio: blocosDoTexto(i.texto).length === 0 }).toEqual({ topico: `${s.id}#${idDoTopico(i.titulo)}`, vazio: false });
+      }
+      const perguntas = g.perguntas.map((p) => idDoTopico(p.pergunta));
+      expect(new Set(perguntas).size).toBe(perguntas.length);
     }
   });
 });

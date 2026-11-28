@@ -61,7 +61,7 @@ async function abrirPasta(page: Page) {
     ...rotasDaPasta({ alunoId: ALUNO_ID, pastaId: PASTA_ID, planos: [{ tipo: 'treino', plano: { ...TREINO } }], permissoes: PERMISSOES }),
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
-  const pasta = page.getByRole('dialog', { name: 'Plano 17' });
+  const pasta = page.getByRole('dialog', { name: 'Pasta de 06/10 a 20/10' });
   await expect(pasta).toBeVisible();
   return { ...api, pasta };
 }
@@ -146,7 +146,7 @@ const CASOS: Caso[] = [
       await expect(inicio).toBeVisible();
       // Rótulo de grupo à vista e, dentro dele, os rótulos "De" e "Até" à vista (WCAG 3.3.2).
       await expect(dialogo.getByRole('group', { name: 'Período' })).toBeVisible();
-      return { dialogo, inicio, fim: dialogo.getByRole('textbox', { name: 'Até', exact: true }), principal: dialogo.getByRole('button', { name: 'Aplicar filtros' }), errosDaPagina };
+      return { dialogo, inicio, fim: dialogo.getByRole('textbox', { name: 'Até', exact: true }), principal: dialogo.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }), errosDaPagina };
     },
     erro: async (inicio, fim) => {
       await inicio.fill('10/10/2026');
@@ -159,7 +159,7 @@ const CASOS: Caso[] = [
     usuarioId: TREINADOR.id,
     abrir: async (page) => {
       const { pasta, errosDaPagina } = await abrirPasta(page);
-      await pasta.getByRole('button', { name: 'Mais ações da pasta Plano 17' }).click();
+      await pasta.getByRole('button', { name: 'Mais ações da pasta de 06/10 a 20/10' }).click();
       await page.getByRole('button', { name: /Copiar pasta para outro aluno/ }).click();
       const dialogo = page.getByRole('dialog', { name: 'Copiar pasta para outro aluno' });
       await escolherDestino(page, dialogo);

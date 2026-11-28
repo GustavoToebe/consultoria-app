@@ -27,13 +27,18 @@ public class TermosController {
     @PreAuthorize("hasAnyRole('TREINADOR', 'ALUNO')")
     @GetMapping
     public TermosService.Resposta consultar(@AuthenticationPrincipal UsuarioAutenticado eu) {
-        return termos.consultar(eu.usuarioId());
+        return termos.consultar(eu.usuarioId(), equipe(eu));
     }
 
     @PreAuthorize("hasAnyRole('TREINADOR', 'ALUNO')")
     @PostMapping("/aceite")
     public TermosService.Resposta aceitar(@AuthenticationPrincipal UsuarioAutenticado eu,
                                           @RequestBody @Valid AceiteRequest request) {
-        return termos.aceitar(eu.usuarioId(), request.versao());
+        return termos.aceitar(eu.usuarioId(), equipe(eu), request.versao());
+    }
+
+    /** As notas internas (revisão do advogado) só vão ao papel TREINADOR; qualquer outro papel não as recebe. */
+    private static boolean equipe(UsuarioAutenticado eu) {
+        return "TREINADOR".equals(eu.papel());
     }
 }

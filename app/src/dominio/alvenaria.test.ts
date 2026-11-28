@@ -11,6 +11,16 @@ describe('colunasDaAlvenaria', () => {
     expect(colunasDaAlvenaria(HUB, 4)).toEqual([0, 1, 2, 3, 2, 0, 1]); // 8, 8, 8 e 8
   });
 
+  // Aparência e preferências do treinador na web (`ui/PreferenciasDoApp`, 28/11): Tema e cores 14, Leitura 9, Layout 3,
+  // Treino e dados 5 (4 sem a unidade da carga), Navegador 2 e o cartão Avisos no celular por último, com qualquer peso.
+  it('Aparência: Avisos no celular cai embaixo de Navegador em 2 colunas e de Leitura em 3', () => {
+    for (const avisos of [2, 3, 4]) for (const treino of [5, 4]) {
+      const pesos = [14, 9, 3, treino, 2, avisos];
+      expect(colunasDaAlvenaria(pesos, 2)).toEqual([0, 1, 1, 1, 0, 0]);
+      expect(colunasDaAlvenaria(pesos, 3)).toEqual([0, 1, 2, 2, 2, 1]);
+    }
+  });
+
   it('uma coluna (ou zero) leva tudo para a primeira; sem itens, nada', () => {
     expect(colunasDaAlvenaria(HUB, 1)).toEqual([0, 0, 0, 0, 0, 0, 0]);
     expect(colunasDaAlvenaria([3, 2], 0)).toEqual([0, 0]);

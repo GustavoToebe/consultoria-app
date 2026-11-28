@@ -113,12 +113,18 @@ test('Contratos (1280 e 390): com CONTRATO_LER e a chave, o item abre dentro (12
   expect(errosDaPagina).toEqual([]);
 });
 
-test('Regras de atenção (1280 e 390): com a chave e ATUALIZACAO_LER + ALUNO_SENSIVEL_LER, o cartão abre a tela inteira; sem a chave, some', async ({ page }) => {
+test('Regras de atenção (1280 e 390): com a chave e ATUALIZACAO_LER + ALUNO_SENSIVEL_LER, o item abre dentro (1280) ou a rota inteira (390); sem a chave, some', async ({ page }) => {
   const comRegras: Perfil = { ...ADMIN, permissoes: [...ACESSO_TOTAL, 'ALUNO_SENSIVEL_LER'], regras: true };
   const { errosDaPagina } = await abrir(page, 1280, comRegras);
   expect(esperado(comRegras).visiveis.map((c) => c.id)).toContain('regras-de-atencao');
-  await item(page, 'Regras de atenção, abre a tela inteira').click();
-  await expect(page).toHaveURL(/\/treinador\/regras-de-atencao$/);
+  // 28/11: abre à direita, sem o ↗ e sem a seta de voltar.
+  await item(page, 'Regras de atenção').click();
+  await expect(page).toHaveURL(/\/configuracoes\/regras-de-atencao$/);
+  await expect(h1(page)).toHaveText('Regras de atenção');
+  await expect(page.getByRole('button', { name: 'Voltar' })).toHaveCount(0);
+  // O endereço antigo também abre dentro de Configurações.
+  await page.goto('/treinador/regras-de-atencao');
+  await expect(page).toHaveURL(/\/configuracoes\/regras-de-atencao$/);
   await expect(h1(page)).toHaveText('Regras de atenção');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/treinador/configuracoes');
@@ -129,7 +135,7 @@ test('Regras de atenção (1280 e 390): com a chave e ATUALIZACAO_LER + ALUNO_SE
   const semChave: Perfil = { ...ADMIN, permissoes: [...ACESSO_TOTAL, 'ALUNO_SENSIVEL_LER'], regras: false };
   await abrir(page, 1280, semChave);
   expect(esperado(semChave).visiveis.map((c) => c.id)).not.toContain('regras-de-atencao');
-  await expect(item(page, 'Regras de atenção, abre a tela inteira')).toHaveCount(0);
+  await expect(item(page, 'Regras de atenção')).toHaveCount(0);
 });
 
 test('Contratos (1280): sem a chave da plataforma o item não aparece, mesmo com CONTRATO_LER', async ({ page }) => {
@@ -434,7 +440,8 @@ async function colunasDaMarca(page: Page) {
 
 // 27/11: na tela larga o formulário fica em 720 à esquerda e a prévia ocupa o resto da linha (vão de 24), com os dois
 // celulares lado a lado (o Início e a tela de entrar), fixa ao rolar. Em Limitada o conjunto fica nos 1800 centrados.
-for (const [largura, larguraConteudo] of [[3440, 'AUTOMATICA'], [3440, 'LIMITADA'], [1920, 'AUTOMATICA']] as const) {
+// 1920 de janela dentro de Configurações mede ~1348 (régua de 1600): a prévia fica embaixo, fora deste laço.
+for (const [largura, larguraConteudo] of [[3440, 'AUTOMATICA'], [3440, 'LIMITADA']] as const) {
   test(`${largura}, marca, ${larguraConteudo === 'LIMITADA' ? 'Limitada' : 'Automática'}: formulário de 720 e a prévia dupla no resto`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, largura, { ...ADMIN, larguraConteudo }, '/treinador/configuracoes/marca');
     await expect(page.getByTestId('coluna-da-previa')).toBeVisible();
@@ -464,10 +471,10 @@ for (const [largura, larguraConteudo] of [[3440, 'AUTOMATICA'], [3440, 'LIMITADA
   });
 }
 
-test('1280, marca: abaixo da faixa larga uma prévia só (o Início), embaixo do formulário', async ({ page }) => {
+test('1280, marca: abaixo da faixa larga a prévia dupla (Início e entrar) fica embaixo do formulário', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, ADMIN, '/treinador/configuracoes/marca');
   await expect(page.getByTestId('previa-da-paleta')).toHaveCount(1);
-  await expect(page.getByTestId('previa-de-entrar')).toHaveCount(0);
+  await expect(page.getByTestId('previa-de-entrar')).toHaveCount(1);
   await expect(page.getByTestId('coluna-da-previa')).toHaveCount(0);
   const tema = (await page.getByRole('radiogroup', { name: 'Tema padrão da consultoria' }).boundingBox())!;
   const inicio = (await page.getByTestId('previa-da-paleta').boundingBox())!;

@@ -1,11 +1,10 @@
 # Aviso de privacidade
 
-RASCUNHO [REVISAR COM ADVOGADO]: este texto ainda não foi revisado por um advogado.
-
 ## 1. Quem cuida dos seus dados
 - **Controladora:** a consultoria do seu treinador, que decide para que os seus dados são usados.
 - **Operadora:** a plataforma, que guarda os dados e só os trata a mando da consultoria.
-- **Contato para assuntos de privacidade:** [CONTATO DO ENCARREGADO — PREENCHER]
+- **Contato para assuntos de privacidade:**
+{{CONTATO_DA_CONSULTORIA}}
 
 ## 2. Quais dados são tratados
 - **Cadastro:** nome, e-mail e telefone.

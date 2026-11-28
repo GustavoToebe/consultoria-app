@@ -1,7 +1,7 @@
 import { Permitido } from '../ui/Permitido';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { excluirPeso, pesosAluno, pesosDoAluno, registrarPeso } from '../api/rotas';
@@ -46,9 +46,10 @@ const LINHAS_INICIAIS = 12;
  * não resultado: vai no azul de indicador (cores-de-destaque D12), que nunca diz bom nem ruim, e o gráfico
  * acompanha a mesma cor. Ordem (peso-visual D3 a D6): resumo (último registro e desde o anterior, com a meta escrita),
  * Lista ou Gráfico (linha reta, sem área, escala com as pontas escritas) e, na Lista, o histórico com a observação da
- * equipe como detalhe do registro. Textos e contas vêm de `dominio/resumoDoPeso`.
+ * equipe como detalhe do registro. Textos e contas vêm de `dominio/resumoDoPeso`. `style` vai ao `Cartao` (o Corpo do
+ * Histórico estica o cartão até a altura das Fotos, ao lado).
  */
-export function CartaoPeso({ alunoId }: { alunoId?: string }) {
+export function CartaoPeso({ alunoId, style }: { alunoId?: string; style?: StyleProp<ViewStyle> }) {
   const { cores, preferencias, escolherPreferencia } = useTema();
   const azul = useDestaques().azul.cor;
   const daEquipe = alunoId !== undefined;
@@ -191,7 +192,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
       : 'Gráfico de peso';
 
   return (
-    <Cartao titulo="Peso" periodo={dados ? periodoDesdeOPrimeiro(dados.map((p) => p.data)) : undefined} descricao={daEquipe ? 'Evolução do peso ao longo do tempo.' : 'Seus registros de peso, do mais recente ao mais antigo.'}
+    <Cartao style={style} titulo="Peso" periodo={dados ? periodoDesdeOPrimeiro(dados.map((p) => p.data)) : undefined} descricao={daEquipe ? 'Evolução do peso ao longo do tempo.' : 'Seus registros de peso, do mais recente ao mais antigo.'}
       acoes={podeGravar ? <Botao ref={botaoRegistrar} rotulo="Registrar peso" tipo="acao" Icone={Plus} aoTocar={abrirRegistro} /> : null}>
       {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}

@@ -1,15 +1,16 @@
 import { Permitido } from '../ui/Permitido';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
-import { CalendarClock, CalendarCog, Copy, Ellipsis, FileDown, Pencil, Plus, Send, Trash2, Users } from 'lucide-react-native';
+import { CalendarClock, CalendarCog, Copy, Ellipsis, FileDown, Pencil, Send, Trash2, Users } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano, versaoPlano } from '../api/rotas';
 import type { ConteudoDieta, PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
 import { dataParaTela, hojeIso } from '../dominio/formatos';
+import { rotuloDoNovoPlano, tituloDaFolhaDaPasta, vazioDoTipo } from '../dominio/folhaDaPasta';
 import { linhaDoPlano } from '../dominio/linhaDoPlano';
 import { proximoPeriodo } from '../dominio/periodo';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -45,14 +46,11 @@ import type { CargaDosPlanos } from './usePlanosDaPasta';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { FolhaAlterarLiberacao, PainelLiberarAgora } from './plano/AcoesDaLiberacao';
 
-const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
-  treino: { titulo: 'Treino', plural: 'Treinos', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
-  dieta: { titulo: 'Dieta', plural: 'Dietas', novo: 'Nova dieta', receita: 'PLANO_DIETA', rota: '/treinador/dietas' },
-  mobilidade: { titulo: 'Mobilidade', plural: 'Mobilidade', novo: 'Nova mobilidade', receita: 'MOBILIDADE', rota: '/treinador/mobilidades' },
+const NOMES: Record<TipoPlano, { titulo: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
+  treino: { titulo: 'Treino', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
+  dieta: { titulo: 'Dieta', novo: 'Nova dieta', receita: 'PLANO_DIETA', rota: '/treinador/dietas' },
+  mobilidade: { titulo: 'Mobilidade', novo: 'Nova mobilidade', receita: 'MOBILIDADE', rota: '/treinador/mobilidades' },
 };
-
-/** Abaixo desta largura o botão de editar mostra só "Editar" (o rótulo completo fica para o leitor de tela). */
-const LARGURA_ROTULO_CURTO = 480;
 
 export function rotaDoEditor(tipo: TipoPlano, id: string) {
   return `${NOMES[tipo].rota}/${id}` as const;
@@ -63,22 +61,26 @@ export function periodo(p: { inicio: string | null; fim: string | null }): strin
   return `${dataParaTela(p.inicio) || '—'} a ${dataParaTela(p.fim) || '—'}`;
 }
 
+/** Quem pode criar plano do tipo: a permissão de alterar e, na mobilidade, a funcionalidade no plano da consultoria. */
+export function podeCriarPlano(tipo: TipoPlano, pode: (codigo: string) => boolean, temFuncionalidade: (f: 'MOBILIDADE') => boolean): boolean {
+  return pode(PERMISSOES_DO_PLANO[tipo].alterar) && (tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE'));
+}
+
 /**
  * Treinos, dietas ou mobilidades do aluno dentro de uma pasta: o painel da aba do tipo na Folha da pasta (bloco F), sem
- * cartão próprio (a aba diz o tipo e o cartão "Planos desta pasta" diz que o aluno só vê o publicado). No alto, o "Novo
- * …"; cada linha tem o título (discreto no rascunho), a versão na segunda linha (o período é o da pasta e fica só no topo
- * da Folha), um selo só (`linhaDoPlano`), "Editar" e o ⋯. Criar (em branco, receita ou cópia), PDF e replicar.
- * `geracao` muda quando a pasta muda o período.
+ * cartão próprio. Cada plano numa linha: o nome (discreto no rascunho), o selo logo depois (`linhaDoPlano`) e a versão em
+ * texto pequeno, e à direita "Editar" e o ⋯. O "+ Novo …" mora na linha das abas (quem chama controla `novo`). Aba vazia diz que não há e oferece o mesmo "Novo". Criar (em branco, receita ou cópia), PDF
+ * e replicar. `geracao` muda quando a pasta muda o período.
  */
-export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, carga, aoMudarLiberacao }: {
+export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, carga, aoMudarLiberacao, novo: { aberto: novo, aoMudar: setNovo } }: {
   tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void;
   /** Depois de "Alterar data" ou "Liberar agora": a lista de pastas recarrega (o selo da linha vem do `PastaResumo`). */
   aoMudarLiberacao?: () => void;
   /** Lista já carregada por quem chama (a Folha da pasta divide a mesma com o "Publicar tudo"); sem ela, o cartão busca. */
   carga?: CargaDosPlanos;
+  /** "Novo …" controlado por quem chama (o botão fica na linha das abas); aqui só a folha do plano novo e o do vazio. */
+  novo: { aberto: boolean; aoMudar: (aberto: boolean) => void };
 }) {
-  const { width } = useWindowDimensions();
-  const rotuloCurto = width < LARGURA_ROTULO_CURTO;
   const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
   const propria = useCarregar(carga ? null : `${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
@@ -94,7 +96,6 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
   // Mobilidade fora do plano: a API só bloqueia escrita; o que já existe continua em leitura e pode ser excluído.
   const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
   const [excluir, setExcluir] = useState<PlanoResumo | null>(null);
-  const [novo, setNovo] = useState(false);
   const [replicando, setReplicando] = useState<PlanoResumo | null>(null);
   const [copiando, setCopiando] = useState<PlanoResumo | null>(null);
   const [menu, setMenu] = useState<PlanoResumo | null>(null);
@@ -133,29 +134,27 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
   const hoje = hojeIso();
   return (
     <View style={estilos.painel}>
-      {escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}>
-        <View style={estilos.topoDoPainel}><Botao rotulo={NOMES[tipo].novo} tipo="acao" Icone={Plus} aoTocar={() => setNovo(true)} /></View>
-      </Permitido> : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (
-        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Os planos deste período aparecerão aqui." />
+        <Vazio titulo={vazioDoTipo(tipo)} texto="O aluno só vê o que está publicado."
+          acao={podeCriarPlano(tipo, pode, temFuncionalidade) ? { rotulo: rotuloDoNovoPlano(tipo), aoTocar: () => setNovo(true) } : undefined} />
       ) : null}
       {dados?.map((p, i) => {
         const linha = linhaDoPlano(p, hoje);
         return (
         <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
-          {/* O rascunho fica em texto normal (não em subtítulo): os repetidos não disputam com o que o aluno usa. */}
+          {/* Nome, o selo logo depois e a versão pequena numa linha de leitura (quebra no celular). O rascunho fica em
+              texto normal (não em subtítulo): os repetidos não disputam com o que o aluno usa. Um selo só (orientação 2.3). */}
           <View style={estilos.dadosPlano}>
-            <Texto variante={linha.discreto ? undefined : 'subtitulo'}>{p.titulo}</Texto>
-            {linha.meta ? <Texto variante="suave" numerico>{linha.meta}</Texto> : null}
+            <Texto variante={linha.discreto ? undefined : 'subtitulo'} style={estilos.nome}>{p.titulo}</Texto>
+            {linha.selo ? <Selo texto={linha.selo.texto} tipo={linha.selo.tipo} Icone={linha.selo.agendado ? CalendarClock : undefined} /> : null}
+            {linha.meta ? <Texto variante="pequeno" numerico>{linha.meta}</Texto> : null}
           </View>
-          {/* Um selo só (prioridade da orientação 2.3); o agendado é neutro, um fato marcado, não um problema (bloco E). */}
-          {linha.selo ? <Selo texto={linha.selo.texto} tipo={linha.selo.tipo} Icone={linha.selo.agendado ? CalendarClock : undefined} /> : null}
           {/* "Editar" é o que se faz todo dia e vem primeiro; o resto (PDF, duplicar, copiar, excluir) fica no ⋯.
               `LinhaDeAcoes` nunca passa da largura do cartão (em 390 px os cinco botões estouravam a folha). */}
           <LinhaDeAcoes>
-            {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={`${rotuloEditarPlano(tipo)} “${p.titulo}”`} tipo="secundario" Icone={Pencil} aoTocar={() => confirmar(() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); })} /> : null}
+            {podeAlterar ? <Botao rotulo="Editar" rotuloAcessivel={`${rotuloEditarPlano(tipo)} “${p.titulo}”`} tipo="secundario" Icone={Pencil} aoTocar={() => confirmar(() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); })} /> : null}
             {acoesDoMenu(p).some(Boolean) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações de ${p.titulo}`} aoTocar={() => setMenu(p)} /> : null}
           </LinhaDeAcoes>
         </EntradaEmCascata>
@@ -269,7 +268,7 @@ function FolhaNovoPlano({
   return (
     <Folha
       visivel
-      titulo={`${NOMES[tipo].novo} em “${pasta.titulo}”`}
+      titulo={`${NOMES[tipo].novo} na ${tituloDaFolhaDaPasta(pasta).replace(/^Pasta/, 'pasta')}`}
       aoFechar={aoFechar}
       rodape={
         <>
@@ -378,7 +377,6 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar, aoCriar }: {
 
 const estilos = StyleSheet.create({
   painel: { gap: espaco(1) },
-  topoDoPainel: { flexDirection: 'row', justifyContent: 'flex-end' },
   // 56 a 64 px de linha (orientação 2.3): respiro vertical de 8; o alvo de 44 dos botões dá a altura.
   plano: {
     borderWidth: 1,
@@ -392,5 +390,6 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  dadosPlano: { gap: 2, flexGrow: 1, flexShrink: 1, flexBasis: 200 },
+  dadosPlano: { flexGrow: 1, flexShrink: 1, flexBasis: 200, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: espaco(0.5) },
+  nome: { flexShrink: 1 },
 });

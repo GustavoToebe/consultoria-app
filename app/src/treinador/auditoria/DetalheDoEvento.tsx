@@ -23,7 +23,8 @@ const TITULO = 'Detalhe do evento';
  * O que a auditoria guarda de um evento, e nada além: a ação (com a categoria em texto), quem (nome · perfil, quando a API
  * manda o perfil), quando (data e hora de
  * Brasília, com segundos), o objeto afetado com o link para abri-lo quando ele ainda existe e há tela para ele, e a origem.
- * A API não guarda valores de antes e depois, IP nem aparelho além da origem, então não há campo para eles.
+ * A API não guarda valores de antes e depois, IP nem aparelho além da origem, então não há campo para eles. Objeto e
+ * origem vazios (um login não tem objeto) não aparecem: um "Objeto —" só ocupa lugar (28/11).
  */
 function ConteudoDoEvento({ evento }: { evento: EventoAuditoria }) {
   const corDe = useCorDaCategoria();
@@ -31,6 +32,7 @@ function ConteudoDoEvento({ evento }: { evento: EventoAuditoria }) {
   const objeto = textoDoObjeto(evento);
   const rota = rotaDoObjeto(evento);
   const tipo = rotuloDoTipo(evento.entidade);
+  const origem = evento.origem?.trim();
   return (
     <>
       <View style={estilos.acao}>
@@ -44,21 +46,25 @@ function ConteudoDoEvento({ evento }: { evento: EventoAuditoria }) {
       </View>
       <CampoLeitura rotulo="Quem" valor={evento.usuarioPerfil ? `${evento.nomeUsuario} · ${evento.usuarioPerfil}` : evento.nomeUsuario} />
       <CampoLeitura rotulo="Quando" valor={quandoCompleto(evento.criadoEm)} numerico />
-      <View>
-        <CampoLeitura rotulo="Objeto" valor={objeto} />
-        {rota ? <LinkTexto href={rota} texto={tipo === 'Aluno' ? 'Abrir ficha do aluno' : `Abrir ${(tipo ?? 'objeto').toLocaleLowerCase('pt-BR')}`} /> : null}
-      </View>
-      <CampoLeitura rotulo="Origem" valor={evento.origem} />
+      {/* O link depende do nome do objeto (`rotaDoObjeto`): sem objeto, não há link a perder. */}
+      {objeto ? (
+        <View>
+          <CampoLeitura rotulo="Objeto" valor={objeto} />
+          {rota ? <LinkTexto href={rota} texto={tipo === 'Aluno' ? 'Abrir ficha do aluno' : `Abrir ${(tipo ?? 'objeto').toLocaleLowerCase('pt-BR')}`} /> : null}
+        </View>
+      ) : null}
+      {origem ? <CampoLeitura rotulo="Origem" valor={origem} /> : null}
     </>
   );
 }
 
 /**
  * `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native (o mesmo de `PainelDaCobranca`): o
- * painel acompanha a rolagem da página.
+ * painel acompanha a rolagem da página com a altura da área visível (`height`, não `maxHeight`: sem evento o texto fica no
+ * meio e não sobra vazio embaixo dele); o corpo rola sozinho quando o detalhe não cabe.
  */
 const grudado = (alturaDaJanela: number) =>
-  (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), maxHeight: alturaDaJanela - espaco(4) } : {}) as unknown as ViewStyle;
+  (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), height: alturaDaJanela - espaco(4) } : {}) as unknown as ViewStyle;
 
 /**
  * O detalhe num painel fixo à direita da tabela (a partir da faixa `larga`, 27/11), no molde do `PainelDaCobranca`: região
@@ -73,7 +79,7 @@ export function PainelDoEvento({ evento, aoFechar }: { evento: EventoAuditoria |
     <View role="region" aria-label={TITULO}
       style={[estilos.painel, grudado(height), { backgroundColor: cores.superficie, borderColor: cores.divisor, borderWidth: bordas.bloco }]}>
       {evento ? <CorpoDoPainel key={evento.id} evento={evento} aoFechar={aoFechar} /> : (
-        <View style={estilos.vazio}><Texto variante="suave">Escolha um evento para ver o detalhe.</Texto></View>
+        <View style={estilos.vazio}><Texto variante="suave" style={estilos.centro}>Escolha um evento para ver o detalhe.</Texto></View>
       )}
     </View>
   );
@@ -119,7 +125,7 @@ export function FolhaDoEvento({ evento, aoFechar }: { evento: EventoAuditoria | 
 
 const estilos = StyleSheet.create({
   painel: { width: LARGURA_DO_PAINEL_DO_EVENTO, flexShrink: 0, alignSelf: 'flex-start', borderRadius: RAIO, overflow: 'hidden' },
-  corpoDoPainel: { flexShrink: 1 },
+  corpoDoPainel: { flexGrow: 1, flexShrink: 1, minHeight: 0 },
   topo: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1),
     paddingLeft: espaco(2), paddingRight: espaco(1.5), paddingVertical: espaco(1), borderBottomWidth: LINHA_DA_FAIXA,
@@ -128,7 +134,8 @@ const estilos = StyleSheet.create({
   rolagem: { flexShrink: 1 },
   conteudo: { padding: espaco(2), gap: espaco(2) },
   conteudoDaFolha: { gap: espaco(2) },
-  vazio: { padding: espaco(3), minHeight: 160, alignItems: 'center', justifyContent: 'center' },
+  vazio: { flexGrow: 1, padding: espaco(3), minHeight: 160, alignItems: 'center', justifyContent: 'center' },
+  centro: { textAlign: 'center' },
   acao: { gap: espaco(0.5) },
   categoria: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
 });

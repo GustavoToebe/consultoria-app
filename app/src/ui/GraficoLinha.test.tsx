@@ -492,4 +492,28 @@ describe('GraficoLinha: opções do guia (todas opcionais)', () => {
     expect(destacado.map((c) => c.props.r)).toEqual([4, 4, 5.5]);
     expect(new Set(destacado.map((c) => c.props.fill))).toEqual(new Set(normal.map((c) => c.props.fill)));
   });
+
+  it('`deslocamentoDoPonto` afasta só o marcador e o alvo de toque do ponto; a linha fica na data', () => {
+    const b = PONTOS_DE_TESTE.map((p) => ({ ...p }));
+    const desenhar = (deslocamentoDoPonto?: (s: 'A' | 'B', i: number) => number) => {
+      let raiz!: import('react-test-renderer').ReactTestRenderer;
+      Renderer.act(() => {
+        raiz = Renderer.create(
+          <GraficoLinha pontos={PONTOS_DE_TESTE} unidade="cm" descricao="D e E" larguraInicial={500} rotuloA="D"
+            serieB={{ pontos: b, cor: '#654321', rotulo: 'E' }} deslocamentoDoPonto={deslocamentoDoPonto} />,
+        );
+      });
+      return {
+        cx: raiz.root.findAll((x) => x.props.r === 4 && typeof x.props.cx === 'number').map((x) => x.props.cx as number),
+        linhas: raiz.root.findAll((x) => x.props.strokeWidth === 2.5 && typeof x.props.d === 'string').map((x) => x.props.d as string),
+        alvos: obterBotoes(raiz).map((x) => (x.props.style as { left: number }).left),
+      };
+    };
+    const sem = desenhar();
+    const com = desenhar((s, i) => (i === 0 ? (s === 'A' ? -3 : 3) : 0));
+    expect(com.linhas).toEqual(sem.linhas);
+    expect(com.cx).not.toEqual(sem.cx);
+    expect(new Set(com.cx.filter((x) => !sem.cx.includes(x))).size).toBe(2);
+    expect(com.alvos).not.toEqual(sem.alvos);
+  });
 });

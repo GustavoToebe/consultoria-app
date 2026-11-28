@@ -1,13 +1,16 @@
 import type { AvaliacaoFisica, CampoDaMedida } from '../api/avaliacaoFisicaTipos';
+import type { MetaDoPeso } from '../api/tipos';
 import {
-  COMPARAR_MAXIMO, COMPARAR_MINIMO, cmParaTela, diferenca, diferencaParaTela, MEDIDAS, pesoParaTela, serieDaMedida, valorDaMedida,
+  COMPARAR_MAXIMO, COMPARAR_MINIMO, cmParaTela, diferenca, diferencaParaTela, MEDIDAS, pesoParaTela, serieDaMedida, valorAnterior, valorDaColuna,
+  valorDaMedida, valorParaTabela, VARIACAO_SEM_VALOR, variacaoCurta, type ColunaDoHistorico, type VariacaoCurta,
 } from './avaliacaoFisica';
 import { dataCurta, dataParaTela } from './formatos';
 
 /**
  * Regras da Avaliação física visual (plano `docs/planos/avaliacao-fisica-visual.md`, D2 e D3): grupos das medidas,
- * comparação de 2 a 4 datas, resumo da evolução, seleção e pares direita × esquerda. Puro, sem React nem I/O. Só
- * números e datas: nada de soma de medidas, meta, classificação de assimetria nem "bom/ruim" (a direção é só dado).
+ * comparação de datas, histórico em tabela, resumo da evolução e pares direita × esquerda. Puro, sem React nem I/O. Só
+ * números e datas: nada de soma de medidas nem classificação de assimetria; a única cor é a da meta do peso, nas colunas
+ * de `COLUNAS_COM_META` (`variacaoCurta`).
  * Datas ISO `AAAA-MM-DD`, formatadas por fatiamento (nunca `new Date(iso)`, que muda o dia com o fuso).
  */
 
@@ -193,22 +196,12 @@ export function maisRecentesPrimeiro(avaliacoes: readonly AvaliacaoFisica[]): Av
   return [...avaliacoes].sort((a, b) => b.data.localeCompare(a.data));
 }
 
-/** "Comparar as duas últimas": ids das 2 avaliações mais recentes (mais antiga primeiro); com menos de 2, vazio. */
+/** O "Comparar" abre nas duas últimas: ids das 2 avaliações mais recentes (mais antiga primeiro); com menos de 2, vazio. */
 export function idsDasDuasUltimas(avaliacoes: readonly AvaliacaoFisica[]): string[] {
   if (avaliacoes.length < COMPARAR_MINIMO) return [];
   return maisRecentesPrimeiro(avaliacoes).slice(0, 2).map((a) => a.id).reverse();
 }
 
-/** "2 de 4 selecionadas" (M = `COMPARAR_MAXIMO`, o limite do Comparar, como no guia; não o total de avaliações). */
-export function textoDaSelecao(selecionadas: number): string {
-  const n = Math.max(0, Math.floor(selecionadas));
-  return `${n} de ${COMPARAR_MAXIMO} ${n === 1 ? 'selecionada' : 'selecionadas'}`;
-}
-
-/** "Limpar seleção". */
-export function limparSelecao(): string[] {
-  return [];
-}
 
 // ---------- Pares direita × esquerda (2ª entrega) ----------
 
@@ -251,4 +244,83 @@ export function seriesDoPar(avaliacoes: readonly AvaliacaoFisica[], id: IdDoPar)
   const direita = lado(par.direita);
   const esquerda = lado(par.esquerda);
   return { id: par.id, rotulo: par.rotulo, direita, esquerda, suficiente: direita.pontos.length > 0 && esquerda.pontos.length > 0 };
+}
+
+// ---------- Histórico em tabela (27/11) ----------
+
+export interface ColunaDoGrupo {
+  chave: ColunaDoHistorico;
+  /** Nome completo ("Braço direito"), para o leitor de tela. */
+  nome: string;
+  /** Segundo nível do cabeçalho ("D", "Cintura", "kg"). */
+  curto: string;
+  /** Rótulo no cartão do celular ("Braço D", "Cintura", "Peso"). */
+  etiqueta: string;
+}
+
+export interface GrupoDoHistorico {
+  /** Primeiro nível do cabeçalho, já com a unidade ("Tronco (cm)"): as células não repetem "cm". */
+  titulo: string;
+  colunas: ColunaDoGrupo[];
+}
+
+const coluna = (chave: CampoDaMedida, curto: string, etiqueta = curto): ColunaDoGrupo => ({
+  chave, nome: MEDIDAS.find((m) => m.campo === chave)?.rotulo ?? '', curto, etiqueta,
+});
+
+/**
+ * Colunas do histórico na ordem do pedido (Data | Peso | Braço D E | Peitoral … Quadril | Coxa D E | Panturrilha D E) em
+ * dois níveis: o tronco num grupo e cada membro no seu, com D e E embaixo (um grupo "Membros" só não caberia nessa ordem,
+ * com o braço antes do tronco).
+ */
+export const GRUPOS_DO_HISTORICO: readonly GrupoDoHistorico[] = [
+  { titulo: 'Peso', colunas: [{ chave: 'peso', nome: 'Peso', curto: 'kg', etiqueta: 'Peso' }] },
+  { titulo: 'Braço (cm)', colunas: [coluna('bracoDireito', 'D', 'Braço D'), coluna('bracoEsquerdo', 'E', 'Braço E')] },
+  { titulo: 'Tronco (cm)', colunas: [coluna('peitoral', 'Peitoral'), coluna('cintura', 'Cintura'), coluna('abdomen', 'Abdômen'), coluna('quadril', 'Quadril')] },
+  { titulo: 'Coxa (cm)', colunas: [coluna('coxaDireita', 'D', 'Coxa D'), coluna('coxaEsquerda', 'E', 'Coxa E')] },
+  { titulo: 'Panturrilha (cm)', colunas: [coluna('panturrilhaDireita', 'D', 'Panturrilha D'), coluna('panturrilhaEsquerda', 'E', 'Panturrilha E')] },
+];
+
+export interface CelulaDoHistorico {
+  /** "39,5", "90,0" ou "—". */
+  texto: string;
+  /** Desde a avaliação anterior que tem a coluna. */
+  variacao: VariacaoCurta;
+}
+
+/** As células de uma avaliação do histórico: valor e variação desde a anterior que mediu (a ausente não vira zero). */
+export function linhaDoHistorico(avaliacoes: readonly AvaliacaoFisica[], a: AvaliacaoFisica, meta: MetaDoPeso | null | undefined): Record<ColunaDoHistorico, CelulaDoHistorico> {
+  const celulas = {} as Record<ColunaDoHistorico, CelulaDoHistorico>;
+  for (const g of GRUPOS_DO_HISTORICO) for (const { chave } of g.colunas) {
+    const atual = valorDaColuna(a, chave);
+    celulas[chave] = { texto: valorParaTabela(chave, atual), variacao: variacaoCurta(chave, valorAnterior(avaliacoes, chave, a.data, a.id), atual, meta) };
+  }
+  return celulas;
+}
+
+export interface LinhaDaDiferenca {
+  chave: ColunaDoHistorico;
+  nome: string;
+  /** "87,0 → 85,5" ("—" no lado que não mediu). */
+  valores: string;
+  /** "▼ 1,5 cm"/"▲ 0,4 kg" ou "—"; com a cor da meta só nas colunas que a têm. */
+  variacao: VariacaoCurta;
+}
+
+/**
+ * Comparar duas datas (o botão do histórico): a diferença da mais nova menos a mais antiga, qualquer que seja a ordem
+ * escolhida. Fica de fora a coluna sem valor nas duas datas. Vazio com menos de duas avaliações distintas.
+ */
+export function diferencaEntre(avaliacoes: readonly AvaliacaoFisica[], idA: string, idB: string, meta: MetaDoPeso | null | undefined): LinhaDaDiferenca[] {
+  const [antiga, nova] = avaliacoes.filter((a) => a.id === idA || a.id === idB).sort((x, y) => x.data.localeCompare(y.data));
+  if (!antiga || !nova || idA === idB) return [];
+  return GRUPOS_DO_HISTORICO.flatMap((g) => g.colunas).flatMap(({ chave, nome }): LinhaDaDiferenca[] => {
+    const de = valorDaColuna(antiga, chave);
+    const ate = valorDaColuna(nova, chave);
+    if (de === null && ate === null) return [];
+    // Aqui um lado vazio é a medida não preenchida numa das datas escolhidas (não a "Primeira"): "—".
+    const v = de === null ? VARIACAO_SEM_VALOR : variacaoCurta(chave, de, ate, meta);
+    const unidade = chave === 'peso' ? 'kg' : 'cm';
+    return [{ chave, nome, valores: `${valorParaTabela(chave, de)} → ${valorParaTabela(chave, ate)}`, variacao: v.tipo === 'mudou' || v.tipo === 'igual' ? { ...v, texto: `${v.texto} ${unidade}` } : v }];
+  });
 }

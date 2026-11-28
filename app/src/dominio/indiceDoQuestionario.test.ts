@@ -1,9 +1,6 @@
 import type { ConteudoQuestionario, PerguntaAtualizacao } from '../api/tipos';
 import { agruparProblemas } from './editorQuestionario';
-import {
-  arranjoDoEditor, chaveDaSecao, colunasDoEditor, itensDoIndice, itemVisivel, LARGURA_DA_PREVIA, LARGURA_DO_INDICE, LARGURA_MAXIMA_DOS_ITENS,
-  LARGURA_MINIMA_DO_INDICE_LARGO, MAXIMO_DO_EDITOR, quantasPerguntas, secaoDaChave, VAO_DAS_COLUNAS,
-} from './indiceDoQuestionario';
+import { arranjoDoEditor, chaveDaSecao, itensDoIndice, itemVisivel, quantasPerguntas, secaoDaChave } from './indiceDoQuestionario';
 
 const p = (id: string): PerguntaAtualizacao => ({ id, tipo: 'TEXTO', rotulo: `Pergunta ${id}`, obrigatoria: false });
 const conteudo: ConteudoQuestionario = {
@@ -22,28 +19,6 @@ describe('arranjoDoEditor', () => {
   it('antes da medida e fora da web (celular, tablet nativo) nada muda', () => {
     expect(arranjoDoEditor(null, true)).toBe('simples');
     expect(arranjoDoEditor(2000, false)).toBe('simples');
-  });
-});
-
-describe('colunasDoEditor', () => {
-  const soma = (c: ReturnType<typeof colunasDoEditor>) => c.indice + c.editor + c.previa + 2 * c.vao;
-  it('na faixa do índice ele tem 240 e o editor fica com o resto', () => {
-    expect(colunasDoEditor(1250, 'indice')).toEqual({ indice: LARGURA_DO_INDICE, editor: 1250 - LARGURA_DO_INDICE - VAO_DAS_COLUNAS, previa: 0, vao: VAO_DAS_COLUNAS });
-  });
-  it('em 1440 o índice fica no mínimo, a prévia tem 560 e o editor o resto, com o vão normal', () => {
-    expect(colunasDoEditor(1440, 'tres')).toEqual({ indice: LARGURA_MINIMA_DO_INDICE_LARGO, editor: 572, previa: LARGURA_DA_PREVIA, vao: VAO_DAS_COLUNAS });
-    expect(LARGURA_DA_PREVIA).toBe(560);
-  });
-  it('o editor para em 1400 e o índice em 320; só depois disso a sobra vira vão, igual dos dois lados', () => {
-    expect(MAXIMO_DO_EDITOR).toBe(1400);
-    expect(colunasDoEditor(2268, 'tres')).toEqual({ indice: 260, editor: 1400, previa: 560, vao: 24 });
-    expect(colunasDoEditor(2300, 'tres')).toEqual({ indice: 292, editor: 1400, previa: 560, vao: 24 });
-    const c = colunasDoEditor(3089, 'tres');
-    expect([c.indice, c.editor, c.previa]).toEqual([LARGURA_MAXIMA_DOS_ITENS, 1400, 560]);
-    expect(c.vao).toBe(24 + (3089 - 560 - 48 - 1400 - 320) / 2);
-  });
-  it('as colunas e os vãos somam sempre a área', () => {
-    for (const area of [1440, 1633, 2268, 2500, 3089]) expect(soma(colunasDoEditor(area, 'tres'))).toBe(area);
   });
 });
 

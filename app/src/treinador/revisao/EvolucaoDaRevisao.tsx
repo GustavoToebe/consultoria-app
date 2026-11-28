@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { aluno as buscarAluno } from '../../api/rotas';
 import { blocoVisivel, type BlocoDaFicha, type ContextoDaFicha } from '../../dominio/fichaDoAluno';
 import { CartaoFotos } from '../../fotos/CartaoFotos';
@@ -27,6 +29,7 @@ export function blocosDaEvolucaoDaRevisao(pode: ContextoDaFicha['pode']): BlocoD
  */
 export function EvolucaoDaRevisao({ alunoId }: { alunoId: string }) {
   const { pode } = useSessao();
+  const [geracaoPeso, setGeracaoPeso] = useState(0);
   const blocos = blocosDaEvolucaoDaRevisao(pode);
   const precisaDoCadastro = blocos.includes('fotos') || blocos.includes('avaliacaoFisica');
   const cadastro = useCarregar(precisaDoCadastro ? `revisao-aluno:${alunoId}` : null, () => buscarAluno(alunoId));
@@ -36,14 +39,16 @@ export function EvolucaoDaRevisao({ alunoId }: { alunoId: string }) {
     if (!a) return <Esqueleto key={b} cartoes={1} />;
     return b === 'fotos'
       ? <CartaoFotos key={b} alunoId={alunoId} autorizadoEm={a.usoDeImagemAutorizadoEm} aoRecarregar={cadastro.recarregar} />
-      : <CartaoAvaliacaoFisica key={b} alunoId={alunoId} alunoNome={a.nome} anonimizado={a.anonimizado} />;
+      : <CartaoAvaliacaoFisica key={b} alunoId={alunoId} alunoNome={a.nome} anonimizado={a.anonimizado} geracaoPeso={geracaoPeso} metaDoPeso={a.metaDoPeso ?? null}
+        aoRegistrarPeso={() => setGeracaoPeso((g) => g + 1)} />;
   };
   // Erro do cadastro uma vez só, no lugar do primeiro cartão que depende dele.
   const primeiroDoCadastro = blocos.find((b) => b === 'fotos' || b === 'avaliacaoFisica');
   return (
     <>
       {blocos.map((b) => {
-        if (b === 'peso') return <CartaoPeso key={b} alunoId={alunoId} />;
+        // A chave muda quando a folha da avaliação registra um peso: o cartão Peso remonta e busca a lista de novo.
+        if (b === 'peso') return <CartaoPeso key={`${b}:${geracaoPeso}`} alunoId={alunoId} />;
         if (b === 'evolucaoDasRespostas') return <CartaoEvolucaoRespostas key={b} alunoId={alunoId} />;
         if (cadastro.erro && b !== primeiroDoCadastro) return null;
         return doCadastro(b);

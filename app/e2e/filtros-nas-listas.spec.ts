@@ -24,7 +24,16 @@ const opcao = (onde: Locator, grupo: string, rotulo: string) =>
  * Marca opções num filtro de várias opções (`SelecaoMultiplaSuspensa`): o botão "Rótulo: valor. Escolher." abre a lista
  * (no PC suspensa, no celular uma folha), cada rótulo é uma caixa; fecha com Esc (PC) ou Fechar (celular).
  */
+/**
+ * Regra única dos filtros (28/11): situações e origem (opções fixas) são chips no painel; responsável, pessoa e categoria
+ * (do cadastro, podem ser muitas) seguem na lista suspensa com busca.
+ */
+const EM_CHIPS = ['Situação', 'Origem'];
 async function marcar(page: Page, onde: Locator, rotulo: string, valorAtual: string, opcoes: string[], celular: boolean) {
+  if (EM_CHIPS.includes(rotulo)) {
+    for (const o of opcoes) await onde.getByRole('group', { name: rotulo }).getByRole('button', { name: o, exact: true }).click();
+    return;
+  }
   await onde.getByRole('button', { name: `${rotulo}: ${valorAtual}. Escolher.` }).click();
   const lista = page.getByRole('dialog', { name: rotulo });
   for (const o of opcoes) await lista.getByRole('checkbox', { name: o, exact: true }).click();
@@ -44,7 +53,7 @@ async function abrirPainelLateral(page: Page, nome: string): Promise<Locator> {
   return painel;
 }
 async function aplicarFiltros(painel: Locator) {
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(painel).toHaveCount(0);
 }
 
@@ -128,7 +137,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const painel2 = await abrirPainelLateral(page, 'Filtros de atualizações');
       await painel2.getByRole('textbox', { name: 'De', exact: true }).fill('01/10/2026');
       const antesDaData = pedidos.length;
-      await painel2.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel2.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(painel2).toBeVisible();
       await expect(painel2.getByRole('textbox', { name: 'Até', exact: true })).toHaveAttribute('aria-invalid', 'true');
       await expect(painel2.getByRole('textbox', { name: 'Até', exact: true })).toBeFocused();
@@ -284,7 +293,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await marcar(page, painel, 'Situação', 'Todas', ['Vencidas', 'Pagas'], celular);
       await opcao(painel, 'Plano', 'Consultoria mensal').click();
       await opcao(painel, 'Forma da baixa', 'Pagamento online').click();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect.poll(() => ultimo(pedidos, '/financeiro/cobrancas')?.get('forma')).toBe('ONLINE');
       expect(ultimo(pedidos, '/financeiro/cobrancas')?.getAll('situacao')).toEqual(['VENCIDA', 'PAGA']);
       expect(ultimo(pedidos, '/financeiro/cobrancas')?.get('planoId')).toBe(PLANO);
@@ -398,28 +407,31 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('Importação: destino e arquivo do endereço; situação e período pelo painel; Limpar tira tudo', async ({ page }) => {
+    test('Importação: destinos e arquivo do endereço; situações e período pelo painel, repetidos no pedido; Limpar tira tudo', async ({ page }) => {
       const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
         ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR })),
         'GET /inscricoes': { corpo: { itens: [], total: 0 } },
         'GET /importacoes': { corpo: { itens: [], total: 0, pagina: 0 } },
       });
-      // `outros` a pessoa não pode importar: o filtro é ignorado.
-      await page.goto('/treinador/importacao?destino=alunos&arquivo=csv&situacao=QUALQUER');
-      await expect(page.getByRole('button', { name: 'Tirar filtro: Destino: Alunos' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Tirar filtro: Arquivo: CSV (.csv)' })).toBeVisible();
+      // `outros` a pessoa não pode importar: o filtro é ignorado; os dois destinos vão repetidos no pedido.
+      await page.goto('/treinador/importacao?destino=alunos,pesos,outros&arquivo=csv&situacao=QUALQUER');
+      await expect(page.getByRole('button', { name: 'Tirar filtro: Destino: Alunos, Pesos' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Tirar filtro: Arquivo: CSV' })).toBeVisible();
       await expect(page.getByText('Nenhuma importação com esses filtros')).toBeVisible();
-      expect([ultimo(pedidos, '/importacoes')?.get('destino'), ultimo(pedidos, '/importacoes')?.get('arquivo'), ultimo(pedidos, '/importacoes')?.get('situacao')])
-        .toEqual(['alunos', 'csv', null]);
+      expect([ultimo(pedidos, '/importacoes')?.getAll('destino'), ultimo(pedidos, '/importacoes')?.get('arquivo'), ultimo(pedidos, '/importacoes')?.get('situacao')])
+        .toEqual([['alunos', 'pesos'], 'csv', null]);
       expect(ultimo(pedidos, '/importacoes')?.has('busca')).toBe(false);
 
+      // Situação em chips de várias escolhas (regra única dos filtros, 28/11).
       const painel = await abrirPainelLateral(page, 'Filtros de importações');
-      await opcao(painel, 'Situação', 'Falhou').click();
+      const situacao = painel.getByRole('group', { name: 'Situação' });
+      await situacao.getByRole('button', { name: 'Falhou', exact: true }).click();
+      await situacao.getByRole('button', { name: 'Concluída com erros', exact: true }).click();
       await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/10/2026');
       await aplicarFiltros(painel);
-      await expect.poll(() => ultimo(pedidos, '/importacoes')?.get('situacao')).toBe('FALHOU');
+      await expect.poll(() => ultimo(pedidos, '/importacoes')?.getAll('situacao')).toEqual(['CONCLUIDA_COM_ERROS', 'FALHOU']);
       await expect.poll(() => ultimo(pedidos, '/importacoes')?.get('de')).toBe('2026-10-01');
-      await expect(page).toHaveURL(/situacao=FALHOU/);
+      await expect(page).toHaveURL(/situacao=CONCLUIDA_COM_ERROS(%2C|,)FALHOU/);
       await expect(page.getByRole('button', { name: 'Tirar filtro: Data: a partir de 01/10/2026' })).toBeVisible();
 
       await page.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
@@ -476,7 +488,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByText('Rascunho novo', { exact: true })).toBeVisible();
 
       const painel2 = await abrirPainelLateral(page, 'Filtros de questionários');
-      await opcao(painel2, 'Publicação', 'Todos').click();
+      // Publicação em chips de uma escolha: tocar no escolhido o desmarca (= todos).
+      await opcao(painel2, 'Publicação', 'Nunca publicados').click();
       await opcao(painel2, 'Situação', 'Arquivados').click();
       await aplicarFiltros(painel2);
       await expect(page.getByText('Antigo', { exact: true })).toBeVisible();

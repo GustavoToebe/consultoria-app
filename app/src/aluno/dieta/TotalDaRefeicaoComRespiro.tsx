@@ -1,11 +1,10 @@
 import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { TotaisComFibra } from '../../dominio/dieta';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes } from '../../tema/tokens';
 import { Texto } from '../../ui/Texto';
-import { FIBRA, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, textoDaFibra, TotalParaLeitor, type CorDoMacro } from '../../ui/ValoresDaDieta';
+import { FIBRA, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, textoDaFibra, TotalParaLeitor, type CorDoMacro, type ValoresComFibra } from '../../ui/ValoresDaDieta';
 
 /**
  * Total da refeição na aba Dieta do aluno com a coluna de apoio ao lado (web, `docs/planos/orientacoes-de-design-26-11.md`
@@ -14,7 +13,7 @@ import { FIBRA, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, textoDaFibra, To
  * valor anda inteiro (quebra de linha, nunca reticências). O leitor ouve a frase inteira (`TotalParaLeitor`); o que se vê
  * fica escondido dele. O celular e a prévia do treinador seguem com a linha de sempre.
  */
-export function TotalDaRefeicaoComRespiro({ rotulo, totais }: { rotulo: string; totais: TotaisComFibra }) {
+export function TotalDaRefeicaoComRespiro({ rotulo, totais }: { rotulo: string; totais: ValoresComFibra }) {
   const { cores } = useTema();
   const fibra = textoDaFibra(totais);
   const valores: { chave: string; cor: CorDoMacro; texto: string }[] = [

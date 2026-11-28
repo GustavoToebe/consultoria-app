@@ -2,6 +2,7 @@ import type {
   PerguntaAtualizacao, PerguntaDaRegra, RegraDeAtencao, RegraDeAtencaoEnvio, SalvarRegrasDeAtencao, TipoDePerguntaDaRegra,
   TipoDeRegraDeAtencao,
 } from '../api/tipos';
+import type { FaixaDeLargura } from '../tema/tokens';
 import { numeroDaTela, numeroParaTela } from './formatos';
 
 /**
@@ -19,50 +20,82 @@ export const ehTipoDeRegra = (t: unknown): t is TipoDeRegraDeAtencao => (TIPOS_D
 export interface ModeloDeRegra {
   tipo: TipoDeRegraDeAtencao;
   titulo: string;
+  /** Uma linha, no cartão do modelo (28/11: o detalhe que não cabe vai em `ajuda`, embaixo da frase). */
   descricao: string;
   /** Tipo da pergunta que o modelo usa; nulo = modelo sem pergunta. */
   pergunta: TipoDePerguntaDaRegra | null;
-  /** Rótulo do campo do número; nulo = modelo sem número. */
+  /** Rótulo do campo do número (o nome acessível do campo no meio da frase); nulo = modelo sem número. */
   campo: string | null;
-  /** Motivo do interruptor desabilitado quando nenhum questionário tem pergunta do tipo; nulo nos modelos sem pergunta. */
+  /** Selo do interruptor desabilitado quando nenhum questionário tem pergunta do tipo; nulo nos modelos sem pergunta. */
   semPergunta: string | null;
+  /** O que a frase não diz e o treinador precisa saber; nulo = nada. */
+  ajuda: string | null;
 }
 
 export const MODELOS_DE_REGRA: Readonly<Record<TipoDeRegraDeAtencao, ModeloDeRegra>> = {
   NOTA_ABAIXO: {
     tipo: 'NOTA_ABAIXO', titulo: 'Nota até um número',
-    descricao: 'Uma nota que você escolher ficou no número que você definir, ou abaixo dele.',
+    descricao: 'A nota de uma pergunta escolhida ficou baixa.',
     pergunta: 'NOTA', campo: 'Nota igual ou menor que',
-    semPergunta: 'Nenhum questionário de atualização publicado tem pergunta de nota.',
+    semPergunta: 'Precisa de uma pergunta de nota', ajuda: null,
   },
   NOTA_CAIU: {
     tipo: 'NOTA_CAIU', titulo: 'Nota que caiu',
-    descricao: 'Qualquer nota caiu esse número de pontos, ou mais, desde a atualização anterior. Vale na escala de cada nota.',
-    pergunta: null, campo: 'Caiu pelo menos (pontos)', semPergunta: null,
+    descricao: 'Qualquer nota caiu desde a atualização anterior.',
+    pergunta: null, campo: 'Caiu pelo menos (pontos)', semPergunta: null, ajuda: 'Vale na escala de cada nota.',
   },
   SIM: {
     tipo: 'SIM', titulo: 'Resposta Sim',
     descricao: 'O aluno respondeu Sim numa pergunta de Sim ou Não.',
     pergunta: 'SIM_NAO', campo: null,
-    semPergunta: 'Nenhum questionário de atualização publicado tem pergunta de Sim ou Não.',
+    semPergunta: 'Precisa de uma pergunta de Sim ou Não', ajuda: null,
   },
   PESO_MUDOU: {
     tipo: 'PESO_MUDOU', titulo: 'Peso mudou',
-    descricao: 'O peso subiu ou desceu esse número, ou mais, desde a atualização anterior.',
-    pergunta: null, campo: 'Mudou pelo menos (kg)', semPergunta: null,
+    descricao: 'O peso mudou desde a atualização anterior.',
+    pergunta: null, campo: 'Mudou pelo menos (kg)', semPergunta: null, ajuda: null,
   },
   POUCOS_TREINOS: {
     tipo: 'POUCOS_TREINOS', titulo: 'Poucos dias com treino',
-    descricao: 'Os dias com treino registrado no app, no período da atualização, ficaram nesse número ou abaixo. A conta é feita no envio.',
-    pergunta: null, campo: 'Dias com treino igual ou menor que', semPergunta: null,
+    descricao: 'Poucos dias com treino registrado no período.',
+    pergunta: null, campo: 'Dias com treino igual ou menor que', semPergunta: null, ajuda: 'A conta é feita no envio da atualização.',
   },
   ITEM_MARCADO: {
     tipo: 'ITEM_MARCADO', titulo: 'Item marcado',
-    descricao: 'O aluno marcou um item numa pergunta de itens do plano (alimento, exercício ou dia).',
+    descricao: 'O aluno marcou alimento, exercício ou dia do plano.',
     pergunta: 'ITENS_DO_PLANO', campo: null,
-    semPergunta: 'Nenhum questionário de atualização publicado tem pergunta de itens do plano.',
+    semPergunta: 'Precisa de uma pergunta de itens do plano', ajuda: null,
   },
 };
+
+/**
+ * A frase do cartão ligado (28/11), com o campo do número entre `antes` e `depois` ("Avisar quando uma nota cair [2] pontos
+ * ou mais"); `depois` nulo = modelo sem número (a frase vem depois da escolha da pergunta). O plural segue o que foi digitado.
+ */
+export function fraseDaRegra(tipo: TipoDeRegraDeAtencao, limite: string): { antes: string; depois: string | null } {
+  const um = numeroDaTela(limite.trim()) === 1;
+  switch (tipo) {
+    case 'NOTA_ABAIXO': return { antes: 'Avisar quando a nota ficar em', depois: 'ou menos' };
+    case 'NOTA_CAIU': return { antes: 'Avisar quando uma nota cair', depois: `${um ? 'ponto' : 'pontos'} ou mais` };
+    case 'SIM': return { antes: 'Avisar quando o aluno responder Sim.', depois: null };
+    case 'PESO_MUDOU': return { antes: 'Avisar quando o peso mudar', depois: 'kg ou mais (para cima ou para baixo)' };
+    case 'POUCOS_TREINOS': return { antes: 'Avisar quando houver', depois: `${um ? 'dia' : 'dias'} de treino ou menos no período` };
+    case 'ITEM_MARCADO': return { antes: 'Avisar quando o aluno marcar um item.', depois: null };
+  }
+}
+
+/** A partir desta largura útil da `Tela`, a coluna "Como funciona" fica ao lado da grade, fixa ao rolar, e a grade tem 2 colunas. */
+export const AREA_DAS_REGRAS_LADO_A_LADO = 1280;
+
+/**
+ * Arranjo de Configurações › Regras de atenção (28/11), pela área da `Tela` (4.10), não pela largura da própria grade: com
+ * ao menos `AREA_DAS_REGRAS_LADO_A_LADO` a lateral vai ao lado e a grade tem 2 colunas (3 na faixa ultralarga); abaixo,
+ * uma coluna e a lateral embaixo da grade.
+ */
+export function arranjoDasRegras(faixa: FaixaDeLargura, area: number): { lado: boolean; colunas: 1 | 2 | 3 } {
+  if (!(area >= AREA_DAS_REGRAS_LADO_A_LADO)) return { lado: false, colunas: 1 };
+  return { lado: true, colunas: faixa === 'ultralarga' ? 3 : 2 };
+}
 
 /** Textos fixos da tela de Configurações › Regras de atenção (a tela não escreve texto próprio). */
 export const TEXTOS_DAS_REGRAS = {

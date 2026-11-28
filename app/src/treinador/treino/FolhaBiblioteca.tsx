@@ -11,6 +11,7 @@ import {
   passaNosFiltros, rotuloDoMostrar, SEM_FILTROS_DE_EXERCICIOS, semOFiltro, type FiltrosDeExercicios,
 } from '../../dominio/exerciciosDaBiblioteca';
 import { selecaoDepoisDoGrupo } from '../../dominio/filtrosDosCartoes';
+import { comContagemDasModalidades } from '../../dominio/painelDeExercicios';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_FOLHA_LARGA, RAIO } from '../../tema/tokens';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
@@ -39,9 +40,10 @@ type Linha = { tipo: 'exercicio'; exercicio: Exercicio } | { tipo: 'manual'; nom
 
 /**
  * Escolher o exercício da biblioteca da consultoria (`docs/design-e-front.md`; a mesma linha, legenda e painel de filtros da
- * Biblioteca › Exercícios). Também dá para usar só o nome digitado, sem ligar à biblioteca: com a busca preenchida, a última
- * linha da lista é "Usar “texto” como exercício manual" (aí o progresso desse exercício não junta com outros planos). Com
- * `multiplo` (exercício novo) dá para marcar vários e adicionar de uma vez; sem ele (trocar um exercício) a escolha é uma só.
+ * Biblioteca › Exercícios). Também dá para usar só o nome digitado, sem ligar à biblioteca: quando a busca não acha nenhum
+ * exercício, a lista mostra só "Usar “texto” como exercício manual" (aí o progresso desse exercício não junta com outros planos). Com
+ * `multiplo` (exercício novo de musculação) dá para marcar vários e adicionar de uma vez; sem ele (trocar um exercício, e
+ * o cardio, que é sempre um só, 27.5) a escolha é uma e fecha a folha.
  * `aoEscolher` recebe sempre a lista, na ordem em que foram marcados. Com `cardio` ("+ Adicionar cardio", trocar um cardio
  * ou a alternativa de um cardio) a folha é "Escolher cardio": só os cardios da biblioteca, sem o filtro de modalidade, com
  * o "Tipo de cardio" no lugar do grupo muscular (que o cardio não tem, D13 de docs/planos/cardio-e-hiit.md) e a linha
@@ -140,7 +142,7 @@ export function FolhaBiblioteca({
   };
   const adicionar = () => aoEscolher(marcadosEmOrdem());
 
-  const manual = linhaDoManual(busca, { alternativa: !!alternativaDe, cardio, nomesDaLista: filtrados.map((e) => e.nome) });
+  const manual = linhaDoManual(busca, { alternativa: !!alternativaDe, cardio, resultados: filtrados.length });
   const linhas: Linha[] = [...visiveis.map((e) => ({ tipo: 'exercicio' as const, exercicio: e })), ...(manual ? [{ tipo: 'manual' as const, ...manual }] : [])];
   // A linha ativa: a que o teclado (ou o mouse) apontou; senão, com busca a primeira (Enter escolhe o primeiro resultado) e,
   // sem busca, a do exercício atual da troca.
@@ -177,14 +179,13 @@ export function FolhaBiblioteca({
     return (
       <Folha visivel={visivel} titulo={`Filtros de ${assunto}`} aoFechar={etapa.fechar} rodape={etapa.rodape} largura={LARGURA_FOLHA_LARGA}>
         {etapa.corpo(
-          <>
-            {cardio ? (
+          <PainelDeExercicios atual={etapa.rascunho} mudar={etapa.mudar} grupos={grupos} comModalidade={!cardio}
+            // O cardio não tem grupo muscular: o "Tipo de cardio" fica na coluna da esquerda.
+            esquerda={cardio ? (
               <FiltroDoTipoDeCardio opcoes={tipos} marcados={etapa.rascunho.tiposDeCardio}
                 aoMudar={(m) => etapa.mudar({ ...etapa.rascunho, tiposDeCardio: m })} />
-            ) : null}
-            <PainelDeExercicios atual={etapa.rascunho} mudar={etapa.mudar} grupos={grupos} comModalidade={!cardio}
-              opcoesDeModalidades={opcoesDeModalidade(modalidadesExistentes(daFolha), etapa.rascunho.modalidades)} />
-          </>,
+            ) : undefined}
+            opcoesDeModalidades={comContagemDasModalidades(opcoesDeModalidade(modalidadesExistentes(daFolha), etapa.rascunho.modalidades), daFolha)} />,
         )}
         {multiplo && marcados.size > 0 ? (
           <Texto variante="pequeno">
@@ -215,8 +216,8 @@ export function FolhaBiblioteca({
       rodape={multiplo ? (
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo={cardio ? (marcados.size > 1 ? `Adicionar ${marcados.size} cardios` : 'Adicionar cardio') : marcados.size > 1 ? `Adicionar ${marcados.size} exercícios` : 'Adicionar exercício'}
-            aoTocar={adicionar} desabilitado={marcados.size === 0} motivo={cardio ? 'Marque ao menos um cardio.' : 'Marque ao menos um exercício.'} />
+          <Botao rotulo={marcados.size > 1 ? `Adicionar ${marcados.size} exercícios` : 'Adicionar exercício'}
+            aoTocar={adicionar} desabilitado={marcados.size === 0} motivo="Marque ao menos um exercício." />
         </>
       ) : undefined}>
       {etapa.barra(

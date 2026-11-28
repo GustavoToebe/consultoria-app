@@ -94,15 +94,17 @@ for (const largura of [1280, 1920]) {
       await page.getByRole('radio', { name: 'AMRAP', exact: true }).click();
       await expect(page.getByText('O aluno faz o máximo que conseguir e anota quantas fez.', { exact: true })).toBeVisible();
       expect((await descanso.boundingBox())!.x).toBeCloseTo(x0, 0);
-      await expect(page.getByText(/^Para o aluno: 1×AMRAP · WS/)).toBeVisible();
-      await expect(page.getByText('Descanso 90 s', { exact: true })).toBeVisible();
+      // A prévia do aluno (seção 4): os cartões da tela do exercício do aluno e a legenda; a linha "Para o aluno:" saiu.
+      await expect(page.getByRole('group', { name: 'Prévia para o aluno' })).toBeVisible();
+      await expect(page.getByText('Descanso de 90 s depois da série', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Para o aluno: /)).toHaveCount(0);
       await capturar(page, `serie-amrap-${sufixo}.png`, saida);
 
       // Carga e RIR: o ⓘ do título; o RIR mostra só o valor.
       await expect(page.getByRole('button', { name: 'Série 1 · RIR: 1. Escolher.', exact: true })).toBeVisible();
 
       // Item 8: seções recolhíveis com resumo; abertas, em grade.
-      await expect(page.getByText('Supino reto com barra · sem vídeo', { exact: true })).toBeVisible();
+      await expect(page.getByText('Supino reto com barra · sem vídeo · sem cadência', { exact: true })).toBeVisible();
       await expect(page.getByText('Nenhuma alternativa', { exact: true })).toBeVisible();
       // A página rola por dentro: leva o topo do exercício ao meio da janela antes da captura.
       const topoDasSecoes = () => page.getByRole('button', { name: 'Nome de exibição e instruções', exact: true }).evaluate((e) => e.scrollIntoView({ block: 'center' }));
@@ -136,46 +138,60 @@ for (const largura of [1280, 1920]) {
       const bloco = (n: number) => page.getByRole('textbox', { name: `Bloco ${n}`, exact: true });
       await expect(page.getByRole('radio', { name: 'Blocos diferentes', exact: true })).toBeChecked();
       await expect(bloco(3)).toHaveValue('2');
-      await expect(page.getByText('Blocos 4+4+2 = 10 reps', { exact: true })).toBeVisible();
+      await expect(page.getByText('3 blocos · 10 reps por série', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Descanso: 2 min. Escolher.', exact: true })).toBeVisible();
+      // O descanso do cluster é o da série inteira (seção 3); a linha Repetições não existe no cluster.
+      await expect(page.getByText('É o tempo depois de cada série (os blocos têm a pausa própria).', { exact: true })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Reps mín.', exact: true })).toHaveCount(0);
       await capturar(page, `cluster-antes-${sufixo}.png`, saida);
 
       // Adicionar: o bloco novo entra com as repetições do último, editável e focado; resumo e linha mudam na hora.
       await page.getByRole('button', { name: 'Adicionar um bloco', exact: true }).click();
       await expect(bloco(4)).toHaveValue('2');
       await expect(bloco(4)).toBeFocused();
-      await expect(page.getByText('Blocos 4+4+2+2 = 12 reps', { exact: true })).toBeVisible();
+      await expect(page.getByText('4 blocos · 12 reps por série', { exact: true })).toBeVisible();
       await capturar(page, `cluster-depois-${sufixo}.png`, saida);
       await bloco(4).fill('4');
-      await expect(page.getByText('Blocos 4+4+2+4 = 14 reps', { exact: true })).toBeVisible();
+      await expect(page.getByText('4 blocos · 14 reps por série', { exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Remover um bloco', exact: true }).click();
       await expect(bloco(4)).toHaveCount(0);
-      await expect(page.getByText('Blocos 4+4+2 = 10 reps', { exact: true })).toBeVisible();
+      await expect(page.getByText('3 blocos · 10 reps por série', { exact: true })).toBeVisible();
 
       // O defeito de 27/11: com blocos iguais em "Blocos diferentes", mais um bloco não pode voltar para "iguais".
-      await page.getByRole('button', { name: 'Digitar como texto', exact: true }).click();
+      await page.getByRole('button', { name: 'Digitar como texto (4-4-2)', exact: true }).click();
       await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('5+5+5+5');
-      await expect(page.getByText('4 blocos × 5 reps = 20 reps', { exact: true })).toBeVisible();
+      await expect(page.getByText('4 blocos · 20 reps por série', { exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Adicionar um bloco', exact: true }).click();
       await expect(page.getByRole('radio', { name: 'Blocos diferentes', exact: true })).toBeChecked();
       await expect(bloco(5)).toHaveValue('5');
-      await expect(page.getByText('5 blocos × 5 reps = 25 reps', { exact: true })).toBeVisible();
-      await expect(page.getByRole('textbox', { name: 'Blocos de repetições', exact: true })).toHaveValue('5×5');
+      await expect(page.getByText('5 blocos · 25 reps por série', { exact: true })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Blocos de repetições', exact: true })).toHaveValue('5-5-5-5-5');
       await page.getByRole('button', { name: 'Remover um bloco', exact: true }).click();
-      await expect(page.getByText('4 blocos × 5 reps = 20 reps', { exact: true })).toBeVisible();
-      await expect(page.getByRole('textbox', { name: 'Blocos de repetições', exact: true })).toHaveValue('4×5');
+      await expect(page.getByText('4 blocos · 20 reps por série', { exact: true })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Blocos de repetições', exact: true })).toHaveValue('5-5-5-5');
 
       // Blocos iguais: um campo só, com a quantidade ao lado e os mesmos − e +.
       await page.getByRole('radio', { name: 'Blocos iguais', exact: true }).click();
       await page.getByRole('textbox', { name: 'Repetições em cada bloco', exact: true }).fill('3');
-      await expect(page.getByText('4 blocos × 3 reps = 12 reps', { exact: true })).toBeVisible();
+      await expect(page.getByText('4 blocos · 12 reps por série', { exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Adicionar um bloco', exact: true }).click();
-      await expect(page.getByText('5 blocos × 3 reps = 15 reps', { exact: true })).toBeVisible();
-      // A pausa: [15] e "s · respirações" na mesma linha; "Informar também em respirações" só em segundos.
-      await expect(page.getByRole('button', { name: 'Informar também em respirações (pausa entre blocos)', exact: true })).toBeVisible();
-      await page.getByRole('radio', { name: 'respirações', exact: true }).click();
-      await expect(page.getByRole('button', { name: /^Informar também em segundos/ })).toHaveCount(0);
+      await expect(page.getByText('5 blocos · 15 reps por série', { exact: true })).toBeVisible();
+      // A pausa: `[s] s · [respirações] respirações (opcional)`, dois campos fixos na mesma linha; a dica diz o que o aluno lê.
+      const pausa = page.getByRole('textbox', { name: 'Pausa entre blocos (s)', exact: true });
+      const respiracoes = page.getByRole('textbox', { name: 'Pausa entre blocos em respirações', exact: true });
+      await respiracoes.fill('3');
+      expect(Math.abs((await pausa.boundingBox())!.y - (await respiracoes.boundingBox())!.y)).toBeLessThan(4);
+      await expect(page.getByText(/^O aluno vê ".*3 respirações"/)).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Informar também em/ })).toHaveCount(0);
       await capturar(page, `cluster-iguais-${sufixo}.png`, saida);
+      // RIR · RPE vale para todas as séries; no RPE a dica diz a escala.
+      // O Crucifixo tem RIR 0 gravado: trocar apaga, então o painel pergunta antes.
+      await page.getByRole('radio', { name: 'RPE', exact: true }).click();
+      const painel = page.getByRole('alertdialog', { name: 'Trocar o esforço para RPE?' });
+      await expect(painel.getByText('Trocar para RPE apaga o RIR de 1 série.', { exact: true })).toBeVisible();
+      await painel.getByRole('button', { name: 'Trocar para RPE', exact: true }).click();
+      await expect(page.getByText('RPE de 1 a 10, de meio em meio (ex.: 8 ou 8,5).', { exact: true })).toBeVisible();
+      await capturar(page, `cluster-rpe-${sufixo}.png`, saida);
       expect(await semRolagemLateral(page)).toBe(true);
       expect(api.errosDaPagina).toEqual([]);
     });

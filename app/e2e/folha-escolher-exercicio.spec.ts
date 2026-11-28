@@ -103,8 +103,9 @@ for (const largura of [1280, 390]) {
     await folha.getByRole('button', { name: 'Tirar filtro: Grupo muscular: Peito' }).click();
     await expect(opcoes(page)).toHaveCount(LISTA.length);
     await busca.fill('remada');
-    await expect(opcoes(page)).toHaveCount(2);
-    await expect(opcoes(page).nth(1)).toHaveAccessibleName(/^Usar só o nome remada/);
+    // Com resultado na lista, não há a linha do manual (só quando a busca não acha nada).
+    await expect(opcoes(page)).toHaveCount(1);
+    await expect(folhaDe(page).getByRole('option', { name: /^Usar só o nome/ })).toHaveCount(0);
     await page.keyboard.press('Enter');
     await expect(folha).toHaveCount(0);
     await expect(page.getByText(REMADA.nome).first()).toBeVisible();

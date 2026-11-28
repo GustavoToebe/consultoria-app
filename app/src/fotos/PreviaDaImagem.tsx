@@ -1,12 +1,12 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { FotoDaLinha } from '../api/tipos';
 import { LARGURA_IMAGEM, layoutDaImagem, type FormatoDaImagem, type RetanguloDaImagem } from '../dominio/comparacaoDeFotos';
 import { dataParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { enderecoDaImagem } from '../ui/ImagemProtegida';
+import { useEnderecoDoBlob } from '../ui/ImagemProtegida';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -66,10 +66,12 @@ function Quadro({ chave, descricao, carregar, estilo }: {
   estilo: { left: number; top: number; width: number; height: number };
 }) {
   const { cores } = useTema();
-  const { dados: endereco, erro, recarregar } = useCarregar(chave, async () => enderecoDaImagem(await carregar()));
-  useEffect(() => () => {
-    if (endereco?.startsWith('blob:')) URL.revokeObjectURL(endereco);
-  }, [endereco]);
+  // O endereço nasce e morre no `useEnderecoDoBlob`: a resposta descartada por troca de chave não deixa `blob:` preso.
+  const baixada = useCarregar(chave, carregar);
+  const lida = useEnderecoDoBlob(baixada.dados);
+  const endereco = lida.endereco;
+  const erro = baixada.erro ?? (lida.erro || undefined);
+  const recarregar = baixada.recarregar;
   if (erro) {
     return (
       <Pressable accessibilityRole="button" accessibilityLabel={`${descricao}: não foi possível carregar. Tocar para tentar de novo`}

@@ -27,7 +27,10 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   ajudaForaDoCampo?: { id: string; texto: string };
   /** Campo de várias linhas (observações). */
   linhas?: number;
-  /** Altura fixa do campo de várias linhas (o `CampoDaTabela` no celular, medida pelo texto; passou dela, o campo rola). */
+  /**
+   * Altura fixa da caixa: no campo de várias linhas (o `CampoDaTabela` no celular, medida pelo texto; passou dela, o
+   * campo rola) ou de uma linha (o número da série aberta, 46).
+   */
   altura?: number;
   /** Botão dentro do campo, à direita (ex.: calendário). */
   acao?: ReactNode;
@@ -48,6 +51,12 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   grande?: boolean;
   /** Cor do texto digitado, quando ela carrega um sinal (valor de entrada ou de saída); desabilitado continua cinza. */
   corDoTexto?: string;
+  /** Número em fonte monoespaçada no peso mais forte carregado (Geist Mono 600): carga, reps e pausa da série. */
+  mono?: boolean;
+  /** Texto centralizado na caixa (campo numérico estreito). */
+  centralizado?: boolean;
+  /** Contorno em repouso sobre um fundo que não é o neutro (cartão pintado), para manter 3:1; foco e erro continuam valendo. */
+  corDaBorda?: string;
 }
 
 /**
@@ -56,11 +65,11 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
  * leitor de tela: `aria-invalid` na web, região viva no Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de
  * foco (a cor da marca não contrasta no escuro).
  */
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, linhas, altura, numerico, acao, rotuloAcessivel, rotuloOculto, rotuloDiscreto, sufixo, erroSemTexto, grande, corDoTexto, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, linhas, altura, numerico, acao, rotuloAcessivel, rotuloOculto, rotuloDiscreto, sufixo, erroSemTexto, grande, corDoTexto, mono, centralizado, corDaBorda, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const cinza = coresDoDesabilitado(cores);
-  const corBorda = erro ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
+  const corBorda = erro ? cores.perigo : foco ? cores.anelFoco : corDaBorda ?? cores.bordaCampo;
   // Foco e erro têm borda de 2 px; o padding cede 1 px para a altura e o texto não mexerem.
   const destaque = foco || !!erro ? 1 : 0;
   useAnunciarErro(erro, rotulo);
@@ -100,6 +109,8 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, l
           acao ? { paddingRight: ALVO_TOQUE } : sufixo ? { paddingRight: espaco(1.5) + escalar(16, fatorTexto) * sufixo.length } : null,
           { color: corDoTexto ?? cores.texto, backgroundColor: cores.campo, borderColor: corBorda, fontSize: escalar(16, fatorTexto) },
           grande ? { fontSize: escalar(22, fatorTexto), fontFamily: fontes.semi, minHeight: ALVO_TOQUE + 8 } : null,
+          mono ? { fontFamily: fontes.monoSemi } : null,
+          centralizado ? { textAlign: 'center' as const } : null,
           resto.editable === false ? { color: cinza.texto, backgroundColor: cinza.fundo, borderColor: cinza.borda } : null,
         ]}
       />

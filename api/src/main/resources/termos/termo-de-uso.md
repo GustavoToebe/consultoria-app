@@ -1,7 +1,5 @@
 # Termo de uso
 
-RASCUNHO [REVISAR COM ADVOGADO]: este texto ainda não foi revisado por um advogado.
-
 ## 1. O que é este aplicativo
 O aplicativo permite que o seu treinador monte o seu treino, a sua dieta e a sua mobilidade, e que você veja o plano e
 registre cargas, repetições, peso e atualizações, inclusive sem internet. Quem presta o serviço de acompanhamento a você
@@ -34,4 +32,4 @@ tratados conforme o Aviso de privacidade.
 Quando este termo mudar, o aplicativo pede um novo aceite antes de continuar.
 
 ## 8. Contato
-[CONTATO DA CONSULTORIA — PREENCHER]
+{{CONTATO_DA_CONSULTORIA}}

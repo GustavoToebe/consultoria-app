@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { ConteudoMobilidadeApi, PlanoDetalhe, Receita } from '../src/api/tipos';
-import { colunasDaMobilidade } from '../src/dominio/colunasDaMobilidade';
+import { colunasComPrevia } from '../src/dominio/colunasDoEditor';
 import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
@@ -522,15 +522,15 @@ const rolarPagina = (page: Page, y: number) => page.evaluate((alvo) => {
   r!.scrollTop = alvo;
 }, y);
 
-// Tela larga (26/11): lista | seção | prévia ao vivo, com as larguras de `colunasDaMobilidade` medidas na tela.
-// 1920: faixa larga (prévia de 440, a seção com o resto); 3440: ultralarga (prévia de 560, a seção para em 1400, a lista em
-// 320 e a sobra vira dois vãos iguais). A linha é a medida na tela (menu aberto, barra de rolagem), não um número fixo.
-for (const [largura, previaEsperada] of [[1920, 440], [3440, 560]] as const) {
+// Tela larga (26/11; regra das colunas de 28/11, `colunasComPrevia`): lista de 280 | seção | prévia ao vivo, vãos fixos de
+// 24; a seção cresce primeiro (até 1400), depois a prévia (de 440 a 720), e a sobra fica no fim da linha. 1920: prévia de
+// 440, a seção com o resto; 3440: seção em 1400, prévia em 720 e a sobra à direita. A linha é a medida na tela.
+for (const [largura, previaEsperada] of [[1920, 440], [3440, 720]] as const) {
   test(`${largura}: três colunas que preenchem a linha, prévia grudada ao rolar, rolada até a seção aberta e atualizada ao digitar`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrir(page, largura, { conteudo: LONGA });
     const previa = page.getByTestId('previa-da-mobilidade');
     await expect(previa).toBeVisible();
-    await expect(page.getByRole('complementary', { name: 'Prévia para o aluno' })).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Prévia · como o aluno vê o rascunho' })).toBeVisible();
     const lista = (await page.getByRole('group', { name: 'Seções da mobilidade' }).boundingBox())!;
     const painel = (await page.locator('[id^="secao-"]').first().boundingBox())!;
     const caixa = (await previa.boundingBox())!;
@@ -549,25 +549,31 @@ for (const [largura, previaEsperada] of [[1920, 440], [3440, 560]] as const) {
       await page.keyboard.press('Tab');
       expect(await page.evaluate(() => !!document.activeElement?.closest('[data-testid="previa-da-mobilidade"] [inert]'))).toBe(false);
     }
-    const linha = caixa.x + caixa.width - lista.x;
-    const esperado = colunasDaMobilidade(Math.round(linha))!;
+    const linha = (await page.getByRole('group', { name: 'Seções da mobilidade' }).locator('xpath=../..').boundingBox())!.width;
+    const esperado = colunasComPrevia(Math.floor(linha), 280);
     expect(esperado.previa).toBe(previaEsperada);
-    expect(Math.abs(lista.width - esperado.lista)).toBeLessThan(2);
+    expect(Math.abs(lista.width - esperado.indice)).toBeLessThan(2);
     expect(Math.abs(painel.width - esperado.editor)).toBeLessThan(2);
     expect(Math.round(caixa.width)).toBe(esperado.previa);
-    if (largura > 3000) expect([Math.round(lista.width), Math.round(painel.width)]).toEqual([320, 1400]);
-    // Os dois vãos iguais (a sobra não fica numa faixa só) e a linha inteira ocupada até a prévia.
+    if (largura > 3000) expect([Math.round(lista.width), Math.round(painel.width), Math.round(caixa.width)]).toEqual([280, 1400, 720]);
+    // Os dois vãos de 24 (a sobra nunca entra entre as colunas).
     expect(Math.abs(painel.x - (lista.x + lista.width) - esperado.vao)).toBeLessThan(2);
     expect(Math.abs(caixa.x - (painel.x + painel.width) - esperado.vao)).toBeLessThan(2);
     const tituloDasSecoes = (await page.getByRole('heading', { name: 'Seções (3)' }).boundingBox())!;
     expect(Math.abs(tituloDasSecoes.x - lista.x)).toBeLessThan(2);
+    // Embaixo da lista, o resumo e a situação (plano nunca publicado no cenário).
+    const colunaDaLista = page.getByRole('group', { name: 'Seções da mobilidade' }).locator('xpath=..');
+    await expect(colunaDaLista.getByText(/^3 seções · \d+ itens?$/)).toBeVisible();
+    await expect(colunaDaLista.getByText('Ainda não publicado', { exact: true })).toBeVisible();
     // O que o aluno vê: as seções, a prescrição ("—" sem ela) e "Ver vídeo" só no item com vídeo; nada de campo nem foco.
     await expect(previa.getByText('Item fictício 12')).toBeVisible();
     await expect(previa.getByText('Ver vídeo')).toHaveCount(2);
     await expect(previa.getByText('—', { exact: true })).toHaveCount(1);
     await expect(previa.getByText(/^3 x 12 cada lado, segurando/)).toBeVisible();
     await expect(previa.locator('[inert]')).toHaveCount(1);
-    await expect(previa.getByRole('button')).toHaveCount(0);
+    // O único botão da prévia é o ⓘ do título; os cartões do aluno são inertes.
+    await expect(previa.getByRole('button')).toHaveCount(1);
+    await expect(previa.getByRole('button', { name: 'Sobre a prévia' })).toBeVisible();
     // Atualiza a cada tecla, com o estado do editor (não salvo).
     await page.getByRole('textbox', { name: 'Nome do item 1', exact: true }).fill('Gato-vaca lento');
     await expect(previa.getByText('Gato-vaca lento')).toBeVisible();

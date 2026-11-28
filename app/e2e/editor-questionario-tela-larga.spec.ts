@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { abrirEditor } from './editor-questionario.dados';
+import { abrirEditor, ANAMNESE } from './editor-questionario.dados';
 
 /**
  * Editor de questionário em tela larga (`docs/design-e-front.md` 4.10, "editor com índice e prévia ao vivo"). A medida
@@ -107,7 +107,7 @@ test('1920 px, Atualização (prévia sem páginas): o índice leva a prévia at
   await indice(page).getByRole('button', { name: 'Objetivos, 6 perguntas' }).click();
   await expect(previa(page).getByText('Qual seu objetivo principal?')).toBeInViewport();
   // A coluna rolou por dentro: o cabeçalho da prévia saiu de vista, e a prévia continua inteira na janela.
-  await expect(previa(page).getByText('Prévia', { exact: true })).not.toBeInViewport();
+  await expect(previa(page).getByText('Prévia · como o aluno vê o rascunho', { exact: true })).not.toBeInViewport();
   const caixa = (await previa(page).boundingBox())!;
   expect(caixa.y).toBeGreaterThanOrEqual(0);
   expect(naoTratadas).toEqual([]);
@@ -122,34 +122,71 @@ test('1536 px: tocar no índice com a aba Prévia aberta volta para Editar e rol
   await expect(page.locator('#questionario-secao-4')).toBeInViewport();
 });
 
-/** Índice colado à esquerda da área, prévia colada à direita e vãos iguais entre as colunas (a sobra nunca é um vão só). */
+/**
+ * Regra das colunas (28/11, `colunasComPrevia`): índice de 260 encostado à esquerda, vãos fixos de 24, editor até 1400 e
+ * prévia de 440 a 720; o editor cresce primeiro, depois a prévia, e a sobra fica no fim da linha (nunca entre as colunas).
+ */
 async function medirColunas(page: Page) {
   const [i, p, c] = [(await indice(page).boundingBox())!, (await previa(page).boundingBox())!, (await page.locator('#barra-do-editor').locator('xpath=..').boundingBox())!];
   const editor = (await page.locator('#questionario-instrucoes').boundingBox())!;
   const [vao1, vao2] = [editor.x - (i.x + i.width), p.x - (editor.x + editor.width)];
   expect(Math.abs(i.x - c.x)).toBeLessThanOrEqual(1);
-  expect(Math.abs(p.x + p.width - (c.x + c.width))).toBeLessThanOrEqual(1);
-  expect(Math.abs(vao1 - vao2)).toBeLessThanOrEqual(1);
-  expect(Math.round(p.width)).toBe(560);
-  return { i, editor, vao1 };
+  expect(Math.round(i.width)).toBe(260);
+  expect(Math.round(vao1)).toBe(24);
+  expect(Math.round(vao2)).toBe(24);
+  expect(p.width).toBeGreaterThanOrEqual(439);
+  expect(p.width).toBeLessThanOrEqual(721);
+  expect(editor.width).toBeLessThanOrEqual(1401);
+  // A prévia só passa de 440 com o editor no máximo.
+  if (p.width > 441) expect(Math.round(editor.width)).toBe(1400);
+  return { i, editor, p, c };
 }
 
 for (const largura of [1920, 2560]) {
-  test(`${largura} px: índice à esquerda, prévia de 560 à direita e vãos iguais`, async ({ page }) => {
+  test(`${largura} px: índice de 260 à esquerda, vãos de 24 e o editor cresce antes da prévia`, async ({ page }) => {
     await abrirEditor(page, { qual: 'anamnese', largura, altura: 1200 });
     await expect(previa(page)).toBeVisible();
-    const { editor, vao1 } = await medirColunas(page);
-    expect(editor.width).toBeLessThanOrEqual(1400);
-    // Com o editor ainda abaixo do máximo não sobra nada: os vãos são os de 24.
-    if (editor.width < 1399) expect(Math.round(vao1)).toBe(24);
+    await medirColunas(page);
   });
 }
 
-test('3440 px: editor para em 1400, prévia de 560 encostada à direita e a sobra vira dois vãos iguais', async ({ page }) => {
+test('3440 px: editor em 1400, prévia em 720 e a sobra no fim da linha, à direita da prévia', async ({ page }) => {
   await abrirEditor(page, { qual: 'anamnese', largura: 3440, altura: 1440 });
   await expect(previa(page)).toBeVisible();
-  const { i, editor, vao1 } = await medirColunas(page);
+  const { editor, p, c } = await medirColunas(page);
   expect(Math.round(editor.width)).toBe(1400);
-  expect(Math.round(i.width)).toBe(320);
-  expect(vao1).toBeGreaterThan(24);
+  expect(Math.round(p.width)).toBe(720);
+  expect(c.x + c.width - (p.x + p.width)).toBeGreaterThan(24);
+});
+
+test('1920 px: o índice traz o resumo, a situação e os problemas, e o link do problema leva até a pergunta', async ({ page }) => {
+  const { naoTratadas, errosDaPagina } = await abrirEditor(page, { qual: 'anamnese', largura: 1920 });
+  await expect(indice(page).getByTestId('resumo-do-questionario')).toHaveText(/^\d+ perguntas · \d+ seções · (\d+ obrigatórias?|nenhuma obrigatória)$/);
+  await expect(indice(page).getByTestId('situacao-do-questionario')).toHaveText(/^(Publicado v\d+ · (rascunho com alterações|sem alterações)|Ainda não publicado)$/);
+  await expect(indice(page).getByRole('link', { name: /pergunta sem texto/ })).toHaveCount(0);
+  // Apagar o texto de uma pergunta vira problema ao vivo, com o link.
+  await indice(page).getByRole('button', { name: 'Treino, 10 perguntas' }).click();
+  await page.getByLabel('Texto da pergunta').first().fill('');
+  const link = indice(page).getByRole('link', { name: '1 pergunta sem texto. Ir até o problema' });
+  await expect(link).toBeVisible();
+  await indice(page).getByRole('button', { name: 'Instruções' }).click();
+  await link.click();
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[id^="questionario-pergunta-"]') !== null)).toBe(true);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('1920 px, Inscrição: "Seu contato" com os campos fixos antes das seções leva a prévia até eles', async ({ page }) => {
+  // Rascunho longo (o da anamnese), para a última seção levar a prévia para longe dos campos fixos.
+  const { naoTratadas, errosDaPagina } = await abrirEditor(page, { qual: 'inscricao', largura: 1920, rascunho: ANAMNESE });
+  // O fixture esconde só a Origem: o cartão "Seu contato" tem Nome, WhatsApp, E-mail e Instagram.
+  const contato = indice(page).getByRole('button', { name: 'Seu contato, 4 campos fixos' });
+  await expect(contato).toBeVisible();
+  // Antes, a última seção: a prévia rola para longe dos campos fixos, e "Seu contato" precisa trazê-los de volta.
+  await indice(page).getByRole('button', { name: /, (\d+ perguntas?|Sem pergunta)$/ }).last().click();
+  await expect(previa(page).getByLabel('WhatsApp com DDD')).not.toBeInViewport();
+  await contato.click();
+  await expect(previa(page).getByLabel('WhatsApp com DDD')).toBeInViewport();
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
 });

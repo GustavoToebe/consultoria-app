@@ -201,6 +201,7 @@ export default function Alunos() {
         chips={chips}
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
         painelLateral={{ titulo: 'Filtros de alunos' }}
+        resultado={{ itens: { um: 'aluno', varios: 'alunos' }, total: dadosDeOutraChave ? undefined : dados?.total, buscar: (r) => listarAlunos({ busca: termo, pagina: 0, filtros: pedidoDaApi(r, usuario?.id) }).then((p) => p.total) }}
         seletores={(atuais, mudar) => (
           <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id}
             tags={tagsDaConsultoria.dados ?? null} tagsFalharam={!!tagsDaConsultoria.erro} />

@@ -10,7 +10,9 @@ import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, typ
  * Auditoria mais útil (27/11): agrupada por dia (Hoje, Ontem, a data, em Brasília), hora na coluna Quando, bolinha da
  * categoria e iniciais de quem fez; resumo com o objeto afetado; atalhos (Tudo, Sem logins, Alunos…) que viram a lista de
  * ações da `acao`, em interseção com o filtro Ação; "Carregar mais"; detalhe num painel fixo à direita a partir de 1600
- * px de área e na folha abaixo disso. Relógio em 19/10/2026 12:00 de Brasília; só dados fictícios. Capturas em
+ * px de área e na folha abaixo disso. Tela larga (28/11): atalhos em chips de uma escolha, "Filtros" ao lado, a contagem na barra
+ * (sem o título "Eventos" no cartão), colunas com teto, painel do topo do cartão até o fim da área visível e grudado ao
+ * rolar, sem campo vazio no detalhe. Relógio em 19/10/2026 12:00 de Brasília; só dados fictícios. Capturas em
  * `E2E_CAPTURAS`, se definida.
  */
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
@@ -79,6 +81,8 @@ async function preparar(page: Page, largura: number, altura: number, opcoes: { t
 const tabela = (page: Page) => page.getByRole('table', { name: 'Eventos da auditoria' });
 const linhas = (page: Page) => tabela(page).locator('[role="row"][aria-selected]');
 const painel = (page: Page) => page.getByRole('region', { name: 'Detalhe do evento' });
+const contagem = (page: Page, n: number) => page.getByText(`${n} eventos neste filtro`, { exact: true });
+const VAZIO_DO_PAINEL = 'Escolha um evento para ver o detalhe';
 
 async function capturar(page: Page, nome: string) {
   if (!process.env.E2E_CAPTURAS) return;
@@ -93,11 +97,20 @@ for (const [largura, altura] of [[1920, 1080], [3440, 1440]] as const) {
       const { errosDaPagina, naoTratadas } = await preparar(page, largura, altura, { tema });
       await page.goto('/treinador/auditoria', { waitUntil: 'domcontentloaded' });
       await expect(tabela(page)).toBeVisible();
-      await expect(page.getByText('252 eventos neste filtro.', { exact: true })).toBeVisible();
+      await expect(contagem(page, 252)).toBeVisible();
+      // O cartão da lista não tem mais o título "Eventos": a contagem mora na barra.
+      await expect(page.getByRole('heading', { name: 'Eventos', exact: true })).toHaveCount(0);
       await expect(tabela(page).getByRole('columnheader')).toHaveText(['Quando', 'Quem', 'Ação', 'Resumo']);
-      await expect(tabela(page).getByRole('heading', { level: 3, name: 'Hoje' })).toBeVisible();
-      await expect(tabela(page).getByRole('heading', { level: 3, name: 'Ontem' })).toBeVisible();
-      await expect(tabela(page).getByRole('heading', { level: 3, name: '17/10/2026' })).toBeVisible();
+      await expect(tabela(page).getByRole('heading', { level: 2, name: 'Hoje' })).toBeVisible();
+      await expect(tabela(page).getByRole('heading', { level: 2, name: 'Ontem' })).toBeVisible();
+      await expect(tabela(page).getByRole('heading', { level: 2, name: '17/10/2026' })).toBeVisible();
+      // Colunas com teto (80, 260, 380 e 640): o que sobra fica no fim da linha, não entre as colunas.
+      const cabecalhos = await tabela(page).getByRole('columnheader').evaluateAll((els) => els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x, width: r.width };
+      }));
+      expect(Math.abs(cabecalhos[0].width - 80)).toBeLessThanOrEqual(1);
+      [260, 380, 640].forEach((teto, i) => expect(cabecalhos[i + 1].width).toBeLessThanOrEqual(teto + 1));
       // A primeira linha: só a hora, quem, a ação e o objeto (nunca o resumo fixo que repete a ação).
       const primeira = linhas(page).first();
       await expect(primeira).toContainText('11:00');
@@ -107,13 +120,27 @@ for (const [largura, altura] of [[1920, 1080], [3440, 1440]] as const) {
       await expect(linhas(page).nth(4)).toContainText('Questionário “Padrão”');
       await expect(page.getByText('Texto fixo que repete a ação.')).toHaveCount(0);
 
-      // Sem evento escolhido, o painel diz o que fazer; fica à direita da tabela, com ~420 px.
-      await expect(painel(page)).toContainText('Escolha um evento para ver o detalhe.');
+      // Sem evento escolhido, o painel diz o que fazer; fica à direita da tabela, com ~420 px, começa no topo do cartão
+      // (a tabela está dentro dele, logo abaixo do recuo) e desce até perto do fim da área visível.
+      await expect(painel(page)).toContainText(VAZIO_DO_PAINEL);
       const t = (await tabela(page).boundingBox())!;
       const p = (await painel(page).boundingBox())!;
       expect(p.x).toBeGreaterThan(t.x + t.width);
       expect(Math.abs(p.width - 420)).toBeLessThanOrEqual(1);
+      expect(p.y).toBeLessThanOrEqual(t.y);
+      expect(t.y - p.y).toBeLessThanOrEqual(40);
+      expect(p.height).toBeGreaterThan(altura / 2);
+      // Em 3440 a linha passa da soma dos tetos: a sobra fica depois do Resumo.
+      const fimDoResumo = cabecalhos[3].x + cabecalhos[3].width;
+      if (largura === 3440) expect(fimDoResumo).toBeLessThan(t.x + t.width - 100);
+      else expect(fimDoResumo).toBeLessThanOrEqual(t.x + t.width);
       await capturar(page, `${largura}-${tema.toLowerCase()}-sem-selecao`);
+
+      // Login: sem objeto, o detalhe não mostra "Objeto —"; a origem fica.
+      await linhas(page).first().click();
+      await expect(painel(page).getByLabel('Origem: App Android')).toBeVisible();
+      await expect(painel(page).getByLabel(/^Objeto:/)).toHaveCount(0);
+      await expect(painel(page)).not.toContainText('Objeto');
 
       await linhas(page).nth(1).click();
       await expect(linhas(page).nth(1)).toHaveAttribute('aria-selected', 'true');
@@ -136,15 +163,25 @@ for (const [largura, altura] of [[1920, 1080], [3440, 1440]] as const) {
       await expect(painel(page).getByLabel('Quem: Sistema', { exact: true })).toBeVisible();
       await expect(painel(page).getByRole('link')).toHaveCount(0);
       await page.keyboard.press('Escape');
-      await expect(painel(page)).toContainText('Escolha um evento para ver o detalhe.');
+      await expect(painel(page)).toContainText(VAZIO_DO_PAINEL);
       await expect(linhas(page).nth(3)).toBeFocused();
+
+      // Ao rolar a página o painel fica grudado e inteiro na área visível, enquanto a tabela sobe.
+      await page.mouse.move(t.x + t.width / 2, t.y + 200);
+      await page.mouse.wheel(0, 1500);
+      await expect.poll(async () => (await tabela(page).boundingBox())!.y).toBeLessThan(t.y - 500);
+      const grudado = (await painel(page).boundingBox())!;
+      expect(grudado.y).toBeGreaterThanOrEqual(0);
+      expect(grudado.y + grudado.height).toBeLessThanOrEqual(altura + 1);
+      await page.mouse.wheel(0, -5000);
+      await expect.poll(async () => (await tabela(page).boundingBox())!.y).toBeGreaterThan(t.y - 1);
 
       // "Sem logins": a `acao` leva o catálogo menos os logins, e nenhuma linha de login sobra.
       await page.getByRole('radio', { name: 'Sem logins' }).click();
       await expect(page).toHaveURL(/atalho=sem-logins/);
       await expect(linhas(page).first()).toContainText('Aluno cadastrado');
       await expect(tabela(page).getByText('Login realizado')).toHaveCount(0);
-      await expect(page.getByText(`${252 - 51} eventos neste filtro.`, { exact: true })).toBeVisible();
+      await expect(contagem(page, 252 - 51)).toBeVisible();
       await capturar(page, `${largura}-${tema.toLowerCase()}-sem-logins`);
 
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
@@ -172,7 +209,7 @@ test('atalhos: viram a lista de ações, combinam com o filtro Ação e o confli
   // Alunos: a lista da categoria cabe no teto da `acao` (a API falsa recusaria acima de 100).
   await page.goto('/treinador/auditoria?atalho=alunos', { waitUntil: 'domcontentloaded' });
   await expect(linhas(page).first()).toContainText('Aluno cadastrado');
-  expect(ultimo().getAll('acao').length).toBe(62);
+  expect(ultimo().getAll('acao').length).toBe(64);
 
   // Equipe com a Ação "Aluno cadastrado" e "Perfil editado": fica só o que está nos dois.
   await page.goto('/treinador/auditoria?atalho=equipe&acao=ALUNO_CRIADO,PERFIL_ALTERADO', { waitUntil: 'domcontentloaded' });
@@ -191,6 +228,45 @@ test('atalhos: viram a lista de ações, combinam com o filtro Ação e o confli
   expect(errosDaPagina).toEqual([]);
 });
 
+/**
+ * Barra numa linha só, à esquerda: atalhos, "Filtros · N", os chips "Filtrando" com o "Limpar" e a contagem por último
+ * (variante `arranjo="linhaUnica"` da `ui/BarraDeFiltros`). Os seis atalhos são chips de uma escolha da regra única dos
+ * filtros (28/11, decisão do Gustavo: segmento só com 2 ou 3 opções), com o escolhido tonal e com ✓.
+ */
+test('1920 px: barra de filtros numa linha só, alinhada à esquerda, com a contagem no fim', async ({ page }) => {
+  const { errosDaPagina } = await preparar(page, 1920, 1080);
+  await page.goto('/treinador/auditoria?acao=ALUNO_CRIADO', { waitUntil: 'domcontentloaded' });
+  await expect(linhas(page).first()).toContainText('Aluno cadastrado');
+  const segmento = page.getByRole('radiogroup', { name: 'Atalhos de eventos' });
+  await expect(segmento.getByRole('radio')).toHaveText(['Tudo', 'Sem logins', 'Alunos', 'Planos', 'Financeiro', 'Equipe']);
+  await expect(segmento.getByRole('radio', { name: 'Tudo' })).toHaveAttribute('aria-checked', 'true');
+  // Chips de uma escolha: só o escolhido tem o ✓.
+  await expect(segmento.locator('svg')).toHaveCount(1);
+  await expect(segmento.getByRole('radio', { name: 'Tudo' }).locator('svg')).toHaveCount(1);
+  // O atalho não conta como filtro avançado: só a Ação.
+  const filtros = page.getByRole('button', { name: 'Filtros, 1 ligado' });
+  await expect(filtros).toHaveText('Filtros · 1');
+  const limpar = page.getByRole('button', { name: 'Limpar filtros aplicados' });
+  // 252 eventos, um "Aluno cadastrado" a cada dez a partir do segundo.
+  const n = contagem(page, 26);
+  await expect(n).toBeVisible();
+  const [s, f, l, c] = await Promise.all([segmento, filtros, limpar, n].map(async (x) => (await x.boundingBox())!));
+  // Uma linha só, na ordem atalhos → Filtros → Limpar → contagem, e nada encostado na borda direita.
+  for (const b of [f, l, c]) expect(Math.abs((b.y + b.height / 2) - (s.y + s.height / 2))).toBeLessThanOrEqual(4);
+  expect(f.x).toBeGreaterThan(s.x + s.width);
+  expect(f.x - (s.x + s.width)).toBeLessThanOrEqual(24);
+  expect(l.x).toBeGreaterThan(f.x + f.width);
+  expect(c.x).toBeGreaterThan(l.x + l.width);
+  expect(c.x - (l.x + l.width)).toBeLessThanOrEqual(24);
+  // Teclado nos atalhos (grupo de rádio): Espaço escolhe a opção em foco, que ganha o ✓.
+  await segmento.getByRole('radio', { name: 'Sem logins' }).focus();
+  await page.keyboard.press(' ');
+  await expect(page).toHaveURL(/atalho=sem-logins/);
+  await expect(segmento.getByRole('radio', { name: 'Sem logins' })).toHaveAttribute('aria-checked', 'true');
+  await expect(segmento.getByRole('radio', { name: 'Sem logins' }).locator('svg')).toHaveCount(1);
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('Carregar mais acrescenta a página seguinte e a contagem fica', async ({ page }) => {
   const { pedidos, errosDaPagina } = await preparar(page, 1920, 1080);
   await page.goto('/treinador/auditoria', { waitUntil: 'domcontentloaded' });
@@ -198,7 +274,7 @@ test('Carregar mais acrescenta a página seguinte e a contagem fica', async ({ p
   await page.getByRole('button', { name: 'Carregar mais' }).click();
   await expect(linhas(page)).toHaveCount(100);
   expect(pedidos[pedidos.length - 1].busca.get('pagina')).toBe('1');
-  await expect(page.getByText('252 eventos neste filtro.', { exact: true })).toBeVisible();
+  await expect(contagem(page, 252)).toBeVisible();
   await page.getByRole('button', { name: 'Carregar mais' }).click();
   await page.getByRole('button', { name: 'Carregar mais' }).click();
   await expect(linhas(page)).toHaveCount(200);
@@ -231,7 +307,10 @@ test('390 px: cartões agrupados por dia e o detalhe na folha', async ({ page })
   const { errosDaPagina } = await preparar(page, 390, 844, { tema: 'CLARO' });
   await page.goto('/treinador/auditoria', { waitUntil: 'domcontentloaded' });
   const lista = page.getByRole('list', { name: 'Eventos da auditoria' });
-  await expect(lista.getByRole('heading', { level: 3, name: 'Hoje' })).toBeVisible();
+  await expect(lista.getByRole('heading', { level: 2, name: 'Hoje' })).toBeVisible();
+  // Os chips dos atalhos quebram em fileiras e a contagem fica na barra; nada sai da largura (conferido no fim).
+  await expect(page.getByRole('radiogroup', { name: 'Atalhos de eventos' })).toBeVisible();
+  await expect(contagem(page, 252)).toBeVisible();
   await expect(tabela(page)).toHaveCount(0);
   await capturar(page, '390-claro-cartoes');
   await lista.getByRole('button', { name: /^10:13, Aluno cadastrado, por Bruno Exemplo/ }).click();

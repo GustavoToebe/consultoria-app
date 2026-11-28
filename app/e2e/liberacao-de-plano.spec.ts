@@ -151,15 +151,17 @@ for (const largura of [390, 1280]) {
       },
     });
     await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
-    const folha = page.getByRole('dialog', { name: 'Plano 18' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 26/11 a 10/12' });
     await expect(folha.getByText('Agendado para 01/12', { exact: true })).toBeVisible();
 
-    await folha.getByRole('radio', { name: 'Agendar para uma data' }).click();
+    // No rodapé fixo da Folha: "Quando o aluno vê" (Agora · Agendar), a data ao lado e o interruptor do aviso.
+    await folha.getByRole('radio', { name: 'Agendar', exact: true }).click();
     await folha.getByRole('textbox', { name: 'Liberar em' }).fill('30/11/2026');
-    await folha.getByRole('checkbox', { name: 'Avisar o aluno quando liberar' }).click();
-    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta Plano 18' }).click();
-    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração. Agendado para 30/11: até lá, o aluno continua com o que já via.')).toBeVisible();
-    await expect(folha.getByText(/^“Treino do Plano 18” segue agendado para 01\/12\. Sem alteração, não foi publicado de novo/)).toBeVisible();
+    await folha.getByRole('switch', { name: 'Avisar o aluno quando liberar' }).click();
+    await folha.getByRole('button', { name: 'Publicar alterações (1) da pasta de 26/11 a 10/12' }).click();
+    // O resultado sai no aviso da tela, numa frase só com o agendado que ficou como estava.
+    await expect(page.getByText('Dieta publicada. 1 plano sem alteração. Agendado para 30/11: até lá, o aluno continua com o que já via.')).toBeVisible();
+    await expect(page.getByText(/“Treino do Plano 18” segue agendado para 01\/12\. Sem alteração, não foi publicado de novo/)).toBeVisible();
     // A lista recarrega: a dieta (na aba dela) passa a ter o selo do dia escolhido.
     await folha.getByRole('tab', { name: 'Dieta (1)' }).click();
     await expect(folha.getByText('Agendado para 30/11', { exact: true })).toBeVisible();
@@ -193,7 +195,7 @@ for (const largura of [390, 1280]) {
     await expect(linha.getByText('Agendado para 01/12', { exact: true })).toBeVisible();
     await page.screenshot({ path: captura(`liberacao-linha-da-pasta-${largura}.png`) });
     await linha.click();
-    const folha = page.getByRole('dialog', { name: 'Plano 18' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 26/11 a 10/12' });
 
     await folha.getByRole('button', { name: 'Mais ações de Treino do Plano 18' }).click();
     await page.getByRole('button', { name: /^Alterar data de liberação/ }).click();
@@ -242,7 +244,7 @@ for (const largura of [390, 1280]) {
       },
     });
     await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
-    const folha = page.getByRole('dialog', { name: 'Plano 18' });
+    const folha = page.getByRole('dialog', { name: 'Pasta de 26/11 a 10/12' });
     await folha.getByRole('button', { name: 'Mais ações de Treino do Plano 18' }).click();
     await page.getByRole('button', { name: /^Liberar agora/ }).click();
     await page.getByRole('alertdialog', { name: 'Liberar agora?' }).getByRole('button', { name: 'Liberar agora' }).click();
@@ -276,7 +278,7 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
       await page.keyboard.press('Escape');
 
       await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
-      await expect(page.getByRole('dialog', { name: 'Plano 18' }).getByText('Agendado para 01/12', { exact: true })).toBeVisible();
+      await expect(page.getByRole('dialog', { name: 'Pasta de 26/11 a 10/12' }).getByText('Agendado para 01/12', { exact: true })).toBeVisible();
       await page.screenshot({ path: captura(`liberacao-selo-${tema.toLowerCase()}-${largura}.png`) });
       expect(errosDaPagina).toEqual([]);
     });

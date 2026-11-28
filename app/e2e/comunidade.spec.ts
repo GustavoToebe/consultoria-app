@@ -152,7 +152,7 @@ async function abrirPainel(page: Page, nome: string) {
   return painel;
 }
 async function aplicarFiltros(painel: ReturnType<Page['getByRole']>) {
-  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
   await expect(painel).toHaveCount(0);
 }
 /** Escolhe a coleção no painel dos vídeos e aplica. */
@@ -672,9 +672,9 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/aluno/conta');
-      // Conta do aluno reorganizada (23/11): o apelido mora no detalhe "Meu perfil", com o mesmo "Salvar perfil" do resto;
+      // Conta do aluno reorganizada (23/11): o apelido mora no detalhe "Meu perfil" (a linha "Perfil na comunidade" desde 28/11), com o mesmo "Salvar perfil" do resto;
       // apagar é deixar o campo vazio e salvar (saíram "Salvar apelido" e "Remover apelido").
-      await page.getByRole('button', { name: /^Meu perfil/ }).click();
+      await page.getByRole('button', { name: /^Perfil na comunidade/ }).click();
       const folha = page.getByRole('dialog', { name: 'Meu perfil' });
       const campo = folha.getByRole('textbox', { name: 'Apelido (opcional)' });
       await expect(campo).toBeVisible();

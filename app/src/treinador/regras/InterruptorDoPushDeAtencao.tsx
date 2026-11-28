@@ -30,10 +30,14 @@ const AVISO_ATIVADO = 'Este celular vai receber o aviso.';
  * servidor não manda a quem desligou, e o token fica para o próximo ligar.
  */
 export function InterruptorDoPushDeAtencao() {
-  const { pode, regrasAtencaoHabilitada } = useSessao();
-  const visivel = regrasAtencaoHabilitada && pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
-  if (!visivel) return null;
+  if (!useVePushDeAtencao()) return null;
   return <CartaoDoPush />;
+}
+
+/** Quem vê o cartão (a montagem das Ajustes só cria a peça da coluna para quem o vê: peça vazia deixaria um vão). */
+export function useVePushDeAtencao() {
+  const { pode, regrasAtencaoHabilitada } = useSessao();
+  return regrasAtencaoHabilitada && pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
 }
 
 function CartaoDoPush() {

@@ -2,7 +2,7 @@
  * Colunas empilhadas pela altura MEDIDA de cada peça (27/11, Início e Dieta do aluno no computador): a coluna de cada peça
  * sai da distribuição em que o fim das colunas fica mais perto um do outro (menor diferença entre a coluna mais alta e a
  * mais baixa; no empate, a mais baixa no total; depois, a primeira encontrada). Diferente da `ui/Alvenaria`, que escolhe
- * por um peso estimado, e da `colunasEquilibradas` da Conta, que só prende a primeira peça: aqui cada peça pode ter regra.
+ * por um peso estimado: aqui cada peça pode ter regra. Início, Dieta e Conta do aluno usam esta.
  *
  * - Peça de altura 0 (o bloco que não tem o que mostrar) não conta: nem coluna, nem vão.
  * - `coluna`: coluna fixa (negativa conta do fim: -1 = a última; fora do intervalo, presa à borda).

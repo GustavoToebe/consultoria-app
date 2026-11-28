@@ -40,42 +40,42 @@ async function abrir(page: Page, aba: 'lembretes' | 'recebimento', estado: Estad
 }
 
 const principal = (page: Page) => page.getByRole('switch', { name: 'Mandar lembretes por e-mail' });
-const antes = (page: Page) => page.getByRole('spinbutton', { name: 'Dias antes do vencimento' });
-const depois = (page: Page) => page.getByRole('spinbutton', { name: 'Dias depois do vencimento' });
+// 28/11: os dias são "digite ou escolha" (`ui/EscolhaSuspensa`), não mais o passo (− número +).
+const antes = (page: Page) => page.getByRole('button', { name: /^Dias antes: / });
+const depois = (page: Page) => page.getByRole('button', { name: /^Dias depois: / });
 
-test('lembretes desligados: "Quando lembrar" fica apagado e fora do Tab, com a dica; os valores continuam guardados', async ({ page }) => {
+test('lembretes desligados: os controles ficam no cinza do desabilitado e fora do Tab, com a dica; os valores continuam guardados', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos, errosDaPagina } = await abrir(page, 'lembretes', estadoFinanceiro());
 
   await expect(page.getByText('Ligue os lembretes para escolher quando mandar.')).toBeVisible();
-  await expect(antes(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(antes(page)).toHaveAttribute('aria-valuetext', '3 dias');
-  await expect(page.getByRole('button', { name: 'Aumentar dias antes do vencimento' })).toBeDisabled();
-  await expect(page.getByRole('switch', { name: 'Mandar no dia do vencimento' })).toBeDisabled();
-  // Do interruptor principal o Tab pula o bloco apagado inteiro (passos e "no dia").
+  await expect(antes(page)).toBeDisabled();
+  await expect(antes(page)).toHaveAccessibleName('Dias antes: 3 dias. Escolher.');
+  await expect(page.getByRole('button', { name: 'Lembrete 3 dias antes: ligado', exact: true })).toBeDisabled();
+  await expect(page.getByRole('switch', { name: 'No dia do vencimento' })).toBeDisabled();
+  // Do interruptor principal o Tab pula o bloco apagado inteiro (linha do tempo, dias e "no dia").
   await principal(page).focus();
   for (let i = 0; i < 4; i += 1) {
     await page.keyboard.press('Tab');
-    expect(await page.evaluate(() => document.activeElement?.getAttribute('role'))).not.toBe('spinbutton');
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')).not.toMatch(/^(Dias antes|Dias depois|Lembrete )/);
   }
 
-  // Ligar: o bloco volta, com os mesmos valores; a linha do tempo e o texto dela seguem a tela.
+  // Ligar: o bloco volta, com os mesmos valores; a linha do tempo e o resumo seguem a tela.
   await principal(page).click();
   await expect(page.getByText('Ligue os lembretes para escolher quando mandar.')).toHaveCount(0);
   await expect(page.getByText('Lembretes 3 dias antes, no dia e 3 dias depois do vencimento.')).toBeVisible();
-  await page.getByRole('button', { name: 'Diminuir dias depois do vencimento' }).click({ clickCount: 3 });
-  await expect(depois(page)).toHaveAttribute('aria-valuetext', 'não manda');
-  await expect(page.getByText('não manda', { exact: true })).toBeVisible();
-  await page.getByRole('switch', { name: 'Mandar no dia do vencimento' }).click();
+  await depois(page).click();
+  await page.getByRole('option', { name: 'Não manda' }).click();
+  await expect(depois(page)).toHaveAccessibleName('Dias depois: Não manda. Escolher.');
+  await page.getByRole('switch', { name: 'No dia do vencimento' }).click();
   await expect(page.getByText('Lembretes 3 dias antes do vencimento.')).toBeVisible();
   await expect(page.getByText('Alterações não salvas', { exact: true })).toBeVisible();
 
-  // Descartar volta ao salvo e leva o foco ao status da barra.
-  await page.getByRole('button', { name: 'Descartar alterações dos lembretes' }).click();
-  await expect(page.getByText('Tudo salvo', { exact: true })).toBeVisible();
-  await expect(antes(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(depois(page)).toHaveAttribute('aria-valuetext', '3 dias');
-  await expect(page.getByText('Tudo salvo', { exact: true }).locator('..')).toBeFocused();
+  // Cancelar volta ao salvo e o rodapé some (só aparece com alteração).
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page.getByText('Alterações não salvas', { exact: true })).toHaveCount(0);
+  await expect(antes(page)).toBeDisabled();
+  await expect(depois(page)).toHaveAccessibleName('Dias depois: 3 dias. Escolher.');
   expect(pedidos.filter((p) => p.metodo === 'PUT')).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
@@ -84,16 +84,16 @@ test('lembretes: trocar de aba com alteração pendente pergunta antes; o link "
   await page.setViewportSize({ width: 1280, height: 900 });
   const { errosDaPagina } = await abrir(page, 'lembretes', estadoFinanceiro({ lembretes: { ...LEMBRETES_PADRAO, ligado: true, versao: 0 } }));
 
-  await page.getByRole('button', { name: 'Aumentar dias antes do vencimento' }).click();
+  await page.getByRole('button', { name: 'Lembrete 3 dias antes: ligado', exact: true }).click();
   await page.getByRole('tab', { name: 'Recebimento' }).click();
   const pergunta = page.getByRole('alertdialog', { name: 'Sair sem salvar?' });
   await expect(pergunta).toBeVisible();
   await pergunta.getByRole('button', { name: 'Continuar editando' }).click();
   await expect(page.getByRole('tab', { name: 'Lembretes', selected: true })).toBeVisible();
-  await expect(antes(page)).toHaveAttribute('aria-valuenow', '4');
+  await expect(page.getByRole('button', { name: 'Lembrete 3 dias antes: desligado', exact: true })).toHaveAttribute('aria-pressed', 'false');
 
-  // O link dentro do apoio passa pela mesma pergunta; confirmando, abre Cobranças.
-  await page.getByRole('link', { name: 'Cobranças' }).click();
+  // O link dentro de "Quem recebe e por onde" passa pela mesma pergunta; confirmando, abre Cobranças.
+  await page.getByRole('link', { name: 'Cobranças', exact: true }).click();
   await pergunta.getByRole('button', { name: 'Sair sem salvar' }).click();
   await expect(page.getByRole('tab', { name: 'Cobranças', selected: true })).toBeVisible();
   expect(errosDaPagina).toEqual([]);
@@ -172,32 +172,33 @@ for (const [nomeDoTema, tema] of TEMAS) for (const [largura, altura] of LARGURAS
 
     await expect(principal(page)).toBeChecked();
     const titulo = page.getByRole('heading', { name: 'Lembretes de cobrança' });
-    const apoio = page.getByRole('heading', { name: 'Quem recebe e por onde' });
-    if (largura >= 1280) {
+    const apoio = page.getByRole('heading', { name: 'Prévia do e-mail' });
+    // 28/11: duas colunas só da faixa larga (área ≥ 1600, 1920 com o menu aberto); em 1280 a prévia desce.
+    if (largura >= 1920) {
       await expect.poll(async () => Math.abs((await caixa(titulo)).y - (await caixa(apoio)).y)).toBeLessThan(2);
     } else {
-      expect((await caixa(apoio)).y).toBeGreaterThan((await caixa(titulo)).y);
+      await expect.poll(async () => (await caixa(apoio)).y > (await caixa(titulo)).y).toBe(true);
     }
     await semRolagemHorizontal(page);
     await capturar(page, `lembretes-ligados-${sufixo}`);
-    // No celular a tela rola por dentro (a captura de página inteira pega só a janela): uma segunda, rolada até a barra.
+    // No celular a tela rola por dentro (a captura de página inteira pega só a janela): uma segunda, rolada até o fim.
     const rolarECapturar = async (alvo: Locator, nome: string) => {
       if (largura >= 1280) return;
       await alvo.scrollIntoViewIfNeeded();
       await page.screenshot({ path: CAPTURAS ? `${CAPTURAS}/${nome}.png` : test.info().outputPath(`${nome}.png`) });
     };
-    await rolarECapturar(page.getByText('Tudo salvo', { exact: true }), `lembretes-ligados-${sufixo}-rodape`);
+    await rolarECapturar(page.getByRole('heading', { name: 'Quem recebe e por onde' }), `lembretes-ligados-${sufixo}-apoio`);
 
-    await page.getByRole('button', { name: 'Aumentar dias depois do vencimento' }).click();
+    await page.getByRole('button', { name: 'Lembrete 3 dias depois: ligado', exact: true }).click();
     await expect(page.getByText('Alterações não salvas', { exact: true })).toBeVisible();
     await capturar(page, `lembretes-pendente-${sufixo}`);
     await rolarECapturar(page.getByText('Alterações não salvas', { exact: true }), `lembretes-pendente-${sufixo}-rodape`);
-    await page.getByRole('button', { name: 'Descartar alterações dos lembretes' }).click();
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
 
     await principal(page).click();
     await expect(page.getByText('Ligue os lembretes para escolher quando mandar.')).toBeVisible();
     await capturar(page, `lembretes-desligados-${sufixo}`);
-    await page.getByRole('button', { name: 'Descartar alterações dos lembretes' }).click();
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
 
     await page.getByRole('tab', { name: 'Recebimento' }).click();
     await expect(page.getByRole('switch', { name: 'Pix copia e cola' })).toBeChecked();

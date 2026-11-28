@@ -181,7 +181,9 @@ export default function FichaAluno() {
       case 'progresso': return <CartaoProgresso alunoId={a.id} />;
       // A meta na chave: salvar outra meta na ficha busca o peso de novo, e as cores vêm da meta de cada item.
       case 'peso': return <CartaoPeso key={`${geracaoPeso}:${a.metaDoPeso ?? ''}`} alunoId={a.id} />;
-      case 'avaliacaoFisica': return <CartaoAvaliacaoFisica alunoId={a.id} alunoNome={a.nome} anonimizado={a.anonimizado} />;
+      // Geração e meta como props (não na `key`): o registrar peso da folha sobe a geração e remontar fecharia a folha.
+      case 'avaliacaoFisica': return <CartaoAvaliacaoFisica alunoId={a.id} alunoNome={a.nome} anonimizado={a.anonimizado} geracaoPeso={geracaoPeso} metaDoPeso={a.metaDoPeso ?? null}
+        aoRegistrarPeso={() => setGeracaoPeso((g) => g + 1)} />;
       case 'fotos': return <CartaoFotos alunoId={a.id} autorizadoEm={a.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />;
       // Sem cartão em volta: as quatro seções são os cartões (dentro de um cartão vai divisor, não outro contorno). Em duas
       // colunas (24/11), os blocos de cada uma seguem as seções dela (`colunas`, do `BlocosDaFicha`).

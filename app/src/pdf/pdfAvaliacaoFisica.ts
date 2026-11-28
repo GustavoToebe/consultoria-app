@@ -1,6 +1,8 @@
 import type { AvaliacaoFisica } from '../api/avaliacaoFisicaTipos';
-import type { Marca } from '../api/tipos';
-import { cmParaTela } from '../dominio/avaliacaoFisica';
+import type { Marca, MetaDoPeso } from '../api/tipos';
+import {
+  cmParaTela, valorAnterior, valorDaColuna, VARIACAO_SEM_VALOR, variacaoCurta, type ColunaDoHistorico, type VariacaoCurta,
+} from '../dominio/avaliacaoFisica';
 import { compararAvaliacoes, formatadorDeDatas, linhaDoPeso, type ColunaComparada } from '../dominio/comparacaoDeAvaliacoes';
 import { dataParaTela } from '../dominio/formatos';
 import { base64DeTexto } from './base64';
@@ -30,6 +32,8 @@ export interface DadosPdfAvaliacaoFisica {
   escolhidas: readonly string[];
   /** Sem ele a página não muda. */
   grafico?: GraficoDoPdf;
+  /** Meta efetiva do peso (a mesma da tela): pinta a variação de peso, cintura, abdômen e quadril. Sem ela, tudo neutro. */
+  meta?: MetaDoPeso | null;
   emitidoEm: Date;
 }
 
@@ -155,37 +159,54 @@ function cabecalhoDaTabela(primeira: string, colunas: readonly ColunaComparada[]
   return `<thead><tr><th>${esc(primeira)}</th>${colunas.map((c) => `<th class="num">${esc(c.dataTexto)}</th>`).join('')}<th class="num">Variação</th></tr></thead>`;
 }
 
-function linha(rotulo: string, celulas: { texto: string; ausente: boolean }[], variacao: string): string {
+/**
+ * A variação pequena embaixo do valor, a mesma da tela (`variacaoCurta`, desde a avaliação anterior que mediu): "▲ 0,5"
+ * na cor da meta só nas colunas que a têm, "0,0" sem seta, "Primeira" sem anterior; sem valor, nada (o valor já diz).
+ */
+function variacaoDaCelula(v: VariacaoCurta): string {
+  if (v.tipo === 'semValor') return '';
+  const tom = v.tipo === 'mudou' && v.tom !== 'neutro' ? ` ${v.tom}` : '';
+  return `<div class="var${tom}">${esc(v.texto)}</div>`;
+}
+
+function linha(rotulo: string, celulas: { texto: string; ausente: boolean; variacao: VariacaoCurta }[], variacao: string): string {
   return `<tr><td><strong>${esc(rotulo)}</strong></td>${celulas
-    .map((c) => `<td class="num${c.ausente ? ' ausente' : ''}">${esc(c.texto)}</td>`)
+    .map((c) => `<td class="num${c.ausente ? ' ausente' : ''}">${esc(c.texto)}${variacaoDaCelula(c.variacao)}</td>`)
     .join('')}<td class="num">${esc(variacao)}</td></tr>`;
 }
 
 /**
- * Comparativo da avaliação física, igual ao da tela: as datas e medidas vêm de `compararAvaliacoes` (mesma função), sem
- * recalcular nada aqui. Tabela por grupo (Tronco, Braços, Pernas) com uma coluna por data em ordem cronológica e a variação
- * (última − primeira) escrita com sinal ("+0,8 cm", "−0,8 cm", "0,0 cm"), então lê em preto e branco. O peso do dia é só
- * informativo (tabela à parte, fora dos grupos). Sem soma, meta, classificação nem interpretação. Todo texto dinâmico
- * passa por `esc()`. Lança erro se `escolhidas` não resulta em 2 a 4 datas (a tela só habilita o botão nesse caso).
+ * Comparativo da avaliação física das datas escolhidas no Comparar da tela: datas e medidas de `compararAvaliacoes`, sem
+ * recalcular nada aqui. Tabela por grupo (Tronco, Braços, Pernas) com uma coluna por data em ordem cronológica. Embaixo de
+ * cada valor, a variação desde a avaliação anterior com a medida, pela mesma regra do histórico da tela (`variacaoCurta`):
+ * seta ▲/▼, "0,0" sem seta, "Primeira", e verde/vermelho da meta do peso só em peso, cintura, abdômen e quadril (a seta lê
+ * em preto e branco). A última coluna, neutra, é a última − primeira com sinal ("+0,8 cm", "−0,8 cm", "0,0 cm"). O peso
+ * do dia fica numa tabela à parte, fora dos grupos. Sem soma, classificação nem interpretação. Todo texto dinâmico passa
+ * por `esc()`. Lança erro se `escolhidas` não resulta em 2 a 4 datas (a tela só habilita o botão nesse caso).
  */
 export function documentoAvaliacaoFisica(d: DadosPdfAvaliacaoFisica): Documento {
   const c = compararAvaliacoes(d.avaliacoes, d.escolhidas);
   if (c.estado !== 'ok') throw new Error(c.mensagem);
   const { colunas } = c;
   const escolhidasEmOrdem = colunas.map((col) => d.avaliacoes.find((a) => a.id === col.id)).filter((a): a is AvaliacaoFisica => !!a);
+  // Variação de cada célula: desde a anterior com a medida entre TODAS as avaliações (a do histórico da tela).
+  const variacaoEm = (coluna: ColunaDoHistorico, i: number): VariacaoCurta => {
+    const a = escolhidasEmOrdem[i];
+    return a ? variacaoCurta(coluna, valorAnterior(d.avaliacoes, coluna, a.data, a.id), valorDaColuna(a, coluna), d.meta) : VARIACAO_SEM_VALOR;
+  };
 
   const grupos = c.grupos
     .map((g) => `<section class="grupo-bloco"><h3>${esc(g.titulo)}</h3><table class="comp">${colgroup(colunas.length)}${cabecalhoDaTabela('Medida (cm)', colunas)}<tbody>${g.itens
-      .map((i) => linha(i.rotulo, i.celulas.map((x) => ({ texto: x.texto, ausente: x.valor === null })), i.variacao.texto))
+      .map((i) => linha(i.rotulo, i.celulas.map((x, k) => ({ texto: x.texto, ausente: x.valor === null, variacao: variacaoEm(i.chave, k) })), i.variacao.texto))
       .join('')}</tbody></table></section>`)
     .join('');
 
-  // Peso do dia: informativo, fora dos grupos; a mesma regra da tela (`linhaDoPeso`).
+  // Peso do dia: fora dos grupos (`linhaDoPeso`), com a variação embaixo como as medidas.
   const pesoDoDia = linhaDoPeso(d.avaliacoes, colunas);
   const peso = pesoDoDia
     ? `<section class="grupo-bloco"><h3>Peso do dia (informativo)</h3><table class="comp">${colgroup(colunas.length)}${cabecalhoDaTabela('Registro de peso', colunas)}<tbody>${linha(
         'Peso',
-        pesoDoDia.celulas.map((x) => ({ texto: x.texto, ausente: x.valor === null })),
+        pesoDoDia.celulas.map((x, k) => ({ texto: x.texto, ausente: x.valor === null, variacao: variacaoEm('peso', k) })),
         pesoDoDia.variacao.texto,
       )}</tbody></table></section>`
     : '';
@@ -203,6 +224,8 @@ export function documentoAvaliacaoFisica(d: DadosPdfAvaliacaoFisica): Documento 
     '<h2>Comparativo de circunferências</h2>',
     '<p class="pequeno">Medidas em centímetros (cm), como registradas pela equipe.</p>',
     `<p class="pequeno referencia">${esc(c.referencia)}</p>`,
+    // Sem as palavras de juízo (o teste "sem interpretação"): a variação de baixo pode vir de uma data que não está na tabela.
+    '<p class="pequeno">Embaixo de cada valor, a diferença desde a avaliação anterior com a medida (▲ subiu, ▼ desceu, 0,0 igual; "Primeira" quando não há anterior), mesmo que essa data não esteja na tabela.</p>',
     grupos || '<p class="suave">Nenhuma medida nas datas escolhidas.</p>',
     peso,
     d.grafico ? blocoDoGrafico(d.grafico) : '',
@@ -214,6 +237,7 @@ export function documentoAvaliacaoFisica(d: DadosPdfAvaliacaoFisica): Documento 
     '<div class="rodape">O peso é o registro de peso da mesma data; "—" quando não há registro.</div>',
   ].join('\n');
 
+  // Verde e vermelho fixos, os mesmos do Peso no PDF da dieta (`pdfDieta.ts`): o PDF não segue o tema do app.
   const css = `${cssBase(d.marca.corPrimaria, d.marca.temaPdf, d.marca.opcoesPdf)}
 .doc table.comp { table-layout: fixed; }
 .doc table.comp th, .doc table.comp td { overflow-wrap: anywhere; word-break: break-word; }
@@ -223,6 +247,9 @@ export function documentoAvaliacaoFisica(d: DadosPdfAvaliacaoFisica): Documento 
 .doc .num { text-align: right; font-variant-numeric: tabular-nums; }
 .doc td.num { white-space: nowrap; }
 .doc .ausente { color: #555; }
+.doc .var { font-size: 8pt; color: #555; }
+.doc .var.positivo { color: #125C32; }
+.doc .var.problema { color: #B71C1C; }
 .doc .grupo-bloco, .doc .grafico { break-inside: avoid; page-break-inside: avoid; margin: 6pt 0 10pt; }
 .doc .grupo-bloco h3, .doc .grafico h3 { margin: 6pt 0 3pt; break-after: avoid; page-break-after: avoid; }
 .doc .legenda { display: flex; flex-wrap: wrap; gap: 4pt 14pt; }

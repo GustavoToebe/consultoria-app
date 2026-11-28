@@ -15,11 +15,10 @@ import {
   historicoEmAbas,
   NO_TOPO_DE_TODA_ABA,
   ORDEM_NUMA_COLUNA,
-  PESO_NO_CORPO,
   type AbaDoHistorico,
   type BlocoDoHistorico,
 } from '../../dominio/abasDoHistorico';
-import { MAXIMO_DE_COLUNAS_DO_CORPO, pesoDaDivisao, pesoDaSemana } from '../../dominio/colunasDoHistorico';
+import { pesoDaDivisao, pesoDaSemana } from '../../dominio/colunasDoHistorico';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { hojeEmBrasilia } from '../../dominio/financeiro';
@@ -66,6 +65,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { ColunasDoHistorico } from '../../aluno/historico/ColunasDoHistorico';
+import { CorpoDoHistorico } from '../../aluno/historico/CorpoDoHistorico';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -79,8 +79,9 @@ import { useCarregar } from '../../ui/useCarregar';
  * Na web com o menu lateral (`docs/planos/aluno-web-layout.md`, seção 7) os cartões se dividem em abas no topo, Treinos,
  * Corpo e Atualizações, cada uma com o seu arranjo (`dominio/abasDoHistorico`); a aba mora no endereço (`?aba=`) e trocar é
  * um passo do histórico do navegador (o voltar a desfaz). No celular, a coluna única de sempre. Contêiner do treinador
- * (27/11): divisões, semanas e linhas das Atualizações em 1, 2 e 3 colunas nas faixas normal, larga e ultralarga; os
- * cartões do Corpo em 1 e 2 (`dominio/colunasDoHistorico`).
+ * (27/11): divisões, semanas e linhas das Atualizações nas colunas que cabem na largura medida, até 2 na normal e na larga
+ * e 3 na ultralarga (`dominio/colunasDoHistorico`): em 1280 as Atualizações já abrem duas, e os Registros, ao lado do
+ * Progresso, ficam em uma. O Corpo (28/11) é a `CorpoDoHistorico`: Peso | Fotos e, embaixo, a Avaliação na largura toda.
  */
 export default function HistoricoAluno() {
   const { registros, pacote, escolhida, falhas, tentarDeNovo, online } = useAluno();
@@ -239,9 +240,9 @@ export default function HistoricoAluno() {
           {/* Ativação manual: cada troca monta os cartões da aba e busca os dados; a seta só move o foco. */}
           <Abas abas={[...ABAS_DO_HISTORICO]} ativa={aba} aoMudar={setAba} ativacao="manual" />
           {mostrar(NO_TOPO_DE_TODA_ABA)}
+          {/* Corpo (28/11): Peso | Fotos com a mesma altura e a Avaliação na largura toda (`CorpoDoHistorico`). */}
           {arranjo.emColunas ? (
-            <ColunasDoHistorico umaColuna={mostrar(arranjo.principal)} maximo={MAXIMO_DE_COLUNAS_DO_CORPO}
-              pecas={arranjo.principal.map((b) => ({ chave: b, peso: PESO_NO_CORPO[b] ?? 1, conteudo: blocos[b] }))} />
+            <CorpoDoHistorico online={online} />
           ) : (
             <PrincipalComApoio
               principal={mostrar(arranjo.principal)}

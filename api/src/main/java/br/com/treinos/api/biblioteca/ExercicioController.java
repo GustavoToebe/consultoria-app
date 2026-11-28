@@ -5,6 +5,8 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioResponse;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExerciciosPagina;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportarCatalogoRequest;
+import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.UnirGruposRequest;
+import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.UnirGruposResultado;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,9 +28,11 @@ import java.util.UUID;
 public class ExercicioController {
 
     private final BibliotecaService biblioteca;
+    private final GruposMuscularesService grupos;
 
-    public ExercicioController(BibliotecaService biblioteca) {
+    public ExercicioController(BibliotecaService biblioteca, GruposMuscularesService grupos) {
         this.biblioteca = biblioteca;
+        this.grupos = grupos;
     }
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
@@ -73,5 +77,18 @@ public class ExercicioController {
     @PostMapping("/importar-catalogo")
     public ImportacaoResultado importarCatalogo(@RequestBody @Valid ImportarCatalogoRequest request) {
         return biblioteca.importarCatalogoExercicios(request.ids());
+    }
+
+    /** Só leitura: quantos exercícios (ativos e arquivados) a união alteraria. */
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
+    @PostMapping("/grupos-musculares/unir/previa")
+    public UnirGruposResultado previaDeUnirGrupos(@RequestBody UnirGruposRequest request) {
+        return grupos.previa(request);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
+    @PostMapping("/grupos-musculares/unir")
+    public UnirGruposResultado unirGrupos(@RequestBody UnirGruposRequest request) {
+        return grupos.unir(request);
     }
 }

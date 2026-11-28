@@ -19,6 +19,8 @@ export const ROTA_INTEIRA_DO_ITEM = {
   'whatsapp-oficial': '/treinador/whatsapp',
   'documentos-pdf': '/treinador/documentos',
   'tags-dos-alunos': '/treinador/alunos/tags',
+  // Regras de atenção (28/11): abre à direita; no celular e em links antigos, a rota inteira (que no PC devolve para cá).
+  'regras-de-atencao': '/treinador/regras-de-atencao',
   contratos: '/treinador/contratos',
   termos: '/treinador/termos',
 } as const satisfies Readonly<Record<string, string>>;

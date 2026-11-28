@@ -1,8 +1,9 @@
 import type { ConteudoTreino, Sessao } from '../api/tipos';
+import type { ResumoDaSessaoPorContagem } from './inspetorDoTreino';
 
 /**
- * Contagens dos contadores do editor de treino (reunião de 30/10): o plano inteiro e, separado, a sessão aberta. Só conta o
- * que está cadastrado; não é "volume semanal" (frequência, repetições e carga não entram).
+ * Contagens do editor de treino (proposta de 27/11): o plano inteiro na linha das Sessões e os totais da sessão aberta no
+ * cabeçalho dela. Só conta o que está cadastrado; não é "volume semanal" (frequência, repetições e carga não entram).
  */
 
 export interface ContagemDoPlano {
@@ -31,12 +32,12 @@ export function contarPlano(conteudo: Pick<ConteudoTreino, 'sessoes'>): Contagem
 
 const contar = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
-/** "Plano inteiro: 6 sessões · 32 exercícios · 120 séries cadastradas". */
-export function textoDoPlanoInteiro(c: ContagemDoPlano): string {
-  return `Plano inteiro: ${contar(c.sessoes, 'sessão', 'sessões')} · ${contar(c.exercicios, 'exercício', 'exercícios')} · ${contar(c.series, 'série cadastrada', 'séries cadastradas')}`;
+/** Título das Sessões: "7 sessões · 27 exercícios · 81 séries". */
+export function textoDosTotaisDoPlano(c: ContagemDoPlano): string {
+  return `${contar(c.sessoes, 'sessão', 'sessões')} · ${contar(c.exercicios, 'exercício', 'exercícios')} · ${contar(c.series, 'série', 'séries')}`;
 }
 
-/** "Sessão aberta: 5 exercícios · 18 séries". */
-export function textoDaSessaoAberta(c: ContagemDaSessao): string {
-  return `Sessão aberta: ${contar(c.exercicios, 'exercício', 'exercícios')} · ${contar(c.series, 'série', 'séries')}`;
+/** Cabeçalho da sessão: "7 exercícios · 23 séries · 16 de trabalho". */
+export function textoDosTotaisDaSessao(r: Pick<ResumoDaSessaoPorContagem, 'exercicios' | 'series' | 'seriesDeTrabalho'>): string {
+  return `${contar(r.exercicios, 'exercício', 'exercícios')} · ${contar(r.series, 'série', 'séries')} · ${r.seriesDeTrabalho} de trabalho`;
 }

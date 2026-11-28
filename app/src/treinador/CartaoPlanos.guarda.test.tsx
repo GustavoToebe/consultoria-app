@@ -108,6 +108,17 @@ function OutroToque() {
   return <Pressable accessibilityLabel="Ir para outro lugar" onPress={() => confirmar(() => router.push('/treinador'))} />;
 }
 
+/** O "Novo treino" mora na linha das abas da Folha da pasta: aqui, um botão de fora que controla o `novo`. */
+function ComNovo() {
+  const [aberto, setAberto] = React.useState(false);
+  return (
+    <>
+      <Pressable accessibilityLabel="Novo treino" onPress={() => setAberto(true)} />
+      <CartaoPlanos tipo="treino" alunoId="aluno-1" pasta={PASTA} novo={{ aberto, aoMudar: setAberto }} />
+    </>
+  );
+}
+
 function portais() {
   return (globalThis as { __portaisDaFolha?: Map<string, string> }).__portaisDaFolha ?? new Map<string, string>();
 }
@@ -129,7 +140,7 @@ async function montar(planos: PlanoResumo[]) {
       <GuardaDeSaida>
         <Sujo />
         <Folha visivel titulo="Pasta do ciclo" aoFechar={() => undefined}>
-          <CartaoPlanos tipo="treino" alunoId="aluno-1" pasta={PASTA} />
+          <ComNovo />
         </Folha>
         <OutroToque />
       </GuardaDeSaida>,

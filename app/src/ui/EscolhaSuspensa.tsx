@@ -7,6 +7,7 @@ import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import type { Ancora } from './Calendario';
 import { Campo } from './Campo';
+import { coresDoDesabilitado } from './desabilitado';
 import { Folha } from './Folha';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
@@ -31,7 +32,17 @@ interface Props<T> {
   digitado?: { opcao: (texto: string) => OpcaoSuspensa<T> | null; maxLength?: number };
   /** Linhas do valor no botão fechado; padrão 1. Mais quando o fim do valor (um fator, por exemplo) não pode sumir. */
   linhasDoValor?: number;
+  /**
+   * Nome acessível no lugar do rótulo quando o visível é curto ("RIR" vira "Série 1 · RIR"); deve começar com o que se
+   * lê na tela (WCAG 2.5.3). O botão fica "<rotuloAcessivel>: <valor>. Escolher.".
+   */
+  rotuloAcessivel?: string;
+  /** Altura: o chamador pode passar `minHeight` aqui (vem depois do estilo do botão). */
   style?: StyleProp<ViewStyle>;
+  /** Não abre, sai do Tab e fica no cinza único do desabilitado (`ui/desabilitado`); o valor continua à vista. */
+  desabilitado?: boolean;
+  /** Por que está desabilitado: vai no `accessibilityHint` (o texto visível fica com quem chama, perto do campo). */
+  motivo?: string;
 }
 
 const LARGURA_MINIMA = 300;
@@ -47,7 +58,7 @@ const ALTURA_DA_BUSCA = 92;
  * mesma lista abre numa `Folha`. Regras puras em `dominio/escolhaSuspensa`.
  */
 export function EscolhaSuspensa<T extends string | number | null>({
-  rotulo, valor, opcoes, aoMudar, titulo, semBusca, rotuloDaBusca, textoVazio, digitado, linhasDoValor = 1, style,
+  rotulo, valor, opcoes, aoMudar, titulo, semBusca, rotuloDaBusca, textoVazio, digitado, linhasDoValor = 1, rotuloAcessivel, style, desabilitado, motivo,
 }: Props<T>) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
@@ -56,6 +67,7 @@ export function EscolhaSuspensa<T extends string | number | null>({
   const botao = useRef<View>(null);
   const escolhida = opcoes.find((o) => o.valor === valor);
   const texto = escolhida?.rotulo ?? '—';
+  const inativo = coresDoDesabilitado(cores);
   const abrir = () => {
     if (width < LARGURA_MENU_LATERAL) setAberta('folha');
     else botao.current?.measureInWindow((x, y, w, h) => setAberta({ x, y, w, h }));
@@ -71,14 +83,22 @@ export function EscolhaSuspensa<T extends string | number | null>({
         ref={botao}
         collapsable={false}
         accessibilityRole="button"
-        accessibilityLabel={`${rotulo}: ${texto}. Escolher.`}
-        accessibilityState={{ expanded: !!aberta }}
+        accessibilityLabel={`${rotuloAcessivel ?? rotulo}: ${texto}. Escolher.`}
+        accessibilityState={{ expanded: !!aberta, disabled: !!desabilitado }}
+        accessibilityHint={desabilitado ? motivo : undefined}
         aria-haspopup="listbox"
+        disabled={desabilitado}
         onPress={abrir}
-        style={(estado) => [estilos.botao, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.sobre : cores.campo }, style]}>
+        style={(estado) => [estilos.botao, desabilitado ? { borderColor: inativo.borda, backgroundColor: inativo.fundo }
+          : { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.sobre : cores.campo }, style]}>
         <View style={estilos.textos}>
           <Texto variante="pequeno" numberOfLines={1}>{rotulo}</Texto>
-          <Texto style={estilos.valor} numberOfLines={linhasDoValor}>{texto}</Texto>
+          {escolhida?.cor ? (
+            <View style={estilos.comBolinha}>
+              <Bolinha cor={escolhida.cor} />
+              <Texto style={[estilos.valor, estilos.encolhe]} cor={desabilitado ? inativo.texto : undefined} numberOfLines={linhasDoValor}>{texto}</Texto>
+            </View>
+          ) : <Texto style={estilos.valor} cor={desabilitado ? inativo.texto : undefined} numberOfLines={linhasDoValor}>{texto}</Texto>}
         </View>
         <ChevronDown size={18} color={cores.textoSuave} strokeWidth={2} />
       </Pressable>
@@ -178,6 +198,7 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
             accessibilityLabel={o.detalhe ? `${o.rotulo}, ${o.detalhe}` : o.rotulo}
             onHoverIn={() => setDestaque(i)} onFocus={() => setDestaque(i)} onPress={() => aoEscolher(o.valor)}
             style={[estilos.opcao, { backgroundColor: escolhida ? cores.sobre : i === atual ? cores.sobre : 'transparent', borderColor: escolhida ? cores.bordaCampo : 'transparent' }]}>
+            {o.cor ? <Bolinha cor={o.cor} /> : null}
             <View style={estilos.textos}>
               <Texto style={[estilos.rotuloOpcao, { color: cores.texto }]}>{o.rotulo}</Texto>
               {o.detalhe ? <Texto variante="pequeno">{o.detalhe}</Texto> : null}
@@ -209,6 +230,11 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
   );
 }
 
+/** A cor do tipo, decorativa: o nome da opção é que é lido. */
+function Bolinha({ cor }: { cor: string }) {
+  return <View aria-hidden testID="bolinha-da-opcao" style={[estilos.bolinha, { backgroundColor: cor }]} />;
+}
+
 const estilos = StyleSheet.create({
   botao: {
     alignSelf: 'stretch',
@@ -223,6 +249,9 @@ const estilos = StyleSheet.create({
   },
   textos: { flex: 1, gap: 1 },
   valor: { fontFamily: fontes.semi, fontSize: 15 },
+  comBolinha: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
+  encolhe: { flexShrink: 1 },
+  bolinha: { width: 8, height: 8, borderRadius: 4 },
   painel: {
     position: 'absolute',
     zIndex: 9999,

@@ -33,14 +33,14 @@ import { Indicadores } from '../../treinador/interessados/Indicadores';
 import { QuadroKanban, type FiltrosDoQuadro } from '../../treinador/interessados/QuadroKanban';
 import { EscolhaResponsabilidade } from '../../treinador/EscolhaResponsabilidade';
 import { FiltroDoEndereco } from '../../treinador/FiltroDoEndereco';
-import { CamposDePeriodo } from '../../treinador/SeletoresDeFiltro';
+import { CamposDePeriodo, UmaOpcao } from '../../treinador/SeletoresDeFiltro';
+import { ChipsMultiplos } from '../../ui/ChipsDeFiltro';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Abas } from '../../ui/Abas';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -196,6 +196,7 @@ export default function Interessados() {
             valor={filtrosDaTela} aoAplicar={aplicar} limpo={limpos(filtrosDaTela, visaoDosFiltros)} chips={chips}
             aoTirar={(chave) => aplicar(semOFiltro(filtrosDaTela, chave as ChaveDoFiltro))}
             painelLateral={{ titulo: 'Filtros de inscrições' }}
+            resultado={{ itens: { um: 'inscrição', varios: 'inscrições' }, total: visao === 'lista' && !lista.dadosDeOutraChave ? lista.dados?.total : undefined, buscar: (r) => listarInscricoes({ ...filtrosDaFila(r, busca, usuario?.id), situacao: r.situacao, pagina: 0 }).then((p) => p.total) }}
             seletores={(atuais, mudar) => <SeletoresDeInteressados visiveis={visiveis} filtros={atuais} aoMudar={mudar}
               opcoesDeSituacao={opcoesDeSituacao} opcoesDeResponsavel={opcoesDeResponsavel(responsaveis.dados ?? [], usuario?.id)} />} />
           {visao === 'lista' ? (
@@ -256,13 +257,12 @@ function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao,
       <GrupoDoPainel titulo="Identificação" primeiro>
         <SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel} marcados={new Set(filtros.responsaveis)} rotuloDeTodos="Toda a equipe"
           aoMudar={(m) => aoMudar({ ...filtros, responsaveis: [...m] })} style={estilos.cheio} />
-        <SelecaoMultiplaSuspensa rotulo="Origem" opcoes={OPCOES_FILTRO_ORIGEM} marcados={new Set(filtros.origens)} rotuloDeTodos="Todas"
-          aoMudar={(m) => aoMudar({ ...filtros, origens: OPCOES_FILTRO_ORIGEM.map((o) => o.valor).filter((v) => m.has(v)) as FiltroDeOrigem[] })} style={estilos.cheio} />
+        <ChipsMultiplos<FiltroDeOrigem> rotulo="Origem" opcoes={OPCOES_FILTRO_ORIGEM} marcados={filtros.origens} aoMudar={(origens) => aoMudar({ ...filtros, origens })} />
       </GrupoDoPainel>
       {visiveis.includes('situacao') ? (
         <GrupoDoPainel titulo="Situação">
-          {/* Oito situações: a escolha quebra linha dentro do painel. */}
-          <View style={estilos.caber}><Escolha rotulo="Situação" opcoes={opcoesDeSituacao} valor={filtros.situacao} aoMudar={(situacao) => aoMudar({ ...filtros, situacao })} /></View>
+          {/* Oito situações em chips de uma escolha (quebram linha dentro do painel); nada escolhido = todas. */}
+          <View style={estilos.caber}><UmaOpcao rotulo="Situação" opcoes={opcoesDeSituacao} todos="TODAS" valor={filtros.situacao} aoMudar={(situacao) => aoMudar({ ...filtros, situacao })} /></View>
         </GrupoDoPainel>
       ) : null}
       <GrupoDoPainel titulo="Datas">

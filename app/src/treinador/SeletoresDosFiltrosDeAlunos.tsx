@@ -7,9 +7,10 @@ import {
   type AcessoDoFiltro, type ChaveDoFiltro, type FaseDoFiltro, type FiltrosDeAlunos, type PlanoDoFiltro, type RegistroDoFiltro,
 } from '../dominio/filtrosDeAlunos';
 import { GrupoDoPainel } from '../ui/BarraDeFiltros';
-import { Escolha } from '../ui/Escolha';
+import { ChipsMultiplos } from '../ui/ChipsDeFiltro';
 import { SelecaoMultiplaSuspensa } from '../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../ui/Texto';
+import { UmaOpcao } from './SeletoresDeFiltro';
 import { opcoesDoFiltroDeTags } from './tags/textosDasTags';
 
 interface Props {
@@ -30,8 +31,9 @@ type Unico<T extends string> = T | typeof TODOS;
 
 /**
  * Seletores do painel "Filtros de alunos", em grupos (painel lateral de `docs/design-e-front.md` 4.6): Identificação (responsável,
- * acesso, tags), Situação (situação, atualização, pasta) e Outros (plano em uso, último registro). Várias opções em
- * `SelecaoMultiplaSuspensa` (nada marcado = todos) e uma em `Escolha`. Cada mudança devolve o rascunho inteiro; o
+ * acesso, tags), Situação (situação, atualização, pasta) e Outros (plano em uso, último registro), pela regra única dos
+ * filtros (28/11): várias opções fixas em `ChipsMultiplos` (nada marcado = todos), uma em `UmaOpcao` (segmento ou chips);
+ * responsável e tags, que vêm do cadastro e podem ser muitos, seguem na `SelecaoMultiplaSuspensa` com busca. Cada mudança devolve o rascunho inteiro; o
  * endereço só muda no "Aplicar filtros". Grupo sem filtro permitido some.
  */
 export function SeletoresDosFiltrosDeAlunos({ visiveis, filtros, aoMudar, responsaveis, usuarioId, tags, tagsFalharam }: Props) {
@@ -46,8 +48,7 @@ export function SeletoresDosFiltrosDeAlunos({ visiveis, filtros, aoMudar, respon
             aoMudar={(m) => aoMudar({ ...filtros, responsaveis: [...m] })} rotuloDeTodos="Todos" style={estilos.cheio} />
         ) : null}
         {mostra('acesso') ? (
-          <SelecaoMultiplaSuspensa rotulo="Acesso ao app" opcoes={ACESSOS} marcados={new Set(filtros.acesso)}
-            aoMudar={(m) => aoMudar({ ...filtros, acesso: ACESSOS.map((o) => o.valor).filter((v) => m.has(v)) as AcessoDoFiltro[] })} style={estilos.cheio} />
+          <ChipsMultiplos<AcessoDoFiltro> rotulo="Acesso ao app" opcoes={ACESSOS} marcados={filtros.acesso} aoMudar={(acesso) => aoMudar({ ...filtros, acesso })} />
         ) : null}
         {mostra('tag') && tagsFalharam ? <Texto variante="pequeno">Não foi possível carregar as tags para filtrar.</Texto> : null}
         {mostra('tag') && !tagsFalharam && tags?.length ? (
@@ -57,25 +58,24 @@ export function SeletoresDosFiltrosDeAlunos({ visiveis, filtros, aoMudar, respon
       </GrupoDoPainel>
       <GrupoDoPainel titulo="Situação">
         {mostra('situacao') ? (
-          <Escolha rotulo="Situação" opcoes={[...SITUACOES]} valor={filtros.situacao} aoMudar={(situacao) => aoMudar({ ...filtros, situacao })} />
+          <UmaOpcao rotulo="Situação" opcoes={SITUACOES} todos="TODOS" valor={filtros.situacao} aoMudar={(situacao) => aoMudar({ ...filtros, situacao })} />
         ) : null}
         {mostra('atualizacao') ? (
-          <SelecaoMultiplaSuspensa rotulo="Atualização" opcoes={FASES} marcados={new Set(filtros.atualizacao)}
-            aoMudar={(m) => aoMudar({ ...filtros, atualizacao: FASES.map((o) => o.valor).filter((v) => m.has(v)) as FaseDoFiltro[] })} style={estilos.cheio} />
+          <ChipsMultiplos<FaseDoFiltro> rotulo="Atualização" opcoes={FASES} marcados={filtros.atualizacao} aoMudar={(atualizacao) => aoMudar({ ...filtros, atualizacao })} />
         ) : null}
         {mostra('pasta') ? (
-          <Escolha<'TODAS' | 'A_RENOVAR'> rotulo="Pasta" opcoes={[{ valor: 'TODAS', rotulo: 'Todas' }, { valor: 'A_RENOVAR', rotulo: 'A renovar em 7 dias' }]}
+          <UmaOpcao<'TODAS' | 'A_RENOVAR'> rotulo="Pasta" opcoes={[{ valor: 'TODAS', rotulo: 'Todas' }, { valor: 'A_RENOVAR', rotulo: 'A renovar em 7 dias' }]}
             valor={filtros.pastaARenovar ? 'A_RENOVAR' : 'TODAS'} aoMudar={(v) => aoMudar({ ...filtros, pastaARenovar: v === 'A_RENOVAR' })} />
         ) : null}
       </GrupoDoPainel>
       {mostra('plano') || mostra('registro') ? (
         <GrupoDoPainel titulo="Outros">
           {mostra('plano') ? (
-            <Escolha<Unico<PlanoDoFiltro>> rotulo="Plano em uso" opcoes={[{ valor: TODOS, rotulo: 'Todos' }, ...PLANOS]} valor={unico(filtros.plano)}
+            <UmaOpcao<Unico<PlanoDoFiltro>> rotulo="Plano em uso" opcoes={[{ valor: TODOS, rotulo: 'Todos' }, ...PLANOS]} valor={unico(filtros.plano)}
               aoMudar={(v) => aoMudar({ ...filtros, plano: deUnico(v) })} />
           ) : null}
           {mostra('registro') ? (
-            <Escolha<Unico<RegistroDoFiltro>> rotulo="Último registro" opcoes={[{ valor: TODOS, rotulo: 'Qualquer' }, ...REGISTROS]} valor={unico(filtros.registro)}
+            <UmaOpcao<Unico<RegistroDoFiltro>> rotulo="Último registro" opcoes={[{ valor: TODOS, rotulo: 'Qualquer' }, ...REGISTROS]} valor={unico(filtros.registro)}
               aoMudar={(v) => aoMudar({ ...filtros, registro: deUnico(v) })} />
           ) : null}
         </GrupoDoPainel>

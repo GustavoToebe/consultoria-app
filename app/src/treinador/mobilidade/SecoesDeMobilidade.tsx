@@ -2,7 +2,9 @@ import { Ellipsis, Plus, Trash2 } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
-import { colunasDaMobilidade, LARGURA_DA_PREVIA_NA_ULTRALARGA, secaoEmEdicao, VAO_DAS_TRES_COLUNAS } from '../../dominio/colunasDaMobilidade';
+import { LARGURA_DA_LISTA, secaoEmEdicao } from '../../dominio/colunasDaMobilidade';
+import { LINHA_DAS_TRES_COLUNAS } from '../../dominio/colunasDaDieta';
+import { colunasComPrevia, PREVIA_MINIMA } from '../../dominio/colunasDoEditor';
 import { remover, substituir } from '../../dominio/editorTreino';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
 import {
@@ -25,7 +27,7 @@ import { acoesDeMover } from '../acoesDeMover';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
 import { BlocoAdicionar, BotaoDoBloco } from '../plano/BlocoAdicionar';
-import { useDuasColunas, useTresColunas } from '../plano/ColunasDoEditor';
+import { LinhaComPrevia, useDuasColunas, useTresColunas } from '../plano/ColunasDoEditor';
 import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
 import { mostrarAbaixoDaBarra } from '../plano/TelaDoEditor';
 import { ESPERA_DA_SELECAO } from '../treino/ContadoresDoTreino';
@@ -54,17 +56,20 @@ type DesfazerDaTela = Desfazer<ConteudoMobilidade> & { voltarPara?: string; seca
  * rolada até a seção aberta (`PreviaDaMobilidade`, 26/11); empilhado (celular), cada seção é um cartão, com a alça no cabeçalho. Mover fica
  * na alça e no ⋯ ("Mover para cima/baixo"); excluir seção com itens confirma; remover tem "Desfazer". Nada salva sozinho.
  */
-export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
+export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes, situacao }: {
   conteudo: ConteudoMobilidade;
   aoMudar: (c: ConteudoMobilidade) => void;
   /** "Ir ao primeiro" da lista de problemas: os uids do primeiro problema; `vez` muda a cada pedido. */
   irPara?: { uids: string[]; vez: number } | null;
   /** Botões ao lado de "Seções (N)": o "Modelos" do plano do aluno (o modelo do Planejamento não passa). */
   acoes?: ReactNode;
+  /** Embaixo da lista, com o resumo: "Publicado v1 · sem alterações" (o plano do aluno passa; o modelo não tem versão). */
+  situacao?: string;
 }) {
   const [desfazer, setDesfazer] = useState<DesfazerDaTela | null>(null);
   const duas = useDuasColunas();
   const tres = useTresColunas();
+  const { cores } = useTema();
   // Largura medida da linha das colunas (lista | seção | prévia): da faixa `larga` em diante abre a prévia ao vivo.
   const [linha, setLinha] = useState<number | null>(null);
   const { rolarAte } = useRolagem();
@@ -146,11 +151,14 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
     </BlocoAdicionar>
   );
   const aExcluir = mob.secoes.find((x) => x.uid === excluir);
-  // Três colunas só na web (a prévia gruda abaixo da barra). Antes da 1ª medida vale o palpite da `TelaDoEditor` (ultralarga
-  // em Automática), para a prévia não aparecer só no 2º quadro; depois, as larguras exatas de `colunasDaMobilidade`.
+  // Três colunas só na web (a prévia gruda abaixo da barra), da faixa `larga` da linha medida em diante (a régua do Total do
+  // dia da dieta). Antes da 1ª medida vale o palpite da `TelaDoEditor` (ultralarga em Automática), para a prévia não aparecer
+  // só no 2º quadro; depois, as larguras da regra da peça (`colunasComPrevia`: lista de 280, a de sempre, vão fixo de 24,
+  // editor até 1400, prévia de 440 a 720, a sobra no fim da linha).
   const web = Platform.OS === 'web';
-  const colunas = web ? colunasDaMobilidade(linha) : null;
-  const larguraDaPrevia = colunas?.previa ?? (web && linha === null && tres ? LARGURA_DA_PREVIA_NA_ULTRALARGA : null);
+  const colunas = web && linha !== null && linha >= LINHA_DAS_TRES_COLUNAS ? colunasComPrevia(linha, LARGURA_DA_LISTA) : null;
+  const larguraDaPrevia = colunas?.previa ?? (web && linha === null && tres ? PREVIA_MINIMA : null);
+  const totalDeItens = mob.secoes.reduce((n, x) => n + x.itens.length, 0);
   const nItens = aExcluir?.itens.length ?? 0;
 
   return <>
@@ -159,18 +167,25 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
       {acoes ? <View style={estilos.linha}>{acoes}</View> : null}
     </View>
     {avisoNaSecao || avisoNoLugar !== null ? null : barra}
-    {duas && escolhida ? <View onLayout={(e) => setLinha(Math.round(e.nativeEvent.layout.width))}
-      style={[estilos.colunas, larguraDaPrevia !== null ? { gap: colunas?.vao ?? VAO_DAS_TRES_COLUNAS } : null]}>
-      <View style={[estilos.lista, colunas ? { width: colunas.lista } : null]}>
+    {/* `floor`, não `round`: arredondar para cima daria meio pixel a mais que a linha e a prévia desceria. */}
+    {duas && escolhida ? <LinhaComPrevia onLayout={(e) => setLinha(Math.floor(e.nativeEvent.layout.width))}
+      style={larguraDaPrevia === null ? estilos.duasColunas : null}>
+      <View style={[estilos.lista, colunas ? { width: colunas.indice } : null]}>
         <View style={estilos.itensDaLista} role="group" accessibilityLabel="Seções da mobilidade">
           {mob.secoes.map((sec, si) => <ItemDaLista key={sec.uid} secao={sec} posicao={si} total={mob.secoes.length} arraste={arraste}
             escolhida={sec.uid === escolhida.uid} aoEscolher={() => { setEscolhidaUid(sec.uid); setItemNovo(null); }} />)}
         </View>
         {adicionar}
+        {/* O resumo embaixo da lista, para a coluna não ficar vazia sob as seções. */}
+        <View style={[estilos.resumo, { borderTopColor: cores.divisor }]}>
+          <Texto variante="secao">Resumo</Texto>
+          <Texto variante="pequeno" numerico>{`${mob.secoes.length} ${mob.secoes.length === 1 ? 'seção' : 'seções'} · ${totalDeItens} ${totalDeItens === 1 ? 'item' : 'itens'}`}</Texto>
+          {situacao ? <Texto variante="pequeno" numerico>{situacao}</Texto> : null}
+        </View>
       </View>
       <View style={colunas ? { width: colunas.editor, minWidth: 0 } : estilos.inspetor}>{painel(escolhida, mob.secoes.indexOf(escolhida), true)}</View>
       {larguraDaPrevia !== null ? <PreviaDaMobilidade conteudo={mob} secaoUid={escolhida.uid} largura={larguraDaPrevia} /> : null}
-    </View> : <>
+    </LinhaComPrevia> : <>
       {mob.secoes.flatMap((sec, si) => {
         const cartao = <ItemArrastavel key={sec.uid} arraste={arraste} indice={si}>{painel(sec, si, false)}</ItemArrastavel>;
         return si === avisoNoLugar ? [barra, cartao] : [cartao];
@@ -279,12 +294,14 @@ function PainelDaSecao({ secao: sec, posicao, total, noInspetor, itemNovo, alca,
 
 const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
+  // Duas colunas (sem prévia): o vão de sempre, 16.
+  duasColunas: { gap: espaco(2) },
+  resumo: { gap: espaco(0.5), paddingTop: espaco(2), borderTopWidth: 1 },
   // Lista de 280 px (a mesma da dieta): em 1280 com o menu aberto o painel fica com ~710 px e os itens em tabela.
-  lista: { width: 280, flexShrink: 0, gap: espaco(2) },
+  lista: { width: LARGURA_DA_LISTA, flexShrink: 0, gap: espaco(2) },
   itensDaLista: { gap: espaco(1) },
   // Abaixo da faixa larga o painel para em ~1400 px, à esquerda junto da lista; dali em diante entra a prévia ao vivo e as
-  // larguras vêm de `colunasDaMobilidade` (a sobra vira vão igual dos dois lados).
+  // larguras vêm de `colunasComPrevia` (a sobra fica no fim da linha).
   inspetor: { flex: 1, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
   cabecalhoSecoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   cabecalho: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(0.5), paddingHorizontal: espaco(2), paddingVertical: espaco(1.25) },

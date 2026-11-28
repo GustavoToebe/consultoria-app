@@ -9,12 +9,13 @@ import { useFaixaDaTela } from '../../ui/Tela';
 const VAO = espaco(3);
 
 /**
- * Blocos do Histórico em colunas empilhadas (`ui/Alvenaria`, a mesma de Configurações) nas faixas larga e ultralarga
- * (`dominio/colunasDoHistorico`): cada bloco vai para a coluna mais baixa, então as colunas terminam perto da mesma altura
- * e a ordem de leitura e do Tab continua a da lista. O `peso` estimado só vale até todos os blocos terem altura medida;
- * depois vale a altura de verdade (os cartões carregam os próprios dados e o estimado não sabe se a avaliação ou as fotos
- * vêm vazias). Mudar de coluna não muda a largura, então a medida não oscila. Nas faixas de uma coluna (celular, compacta,
- * normal) ou com um bloco só, desenha `umaColuna`: o desenho de sempre, sem mudar nada.
+ * Blocos do Histórico em colunas empilhadas (`ui/Alvenaria`, a mesma de Configurações) da faixa normal em diante
+ * (`dominio/colunasDoHistorico`: as colunas que cabem na largura medida, até o teto da faixa): cada bloco vai para a coluna
+ * mais baixa, então as colunas terminam perto da mesma altura e a ordem de leitura e do Tab continua a da lista. O `peso`
+ * estimado só vale até todos os blocos terem altura medida; depois vale a altura de verdade (os cartões carregam os próprios
+ * dados e o estimado não sabe se a avaliação ou as fotos vêm vazias). Mudar de coluna não muda a largura, então a medida não
+ * oscila. Na faixa de uma coluna (celular e compacta) ou com um bloco só, desenha `umaColuna`: o desenho de sempre. Cada
+ * bloco leva o testID `coluna-do-historico-<chave>` (o e2e mede o fim das colunas por ele, `e2e/alturasDeColunas`).
  */
 export function ColunasDoHistorico({ pecas, umaColuna, maximo }: { pecas: readonly PecaDaAlvenaria[]; umaColuna: ReactNode; maximo?: number }) {
   const faixa = useFaixaDaTela();
@@ -25,7 +26,7 @@ export function ColunasDoHistorico({ pecas, umaColuna, maximo }: { pecas: readon
     chave: p.chave,
     peso: medidas ? alturas[p.chave] + VAO : p.peso,
     conteudo: (
-      <View onLayout={(e) => {
+      <View testID={`coluna-do-historico-${p.chave}`} onLayout={(e) => {
         const altura = e.nativeEvent.layout.height;
         setAlturas((atual) => (atual[p.chave] === altura ? atual : { ...atual, [p.chave]: altura }));
       }}>

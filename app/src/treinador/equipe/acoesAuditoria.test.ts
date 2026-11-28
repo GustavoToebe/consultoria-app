@@ -89,3 +89,7 @@ test('ações do contrato digital têm rótulo no filtro da auditoria', () => {
 test('ações das regras de atenção têm rótulo no filtro da auditoria', () => {
   for (const acao of ['REGRA_ATENCAO_CRIADA', 'REGRA_ATENCAO_ALTERADA', 'REGRA_ATENCAO_REMOVIDA', 'REGRA_ATENCAO_EXCECAO_DEFINIDA', 'REGRA_ATENCAO_EXCECAO_REMOVIDA', 'PUSH_ATENCAO_ALTERADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
+
+test('unir grupos musculares da biblioteca tem rótulo no filtro da auditoria', () => {
+  expect(ACOES_AUDITORIA.GRUPOS_MUSCULARES_UNIDOS).toBeTruthy();
+});

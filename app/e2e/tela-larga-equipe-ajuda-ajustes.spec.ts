@@ -178,12 +178,12 @@ async function blocoDoTitulo(page: Page, h1: string) {
 const assentado = (conferir: () => Promise<void>) => expect(conferir).toPass({ timeout: 10_000 });
 
 // Colunas esperadas por largura (menu aberto, Automática): perfis, modelos do WhatsApp.
-const ESPERADO: Record<number, { perfis: number; modelos: number; ajudaEmTres: boolean; meusDados: number }> = {
+const ESPERADO: Record<number, { perfis: number; modelos: number; meusDados: number }> = {
   // Perfis (6 no exemplo): células ≥ 360 px em linhas equilibradas, 3 + 3 em 1920 e 2560, os 6 numa linha em 3440.
-  // Meus dados (26/11): os 3 cartões em colunas pela faixa da área ao lado da coluna dos itens (1380 é normal, 2020 é larga).
-  1920: { perfis: 3, modelos: 2, ajudaEmTres: false, meusDados: 2 },
-  2560: { perfis: 3, modelos: 3, ajudaEmTres: true, meusDados: 3 },
-  3440: { perfis: 4, modelos: 3, ajudaEmTres: true, meusDados: 3 },
+  // Meus dados (28/11): "Seus dados" e "Trocar senha", até 560 px cada, lado a lado à esquerda em toda área de 1144 px ou mais.
+  1920: { perfis: 3, modelos: 2, meusDados: 2 },
+  2560: { perfis: 3, modelos: 3, meusDados: 2 },
+  3440: { perfis: 4, modelos: 3, meusDados: 2 },
 };
 
 /** Respiro lateral máximo da `Tela` (48 px na ultralarga) e 1 px de arredondamento: o bloco preenche a área, sem vão. */
@@ -205,7 +205,11 @@ for (const [largura, altura] of LARGURAS) {
       const margens = await blocoDoTitulo(page, 'Meus dados');
       expect(margens.esquerda).toBeLessThanOrEqual(RESPIRO);
       expect(margens.direita).toBeLessThanOrEqual(RESPIRO);
-      expect(await naPrimeiraLinha(page, ['Acesso', 'Seus dados', 'Trocar senha'])).toBe(e.meusDados);
+      expect(await naPrimeiraLinha(page, ['Seus dados', 'Trocar senha'])).toBe(e.meusDados);
+      // Os cartões não esticam (a sobra fica à direita, vazia) e o primeiro começa na borda do título.
+      const cartoes = page.getByTestId('cartao').filter({ has: page.getByRole('heading', { name: /^(Seus dados|Trocar senha)$/ }) });
+      for (const c of await cartoes.all()) expect((await caixa(page, c)).width).toBeLessThanOrEqual(560 + 1);
+      expect(Math.abs((await caixa(page, cartoes.first())).x - titulo.x)).toBeLessThanOrEqual(1);
     });
     await semRolagemHorizontal(page);
 
@@ -230,21 +234,25 @@ for (const [largura, altura] of LARGURAS) {
       const tema = await caixa(page, page.getByRole('heading', { name: 'Tema e cores', exact: true }));
       const leitura = await caixa(page, page.getByRole('heading', { name: 'Leitura', exact: true }));
       expect(leitura.x).toBeGreaterThan(tema.x);
+      // Sem vazios (28/11): todo cartão entra nas colunas, com a largura de uma; nenhum na largura toda.
+      const coluna = (await caixa(page, page.getByTestId('preferencias-tema'))).width;
+      for (const peca of await page.locator('[data-testid^="preferencias-"]').all()) expect(Math.abs((await caixa(page, peca)).width - coluna)).toBeLessThan(2);
       const margens = await blocoDoTitulo(page, 'Aparência e preferências');
       expect(margens.esquerda).toBeLessThanOrEqual(RESPIRO);
       expect(margens.direita).toBeLessThanOrEqual(RESPIRO);
     });
     await semRolagemHorizontal(page);
 
-    // Ajuda: 3 colunas quando cabem (2560 já abre), texto corrido no limite.
-    await page.goto('/treinador/ajuda');
+    // Ajuda (formato de documentação): índice, artigo (até 760) e "Nesta página" (240) em linha, à esquerda, a partir de 1188 px.
+    await page.goto('/treinador/ajuda?secao=inicio');
     await TELAS[3].pronta(page);
     await assentado(async () => {
-      const comecar = await caixa(page, page.getByRole('heading', { name: 'Começar a usar', level: 2 }));
-      const consultar = await caixa(page, page.getByRole('heading', { name: 'Consultar', level: 2 }));
-      if (e.ajudaEmTres) expect(consultar.x).toBeGreaterThan(comecar.x + comecar.width);
-      else expect(consultar.y).toBeGreaterThan(comecar.y);
-      expect(comecar.width).toBeLessThanOrEqual(800);
+      const indice = await caixa(page, page.getByRole('navigation', { name: 'Tópicos da ajuda' }));
+      const artigo = await caixa(page, page.getByRole('heading', { level: 2 }).first());
+      const nesta = await caixa(page, page.getByRole('navigation', { name: 'Nesta página' }));
+      expect(artigo.x).toBeGreaterThan(indice.x + indice.width);
+      expect(nesta.x).toBeGreaterThan(artigo.x + artigo.width);
+      expect(artigo.width).toBeLessThanOrEqual(760);
     });
     await semRolagemHorizontal(page);
 
@@ -325,8 +333,8 @@ test('capturas da revisão (só com CAPTURAS_TELA_LARGA_GRUPO)', async ({ page }
         // Texto corrido da Ajuda (uma seção longa aberta) e o fim da Marca (Tema padrão e a prévia).
         const extra = dados === CHEIO && t.nome === 'ajuda'
           ? { nome: 'ajuda-secao-aberta', abrir: async () => {
-            await page.getByRole('button', { name: 'Treino, dieta e mobilidade, recolhido' }).click();
-            await page.getByRole('button', { name: 'Treino, dieta e mobilidade, aberto' }).scrollIntoViewIfNeeded();
+            await page.goto('/treinador/ajuda?secao=planos');
+            await expect(page.getByRole('heading', { level: 2, name: 'Treino, dieta e mobilidade' })).toBeVisible();
           } }
           : dados === CHEIO && t.nome === 'marca'
             ? { nome: 'marca-fim', abrir: () => page.getByRole('heading', { name: 'Tema padrão' }).scrollIntoViewIfNeeded() }

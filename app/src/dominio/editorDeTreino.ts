@@ -1,7 +1,10 @@
 import type { Carga, Configuracao, ConteudoTreino, Problema, Serie, Sessao } from '../api/tipos';
 import { agrupar, tituloDoGrupoDeSeries, type GrupoDeSeries } from './agrupamento';
+import { blocosValidos, textoDosBlocosNaLinha } from './blocos';
 import { rotuloDescanso } from './descanso';
+import { nomeDaTecnica } from './metodologia';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
+import { blocoSemDescanso } from './pontosParaRevisar';
 import { textoDasRepeticoesDaSerie } from './resumoDaSerie';
 
 /**
@@ -24,6 +27,21 @@ export interface ResumoDoBloco {
   descanso: string;
   /** Campos cujo valor muda entre as séries do bloco (descanso, RIR e carga não separam blocos em `agrupar`). */
   variacao: CampoComVariacao[];
+  /** Alguma série (fora do cardio) sem descanso (`blocoSemDescanso`); falso quando a tela manda `ignorarDescanso`. */
+  semDescanso: boolean;
+  /** Nome da técnica em minúsculas ("cluster"), para "6 séries · cluster"; `null` sem técnica e no cardio. */
+  tecnica: string | null;
+}
+
+export interface OpcoesDoResumo {
+  /** O descanso deste bloco não conta (exercício de cardio, membro de grupo com `descansoSoDoGrupo`). */
+  ignorarDescanso?: boolean;
+}
+
+/** Cluster com blocos válidos: "5 × 5 (25)" ou "4+4+2 (10)"; senão as repetições da série. */
+function repeticoesDaSerie(s: Serie): string {
+  const blocos = s.tecnica?.tipo === 'CLUSTER' ? s.tecnica.blocos : null;
+  return blocosValidos(blocos) ? textoDosBlocosNaLinha(blocos) : textoDasRepeticoesDaSerie(s);
 }
 
 /** Um valor se todos iguais; senão cada um em ordem ("1 min, 2 min"): nunca uma média nem a faixa que esconde o meio. */
@@ -36,18 +54,23 @@ const chaveDaCarga = (c: Carga | null) => [c?.modo ?? 'NENHUMA', c?.percentualMi
 const chaveDoEsforco = (s: Serie) => `${s.esforco?.rir ?? ''}|${s.esforco?.rpe ?? ''}`;
 
 /** Linha da tabela de blocos. `grupo` vem de `agrupar` (ou qualquer lista de séries: a variação é conferida série a série). */
-export function resumoDoBloco(grupo: GrupoDeSeries, config: Configuracao | null): ResumoDoBloco {
+export function resumoDoBloco(grupo: GrupoDeSeries, config: Configuracao | null, opcoes?: OpcoesDoResumo): ResumoDoBloco {
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const { series } = grupo;
   const cardio = series.some((s) => s.cardio);
-  const reps = cardio ? { texto: '—', varia: false } : juntar(series.map(textoDasRepeticoesDaSerie));
+  const reps = cardio ? { texto: '—', varia: false } : juntar(series.map(repeticoesDaSerie));
+  const tecnica = cardio ? null : series[0]?.tecnica?.tipo;
   const descanso = juntar(series.map((s) => (s.descansoSegundos == null ? '—' : rotuloDescanso(s.descansoSegundos))));
   const variacao: CampoComVariacao[] = [];
   if (reps.varia) variacao.push('repeticoes');
   if (descanso.varia) variacao.push('descanso');
   if (new Set(series.map(chaveDoEsforco)).size > 1) variacao.push('esforco');
   if (new Set(series.map((s) => chaveDaCarga(s.carga))).size > 1) variacao.push('carga');
-  return { nome: tituloDoGrupoDeSeries(grupo, cfg), quantidade: series.length, repeticoes: reps.texto, descanso: descanso.texto, variacao };
+  return {
+    nome: tituloDoGrupoDeSeries(grupo, cfg), quantidade: series.length, repeticoes: reps.texto, descanso: descanso.texto, variacao,
+    semDescanso: !opcoes?.ignorarDescanso && blocoSemDescanso(grupo),
+    tecnica: tecnica ? nomeDaTecnica(cfg, tecnica).toLowerCase() : null,
+  };
 }
 
 /** Blocos de um exercício (`agrupar`) e total de séries cadastradas (a mesma soma de `contarSessao`, cardio incluído). */
@@ -142,7 +165,7 @@ export function textoAcessivelDoBloco(rotulo: string, r: ResumoDoBloco): string 
     rotulo,
     `${r.quantidade} ${r.quantidade === 1 ? 'série' : 'séries'}`,
     `repetições ${r.repeticoes}`,
-    `descanso ${r.descanso}`,
+    r.semDescanso ? 'falta o descanso' : `descanso ${r.descanso}`,
     textoDaVariacao(r.variacao),
   ].filter(Boolean).join(', ');
 }

@@ -1,24 +1,47 @@
 import {
-  cpfMascarado, envioDoMeuPerfil, existeContratosNaConta, meuPerfilMudou, resumoDoContratoNaConta, resumoDoPerfil, resumoDosDados, secoesVisiveis, seloDoPlano, SEM_EDICAO_DO_PERFIL,
+  contatoDaConsultoriaNaConta, cpfMascarado, envioDoMeuPerfil, existeContratosNaConta, meuPerfilMudou, resumoDoApelido, resumoDoContratoNaConta, resumoDosDados, secoesVisiveis, seloDoPlano,
+  SEM_EDICAO_DO_PERFIL,
 } from './contaDoAluno';
 import type { PreferenciasLidas } from './perfilDaComunidade';
 
 const LIDO: PreferenciasLidas = { perfilReservado: false, reservadoEfetivo: false, destaques: ['A'], cor: 'AZUL', moldura: 'SIMPLES', exibicaoDoNome: 'NOME' };
 
 describe('secoesVisiveis', () => {
-  it('na ordem do pedido, com Privacidade, Segurança e App sempre', () => {
-    expect(secoesVisiveis({ plano: true, perfil: true, dados: true, convite: true }).map((s) => s.chave))
-      .toEqual(['plano', 'perfil', 'dados', 'convite', 'privacidade', 'seguranca', 'app']);
-    expect(secoesVisiveis({ plano: false, perfil: false, dados: false, convite: false }).map((s) => s.chave))
-      .toEqual(['privacidade', 'seguranca', 'app']);
+  it('na ordem de leitura de 28/11, com Perfil, App, Privacidade e Segurança sempre', () => {
+    expect(secoesVisiveis({ plano: true, dados: true, convite: true, consultoria: true }).map((s) => s.chave))
+      .toEqual(['perfil', 'consultoria', 'app', 'plano', 'convite', 'dados', 'privacidade', 'seguranca']);
+    expect(secoesVisiveis({ plano: false, dados: false, convite: false }).map((s) => s.chave))
+      .toEqual(['perfil', 'app', 'privacidade', 'seguranca']);
+  });
+
+  it('o Perfil preso à primeira coluna e "Sua consultoria", logo depois, à segunda', () => {
+    const secoes = secoesVisiveis({ plano: true, dados: true, convite: true, consultoria: true });
+    expect(secoes.slice(0, 2).map((s) => [s.chave, s.coluna])).toEqual([['perfil', 0], ['consultoria', 1]]);
+    expect(secoes.slice(2).every((s) => s.coluna === undefined)).toBe(true);
   });
 
   it('"Meus contratos" vem depois de "Meu plano" e só com existe.contratos', () => {
-    expect(secoesVisiveis({ plano: true, perfil: true, dados: true, convite: true, contratos: true }).map((s) => s.chave))
-      .toEqual(['plano', 'contratos', 'perfil', 'dados', 'convite', 'privacidade', 'seguranca', 'app']);
-    expect(secoesVisiveis({ plano: true, perfil: true, dados: true, convite: true, contratos: false }).map((s) => s.chave)).not.toContain('contratos');
-    // Quem ainda não conhece o campo (a tela de antes) continua sem a seção.
-    expect(secoesVisiveis({ plano: true, perfil: true, dados: true, convite: true }).map((s) => s.chave)).not.toContain('contratos');
+    expect(secoesVisiveis({ plano: true, dados: true, convite: true, contratos: true }).map((s) => s.chave))
+      .toEqual(['perfil', 'app', 'plano', 'contratos', 'convite', 'dados', 'privacidade', 'seguranca']);
+    expect(secoesVisiveis({ plano: true, dados: true, convite: true, contratos: false }).map((s) => s.chave)).not.toContain('contratos');
+    // Ausente = não existe (contratos e "Sua consultoria").
+    expect(secoesVisiveis({ plano: true, dados: true, convite: true }).map((s) => s.chave)).not.toContain('contratos');
+    expect(secoesVisiveis({ plano: true, dados: true, convite: true }).map((s) => s.chave)).not.toContain('consultoria');
+  });
+});
+
+describe('contatoDaConsultoriaNaConta', () => {
+  it('WhatsApp e redes juntos; cada um sozinho também faz o cartão existir', () => {
+    expect(contatoDaConsultoriaNaConta('45999998888', { instagram: 'https://www.instagram.com/ficticia' }))
+      .toEqual({ whatsapp: 'https://wa.me/5545999998888', redes: [{ rede: 'instagram', url: 'https://www.instagram.com/ficticia' }] });
+    expect(contatoDaConsultoriaNaConta('45999998888', null)).toEqual({ whatsapp: 'https://wa.me/5545999998888', redes: [] });
+    expect(contatoDaConsultoriaNaConta(null, { site: 'https://exemplo.test' })?.whatsapp).toBeNull();
+  });
+
+  it('sem WhatsApp nem rede segura, o cartão não existe', () => {
+    expect(contatoDaConsultoriaNaConta(null, null)).toBeNull();
+    expect(contatoDaConsultoriaNaConta(undefined, {})).toBeNull();
+    expect(contatoDaConsultoriaNaConta('', { instagram: 'http://inseguro.test', x: '' })).toBeNull();
   });
 });
 
@@ -62,11 +85,10 @@ describe('seloDoPlano', () => {
 });
 
 describe('resumos', () => {
-  it('perfil: apelido ou "—", plural dos destaques e reservado', () => {
-    expect(resumoDoPerfil(null, 2, false)).toBe('Apelido: —, 2 destaques');
-    expect(resumoDoPerfil('Testinho', 1, false)).toBe('Apelido: Testinho, 1 destaque');
-    expect(resumoDoPerfil(' ', 0, false)).toBe('Apelido: —, sem destaques');
-    expect(resumoDoPerfil('Testinho', 3, true)).toBe('Apelido: Testinho, perfil reservado');
+  it('perfil na comunidade: o apelido, ou "Sem apelido"', () => {
+    expect(resumoDoApelido('Testinho')).toBe('Testinho');
+    expect(resumoDoApelido(' ')).toBe('Sem apelido');
+    expect(resumoDoApelido(null)).toBe('Sem apelido');
   });
   it('dados: nome e telefone', () => {
     expect(resumoDosDados('Aluno Teste', '(45) 99999-8888')).toBe('Aluno Teste · (45) 99999-8888');

@@ -40,6 +40,11 @@ interface Props {
   periodo?: string;
   /** Antes do título, na mesma linha: a bolinha na cor do estado nos grupos da lista de alunos. Decorativo: o título diz o estado. */
   marcador?: ReactNode;
+  /**
+   * Peça pequena colada à direita do título, na mesma linha e fora do h2 (selo de contexto como "Perfil: Administrador", botão
+   * de ícone do próprio título); quebra para a linha de baixo quando não cabe. Ações do cartão vão em `acoes`. Mesmo nome do `Cabecalho`.
+   */
+  aoLadoDoTitulo?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -48,7 +53,7 @@ interface Props {
  * no contraste alto, `contornoDoCartao`), cantos de 20 px e a `sombra` do tema, que é quem separa o cartão da página; o
  * título fica no próprio cartão, com o filete `divisor` embaixo (divisória interna: não acompanha o contorno no contraste alto). Separa seções, dias, exercícios.
  */
-export function Cartao({ children, cabecalho, titulo, descricao, resumo, acoes, rodape, recolhivel, recolhido = true, nivel = 2, faixa = true, marcador, periodo, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, resumo, acoes, rodape, recolhivel, recolhido = true, nivel = 2, faixa = true, marcador, periodo, aoLadoDoTitulo, style }: Props) {
   const { cores, bordas, preferencias } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
@@ -59,26 +64,30 @@ export function Cartao({ children, cabecalho, titulo, descricao, resumo, acoes, 
   // Faixa sem nada embaixo (recolhido, ou vazio dito na própria faixa): sem o filete, que dobraria a borda do cartão.
   const semCorpo = Children.toArray(children).length === 0;
   const soAFaixa = fechado || (semCorpo && !rodape);
+  const tituloDoCartao = titulo && recolhivel ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${titulo}, ${fechado ? 'recolhido' : 'expandido'}`}
+      accessibilityState={{ expanded: !fechado }}
+      onPress={() => setFechado((v) => !v)}
+      style={({ pressed }) => [estilos.tituloBotao, { opacity: pressed ? 0.7 : 1 }]}>
+      {marcador ?? null}
+      <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto>
+      <Seta size={18} color={cores.textoSuave} />
+    </Pressable>
+  ) : titulo && marcador ? (
+    <View style={estilos.comMarcador}>{marcador}<Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto></View>
+  ) : titulo ? <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto> : null;
   return (
     <Card testID="cartao" style={[estilos.cartao, { borderWidth: bordas.bloco, backgroundColor: cores.superficie, borderColor: contornoDoCartao(cores, preferencias.contraste), boxShadow: cores.sombra, padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
       {cabecalho ?? null}
       {titulo || acoes ? (
         <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo }, soAFaixa ? estilos.faixaFechada : null] : null]}>
           <View style={estilos.tituloEDescricao}>
-            {titulo && recolhivel ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${titulo}, ${fechado ? 'recolhido' : 'expandido'}`}
-                accessibilityState={{ expanded: !fechado }}
-                onPress={() => setFechado((v) => !v)}
-                style={({ pressed }) => [estilos.tituloBotao, { opacity: pressed ? 0.7 : 1 }]}>
-                {marcador ?? null}
-                <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto>
-                <Seta size={18} color={cores.textoSuave} />
-              </Pressable>
-            ) : titulo && marcador ? (
-              <View style={estilos.comMarcador}>{marcador}<Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto></View>
-            ) : titulo ? <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto> : null}
+            {/* Fora do botão do recolhível e do h2: a peça não entra no nome do título nem vira botão dentro de botão. */}
+            {titulo && aoLadoDoTitulo ? (
+              <View testID="linha-do-titulo" style={estilos.linhaDoTitulo}>{tituloDoCartao}{aoLadoDoTitulo}</View>
+            ) : tituloDoCartao}
             {periodo ? (
               <View style={[estilos.periodo, { borderColor: cores.bordaCampo, backgroundColor: cores.superficie }]} accessibilityLabel={`Período: ${periodo}`}>
                 <CalendarDays size={14} color={cores.texto} />
@@ -105,6 +114,7 @@ const estilos = StyleSheet.create({
   tituloEDescricao: { flexShrink: 1, flexGrow: 1, flexBasis: 200, gap: 2 },
   titulo: { flexShrink: 1 },
   comMarcador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  linhaDoTitulo: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: espaco(1), rowGap: espaco(0.5) },
   faixa: { paddingVertical: espaco(1.5), borderBottomWidth: LINHA_DA_FAIXA },
   faixaFechada: { borderBottomWidth: 0 },
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },

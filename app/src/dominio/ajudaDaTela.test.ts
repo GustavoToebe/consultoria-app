@@ -1,22 +1,30 @@
+import { idDoTopico } from '../ajuda/blocos';
 import { GUIAS } from '../ajuda/conteudo';
 import { artigoDaTela, TELAS_COM_ARTIGO } from './ajudaDaTela';
 
 describe('artigoDaTela', () => {
-  it('toda seção mapeada existe no guia da área', () => {
-    for (const [tela, secao] of TELAS_COM_ARTIGO) {
+  it('toda seção (e todo tópico) mapeada existe no guia da área', () => {
+    for (const [tela, secao, topico] of TELAS_COM_ARTIGO) {
       const publico = tela.startsWith('/aluno') ? 'aluno' : 'treinador';
-      expect({ tela, existe: GUIAS[publico].secoes.some((s) => s.id === secao) }).toEqual({ tela, existe: true });
+      const achada = GUIAS[publico].secoes.find((s) => s.id === secao);
+      const temTopico = !topico || !!achada?.itens.some((i) => idDoTopico(i.titulo) === topico);
+      expect({ tela, existe: !!achada, temTopico }).toEqual({ tela, existe: true, temTopico: true });
     }
+  });
+
+  it('a tela que é um tópico do artigo abre nele', () => {
+    expect(artigoDaTela('/treinador/equipe')).toBe('/treinador/ajuda?secao=consultoria&topico=equipe');
+    expect(artigoDaTela('/treinador/alunos/tags')).toBe('/treinador/ajuda?secao=alunos&topico=tags-dos-alunos');
+    expect(artigoDaTela('/treinador/importacao/planilha-completa')).toBe('/treinador/ajuda?secao=importacao&topico=planilha-completa');
   });
 
   it('abre a seção da Ajuda da própria área', () => {
     expect(artigoDaTela('/treinador/biblioteca')).toBe('/treinador/ajuda?secao=biblioteca');
-    expect(artigoDaTela('/treinador/equipe')).toBe('/treinador/ajuda?secao=consultoria');
     expect(artigoDaTela('/aluno/treino')).toBe('/aluno/ajuda?secao=treino');
   });
 
   it('a subtela herda o artigo; prefixo sem barra não casa', () => {
-    expect(artigoDaTela('/treinador/importacao/planilha-completa')).toBe('/treinador/ajuda?secao=importacao');
+    expect(artigoDaTela('/treinador/importacao/nova')).toBe('/treinador/ajuda?secao=importacao');
     expect(artigoDaTela('/treinador/equipes')).toBeNull();
   });
 
@@ -26,7 +34,6 @@ describe('artigoDaTela', () => {
       '/treinador/alunos': 'alunos',
       '/treinador/alunos/abc': 'alunos',
       '/treinador/alunos/novo': 'alunos',
-      '/treinador/alunos/tags': 'alunos',
       '/treinador/agenda': 'agenda',
       '/treinador/atualizacoes/abc': 'atualizacoes',
       '/treinador/planejamento': 'planos',

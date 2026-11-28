@@ -263,7 +263,7 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: /^Filtros, / }).click();
       const painel = page.getByRole('dialog', { name: 'Filtros do mural' });
       await painel.getByRole('checkbox', { name: /Só denunciadas/ }).click();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       // Só denunciadas: no lugar da escolha, o motivo (os grupos voltam ao tirar o filtro).
       await expect(page.getByText('As denunciadas vêm de todos os grupos.')).toBeVisible();
       await expect(mural).toHaveCount(0);
@@ -321,7 +321,7 @@ for (const largura of [390, 1280]) {
       await equipe.getByRole('button', { name: /^Filtros, / }).click();
       const painel = equipe.getByRole('dialog', { name: 'Filtros do mural' });
       await painel.getByRole('checkbox', { name: /Só denunciadas/ }).click();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await painel.getByRole('button', { name: /^(Aplicar filtros|Mostrar )/ }).click();
       await expect(equipe.getByText('As denunciadas vêm de todos os grupos.')).toBeVisible();
       await capturar(equipe, `extremo-mural-denunciadas-${largura}`);
 

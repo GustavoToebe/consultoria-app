@@ -21,6 +21,35 @@ export async function enderecoDaImagem(blob: Blob): Promise<string> {
   });
 }
 
+const soltar = (endereco: string | undefined) => {
+  if (endereco?.startsWith('blob:')) URL.revokeObjectURL(endereco);
+};
+
+/**
+ * Endereço de um `Blob` baixado (`enderecoDaImagem`), dono da vida dele: o `blob:` é criado aqui e solto quando o blob
+ * muda ou o componente sai. Quem busca devolve o Blob, nunca o endereço: o `useCarregar` descarta a resposta que chega
+ * depois de a chave mudar, e um endereço criado lá dentro ficaria preso na página (foto do aluno). Até o novo ficar pronto,
+ * o anterior continua (a foto não pisca). `erro` = não deu para ler este blob (no celular, o `FileReader`).
+ */
+export function useEnderecoDoBlob(blob: Blob | undefined): { endereco: string | undefined; emDia: boolean; erro: boolean } {
+  const [estado, setEstado] = useState<{ blob: Blob; endereco?: string; erro?: true }>();
+  useEffect(() => {
+    if (!blob) return;
+    let vivo = true;
+    enderecoDaImagem(blob).then(
+      (endereco) => (vivo ? setEstado({ blob, endereco }) : soltar(endereco)),
+      () => vivo && setEstado({ blob, erro: true }),
+    );
+    return () => {
+      vivo = false;
+    };
+  }, [blob]);
+  const endereco = estado?.endereco;
+  useEffect(() => () => soltar(endereco), [endereco]);
+  const emDia = blob !== undefined && estado?.blob === blob;
+  return { endereco, emDia, erro: emDia && estado?.erro === true };
+}
+
 interface Props {
   /** Muda quando a imagem é outra (id da foto). */
   chave: string;
@@ -40,21 +69,32 @@ interface Props {
    */
   proporcional?: boolean;
   alturaMaxima?: number;
+  /**
+   * Quem usa já envolve a miniatura num botão (abrir a foto): no erro ela mostra só o aviso, sem outro botão dentro dele.
+   * Tentar de novo fica com o que o botão de fora abre (o visualizador baixa a foto de novo).
+   */
+  dentroDeBotao?: boolean;
 }
 
 /** Miniatura de foto que só existe atrás da API: baixa com o token, mostra e solta o endereço ao sair da tela. */
-export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTocar, altura, ajuste = 'cover', proporcional, alturaMaxima }: Props) {
+export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTocar, altura, ajuste = 'cover', proporcional, alturaMaxima, dentroDeBotao }: Props) {
   const { cores } = useTema();
   const [razao, setRazao] = useState<number | null>(null);
-  const { dados: endereco, erro, carregando, recarregar } = useCarregar(chave, async () => enderecoDaImagem(await carregar()));
-  useEffect(
-    () => () => {
-      if (endereco?.startsWith('blob:')) URL.revokeObjectURL(endereco);
-    },
-    [endereco],
-  );
+  const baixada = useCarregar(chave, carregar);
+  const lida = useEnderecoDoBlob(baixada.dados);
+  const endereco = lida.endereco;
+  const erro = baixada.erro ?? (lida.erro || undefined);
+  const carregando = baixada.carregando || !lida.emDia;
+  const recarregar = baixada.recarregar;
   const alturaDaCaixa = proporcional && razao ? Math.min(alturaMaxima ?? Number.POSITIVE_INFINITY, Math.round(tamanho / razao)) : altura ?? tamanho;
   const caixa = [estilos.caixa, { width: tamanho, height: alturaDaCaixa, maxWidth: '100%' as const, borderColor: cores.divisor, backgroundColor: cores.superficie2 }];
+  if (erro && dentroDeBotao) {
+    return (
+      <View style={[caixa, estilos.centro]}>
+        <Texto variante="pequeno" style={{ textAlign: 'center' }}>Não carregou</Texto>
+      </View>
+    );
+  }
   if (erro) {
     return (
       <Pressable accessibilityRole="button" accessibilityLabel={`${descricao}: não foi possível carregar. Tocar para tentar de novo`}

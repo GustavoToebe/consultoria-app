@@ -20,7 +20,7 @@ import { corDaSerie } from '../../ui/pinturaDaSerie';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { cargaDoBloco, FALTA_A_CARGA } from './cargaDaSerie';
-import { AvisoDoCampo, ErroDoCampo, useCamposLadoALado } from './CamposDaPrescricao';
+import { AvisoDoCampo, ErroDoCampo } from './CamposDaPrescricao';
 import { EditorGrupo, faltaCargaNoGrupo, nivelDoGrupo, type Nivel } from './EditorDoGrupoDeSeries';
 import { LARGURA_DAS_COLUNAS, TabelaDeBlocos } from './TabelaDeBlocos';
 import { reordenarPorPassos } from '../../dominio/reordenar';
@@ -41,7 +41,7 @@ interface Props {
   aoAbrirGrupo?: (serieUid: string | null) => void;
   /** Exercício sem carga (elástico, peso corporal): a faixa da carga fica só com o RIR. */
   semCarga?: boolean;
-  /** `false` no grupo cujo descanso é depois da volta. Hoje só repassado: a leitura "Para o aluno" não fala de descanso. */
+  /** `false` no membro de superset/circuito cujo descanso é depois da volta: a série não acusa "Falta o descanso". */
   descansoPorSerie?: boolean;
   /** Abre a folha de receitas; com ela, o estado vazio oferece "Usar receita" antes dos botões de tipo (D13). */
   aoUsarReceita?: () => void;
@@ -54,21 +54,20 @@ const TECNICAS_DE_1_CLIQUE: TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SE
 
 /**
  * Séries do exercício: uma aba por grupo ("Série 2 · WS"), o "+ Nova série" tracejado depois das abas (que mostra os botões
- * de 1 clique, "+ FS", "+ WS", "+ Rest pause"...) e, embaixo, o grupo da aba aberta (`EditorDoGrupoDeSeries`) em três faixas: tipo e técnica;
- * estrutura (séries, repetições e descanso numa linha que quebra); carga e RIR, uma linha por série. No rodapé, a observação
- * desta série e "Para o aluno". Séries iguais e seguidas formam um grupo e se editam juntas; o % e o RIR de cada série são
- * próprios. Cada campo mostra o erro e o aviso da validação (a mesma da publicação).
+ * de 1 clique, "+ FS", "+ WS", "+ Rest pause"...) e, embaixo, o grupo da aba aberta (`EditorDoGrupoDeSeries`): o formulário
+ * em linhas e a prévia do aluno ao lado (embaixo, na coluna estreita). Séries iguais e seguidas formam um grupo e se editam
+ * juntas; o % e o RIR de cada série são próprios. Cada campo mostra o erro e o aviso da validação (a mesma da publicação).
  */
-export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false, aoUsarReceita }: Props) {
+export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false, descansoPorSerie = true, aoUsarReceita }: Props) {
   const { identificacao, cores, preferencias } = useTema();
   const unidade = useUnidadeDeCarga();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const modalidade = cardio ? 'CARDIO' : null;
   const grupos = agrupar(series);
-  // Lado a lado pela largura desta coluna, não da janela: no inspetor de 1280 a janela é larga e a coluna não.
-  const janelaLarga = useCamposLadoALado();
+  // A prévia do aluno ao lado do formulário pela largura desta coluna, não da janela (no inspetor de 1280 a coluna é estreita).
+  // Sem medida ainda, embaixo: a janela larga não diz que a coluna cabe, e a prévia pularia de lado para baixo.
   const [largura, setLargura] = useState<number | null>(ultimaLargura);
-  const largo = janelaLarga && (largura === null || largura >= LARGURA_LADO_A_LADO);
+  const previaAoLado = largura !== null && largura >= LARGURA_DA_PREVIA_AO_LADO;
   const medir = (e: LayoutChangeEvent) => { ultimaLargura = e.nativeEvent.layout.width; setLargura(ultimaLargura); };
   // Uma aba por grupo; quem controla é o editor de treino (D8) quando passa `aoAbrirGrupo`, mesmo antes do primeiro toque.
   const [abertoInterno, setAbertoInterno] = useState<string | null>(null);
@@ -80,6 +79,10 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const fechado = guardado === NENHUM_BLOCO_ABERTO;
   const grupoAberto = fechado ? null : grupoComSerie(series, guardado);
   const uidAberto = grupoAberto?.series[0].uid ?? null;
+  // A série que a pessoa abriu (o guardado, se é do grupo; senão a 1ª): é a chave do editor e o que segue a aba depois de
+  // uma mudança. Pela 1ª do grupo, juntar a aberta ao grupo de cima (o − de um bloco que a deixa igual à anterior) trocava
+  // a chave e remontava o editor, perdendo o modo dos blocos e o foco (S10, `EditorSeries.chave.test.tsx`).
+  const uidDaSerieAberta = guardado !== null && grupoAberto?.series.some((s) => s.uid === guardado) ? guardado : uidAberto;
   // Compara com o guardado, não com o exibido: nulo (ou a 2ª série do grupo) precisa virar o uid certo ao mover ou tirar séries.
   const definirAberto = (uid: string | null) => {
     if (uid === guardado) return;
@@ -91,7 +94,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
     aoMudarFora(novas);
     // Tudo fechado continua fechado (arrastar não reabre a série 1); série nova e receita abrem a delas.
     if (abrir !== undefined) definirAberto(abrir);
-    else if (!fechado) definirAberto(uidDaAbaAposMudar(series, novas, uidAberto));
+    else if (!fechado) definirAberto(uidDaAbaAposMudar(series, novas, uidDaSerieAberta));
   };
   const cheio = series.length >= LIMITE_SERIES;
   const tipos = opcoesDeTipo(cfg, series);
@@ -132,7 +135,8 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const botoesDaNova = cardio || cheio ? null : <BotoesDeNovaSerie config={cfg} aoAdicionar={adicionar} />;
   // Estreito (390): a linha vira divulgação e o editor abre logo abaixo da série escolhida (guia premium pág. 9).
   const empilhado = largura !== null && largura < LARGURA_DAS_COLUNAS;
-  const editor = g ? <EditorGrupo key={g.series[0].uid} aoFechar={() => definirAberto(NENHUM_BLOCO_ABERTO)} largo={largo} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
+  const editor = g ? <EditorGrupo key={uidDaSerieAberta} aoFechar={() => definirAberto(NENHUM_BLOCO_ABERTO)} previaAoLado={previaAoLado} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
+    descansoSoDoGrupo={!descansoPorSerie}
     tipos={tipos} podeMais={!cheio} numero={iAberto + 1}
     porSerie={validacao.porSerieErros}
     aoAlterar={(m) => alterar(g, m)}
@@ -150,6 +154,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
         const uid = grupos[de]?.series[0].uid;
         aoMudar(reordenarPorPassos(series, para, (s) => agrupar(s).findIndex((x) => x.series.some((y) => y.uid === uid)), moverGrupo));
       }}
+      semCarga={semCarga}
       linhas={grupos.map((x, i) => {
         const faltaCarga = !cardio && faltaCargaNoGrupo(validacao.porSerieErros, x);
         const chaveCor = corDoTipoDeSerie(x.series[0].tipo, papelDe(cfg, x.series[0].tipo));
@@ -162,7 +167,8 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
           ...comCor(corDaSerie(preferencias?.corDasSeries ?? 'TIPO', chaveCor, identificacao, cores)),
           carga: cardio ? '—' : faltaCarga ? FALTA_A_CARGA : cargaDoBloco(x, cfg, unidade),
           cargaFalta: faltaCarga,
-          resumo: resumoDoBloco(x, cfg),
+          // Cardio e membro de grupo com o descanso depois da volta não acusam "Falta o descanso".
+          resumo: resumoDoBloco(x, cfg, { ignorarDescanso: cardio || !descansoPorSerie }),
           problema: problemaDaAba(nivelDoGrupo(validacao.porSerieErros, x)),
           edicao: `Editando série ${i + 1}${cardio ? '' : `, ${tituloDoGrupoDeSeries(x, cfg)}`}`,
         };
@@ -210,16 +216,17 @@ function problemaDaAba(nivel: Nivel): 'perigo' | 'atencao' | undefined {
 }
 
 /**
- * A partir desta largura da coluna das séries, Tipo e Técnica ficam lado a lado e o "Mover grupo" tem texto: 1440 e 1024
- * cabem; o inspetor de 1280 (uns 560 px) empilha.
+ * A partir desta largura da coluna das séries, a prévia do aluno fica à direita do formulário (SERIE-ABERTA, seção 1: ~900).
+ * 920 = prévia (340) + vão (24) + recuos do corpo (24) e a faixa da série (4) + formulário de ~528, ainda acima do
+ * `LARGURA_PARA_EMPILHAR` (520) das linhas. Em 1920 com o menu aberto a coluna tem ~996: a prévia fica ao lado.
  */
-const LARGURA_LADO_A_LADO = 640;
+const LARGURA_DA_PREVIA_AO_LADO = 920;
 /** Nenhuma série aberta (tocar na aberta ou "Fechar edição"): nunca é uid de série (`novoUid` gera UUID). */
 const NENHUM_BLOCO_ABERTO = 'nenhum-bloco-aberto';
 
 /**
  * Última largura medida: o cartão do exercício remonta ao trocar de exercício, e todos têm a mesma largura (sem piscar).
- * shortcut: na 1ª montagem ainda não há medida e vale a janela (`useCamposLadoALado`), um quadro só; se piscar, medir mais acima.
+ * shortcut: na 1ª montagem ainda não há medida e a prévia abre embaixo por um quadro; se o salto incomodar, medir mais acima.
  */
 let ultimaLargura: number | null = null;
 

@@ -37,6 +37,13 @@ interface Props {
   acoes?: ReactNode;
   /** Peça pequena à esquerda do título (a foto do aluno na ficha). Fica na mesma linha, depois da seta de voltar. */
   antesDoTitulo?: ReactNode;
+  /** Botão de ícone logo depois do título, antes do ⓘ (o lápis "Editar nome" do modelo de treino). Fica fora do h1. */
+  aoLadoDoTitulo?: ReactNode;
+  /**
+   * Faixa do editor (cabeçalho único do modelo de treino, 27/11): o título quebra antes de as `acoes` descerem de linha e,
+   * se ainda assim descerem (janela estreita), elas ficam à direita. Sem isto, o arranjo de sempre.
+   */
+  acoesNaLinha?: boolean;
   /**
    * `sempre` (área do aluno, sem menu lateral) ou `celular` (treinador: no PC a marca já está no menu). Regra única:
    * a marca só aparece no Início de cada área (`/treinador`, `/aluno`); nas outras telas o pedido é ignorado.
@@ -54,7 +61,7 @@ interface Props {
  * Topo das telas: marca do treinador (ou título da página), selo de "sem conexão" e ações à direita. O título é o
  * único h1 da tela (a marca sem título vira o h1 nas telas públicas e do aluno).
  */
-export function Cabecalho({ titulo, subtitulo, descricao, trilha, acoes, antesDoTitulo, mostrarMarca, voltar: voltarPedido }: Props) {
+export function Cabecalho({ titulo, subtitulo, descricao, trilha, acoes, antesDoTitulo, aoLadoDoTitulo, acoesNaLinha, mostrarMarca, voltar: voltarPedido }: Props) {
   const { marca, offline, usuario } = useSessao();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
@@ -69,7 +76,7 @@ export function Cabecalho({ titulo, subtitulo, descricao, trilha, acoes, antesDo
   return (
     // Com o balão aberto, o cabeçalho sobe por cima do que vem depois (cartões e a barra grudada dos editores, z 10).
     <View style={[estilos.cabecalho, balaoAberto ? estilos.porCima : null]}>
-      <View style={estilos.inicio}>
+      <View style={[estilos.inicio, acoesNaLinha ? estilos.inicioNaLinha : null]}>
         {voltar ? (
           <View style={estilos.seta}>
             <IconeBotao
@@ -116,6 +123,7 @@ export function Cabecalho({ titulo, subtitulo, descricao, trilha, acoes, antesDo
             // O h1 é só o título; o ⓘ fica fora dele, na mesma linha. Título longo quebra e o ⓘ segue ao lado.
             <View style={estilos.linhaDoTitulo}>
               <Texto variante="titulo" nivel={1} style={estilos.titulo}>{titulo}</Texto>
+              {aoLadoDoTitulo ? <View style={estilos.aoLadoDoTitulo}>{aoLadoDoTitulo}</View> : null}
               {descricao ? <AjudaDoCabecalho texto={descricao} artigo={artigoDaTela(caminho)} aoMudar={setBalaoAberto} /> : null}
             </View>
           ) : null}
@@ -125,7 +133,7 @@ export function Cabecalho({ titulo, subtitulo, descricao, trilha, acoes, antesDo
           {offline && usuario?.papel !== 'ALUNO' ? <View style={estilos.linhaDoSelo}><Selo texto="Sem conexão" tipo="neutro" Icone={WifiOff} /></View> : null}
         </View>
       </View>
-      {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
+      {acoes ? <View style={[estilos.acoes, acoesNaLinha ? estilos.acoesNaLinha : null]}>{acoes}</View> : null}
     </View>
   );
 }
@@ -152,4 +160,9 @@ const estilos = StyleSheet.create({
   alvoPasso: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingVertical: 12 },
   link: { textDecorationLine: 'underline' },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '100%' },
+  // Base de 320 que cresce: a linha só quebra quando nem 320 px de título cabem ao lado das ações (o título quebra antes).
+  inicioNaLinha: { flexGrow: 1, flexBasis: 320 },
+  acoesNaLinha: { marginLeft: 'auto', flexShrink: 0 },
+  // O lápis segue o ⓘ: alvo de 44 na primeira linha do título, com um respiro do texto.
+  aoLadoDoTitulo: { marginLeft: espaco(0.5) },
 });

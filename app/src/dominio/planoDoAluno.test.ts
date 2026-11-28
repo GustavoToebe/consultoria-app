@@ -5,6 +5,7 @@ import {
   mensagemPlanoCopiado,
   rotuloAbrirFicha,
   rotuloEditarPlano,
+  SUBTITULO_DO_MODELO,
   tituloDoModelo,
   tituloDoPlanoDoAluno,
 } from './planoDoAluno';
@@ -30,6 +31,9 @@ describe('avisos de plano do aluno e de modelo', () => {
   });
   it('o aviso do modelo fala das cópias já entregues', () => {
     expect(AVISO_DO_MODELO).toContain('não altera os alunos que já receberam uma cópia');
+  });
+  it('o subtítulo do modelo diz o mesmo numa linha', () => {
+    expect(SUBTITULO_DO_MODELO).toBe('Modelo do Planejamento · mudar aqui não altera os alunos que já receberam uma cópia');
   });
 });
 

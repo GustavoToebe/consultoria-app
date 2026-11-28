@@ -1,10 +1,14 @@
-import type { AlternativaDeExercicio, ExercicioPlano, PapelDaSerie, Serie } from '../api/tipos';
+import type { AlternativaDeExercicio, Configuracao, ExercicioPlano, PapelDaSerie, Serie } from '../api/tipos';
 import type { GrupoDeSeries } from './agrupamento';
+import { sugestaoSobreReferencia } from './cargas';
 import { alterarPercentuais, alterarRirDaSerie, cargaDoModo, DESCANSO_MAXIMO_SEGUNDOS } from './editorTreino';
+import { nomeDaSerieDeTrabalho, papelDe } from './metodologia';
+import { numeroDaCarga, textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Regras dos campos da série aberta no editor (27/11): as listas "Digite ou escolha" de Séries e Descanso (o que
- * oferecem, como leem o digitado, como escrevem o valor), a dica de uma linha das repetições, o "Mesmo valor para todas"
+ * oferecem, como leem o digitado, como escrevem o valor), as dicas de uma linha das repetições e da carga, o descanso
+ * pendente do cluster, a troca RIR/RPE, o "Mesmo valor para todas"
  * da carga e do RIR e os resumos das seções recolhidas do exercício. Sem React.
  */
 
@@ -89,6 +93,55 @@ export function dicaDasRepeticoes(forma: FormaDaDica, r: { repsMin?: number | nu
   return min == null && max == null ? 'Informe as repetições' : null;
 }
 
+// ---- Carga: a dica de uma linha ----
+
+/** A metade de ajuda da dica da carga em % da WS no aquecimento (em minúscula: vem depois do "·"). */
+export const AJUDA_SEM_CARGA = 'em branco, o aluno não recebe sugestão de carga';
+
+/**
+ * "≈ 45 a 54 kg com WS de 90 kg": a faixa em % da WS aplicada a uma WS de referência, pela MESMA conta e arredondamento
+ * da sugestão ao aluno (`sugestaoSobreReferencia`, em kg, mostrada por `numeroDaCarga`). Nulo fora de % da WS, sem
+ * percentual ou sem WS.
+ */
+export function estimativaDaCarga(s: Serie, wsKg: number | null, arredondamentoKg: number, unidade: UnidadeDeCarga, nomeDaWs = 'WS'): string | null {
+  if (s.carga?.modo !== 'PERCENTUAL_WS' || s.carga.percentualMin == null || wsKg == null || !(wsKg > 0)) return null;
+  const min = sugestaoSobreReferencia(s, wsKg, arredondamentoKg);
+  const max = s.carga.percentualMax == null ? min
+    : sugestaoSobreReferencia({ ...s, carga: { ...s.carga, percentualMin: s.carga.percentualMax } }, wsKg, arredondamentoKg);
+  if (min == null || max == null) return null;
+  const faixa = numeroDaCarga(min, unidade) === numeroDaCarga(max, unidade) ? numeroDaCarga(min, unidade) : `${numeroDaCarga(min, unidade)} a ${numeroDaCarga(max, unidade)}`;
+  return `≈ ${faixa} ${unidade} com ${nomeDaWs} de ${textoDaCarga(wsKg, unidade)}`;
+}
+
+/** A dica embaixo da linha Carga: a estimativa (com WS) e, no aquecimento em % da WS, o "em branco…". Nulo sem nada. */
+export function dicaDaCarga(s: Serie, ctx: { config: Configuracao; unidade: UnidadeDeCarga; wsKg: number | null }): string | null {
+  if (s.carga?.modo !== 'PERCENTUAL_WS') return null;
+  const ajuda = papelDe(ctx.config, s.tipo) === 'AQUECIMENTO' ? AJUDA_SEM_CARGA : null;
+  return [estimativaDaCarga(s, ctx.wsKg, ctx.config.arredondamentoKg, ctx.unidade, nomeDaSerieDeTrabalho(ctx.config)), ajuda].filter(Boolean).join(' · ') || null;
+}
+
+// ---- Descanso do cluster ----
+
+/** O aviso âmbar do cluster sem descanso, no Volume da série aberta (decisão do Gustavo, 27/11: não trava o salvar). */
+export const MENSAGEM_DESCANSO_DO_CLUSTER = 'Defina o descanso. Sem ele, o aluno não tem o timer entre as séries.';
+
+/** Cluster sem descanso (aviso âmbar, não trava a publicação). 0 é descanso informado ("sem descanso"), não pendente. */
+export function descansoDoClusterPendente(s: Serie): boolean {
+  return s.tecnica?.tipo === 'CLUSTER' && s.descansoSegundos == null;
+}
+
+// ---- Esforço: RIR ou RPE ----
+
+/** A troca RIR/RPE aparece na série de trabalho, ou onde o RPE já está gravado (continua visível e editável). */
+export function podeEscolherRpe(papel: PapelDaSerie | null | undefined, temRpeGravado: boolean): boolean {
+  return papel === 'TRABALHO' || temRpeGravado;
+}
+
+/** O segmento ao abrir: RPE se alguma série do grupo tem RPE gravado. */
+export function esforcoDoGrupo(g: GrupoDeSeries): 'RIR' | 'RPE' {
+  return g.series.some((s) => s.esforco?.rpe != null) ? 'RPE' : 'RIR';
+}
+
 // ---- Carga e RIR: "Mesmo valor para todas" ----
 
 /** Todas as séries do grupo com o mesmo % (mín e máx) e o mesmo esforço: a opção nasce ligada. Uma série só, também. */
@@ -124,12 +177,15 @@ export function rpeEmTodas(series: Serie[], g: GrupoDeSeries, rpe: number | null
 
 // ---- Resumos das seções recolhidas do exercício ----
 
-/** "Agachamento livre · sem vídeo · cadência 3-1-1-0": nome, vídeo e, se houver, cadência, isometria e observação. */
+/**
+ * "Agachamento livre · sem vídeo · sem cadência": nome, vídeo e cadência (o que falta também, 27/11) e, se houver,
+ * isometria e observação.
+ */
 export function resumoDosExtras(e: Pick<ExercicioPlano, 'nome' | 'videoUrl' | 'cadencia' | 'isometriaSegundos' | 'observacao'>): string {
   return [
     e.nome.trim() || 'Sem nome de exibição',
     e.videoUrl ? 'com vídeo' : 'sem vídeo',
-    e.cadencia ? `cadência ${e.cadencia}` : null,
+    e.cadencia ? `cadência ${e.cadencia}` : 'sem cadência',
     e.isometriaSegundos != null ? `isometria ${e.isometriaSegundos} s` : null,
     e.observacao?.trim() ? 'com observação' : null,
   ].filter(Boolean).join(' · ');

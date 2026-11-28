@@ -13,11 +13,15 @@ import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
+import { DicaDeTexto } from '../../ui/DicaDeTexto';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
 
 const TOPO = 'previa:topo';
+const CAMPOS_FIXOS = 'previa:campos-fixos';
+/** `secaoEmFoco.secao` que leva aos campos fixos (o `antes` da Inscrição); -1 são as Instruções, no topo. */
+export const SECAO_DOS_CAMPOS_FIXOS = -2;
 
 /**
  * Aba Prévia do editor de questionário: o rascunho como o aluno vê, na largura dele (720 px). Atualização numa rolagem
@@ -46,6 +50,7 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
   const paginas = usePaginas(anamnese ? conteudo : null, respostas, 0);
   // Sincroniza a rolagem da coluna (fora do React) com a seção editada; só uma `vez` nova move a prévia, não cada tecla.
   const tratada = useRef<number | null>(null);
+  const temAntes = !!antes;
   useEffect(() => {
     if (!secaoEmFoco || tratada.current === secaoEmFoco.vez) return;
     tratada.current = secaoEmFoco.vez;
@@ -57,9 +62,10 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
       return;
     }
     const primeira = conteudo.secoes[secaoEmFoco.secao]?.perguntas[0];
-    if (secaoEmFoco.secao < 0) rolagem.rolarAte([TOPO]);
+    if (secaoEmFoco.secao === SECAO_DOS_CAMPOS_FIXOS) rolagem.rolarAte([temAntes ? CAMPOS_FIXOS : TOPO]);
+    else if (secaoEmFoco.secao < 0) rolagem.rolarAte([TOPO]);
     else if (primeira) rolagem.rolarAte([alvoDaPergunta(primeira.id)]);
-  }, [secaoEmFoco, anamnese, paginas, rolagem, conteudo, aoMudarErros]);
+  }, [secaoEmFoco, anamnese, paginas, rolagem, conteudo, aoMudarErros, temAntes]);
 
   const irPara = (posicao: number) => {
     paginas.irPara(posicao);
@@ -94,17 +100,22 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
   };
   // "Limpar" também zera o que se digitou no `antes` (os campos fixos guardam o próprio estado).
   const [rodada, setRodada] = useState(0);
+  const [dicaAberta, setDicaAberta] = useState(false);
   const limpar = <Botao rotulo="Limpar respostas" tipo="fantasma" aoTocar={() => { aoLimpar(); setRodada((n) => n + 1); if (anamnese) irPara(0); }} />;
 
   return <View style={estilos.previa}>
     <AlvoDeRolagem chave={TOPO}>
-      <Cartao titulo="Prévia" descricao={anamnese
-        ? 'É assim que o aluno vê o rascunho, uma parte por página, na largura da tela dele. As respostas daqui não são salvas nem enviadas a ninguém.'
-        : 'É assim que o aluno vê o rascunho, na largura da tela dele. As respostas daqui não são salvas nem enviadas a ninguém.'}>
-        {(!anamnese || paginas.posicao === 0) ? conteudo.instrucoes.map((texto, i) => <Texto key={i}>{texto}</Texto>) : null}
-      </Cartao>
+      {/* Título e explicação numa linha (28/11): a explicação inteira fica no ⓘ. Aberto, o cartão sobe de camada para o
+          balão não ficar sob os cartões de baixo. */}
+      <View style={dicaAberta ? estilos.porCima : null}>
+        <Cartao titulo="Prévia · como o aluno vê o rascunho" acoes={<DicaDeTexto rotulo="Sobre a prévia" aoMudar={setDicaAberta} texto={anamnese
+          ? 'É assim que o aluno vê o rascunho, uma parte por página, na largura da tela dele. As respostas daqui não são salvas nem enviadas a ninguém.'
+          : 'É assim que o aluno vê o rascunho, na largura da tela dele. As respostas daqui não são salvas nem enviadas a ninguém.'} />}>
+          {(!anamnese || paginas.posicao === 0) ? conteudo.instrucoes.map((texto, i) => <Texto key={i}>{texto}</Texto>) : null}
+        </Cartao>
+      </View>
     </AlvoDeRolagem>
-    {antes ? <Fragment key={rodada}>{antes}</Fragment> : null}
+    {antes ? <AlvoDeRolagem chave={CAMPOS_FIXOS}><Fragment key={rodada}>{antes}</Fragment></AlvoDeRolagem> : null}
     {anamnese ? <>
       {paginas.secao !== null ? <QuestionarioAtualizacao modelo={conteudo} respostas={respostas} erros={erros ?? {}} aoMudar={aoMudar} itens={ITENS_DA_PREVIA}
         pagina={{ secao: paginas.secao, posicao: paginas.posicao, total: paginas.total }} />
@@ -125,4 +136,5 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
 const estilos = StyleSheet.create({
   // O aluno vê o questionário em até 720 px: a prévia usa a mesma largura.
   previa: { width: '100%', maxWidth: 720, alignSelf: 'center', gap: espaco(3) },
+  porCima: { zIndex: 10 },
 });

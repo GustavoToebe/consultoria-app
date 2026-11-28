@@ -84,9 +84,10 @@ for (const largura of [390, 1280]) {
   test(`editor: posição do exercício, mover exercício × grupo e percentuais por série (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComDoisExercicios(page);
-    // Contadores: o plano inteiro no cabeçalho e os totais da sessão aberta no cabeçalho dela (10/11), separados.
-    await expect(page.getByText('Plano inteiro: 1 sessão · 2 exercícios · 5 séries cadastradas', { exact: true })).toBeVisible();
-    await expect(page.getByText(/^2 exercícios · 5 séries · \d+ séries? de trabalho$/)).toBeVisible();
+    // Contadores (27/11): o plano inteiro na linha de Sessões e os totais da sessão aberta no cabeçalho dela, depois do dia
+    // e do tipo (o "· " na frente só existe no cabeçalho; a faixa compacta do resumo pode repetir os totais).
+    await expect(page.getByText('1 sessão · 2 exercícios · 5 séries', { exact: true })).toBeVisible();
+    await expect(page.getByText(/· 2 exercícios · 5 séries · \d+ de trabalho$/)).toBeVisible();
     // A posição por extenso, sem confundir com o número da série: no estreito, em texto pequeno no alto de cada cartão, com
     // o nome embaixo; em duas colunas, no nome acessível de cada item da lista (e no alto do exercício escolhido).
     await expect(page.getByText(/^Exercício 1 de 2( ·|$)/).first()).toBeVisible();
@@ -116,9 +117,11 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: /^Mover para baixo, Descer série 1/ })).toHaveCount(0);
     // Só a seta, em todas as larguras (o nome acessível diz o quê).
     await expect(page.getByText('Mover exercício', { exact: true })).toHaveCount(0);
-    // O grupo: uma aba por grupo ("Série 1 · FS"), já aberta no 1º; o "Para o aluno" diz o tipo e os percentuais de cada série.
-    await expect(linhaDaSerie(page, /^Série 1 · FS/, true)).toBeVisible();
-    await expect(page.getByText(/3×3 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
+    // O grupo: uma linha por grupo ("Série 1 · FS"), já aberta no 1º, com o tipo, as séries e os percentuais de cada série;
+    // a prévia do aluno (F-006) tem um cartão por percentual.
+    await expect(linhaDaSerie(page, /^Série 1 · FS, 3 séries, repetições 3 reps.*, carga 50% · 70% · 85% a 90% da WS/, true)).toBeVisible();
+    const previa = page.getByRole('group', { name: 'Prévia para o aluno' });
+    for (const uid of ['fs-1', 'fs-2', 'fs-3']) await expect(previa.getByTestId(`serie-${uid}`)).toBeVisible();
     // A série aberta diz o que se edita; a faixa "Exercício 1 · nome" saiu (o exercício já está no alto do cartão).
     // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
     await expect(page.getByRole('region', { name: 'Editando série 1, Preparação · FS', exact: true })).toBeVisible();
@@ -189,16 +192,16 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Substituir a série por Volume fictício', exact: true }).click();
     await expect(page.getByRole('button', { name: /^Substituir a série por / })).toHaveCount(0);
     await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toBeVisible();
-    // A receita vira duas abas (uma por grupo); a aberta é a última, e o "Para o aluno" dela traz a faixa dos números.
+    // A receita vira duas linhas (uma por grupo); a aberta é a última, e a linha dela traz a faixa dos números.
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
-    await expect(page.getByText(/2×10 a 12 · Back off/).first()).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série 2 · Back off, 2 séries, repetições 10 a 12 reps/, true)).toBeVisible();
     await linhaDaSerie(page, /^Série 1 · WS/).click();
-    await expect(page.getByText(/1×8 a 10 · WS/).first()).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série 1 · WS, 1 série, repetições 8 a 10 reps/, true)).toBeVisible();
     // Desfazer volta as séries de antes.
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(1);
-    await expect(page.getByText(/2×10 a 12 · Back off/)).toHaveCount(0);
-    await expect(page.getByText(/1×8 a 12 · WS/).first()).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série 2 · Back off/)).toHaveCount(0);
+    await expect(linhaDaSerie(page, /^Série 1 · WS, 1 série, repetições 8 a 12 reps/)).toBeVisible();
     // Nada foi gravado: aplicar e desfazer só mexem no rascunho da tela.
     expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
     expect(api.errosDaPagina).toEqual([]);
@@ -222,7 +225,7 @@ for (const largura of [390, 1280]) {
     // Desfazer volta só a série de antes, sem gravar nada.
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(1);
-    await expect(page.getByText(/1×8 a 12 · WS/).first()).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série 1 · WS, 1 série, repetições 8 a 12 reps/)).toBeVisible();
     expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
     // Acrescentada de novo e salva: a série de antes fica primeiro e as da receita entram com uids novos.
     await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
@@ -402,7 +405,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Trocar a metodologia', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Configuração do plano, recolhido', exact: true }).click();
     await expect(page.getByText(/Metodologia fictícia/)).toHaveCount(2);
-    await expect(page.getByText('Metodologia: Metodologia fictícia', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Metodologia: Metodologia fictícia\./ })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

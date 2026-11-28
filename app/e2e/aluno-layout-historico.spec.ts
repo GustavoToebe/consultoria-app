@@ -11,10 +11,11 @@ import { fixarHoje, sessaoDeAlunoComTreino, SESSOES_COM_DIAS } from './aluno';
 /**
  * Histórico do aluno na web (`docs/planos/aluno-web-layout.md`, seção 7; regras em `dominio/abasDoHistorico` e
  * `dominio/colunasDoHistorico`): com o menu lateral a tela vira abas no topo, Treinos (Registros e cargas + Progresso no
- * apoio, ao lado a partir de 972 px de área), Corpo (Peso, Avaliação física e Fotos) e Atualizações, com a aba no endereço
- * (`?aba=`; o voltar desfaz a troca e recarregar mantém a aba). Contêiner do treinador (27/11): começa ao lado do menu, sem
- * teto; divisões, cartões do Corpo e linhas das Atualizações em 1, 2 e 3 colunas nas faixas normal, larga e ultralarga.
- * No celular nada muda: uma coluna, na ordem de sempre.
+ * apoio, ao lado a partir de 972 px de área), Corpo (Peso | Fotos com a mesma altura e a Avaliação física na largura toda
+ * embaixo, 28/11) e Atualizações, com a aba no endereço (`?aba=`; o voltar desfaz a troca e recarregar mantém a aba).
+ * Contêiner do treinador (27/11): começa ao lado do menu, sem teto; divisões e linhas das Atualizações nas colunas que cabem
+ * na largura medida (mínimo de 440), até 2 na normal e na larga e 3 na ultralarga: em 1280 o Corpo e as Atualizações já
+ * abrem duas. No celular, uma coluna (as fotos depois da avaliação: Peso, Avaliação, Fotos).
  * Só dados fictícios; fotos vazias. Capturas só com `E2E_CAPTURAS` apontando uma pasta fora do git.
  */
 
@@ -101,10 +102,10 @@ const semRolagemDeLado = (page: Page) => page.evaluate(() => document.documentEl
 /** Quantas colunas distintas (x arredondado a 8 px) os elementos ocupam. */
 const colunasDe = async (locs: Locator[]) => new Set(await Promise.all(locs.map(async (l) => Math.round((await caixa(l)).x / 8)))).size;
 
-test('390: sem abas, todos os cartões numa coluna, na ordem de sempre (o ?aba= do endereço é ignorado)', async ({ page }) => {
+test('390: sem abas, todos os cartões numa coluna, com Peso, Avaliação e Fotos no fim (o ?aba= do endereço é ignorado)', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 390, '/aluno/historico?aba=corpo');
   await expect(abaDaTela(page, 'Corpo')).toHaveCount(0);
-  const nomes = ['Fotos', 'Atualizações', 'Registros e cargas', 'Progresso por exercício', 'Peso', 'Avaliação física'];
+  const nomes = ['Atualizações', 'Registros e cargas', 'Progresso por exercício', 'Peso', 'Avaliação física', 'Fotos'];
   const caixas = [];
   for (const n of nomes) caixas.push(await caixa(titulo(page, n)));
   for (let i = 1; i < caixas.length; i++) {
@@ -115,18 +116,36 @@ test('390: sem abas, todos os cartões numa coluna, na ordem de sempre (o ?aba= 
   expect(errosDaPagina).toEqual([]);
 });
 
-// Treinos: lado a lado a partir de 972 px de área (`ui/PrincipalComApoio`); colunas: 1 até a normal, 2 na larga, 3 na ultralarga.
-const MATRIZ: { largura: number; menuRecolhido?: boolean; lado: boolean; colunas: number }[] = [
-  { largura: 1024, lado: false, colunas: 1 },
-  { largura: 1024, menuRecolhido: true, lado: false, colunas: 1 },
-  { largura: 1280, lado: true, colunas: 1 },
-  { largura: 1536, lado: true, colunas: 1 },
-  { largura: 1920, lado: true, colunas: 2 },
-  { largura: 2560, lado: true, colunas: 2 },
-  { largura: 3440, lado: true, colunas: 3 },
+/**
+ * Corpo em duas colunas (28/11): Peso e Fotos lado a lado com o mesmo topo e o mesmo fim (a linha estica os dois cartões,
+ * sem vazio embaixo de nenhum) e a Avaliação física embaixo, da borda do Peso à borda das Fotos.
+ */
+async function conferirCorpoEmDuas(page: Page) {
+  const peso = await caixa(page.getByTestId('corpo-do-historico-peso').getByTestId('cartao').first());
+  const fotos = await caixa(page.getByTestId('corpo-do-historico-fotos').getByTestId('cartao').first());
+  const avaliacao = await caixa(page.getByTestId('cartao').filter({ has: titulo(page, 'Avaliação física') }).last());
+  expect(Math.abs(peso.y - fotos.y)).toBeLessThan(2);
+  expect(Math.abs(peso.y + peso.height - (fotos.y + fotos.height)), `fim: peso ${Math.round(peso.y + peso.height)}, fotos ${Math.round(fotos.y + fotos.height)}`).toBeLessThan(2);
+  expect(fotos.x).toBeGreaterThan(peso.x + peso.width);
+  expect(avaliacao.y).toBeGreaterThan(peso.y + peso.height);
+  expect(Math.abs(avaliacao.x - peso.x)).toBeLessThan(2);
+  expect(Math.abs(avaliacao.x + avaliacao.width - (fotos.x + fotos.width))).toBeLessThan(2);
+}
+
+// Treinos: lado a lado a partir de 972 px de área (`ui/PrincipalComApoio`). Colunas pela largura medida (até 2 na normal e na
+// larga, 3 na ultralarga): os Registros, ao lado do Progresso, só abrem duas na larga; o Corpo (até 2) e as Atualizações, na
+// largura toda, já em 1280.
+const MATRIZ: { largura: number; menuRecolhido?: boolean; lado: boolean; registros: number; corpo: number; atualizacoes: number }[] = [
+  { largura: 1024, lado: false, registros: 1, corpo: 1, atualizacoes: 1 },
+  { largura: 1024, menuRecolhido: true, lado: false, registros: 1, corpo: 1, atualizacoes: 1 },
+  { largura: 1280, lado: true, registros: 1, corpo: 2, atualizacoes: 2 },
+  { largura: 1536, lado: true, registros: 1, corpo: 2, atualizacoes: 2 },
+  { largura: 1920, lado: true, registros: 2, corpo: 2, atualizacoes: 2 },
+  { largura: 2560, lado: true, registros: 2, corpo: 2, atualizacoes: 2 },
+  { largura: 3440, lado: true, registros: 3, corpo: 2, atualizacoes: 3 },
 ];
-for (const { largura, menuRecolhido, lado, colunas } of MATRIZ) {
-  test(`${largura}${menuRecolhido ? ' (menu minimizado)' : ''}: progresso ${lado ? 'ao lado' : 'embaixo'}; ${colunas} coluna(s) nos Registros, no Corpo e nas Atualizações`, async ({ page }) => {
+for (const { largura, menuRecolhido, lado, registros, corpo, atualizacoes } of MATRIZ) {
+  test(`${largura}${menuRecolhido ? ' (menu minimizado)' : ''}: progresso ${lado ? 'ao lado' : 'embaixo'}; ${registros}/${corpo}/${atualizacoes} coluna(s) nos Registros, no Corpo e nas Atualizações`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, largura, '/aluno/historico', { menuRecolhido, ricos: true });
     await expect(abaDaTela(page, 'Treinos')).toHaveAttribute('aria-selected', 'true');
     await expect(titulo(page, 'Peso')).toHaveCount(0);
@@ -150,18 +169,24 @@ for (const { largura, menuRecolhido, lado, colunas } of MATRIZ) {
       const esperado = largura >= 3440 ? 440 : largura >= 1920 ? 420 : 380;
       expect(Math.abs(apoio.width - esperado)).toBeLessThan(2);
     }
-    // As três divisões: uma coluna até a normal; 2 e 3 colunas equilibradas na larga e na ultralarga.
+    // As três divisões: uma coluna até a normal (ao lado do Progresso não cabem duas); 2 e 3 na larga e na ultralarga.
     const divisoes = DIVISOES.map(([, nome]) => page.getByText(nome, { exact: true }).first());
-    await expect.poll(() => colunasDe(divisoes)).toBe(colunas);
+    await expect.poll(() => colunasDe(divisoes)).toBe(registros);
     expect(await semRolagemDeLado(page)).toBe(true);
 
-    // Corpo: peso, avaliação e fotos em 1 ou 2 colunas (2 também na ultralarga, como a Ficha › Evolução), a primeira na borda do título.
+    // Corpo: em 2 colunas, Peso | Fotos com a mesma altura e a Avaliação na largura toda embaixo; em 1, Peso, Avaliação e Fotos.
     await abaDaTela(page, 'Corpo').click();
     await expect(page).toHaveURL(/[?&]aba=corpo/);
     await expect(titulo(page, 'Registros e cargas')).toHaveCount(0);
     const cartoes = ['Peso', 'Avaliação física', 'Fotos'].map((n) => titulo(page, n));
-    await expect.poll(() => colunasDe(cartoes)).toBe(Math.min(colunas, 2));
+    await expect.poll(() => colunasDe(cartoes)).toBe(corpo);
     expect((await caixa(cartoes[0])).x - h1.x).toBeLessThan(40);
+    if (corpo > 1) await conferirCorpoEmDuas(page);
+    else {
+      const [p, a, f] = await Promise.all(cartoes.map(caixa));
+      expect(a.y).toBeGreaterThan(p.y);
+      expect(f.y).toBeGreaterThan(a.y);
+    }
     await expect(page.getByLabel('Registros de peso').getByText('70,8 kg', { exact: true })).toBeVisible();
     expect(await semRolagemDeLado(page)).toBe(true);
 
@@ -169,7 +194,7 @@ for (const { largura, menuRecolhido, lado, colunas } of MATRIZ) {
     await abaDaTela(page, 'Atualizações').click();
     await expect(page).toHaveURL(/[?&]aba=atualizacoes/);
     const linhas = DATAS_DAS_ATUALIZACOES.map((d) => page.getByRole('link', { name: new RegExp(`Atualização · ${d.slice(8, 10)}/${d.slice(5, 7)}`) }));
-    await expect.poll(() => colunasDe(linhas)).toBe(colunas);
+    await expect.poll(() => colunasDe(linhas)).toBe(atualizacoes);
     const primeira = await caixa(linhas[0]);
     expect(primeira.x - h1.x).toBeLessThan(60);
     await expect(titulo(page, 'Peso')).toHaveCount(0);

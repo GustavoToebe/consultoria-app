@@ -18,6 +18,7 @@ import { errosPorCampo, focarPrimeiroComErro, separarErros, textoDoErro } from '
 import { LinksDosTermos } from './LinksDosTermos';
 import { LinkTexto } from './LinkTexto';
 import { BotaoPublico, TelaPublica } from './TelaPublica';
+import { UsuarioParaOGerenciador } from './TrocarSenha';
 import { useVerificacaoHumana } from './useVerificacaoHumana';
 import { VerificacaoHumana } from './VerificacaoHumana';
 
@@ -155,6 +156,8 @@ export function EntradaDoPublico({ publico }: { publico: Papel }) {
           <>
             <CampoSenha ref={refNovaSenha} rotulo="Nova senha" valor={novaSenha} aoMudar={setNovaSenha} erro={campos.novaSenha}
               autoComplete="new-password" textContentType="newPassword" ajuda="Mínimo de 8 caracteres." />
+            {/* O e-mail do passo anterior, para o gerenciador salvar a senha nova na conta certa (oculto, só na web). */}
+            <UsuarioParaOGerenciador email={email} />
             <CampoSenha ref={refRepetida} rotulo="Repita a nova senha" valor={repetida} aoMudar={setRepetida} erro={campos.repetida}
               autoComplete="new-password" textContentType="newPassword" onSubmitEditing={enviar} returnKeyType="go" />
           </>

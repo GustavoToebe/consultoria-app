@@ -10,6 +10,7 @@ import {
 } from '../dominio/cadastroDoAluno';
 import type { MedidaDaColuna } from '../dominio/colunasDaFicha';
 import { dataParaTela } from '../dominio/formatos';
+import { entradaDoTelefone } from '../dominio/entradaDoTelefone';
 import { CamposDeEndereco } from '../ui/CamposDeEndereco';
 import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
@@ -82,6 +83,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const [nascimento, setNascimento] = useState(dataParaTela(inicial?.dataNascimento ?? null));
   const [email, setEmail] = useState(inicial?.email ?? '');
   const [telefone, setTelefone] = useState(inicial?.telefone ?? '');
+  // Texto que não é telefone (um e-mail colado ou preenchido pelo navegador) é recusado: fica o valor anterior e este erro.
+  const [recusaDoTelefone, setRecusaDoTelefone] = useState<string | null>(null);
   // As seis redes (26/11): só as que têm valor abrem adicionadas (Instagram e TikTok com o `@`); as iniciais ficam como abriram,
   // para o envio mandar só o que mudou.
   const [redes, setRedes] = useState<ValoresDasRedes<RedeSocialDoAluno>>(() => valoresDasRedesDoAluno(inicial ?? {}));
@@ -193,8 +196,10 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
               </View>
               {comTelefone ? (
                 <View style={estilos.curto}>
-                  <Campo rotulo="Telefone (opcional)" valor={telefone} aoMudar={(t) => setTelefone(mascaraTelefone(t))} erro={erroTelefone ?? campos.telefone}
-                    keyboardType="phone-pad" autoComplete="tel" maxLength={15} />
+                  {/* `off` como o Nome e o E-mail: é o dado do aluno, não o de quem digita. 30: o "+55 …" colado chega inteiro à máscara. */}
+                  <Campo rotulo="Telefone (opcional)" valor={telefone} erro={recusaDoTelefone ?? erroTelefone ?? campos.telefone}
+                    aoMudar={(t) => { const entrada = entradaDoTelefone(t, telefone); setRecusaDoTelefone(entrada.erro); setTelefone(entrada.valor); }}
+                    keyboardType="phone-pad" inputMode="tel" autoComplete="off" maxLength={30} />
                 </View>
               ) : null}
             </View>
