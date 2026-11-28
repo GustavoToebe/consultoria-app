@@ -53,7 +53,7 @@ Nenhum foi editado ainda; conferir cada um sobre a `main` sem o lote antes de at
 - Nativo: a orientação 0.2 manda empilhar sempre, mas `PrincipalComApoio` decide pela área (tablet paisagem ≥ 952 abre lado a lado, sem fixar ao rolar). Pendente.
 - Apoio da peça: agora 360 abaixo de 1312 e 400 a partir de 1312 (`larguraDoApoioPorArea`); a regra local da dieta saiu.
 - P5: miniatura da galeria usa `superficie2`; avaliar `MESA_DA_PREVIA` (`#7A7F87`).
-- Histórico: gráficos de Peso/Avaliação (280 a 320) e Fotos (grade 200 px 3:4) ficam dentro de cartões compartilhados, não editados; ~~"Ainda não enviados" sem e2e~~ (coberto em 27/11 por `e2e/historico-nao-enviados.spec.ts`, sem commit).
+- Histórico: gráficos de Peso/Avaliação (280 a 320) e Fotos (grade 200 px 3:4) ficam dentro de cartões compartilhados, não editados; ~~"Ainda não enviados" sem e2e~~ (coberto em 27/11 por `e2e/historico-nao-enviados.spec.ts`, na leva 1).
 - ~~`ui/Abas`: painel sem `role="tabpanel"`/`aria-controls` (lacuna compartilhada).~~ Feito em `727957c0` (local).
 - Treino (relatório da rodada 2): `tela-larga-app-do-aluno` :88, :97, :112, :125; `treino-do-aluno-lacunas:139` (orientações agora nascem abertas da faixa normal, orientação 1.2; conferir sobre a main antes de atribuir); `concluir-treino` "data futura" passou por corrida (pode ficar instável em 1280). As 3 falhas "lista ≤ 880" (1920/2560/3440) dependem do apoio de 400 da peça (ajustado, ainda sem e2e).
 - Trava: a fila do `lock-pesado` atrasou e2e de vários agentes por mais de 1 h; as rodadas finais por frente ainda não rodaram. Servidor antigo na porta 8131 (PID 17852, `dist-antes`) contamina quem a reaproveita.
@@ -104,12 +104,15 @@ Feitos na onda 1 (`727957c0`):
 - Verificação relatada da onda 1: `typecheck` limpo, `lint` 0 erros, jest 486 suítes, e2e 1225 passaram, 1 falhou
   (`filtros-laterais` B3), 238 pulados.
 
-Onda 2 (sem commit): item 9 (prescrição da época na revisão + "Quer trocar" no "O que mudou"), item 10 parcial (bloco G) e
-item 11 (vão de 4 px, já valia). Verificação relatada: jest 1358 testes, e2e 117 + 26, `ArquiteturaTest` 20,
+Onda 2 (entregue na leva 2, branch `leva-2`, 27/11; hash no relatório da leva): item 9 (prescrição da época na revisão,
+`GET /atualizacoes/{id}/prescricao/{tipo}`, `PrescricaoDaEpocaService`, títulos "Prescrição no envio" × "Prescrição atual",
++ "Quer trocar" no "O que mudou", que mostra os itens do plano sem seta quando a anterior não tinha a pergunta,
+`AnteriorParaAtual`), item 10 parcial (bloco G: modal Novo único, galeria de 7 grupos, estado vazio, `FolhaDeAcoes`,
+"editado em") e item 11 (vão de 4 px, já valia). Verificação relatada: jest 1358 testes, e2e 117 + 26, `ArquiteturaTest` 20,
 `ItensDoPlanoIntegrationTest` 11, `PrescricaoDaEpocaIntegrationTest` 4.
 
 Item 7 (cobertura e2e de "Ainda não enviados" no Histórico): spec `e2e/historico-nao-enviados.spec.ts` (390 e 1280, escuro e
-claro; sem internet e recusado pelo servidor com "Tentar enviar de novo"); 5 testes, verdes em 27/11 (porta 8320), sem commit.
+claro; sem internet e recusado pelo servidor com "Tentar enviar de novo"); 5 testes, verdes em 27/11 (porta 8320); já está na leva 1.
 
 Ainda **não** feito desta lista:
 - `FOLGA_DO_BOTAO` duplicada no Exercício: importar a constante de `ui/RolagemComTopo` em `aluno/exercicio/colunasDoExercicio.ts`
@@ -131,5 +134,5 @@ Ainda **não** feito desta lista:
 ## Atualização de 27/11 (leva 1 × leva 2)
 - Teto do aluno e Dieta: os de 1120, 1688 e 1312 saíram em 27/11 e a Dieta passou a duas colunas pela altura medida na `larga` e na `ultralarga` (substituem as decisões de 26/11 acima; ver `aluno-web-layout.md`).
 - Onda 1 da rodada de 28/11 (`CampoItensDoPlano`, folha da pasta, `Abas` com `tabpanel`) já está na branch `leva-1`. O "Próximo lote" acima (F, UI de `ITENS_DO_PLANO`) passou a ser desta onda.
-- Onda 2 (prescrição da época na revisão, bloco G parcial, e2e Histórico "Ainda não enviados"): só na branch `onda2-rodada` da worktree `consultoria-app-rodada-28-11`, **não publicada: leva 2**. Fica de fora dela: editor de questionário em lista + inspetor com arrastar.
+- Onda 2 (prescrição da época na revisão e bloco G parcial): entregue na leva 2 (branch `leva-2`, 27/11, aguardando verificação final e push; hash no relatório da leva); o e2e Histórico "Ainda não enviados" já está na leva 1. Segue pendente do bloco G: editor de questionário em lista + inspetor com arrastar, "Instruções" no Sobre, campos fixos da inscrição, Selo/data como peças.
 - Cartões compartilhados do Histórico, "Cancelar agendamento", PDFs N2 a N4: seguem pendentes.

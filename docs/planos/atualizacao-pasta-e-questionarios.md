@@ -2,8 +2,9 @@
 
 Situação: Em andamento. A, B, C (API e script), D e E entraram no lote de 26/11 (já na `main`, base `fb57efa9`; registro em
 [lote-26-11-retomada.md](lote-26-11-retomada.md)); C1 no app e F no commit local `727957c0` (rodada de 28/11, onda 1, branch
-`rodada-28-11`, sem push); D (prescrição da época) e G parcial aplicados na onda 2, **sem commit** · Onde: worktree
-`consultoria-app-rodada-28-11` · Atualizado: 27/11/2026 (estado real na seção "Passos")
+`rodada-28-11`, publicados na leva 1 em 27/11); D (prescrição da época) e G parcial (onda 2) entregues na leva 2
+(branch `leva-2`, 27/11/2026; hash no relatório da leva), aguardando verificação final e push; o resto do G segue pendente ·
+Onde: branch `leva-2` · Atualizado: 27/11/2026 (estado real na seção "Passos")
 
 Este documento é o briefing para outra IA executar. Ele junta o que o Gustavo pediu (um PDF de 23 páginas com capturas),
 a análise do código de hoje e o que recomendamos fazer. As capturas estão em
@@ -404,27 +405,30 @@ cada onda, não de uma rodada nova.
   `e2e/editor-questionario-itens.spec.ts`; jest `campoItensDoPlano.test.ts`.
 - [~] C2. Script `atualizacao-saraiva.mjs` — pronto no lote de 26/11, lista aprovada em 27/11, sem `--gravar`. Falta rodar a
   simulação contra a API local (item 2f; ver "Pendências soltas da rodada 28/11").
-- [~] D. Revisão do treinador — lote de 26/11 (prescrito ao lado, Evolução, "o que mudou"). Onda 2, **sem commit**: o cartão
-  mostra a prescrição da versão publicada na data da resposta (API `atualizacoes/PrescricaoDaEpocaService`, rota no
-  `AtualizacaoTreinadorController`, `PrescricaoDaEpocaIntegrationTest`; app `treinador/revisao/usePrescricaoDaEpoca.ts`) e
-  o item "Quer trocar" do `ITENS_DO_PLANO` entra no "O que mudou" (`dominio/mudancasDaAtualizacao.ts`). Título do cartão:
-  pergunta 5 em aberto. Três colunas na ultralarga: fora da rodada.
+- [x] D. Revisão do treinador — lote de 26/11 (prescrito ao lado, Evolução, "o que mudou"). Onda 2, **entregue na leva 2**
+  (27/11; sem hash aqui): a revisão mostra a prescrição da versão publicada na data da resposta (API
+  `atualizacoes/PrescricaoDaEpocaService`, `GET /atualizacoes/{id}/prescricao/{tipo}` no `AtualizacaoTreinadorController`,
+  `PrescricaoDaEpocaIntegrationTest`; app `treinador/revisao/usePrescricaoDaEpoca.ts`), com os títulos "Prescrição no envio"
+  × "Prescrição atual" (decisão do Gustavo), e o item "Quer trocar" do `ITENS_DO_PLANO` entra no "O que mudou"
+  (`dominio/mudancasDaAtualizacao.ts`); quando a atualização anterior não tinha a pergunta, "O que mudou" mostra os itens do
+  plano **sem seta** (`AnteriorParaAtual`, ramo `anterior === null`, `PontosDeAtencao.tsx`). Três colunas na ultralarga:
+  fora da rodada.
 - [x] E. Data de liberação + aviso ao aluno — lote de 26/11 (V106). "Cancelar agendamento": fora, por decisão.
 - [x] F. Folha da pasta redesenhada — `727957c0` (local): cabeçalho com período uma vez, atualização no topo, planos em abas
   com selo único por linha (`dominio/linhaDoPlano.ts`), "Publicar alterações (N)" e a "Ordem sugerida" no ⓘ. Specs:
   `e2e/folha-da-pasta.spec.ts`, `e2e/pasta-e-atualizacao.spec.ts`.
-- [~] G. Criação e edição de questionários — **parcial**, onda 2 **sem commit**: um só "Novo" nas três abas (Nome, Descrição
-  e "Começar de": modelo da plataforma só na atualização, "Copiar de um existente", "Em branco"), galeria de tipos agrupada
+- [~] G. Criação e edição de questionários — **parcial**, onda 2 **entregue na leva 2** (27/11; sem hash aqui): um só "Novo" (modal único) nas três abas (Nome, Descrição
+  e "Começar de": modelo da plataforma só na atualização, "Copiar de um existente", "Em branco"), galeria de tipos agrupada em 7 grupos
   (`treinador/questionarios/GaleriaDeTipos.tsx`, `dominio/editorQuestionario.gruposParaAdicionar`), editor vazio com
   "Adicione a primeira pergunta", ⋯ das listas na `FolhaDeAcoes` e linha da lista com "Publicado vN · Padrão · Arquivado"
-  e uso. **Ficaram de fora:** editor lista + inspetor com arrastar para reordenar; "Instruções" como campo do cartão
+  e uso (a data da última edição aparece como "editado em"). **Ficaram de fora (seguem pendentes):** editor lista + inspetor com arrastar para reordenar; "Instruções" como campo do cartão
   "Sobre"; campos fixos da inscrição dentro do editor; selo de situação e data da última edição como peças próprias da
   linha.
 
 Verificações relatadas (não refeitas aqui):
 - Onda 1 (`727957c0`): `typecheck` limpo, `lint` 0 erros, jest 486 suítes, e2e 1225 passaram, 1 falhou (`filtros-laterais`
   B3), 238 pulados.
-- Onda 2 (sem commit): jest 1358 testes, e2e 117 + 26, `ArquiteturaTest` 20, `ItensDoPlanoIntegrationTest` 11,
+- Onda 2 (leva 2; relatado antes de entrar na branch): jest 1358 testes, e2e 117 + 26, `ArquiteturaTest` 20, `ItensDoPlanoIntegrationTest` 11,
   `PrescricaoDaEpocaIntegrationTest` 4.
 - Item 7 (Histórico, "Ainda não enviados"): spec nova `e2e/historico-nao-enviados.spec.ts` (390 e 1280, escuro e claro;
   sem internet e recusado pelo servidor); resultado no relatório da unidade.
